@@ -1,9 +1,9 @@
 # Issue 0002 — The North-Star Fused Test (acceptance gate)
 
 Seating: this repo owns the widest surface, so the fused test lives here — CI (.NET)
-and Unity Test Runner (EditMode) once the adapter atom lands. Until the GitHub remote
-exists, this file is the issue; file verbatim on remote creation. The spec below is
-the bus copy, vendored verbatim from `agent-bus/contract/NORTH-STAR.md`.
+and Unity Test Runner (EditMode) once the adapter atom lands. Filed as GitHub issue #2
+(open — acceptance gate). The spec below is the bus copy, vendored verbatim from
+`agent-bus/contract/NORTH-STAR.md`.
 
 ---
 

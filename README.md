@@ -63,8 +63,8 @@ float math); the walkers land with atom 3. Nothing ships half-wired.
 Mirrors tl's `AGENTS.md`: issues carry the spec, atoms are short and green before the
 next starts, receipts (commands + outputs) are recorded in the issue, production code
 carries no explanatory comments, the data path is unmanaged, and every public
-abstraction pays for itself. Until the GitHub remote exists, issues live in
-`issues/`; they are filed verbatim on creation of the remote.
+abstraction pays for itself. GitHub issues are the record; `issues/` keeps the
+authored copies.
 
 Before starting and before finishing any atom, check the agent bus:
 `/home/i/GitHub/agent-bus/bin/check stats --body`. Reply and ack per
