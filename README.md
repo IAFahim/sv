@@ -9,17 +9,25 @@ events, input).
 **events** (condition-column ingestion), and **input** (bit-captured axes, button
 edges, replay ring). Entity-free at the core; ECS hosts adapt through one chunk shape.
 
-- Contract: **The Composition Contract v1.0** below, vendored verbatim from
-  `agent-bus/contract/CONTRACT.md` (merge point). Negotiated under the name "board";
-  shipped as `sv` — same library, owner's pick. Changes are bus messages first, then a
-  version bump at the merge point.
+- Contract: **The Composition Contract v1.0.3** below, vendored verbatim
+  ([local copy](contract/CONTRACT-v1.0.3.md); merge point:
+  `agent-bus/contract/CONTRACT.md`). Negotiated under the name "board"; shipped as
+  `sv` — same library, owner's pick. Changes are bus messages first, then a version
+  bump at the merge point; the full changelog lives in the vendored header.
 - Verification: clause conformance is proven by the north-star fused test
   (`contract/NORTH-STAR.md`, seated as [issues/0002](issues/0002-north-star.md)) plus
   this repo's own suite; mask/run semantics by `contract/mask-fixtures.json`
   (extracted bit-exact from ecs-kernels editor-verified facts — the fleet conformance
-  set).
+  set). The north-star leg consumes the published tl pair only (Tl.Runtime /
+  Tl.Gen.CSharp / tlb 1.3.0).
+- Usage: [sv-examples](https://github.com/IAFahim/sv-examples) — five runnable
+  samples (core stats/intrinsics, events, input replay, the Frent adapter, and the
+  frozen-frame composition with whole-run replay bit-identity), each printing a
+  zero-managed-allocation receipt on its warm path.
 
-## The Composition Contract — v1.0
+## The Composition Contract — v1.0.3
+
+Clause index (17), verbatim from the vendored master copy:
 
 1. **Strict two-step IEEE float policy**; no FMA anywhere (grep-enforced); StrictFloat oracle vendored.
 2. **Clamps are ternary/select** (compare+blend); never Min/Max on floats; ints may use Avx2.Min/Max.
@@ -27,7 +35,7 @@ edges, replay ring). Entity-free at the core; ECS hosts adapt through one chunk 
 4. **Recalc ends in a broadcast** into bound columns; per-entity board reads are tooling-only; no gathers.
 5. **Dense slots**; adapter owns entity→slot at create/destroy; single chunk shape `RunChunk`/`RunEnabledChunk` (+ `Span` twins).
 6. **Condition ingestion by run-walk** (tzcnt, `length == 64` guard); semantics conform to `mask-fixtures.json`.
-7. **Frozen frame order**: input edges → drain prev events → stat recalc + broadcast → tl Apply/Advance → kernels → condition run-walk → write events → swap. Mid-frame structural changes apply next frame. Intrinsics writes happen inside event-drain handlers (step 2) and condition responses (step 6), and both read frame-frozen bounds from the previous broadcast. *(The last sentence is the explicit intrinsics home, requested on the bus post-v1.0; pending fold into the merge-point copy as v1.0.1.)*
+7. **Frozen frame order**: input edges → drain prev events → stat recalc + broadcast → tl Apply/Advance → kernels → condition run-walk → write events → swap. Mid-frame structural changes apply next frame. Intrinsics writes happen inside event-drain handlers (step 2) and condition responses (step 6), and both read frame-frozen bounds from the previous broadcast.
 8. **Runtime dependencies: none**; tl and ecs-kernels are test-only references.
 9. **Bool normalization**: any nonzero byte = true; compare-≠0 → movemask before any bit trick; arithmetic OR of raw bytes banned.
 10. **Clamp bounds**: Constant / Columns / Stat; Stat resolves at construction to the bound output column; bounds are frame-frozen; no clamp–modifier cycles.
@@ -35,13 +43,16 @@ edges, replay ring). Entity-free at the core; ECS hosts adapt through one chunk 
 12. **Pointer stability**: bound output pointers (`BindOutput`) and `Clamp.Stat`-captured columns are stable from warmup until an explicit rebind; any storage growth forces re-resolve before the next op; use-after-rebind detected in checked builds.
 13. **tl effect columns accumulate** (`+=`): (a) one column, one writer kind — store-writers (stats broadcast) and accumulate-writers (tl) never share a column; (b) the host zeroes each tl effect column once per frame, immediately before the timeline step of clause 7; (c) tl's position in the frozen order fixes the add order.
 14. **Warmup before parallel frames**: all timeline ids loaded and first-use folds completed during warmup; first-use inside a warm frame is a contract violation, asserted in checked builds.
+16. **Pinned float→int conversion for stat bounds**: NaN → 0; saturate to [int.MinValue, int.MaxValue]; otherwise truncate toward zero. Implemented identically in scalar and vector paths (sv: `Clamp.BoundOf` / `Simd.BoundsOf`); raw `(int)float` casts on bound paths are banned — ECMA leaves out-of-range conversion unspecified and JIT tiers and ISAs disagree (x64 `cvttss2si` indefinite vs ARM `fcvtzs` saturating).
 15. **Stats is float/int only; no double effect columns** (tl's double combine branch never exercised); any shipped `IBlend` follows clauses 1–2 and prefers pre-folded tables so Blend never runs at runtime.
+17. **Events are sparse signals; dense per-row payloads move through columns**: emitters and makers exist for edge-triggered facts (threshold crossed, timeline finished, damage dealt), never as a per-row per-frame data channel — full-density payload traffic goes through broadcast/accumulate columns per clauses 4/13. Hosts must not build full-density make-call loops in perf-critical frames: on .NET each maker call pays the `UnmanagedCallersOnly` entry gate (~10 ns, IL stub + TLS, measured in sv issue #9); Unity/Burst hosts compile the same `delegate* unmanaged` signature natively via `BurstCompiler.CompileFunctionPointer` and pay no such gate. The maker signature stays fixed (portable-surface rule); a batched emitter may be added later only if a real scenario demands near-dense emission, as a versioned contract change.
 
-**Portable-surface rule** (Amendment B): Unity hosts are C# 9 — `static abstract`
-interface members are .NET-only wrappers. The portable, Burst-compatible core for all
-walkers and emitters is `delegate* unmanaged<int, int, T>`; Unity falls back to the
-fnptr core or mask-level escapes (`WalkNonZero`). Same pattern tl.unity's fork uses for
-the same reason.
+**Portable-surface rule** (from Amendment B):
+
+Unity hosts are C# 9: `static abstract` interface members are .NET-only wrappers.
+The portable, Burst-compatible core for all walkers and emitters is
+`delegate* unmanaged<int, int, T>`; Unity falls back to the fnptr core or mask-level
+escapes (`WalkNonZero`). Same pattern tl.unity's fork uses for the same reason.
 
 ## Performance receipts
 
@@ -53,8 +64,9 @@ input capture 9 ns; every scenario verified against a scalar reference and print
 `alloc=0B`. Standing `NoAllocationTests` assert exact-zero managed bytes for every
 warm verb; the managed-state audit shows zero managed collections outside
 `Schema` (cold authoring). Known .NET-only cost: the `UnmanagedCallersOnly` entry
-thunk charges ~10 ns per event `make` call (~29% of a dense-emit frame); Unity/Burst
-hosts compile makers natively. Any mitigation is a bus-level contract discussion.
+thunk charges ~10 ns per event `make` call (~29% of a dense-emit frame); ruled a
+contract cost (clause 17) — events are sparse signals, dense payloads belong in
+columns. Unity/Burst hosts compile the same `delegate* unmanaged` signature natively.
 
 ## Atoms
 
