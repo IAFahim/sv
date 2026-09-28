@@ -1,3 +1,4 @@
+using Kernels.Testing;
 using System;
 using System.Diagnostics;
 using System.Numerics;
@@ -395,7 +396,7 @@ internal sealed unsafe class StatRecalcBench : BenchBase
 
     public override string Verify()
     {
-        var expected = StrictFloat.Mul(10f, StrictFloat.Add(1f, 1f));
+        var expected = StrictFloat.Multiply(10f, StrictFloat.Add(1f, 1f));
         var actual = column[0];
         if (BitConverter.SingleToUInt32Bits(expected) != BitConverter.SingleToUInt32Bits(actual))
         {

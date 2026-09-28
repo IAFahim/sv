@@ -1,20 +1,23 @@
 using System;
 using System.Runtime.CompilerServices;
 
-public static class StrictFloat
+namespace Kernels.Testing
 {
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public static float Add(float a, float b) => (float)((double)a + (double)b);
+    public static class StrictFloat
+    {
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static float Add(float left, float right) => (float)((double)left + right);
 
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public static float Sub(float a, float b) => (float)((double)a - (double)b);
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static float Subtract(float left, float right) => (float)((double)left - right);
 
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public static float Mul(float a, float b) => (float)((double)a * (double)b);
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static float Multiply(float left, float right) => (float)((double)left * right);
 
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public static float Divide(float a, float b) => (float)((double)a / (double)b);
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static float Divide(float left, float right) => (float)((double)left / right);
 
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public static float Sqrt(float a) => (float)Math.Sqrt(a);
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static float Sqrt(float value) => (float)Math.Sqrt(value);
+    }
 }

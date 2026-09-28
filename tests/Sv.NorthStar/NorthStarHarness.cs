@@ -1,3 +1,4 @@
+using Kernels.Testing;
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
@@ -58,7 +59,7 @@ public sealed unsafe class NorthStarHarness : IDisposable
 
     public const float Gravity = -9.8f;
 
-    public const float Restitution = 0.5f;
+    public const float GravityField = -9.8f;
 
     public readonly float Dt = 0.016666668f;
 
@@ -95,6 +96,12 @@ public sealed unsafe class NorthStarHarness : IDisposable
     public float[] Position = new float[Entities];
 
     public float[] Velocity = new float[Entities];
+
+#if KERNELS_PRESENT
+    readonly Simulation.Position[] kernelPositions = new Simulation.Position[Entities];
+
+    readonly Simulation.Velocity[] kernelVelocities = new Simulation.Velocity[Entities];
+#endif
 
     public float[] Y = new float[Entities];
 
@@ -163,6 +170,7 @@ public sealed unsafe class NorthStarHarness : IDisposable
             mana[i] = 40;
         }
 
+
         Board.Recalculate();
     }
 
@@ -207,12 +215,12 @@ public sealed unsafe class NorthStarHarness : IDisposable
         Timeline<global::NorthStar.JumpTrack, global::NorthStar.JumpClip>.Apply(Ids, TickClock, true, Y);
         for (var i = 0; i < Entities; i++)
         {
-            Y[i] = StrictFloat.Mul(Y[i], jumpPowerColumn[i]);
+            Y[i] = StrictFloat.Multiply(Y[i], jumpPowerColumn[i]);
         }
 
         Timeline.Advance(Ids, TickClock, true);
 
-        FallKernel(Input.AxisF(0));
+        IntegrateMotion(Input.AxisF(0));
 
         streams.EmitFromBools(landedChannel, landedCol, 0, Entities, &NorthStarEvents.MakeLanded);
         streams.EmitFromNonZero(manaChannel, applied, 0, Entities, &NorthStarEvents.MakeMana);
@@ -225,26 +233,58 @@ public sealed unsafe class NorthStarHarness : IDisposable
         streams.Swap();
     }
 
-    void FallKernel(float dt)
+    void IntegrateMotion(float dt)
     {
+        var gravityDt = StrictFloat.Multiply(GravityField, dt);
+#if KERNELS_PRESENT
         for (var i = 0; i < Entities; i++)
         {
-            var gravity = StrictFloat.Mul(StrictFloat.Mul(Gravity, moveSpeedColumn[i]), dt);
-            var vy = StrictFloat.Add(Velocity[i], gravity);
-            var dy = StrictFloat.Add(StrictFloat.Mul(vy, dt), Y[i]);
-            var pos = StrictFloat.Add(Position[i], dy);
-            byte hit = 0;
-            if (pos < 0f)
+            kernelVelocities[i].Y = Velocity[i];
+            kernelPositions[i].Y = Position[i];
+        }
+
+        var fall = new Simulation.Fall { Dt = dt, Gravity = GravityField };
+        fall.RunChunk(kernelPositions, kernelVelocities);
+        for (var i = 0; i < Entities; i++)
+        {
+            var velBefore = Velocity[i];
+            var posBefore = Position[i];
+            var posAfter = StrictFloat.Add(posBefore, StrictFloat.Multiply(velBefore, dt));
+            var velAfter = StrictFloat.Subtract(velBefore, gravityDt);
+            if (posAfter < 0f)
             {
-                pos = 0f;
-                vy = StrictFloat.Mul(-vy, Restitution);
-                hit = 1;
+                posAfter = 0f;
+                velAfter = 0f;
             }
 
-            Velocity[i] = vy;
-            Position[i] = pos;
-            landedCol[i] = hit;
+            if (BitConverter.SingleToUInt32Bits(kernelPositions[i].Y) != BitConverter.SingleToUInt32Bits(posAfter) ||
+                BitConverter.SingleToUInt32Bits(kernelVelocities[i].Y) != BitConverter.SingleToUInt32Bits(velAfter))
+            {
+                throw new InvalidOperationException($"kernel/scalar divergence row {i}: pos {kernelPositions[i].Y} vs {posAfter}, vel {kernelVelocities[i].Y} vs {velAfter}");
+            }
+
+            Position[i] = kernelPositions[i].Y;
+            Velocity[i] = kernelVelocities[i].Y;
+            landedCol[i] = (byte)(posBefore != 0f && posAfter == 0f ? 1 : 0);
         }
+#else
+        for (var i = 0; i < Entities; i++)
+        {
+            var velBefore = Velocity[i];
+            var posBefore = Position[i];
+            var posAfter = StrictFloat.Add(posBefore, StrictFloat.Multiply(velBefore, dt));
+            var velAfter = StrictFloat.Subtract(velBefore, gravityDt);
+            if (posAfter < 0f)
+            {
+                posAfter = 0f;
+                velAfter = 0f;
+            }
+
+            Velocity[i] = velAfter;
+            Position[i] = posAfter;
+            landedCol[i] = (byte)(posBefore != 0f && posAfter == 0f ? 1 : 0);
+        }
+#endif
     }
 
     public FrameRecord Record()

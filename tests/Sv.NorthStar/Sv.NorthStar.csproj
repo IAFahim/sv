@@ -29,6 +29,21 @@
     <Compile Include="..\Sv.Tests\StrictFloatOracle.cs" Link="StrictFloatOracle.cs" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <KernelsRoot Condition="'$(KernelsRoot)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../../../ecs-kernels-new'))</KernelsRoot>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="Exists('$(KernelsRoot)/dotnet/Kernels/Kernels.csproj')">
+    <DefineConstants>$(DefineConstants);KERNELS_PRESENT</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup Condition="Exists('$(KernelsRoot)/dotnet/Kernels/Kernels.csproj')">
+    <ProjectReference Include="$(KernelsRoot)/dotnet/Kernels/Kernels.csproj" />
+    <ProjectReference Include="$(KernelsRoot)/generator/Kernels.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <Compile Include="$(KernelsRoot)/packages/com.game.simulation/Components.cs" Link="Kernels/Components.cs" />
+    <Compile Include="$(KernelsRoot)/packages/com.game.simulation/Fall.cs" Link="Kernels/Fall.cs" />
+  </ItemGroup>
+
   <ItemGroup>
     <None Update="jump.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

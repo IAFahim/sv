@@ -1,3 +1,4 @@
+using Kernels.Testing;
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
@@ -35,12 +36,12 @@ public unsafe class StatsTests
             }
         }
 
-        value = StrictFloat.Mul(value, additive);
+        value = StrictFloat.Multiply(value, additive);
         foreach (var (kind, v) in canonical)
         {
             if (kind == ModifierKind.Multi)
             {
-                value = StrictFloat.Mul(value, StrictFloat.Add(1f, v));
+                value = StrictFloat.Multiply(value, StrictFloat.Add(1f, v));
             }
         }
 

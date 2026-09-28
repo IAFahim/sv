@@ -66,7 +66,7 @@ hosts compile makers natively. Any mitigation is a bus-level contract discussion
 | 4 | Input: bit-captured axes, button edges, replay ring | done |
 | 5 | SIMD pass: vector chunk clamps, scan words, ANDNOT edges — width-invariance receipts, pinned stat-bound float→int (NaN→0, saturate), zero FMA | done |
 | 6 | Adapter: Frent chunk seam (`sv.frent`, SvSlot mapping, zero-copy contiguous fast path, Pull/Push fallback) + Unity 6.7 handoff record | done |
-| 7 | North-star fused test — stage A on .NET shipped ([issues/0008](issues/0008-atom-7.md)); stage B (real kernel + Unity host) under issue #2 | done (A) |
+| 7 | North-star fused test — .NET leg complete: stage A ([issues/0008](issues/0008-atom-7.md)) + stage B real kernel bit-identical ([issues/0010](issues/0010-atom-7-stage-b.md)); Unity cross-host under issue #2 | done (.NET) |
 | 8 | Perf: benchmark harness, perf receipts, zero-allocation tests, managed audit, run-walk inlining (+81%) ([issues/0009](issues/0009-perf-bench.md)) | done |
 
 Atom 1 scope note: `Clamp.Stat` and the StrictFloat oracle land with atom 2 (the first
