@@ -1,4 +1,7 @@
-# The Composition Contract — v1.0
+# The Composition Contract — v1.0.1
+
+Changelog: v1.0.1 folds the clause-7 intrinsics-home sentence (requested by sv, bus
+message 0006). v1.0 was the 15-clause negotiation of messages 0001–0005.
 
 Master copy for the three-system composition: **ecs-kernels** (derived math) ×
 **tl** (authored motion) × **board** (settings/state: stats, intrinsics, events, input).
@@ -20,7 +23,7 @@ One noun — dense columns over entity slots. Three verbs over it.
 4. **Recalc ends in a broadcast** into bound columns; per-entity board reads are tooling-only; no gathers.
 5. **Dense slots**; adapter owns entity→slot at create/destroy; single chunk shape `RunChunk`/`RunEnabledChunk` (+ `Span` twins).
 6. **Condition ingestion by run-walk** (tzcnt, `length == 64` guard); semantics conform to `mask-fixtures.json`.
-7. **Frozen frame order**: input edges → drain prev events → stat recalc + broadcast → tl Apply/Advance → kernels → condition run-walk → write events → swap. Mid-frame structural changes apply next frame.
+7. **Frozen frame order**: input edges → drain prev events → stat recalc + broadcast → tl Apply/Advance → kernels → condition run-walk → write events → swap. Mid-frame structural changes apply next frame. Intrinsics writes happen inside event-drain handlers (step 2) and condition responses (step 6), and both read frame-frozen bounds from the previous broadcast.
 8. **Runtime dependencies: none**; tl and ecs-kernels are test-only references.
 9. **Bool normalization**: any nonzero byte = true; compare-≠0 → movemask before any bit trick; arithmetic OR of raw bytes banned.
 10. **Clamp bounds**: Constant / Columns / Stat; Stat resolves at construction to the bound output column; bounds are frame-frozen; no clamp–modifier cycles.
