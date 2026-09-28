@@ -16,8 +16,8 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Tl.Runtime" Version="1.2.0" />
-    <PackageReference Include="Tl.Gen.CSharp" Version="1.2.0" ReferenceOutputAssembly="false" OutputItemType="Analyzer" PrivateAssets="all" AdditionalProperties="TargetFramework=netstandard2.0"
+    <PackageReference Include="Tl.Runtime" Version="1.3.0" />
+    <PackageReference Include="Tl.Gen.CSharp" Version="1.3.0" ReferenceOutputAssembly="false" OutputItemType="Analyzer" PrivateAssets="all" AdditionalProperties="TargetFramework=netstandard2.0"
                       GlobalPropertiesToRemove="RuntimeIdentifier;SelfContained;PublishAot;PublishTrimmed" />
   </ItemGroup>
 
