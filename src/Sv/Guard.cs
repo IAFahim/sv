@@ -13,6 +13,22 @@ internal static unsafe class Guard
         }
     }
 
+    public static void Button(int button, int words)
+    {
+        if (button < 0 || button >= words * 64)
+        {
+            throw new ArgumentOutOfRangeException(nameof(button), $"sv: button {button} out of range (0..{words * 64 - 1})");
+        }
+    }
+
+    public static void Axis(int axis, int axes)
+    {
+        if (axis < 0 || axis >= axes)
+        {
+            throw new ArgumentOutOfRangeException(nameof(axis), $"sv: axis {axis} out of range (0..{axes - 1})");
+        }
+    }
+
     [Conditional("SV_CHECKED")]
     public static void ChunkRange(int start, int count, int capacity)
     {
