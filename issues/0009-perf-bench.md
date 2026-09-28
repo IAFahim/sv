@@ -65,7 +65,7 @@ for JIT symbol resolution)
 2. Enabled run-walk: fixed this atom (+81%); remaining cost is the essential
    per-bit ternary chain + scattered stores.
 3. Event `make` thunk: ~29% of a dense-emit frame on .NET — documented, contract
-   surface, bus question raised; not changed here.
+   surface; ruled (see the addendum below), not changed here.
 4. Stat clamp: 1.9x vs constant is the pinned-conversion price; games needing
    constant-clamp speed can author Constant clamps where the design allows.
 5. Everything else (stat recalc 121 ns add+remove+recalc, input 9 ns) is far from
@@ -105,3 +105,20 @@ The pin stands unchanged.
 - `dotnet test sv.slnx -c Release` — 93/93 (Sv.Tests, +3 allocation tests) + 4/4
   (Sv.NorthStar). `-p:DefineConstants=SV_CHECKED` — 93/93 + 4/4.
 - Frent aligned 0.8.0-beta → 8.0.0-beta: adapter tests green unchanged.
+
+## Ruling addendum (2026-09-28, bus 0021 — recorded here to match the GitHub #9 mirror)
+
+The fnptr-thunk question in headroom item 3 was ruled on the bus and folded as
+**clause 17** of the Composition Contract (v1.0.3, vendored at
+`contract/CONTRACT-v1.0.3.md`):
+
+- Events are sparse signals; dense per-row payloads belong in broadcast/accumulate
+  columns (clauses 4/13) — the ~10 ns `UnmanagedCallersOnly` entry gate per make call
+  is accepted as contract cost, and Unity/Burst hosts compile the same
+  `delegate* unmanaged` signature natively and pay no such gate.
+- A no-make emitter variant was DENIED.
+- A batched emitter may be added later only if a real scenario demands near-dense
+  emission, as a versioned contract change.
+
+The clause text also carries the carry-over note for the Unity editor leg: keep
+`MethodImpl(AggressiveInlining)` on `Clamp.Apply` through any port.
