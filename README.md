@@ -48,7 +48,7 @@ the same reason.
 | # | Atom | Status |
 |---|---|---|
 | 1 | Schema + Board slots + `Clamp` (Constant/Columns) + `RunIntrinsicsChunk`/`RunEnabledChunk` (+ `Span` twins), ternary clamps, applied-delta — [issues/0001](issues/0001-atom-1.md) | done |
-| 2 | Stats: insertion-id modifiers, content-deduped sets, canonical fold, `BindOutput` broadcast, `Clamp.Stat`, StrictFloat oracle vendored | — |
+| 2 | Stats: insertion-id modifiers, content-deduped sets, canonical fold, `BindOutput` broadcast, `Clamp.Stat`, StrictFloat oracle vendored | done |
 | 3 | Event streams: pooled double buffer, parallel writer, fnptr walkers, mask conformance via `contract/mask-fixtures.json` | — |
 | 4 | Input: bit-captured axes, button edges, replay ring | — |
 | 5 | SIMD pass: broadcast stores, ANDNOT edges, run-walk — width-invariance receipts; compare+blend clamps only; zero FMA | — |

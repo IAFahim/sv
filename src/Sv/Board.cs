@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 
 namespace Sv;
 
-public sealed unsafe class Board : IDisposable
+public sealed unsafe partial class Board : IDisposable
 {
     public Schema Schema { get; }
 
@@ -24,15 +24,16 @@ public sealed unsafe class Board : IDisposable
     {
         Schema = schema;
         Capacity = capacity;
-        freeSlots = (int*)NativeMemory.Alloc((nuint)capacity, sizeof(int));
+        freeSlots = (int*)NativeMemory.Alloc((nuint)capacity * (nuint)sizeof(int), (nuint)sizeof(int));
         var words = (nuint)((capacity + 63) >> 6);
-        live = (ulong*)NativeMemory.Alloc(words, sizeof(ulong));
+        live = (ulong*)NativeMemory.AllocZeroed(words * (nuint)sizeof(ulong), (nuint)sizeof(ulong));
         for (var i = 0; i < capacity; i++)
         {
             freeSlots[i] = capacity - 1 - i;
         }
 
         freeTop = capacity;
+        InitStats(schema, capacity);
     }
 
     public static Board Create(Schema schema, int capacity)
@@ -60,6 +61,11 @@ public sealed unsafe class Board : IDisposable
         var slot = freeSlots[--freeTop];
         live[slot >> 6] |= 1ul << (slot & 63);
         LiveCount++;
+        if (statCount > 0)
+        {
+            MarkSlotStatsDirty(slot);
+        }
+
         return slot;
     }
 
@@ -71,6 +77,11 @@ public sealed unsafe class Board : IDisposable
         }
 
         live[slot >> 6] &= ~(1ul << (slot & 63));
+        if (statCount > 0)
+        {
+            ClearSlotStats(slot);
+        }
+
         freeSlots[freeTop++] = slot;
         LiveCount--;
     }
@@ -296,6 +307,7 @@ public sealed unsafe class Board : IDisposable
 
         NativeMemory.Free(freeSlots);
         NativeMemory.Free(live);
+        FreeStats();
         disposed = true;
     }
 }

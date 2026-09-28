@@ -3,8 +3,16 @@ using System.Diagnostics;
 
 namespace Sv;
 
-internal static class Guard
+internal static unsafe class Guard
 {
+    public static void SlotLive(int slot, ulong* live, int capacity)
+    {
+        if (slot < 0 || slot >= capacity || (live[slot >> 6] & (1ul << (slot & 63))) == 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(slot), $"sv: slot {slot} is not live");
+        }
+    }
+
     [Conditional("SV_CHECKED")]
     public static void ChunkRange(int start, int count, int capacity)
     {
