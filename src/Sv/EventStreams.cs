@@ -8,7 +8,7 @@ public sealed unsafe class Channel<T> where T : unmanaged
 {
     internal EventStreams Owner = null!;
 
-    internal ushort Id;
+    public ushort Id;
 
     internal int Writer;
 

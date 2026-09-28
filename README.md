@@ -53,7 +53,7 @@ the same reason.
 | 4 | Input: bit-captured axes, button edges, replay ring | done |
 | 5 | SIMD pass: vector chunk clamps, scan words, ANDNOT edges — width-invariance receipts, pinned stat-bound float→int (NaN→0, saturate), zero FMA | done |
 | 6 | Adapter: Frent chunk seam (`sv.frent`, SvSlot mapping, zero-copy contiguous fast path, Pull/Push fallback) + Unity 6.7 handoff record | done |
-| 7 | North-star fused test ([issues/0002](issues/0002-north-star.md)) — acceptance gate | — |
+| 7 | North-star fused test — stage A on .NET shipped ([issues/0008](issues/0008-atom-7.md)); stage B (real kernel + Unity host) under issue #2 | done (A) |
 
 Atom 1 scope note: `Clamp.Stat` and the StrictFloat oracle land with atom 2 (the first
 float math); the walkers land with atom 3. Nothing ships half-wired.

@@ -1,0 +1,17 @@
+{
+  "name": "jump",
+  "duration": 30,
+  "loop": true,
+  "tracks": [
+    {
+      "name": "arc",
+      "namespace": "NorthStar",
+      "type": "JumpTrack",
+      "data": { "Scale": 1.0 },
+      "clips": [
+        { "name": "rise", "namespace": "NorthStar", "type": "JumpClip", "start": 0, "end": 15, "data": { "Velocity": 2.0 } },
+        { "name": "fall", "namespace": "NorthStar", "type": "JumpClip", "start": 15, "end": 30, "data": { "Velocity": -2.0 } }
+      ]
+    }
+  ]
+}
