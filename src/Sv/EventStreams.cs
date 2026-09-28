@@ -213,12 +213,28 @@ public sealed unsafe class EventStreams : IDisposable
             throw new ArgumentNullException(nameof(channel));
         }
 
-        for (var i = 0; i < count; i++)
+        var row = start;
+        var remaining = count;
+        while (remaining >= 64)
         {
-            var row = start + i;
-            if (cond[row] != 0)
+            var mask = Simd.BoolNonZeroWord(cond, row);
+            while (mask != 0)
             {
-                var evt = make(row, 1);
+                var bit = System.Numerics.BitOperations.TrailingZeroCount(mask);
+                mask &= mask - 1;
+                var evt = make(row + bit, 1);
+                Append(channel.Id, channel.Writer, &evt);
+            }
+
+            row += 64;
+            remaining -= 64;
+        }
+
+        for (var i = 0; i < remaining; i++)
+        {
+            if (cond[row + i] != 0)
+            {
+                var evt = make(row + i, 1);
                 Append(channel.Id, channel.Writer, &evt);
             }
         }
@@ -252,13 +268,31 @@ public sealed unsafe class EventStreams : IDisposable
             throw new ArgumentNullException(nameof(channel));
         }
 
-        for (var i = 0; i < count; i++)
+        var row = start;
+        var remaining = count;
+        while (remaining >= 64)
         {
-            var row = start + i;
-            var value = values[row];
+            var mask = Simd.IntNonZeroWord(values, row);
+            while (mask != 0)
+            {
+                var bit = System.Numerics.BitOperations.TrailingZeroCount(mask);
+                mask &= mask - 1;
+                var hit = row + bit;
+                var evt = make(hit, values[hit]);
+                Append(channel.Id, channel.Writer, &evt);
+            }
+
+            row += 64;
+            remaining -= 64;
+        }
+
+        for (var i = 0; i < remaining; i++)
+        {
+            var hit = row + i;
+            var value = values[hit];
             if (value != 0)
             {
-                var evt = make(row, value);
+                var evt = make(hit, value);
                 Append(channel.Id, channel.Writer, &evt);
             }
         }

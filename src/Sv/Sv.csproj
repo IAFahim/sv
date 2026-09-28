@@ -8,4 +8,8 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <PackageId>sv</PackageId>
   </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Sv.Tests" />
+  </ItemGroup>
 </Project>

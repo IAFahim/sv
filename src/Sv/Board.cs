@@ -94,17 +94,7 @@ public sealed unsafe partial class Board : IDisposable
         }
 
         Guard.ChunkRange(start, count, Capacity);
-        for (var i = 0; i < count; i++)
-        {
-            var slot = start + i;
-            var before = value[slot];
-            var after = clamp.Apply(before + delta, slot);
-            value[slot] = after;
-            if (applied != null)
-            {
-                applied[slot] = after - before;
-            }
-        }
+        Simd.Chunk(value, null, delta, clamp, start, count, applied);
     }
 
     public void RunIntrinsicsChunk(int* value, int* delta, in Clamp clamp, int start, int count, int* applied = null)
@@ -120,17 +110,7 @@ public sealed unsafe partial class Board : IDisposable
         }
 
         Guard.ChunkRange(start, count, Capacity);
-        for (var i = 0; i < count; i++)
-        {
-            var slot = start + i;
-            var before = value[slot];
-            var after = clamp.Apply(before + delta[slot], slot);
-            value[slot] = after;
-            if (applied != null)
-            {
-                applied[slot] = after - before;
-            }
-        }
+        Simd.Chunk(value, delta, 0, clamp, start, count, applied);
     }
 
     public void RunEnabledChunk(int* value, int delta, in Clamp clamp, ulong enabled, int offset, int* applied = null)

@@ -110,14 +110,10 @@ public sealed unsafe class InputState : IDisposable
 
         for (var w = 0; w < ButtonWords; w++)
         {
-            previous[w] = buttons[w];
-            var word = buttonWords[w];
-            bt[w] = word;
-            buttons[w] = word;
-            pressed[w] = word & ~previous[w];
-            released[w] = ~word & previous[w];
+            bt[w] = buttonWords[w];
         }
 
+        Simd.ApplyButtonWords(buttonWords, buttons, previous, pressed, released, ButtonWords);
         ringTickIds[ringHead] = tickCounter;
         ringHead = ringHead + 1 == RingTicks ? 0 : ringHead + 1;
         tickCounter++;
@@ -172,15 +168,7 @@ public sealed unsafe class InputState : IDisposable
             axisBits[i] = ax[i];
         }
 
-        for (var w = 0; w < ButtonWords; w++)
-        {
-            previous[w] = buttons[w];
-            var word = bt[w];
-            buttons[w] = word;
-            pressed[w] = word & ~previous[w];
-            released[w] = ~word & previous[w];
-        }
-
+        Simd.ApplyButtonWords(bt, buttons, previous, pressed, released, ButtonWords);
         var next = replayCursor + 1 == RingTicks ? 0 : replayCursor + 1;
         if (ringTickIds[next] <= id)
         {

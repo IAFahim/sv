@@ -120,7 +120,7 @@ public readonly unsafe struct Clamp
             case ClampKind.StatBounds:
                 if (MinStatColumn != null)
                 {
-                    var lo = unchecked((int)MinStatColumn[slot]);
+                    var lo = BoundOf(MinStatColumn[slot]);
                     if (value < lo)
                     {
                         return lo;
@@ -129,7 +129,7 @@ public readonly unsafe struct Clamp
 
                 if (MaxStatColumn != null)
                 {
-                    var hi = unchecked((int)MaxStatColumn[slot]);
+                    var hi = BoundOf(MaxStatColumn[slot]);
                     if (value > hi)
                     {
                         return hi;
@@ -140,5 +140,25 @@ public readonly unsafe struct Clamp
             default:
                 return value;
         }
+    }
+
+    internal static int BoundOf(float value)
+    {
+        if (float.IsNaN(value))
+        {
+            return 0;
+        }
+
+        if (value >= 2147483648.0f)
+        {
+            return int.MaxValue;
+        }
+
+        if (value < -2147483648.0f)
+        {
+            return int.MinValue;
+        }
+
+        return unchecked((int)value);
     }
 }
