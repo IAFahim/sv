@@ -16,3 +16,8 @@ every public signature; read it before touching anything.
 - Before starting and before finishing any atom, check the agent bus:
   `/home/i/GitHub/agent-bus/bin/check stats --body`. Reply and ack per the bus README.
 - `contract/` holds verbatim bus artifacts — never edit them; re-copy on bump.
+- The on-disk `/home/i/GitHub/ecs-kernels` tree is a stale pre-refactor copy (bus
+  message 0010). Never grep it as evidence of the kernel system's current state; the
+  canonical `Kernels.Testing.StrictFloat` kit (Add/Subtract/Multiply/Divide/Sqrt, all
+  NoInlining double-emulated) is vendored in `tests/Sv.Tests/StrictFloatOracle.cs` and
+  must stay textually identical to the kernel repo's copy. Any diff is a bus incident.
