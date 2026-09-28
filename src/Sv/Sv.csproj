@@ -11,5 +11,6 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Sv.Tests" />
+    <InternalsVisibleTo Include="Sv.Bench" />
   </ItemGroup>
 </Project>

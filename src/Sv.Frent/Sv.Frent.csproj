@@ -11,6 +11,6 @@
 
   <ItemGroup>
     <ProjectReference Include="../Sv/Sv.csproj" />
-    <PackageReference Include="Frent" Version="0.8.0-beta" />
+    <PackageReference Include="Frent" Version="8.0.0-beta" />
   </ItemGroup>
 </Project>

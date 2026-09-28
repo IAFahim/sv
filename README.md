@@ -43,6 +43,19 @@ walkers and emitters is `delegate* unmanaged<int, int, T>`; Unity falls back to 
 fnptr core or mask-level escapes (`WalkNonZero`). Same pattern tl.unity's fork uses for
 the same reason.
 
+## Performance receipts
+
+`benchmarks/Sv.Bench` (100k rows/frame, AVX2): intrinsics chunk 5.9–6.8 M rows/s
+(bandwidth-bound, 100% of samples inside `Simd.ChunkW256`); stat clamp 3.2 M rows/s
+(the clause-16 pinned conversion costs ~1.9x vs constant clamps); enabled run-walk
+1.45 M rows/s after inlining `Clamp.Apply` (+81%); stat add+remove+recalculate 121 ns;
+input capture 9 ns; every scenario verified against a scalar reference and prints
+`alloc=0B`. Standing `NoAllocationTests` assert exact-zero managed bytes for every
+warm verb; the managed-state audit shows zero managed collections outside
+`Schema` (cold authoring). Known .NET-only cost: the `UnmanagedCallersOnly` entry
+thunk charges ~10 ns per event `make` call (~29% of a dense-emit frame); Unity/Burst
+hosts compile makers natively. Any mitigation is a bus-level contract discussion.
+
 ## Atoms
 
 | # | Atom | Status |
@@ -54,6 +67,7 @@ the same reason.
 | 5 | SIMD pass: vector chunk clamps, scan words, ANDNOT edges — width-invariance receipts, pinned stat-bound float→int (NaN→0, saturate), zero FMA | done |
 | 6 | Adapter: Frent chunk seam (`sv.frent`, SvSlot mapping, zero-copy contiguous fast path, Pull/Push fallback) + Unity 6.7 handoff record | done |
 | 7 | North-star fused test — stage A on .NET shipped ([issues/0008](issues/0008-atom-7.md)); stage B (real kernel + Unity host) under issue #2 | done (A) |
+| 8 | Perf: benchmark harness, perf receipts, zero-allocation tests, managed audit, run-walk inlining (+81%) ([issues/0009](issues/0009-perf-bench.md)) | done |
 
 Atom 1 scope note: `Clamp.Stat` and the StrictFloat oracle land with atom 2 (the first
 float math); the walkers land with atom 3. Nothing ships half-wired.

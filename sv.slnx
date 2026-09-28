@@ -3,4 +3,5 @@
   <Project Path="src/Sv.Frent/Sv.Frent.csproj" />
   <Project Path="tests/Sv.Tests/Sv.Tests.csproj" />
   <Project Path="tests/Sv.NorthStar/Sv.NorthStar.csproj" />
+  <Project Path="benchmarks/Sv.Bench/Sv.Bench.csproj" />
 </Solution>

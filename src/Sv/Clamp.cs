@@ -91,6 +91,7 @@ public readonly unsafe struct Clamp
         return new Clamp(ClampKind.StatBounds, 0, 0, null, null, min, null);
     }
 
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     public int Apply(int value, int slot)
     {
         switch (Kind)
