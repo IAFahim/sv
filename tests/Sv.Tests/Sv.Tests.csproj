@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Sv\Sv.csproj" />
+    <ProjectReference Include="..\..\src\Sv.Frent\Sv.Frent.csproj" />
   </ItemGroup>
 
   <ItemGroup>

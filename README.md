@@ -52,7 +52,7 @@ the same reason.
 | 3 | Event streams: pooled double buffer, parallel writer, fnptr walkers, mask conformance via `contract/mask-fixtures.json` | done |
 | 4 | Input: bit-captured axes, button edges, replay ring | done |
 | 5 | SIMD pass: vector chunk clamps, scan words, ANDNOT edges — width-invariance receipts, pinned stat-bound float→int (NaN→0, saturate), zero FMA | done |
-| 6 | Adapter: single chunk API (Frent IJobChunk shape, Unity Entities 6.7) | — |
+| 6 | Adapter: Frent chunk seam (`sv.frent`, SvSlot mapping, zero-copy contiguous fast path, Pull/Push fallback) + Unity 6.7 handoff record | done |
 | 7 | North-star fused test ([issues/0002](issues/0002-north-star.md)) — acceptance gate | — |
 
 Atom 1 scope note: `Clamp.Stat` and the StrictFloat oracle land with atom 2 (the first
