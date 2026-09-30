@@ -96,6 +96,34 @@ public sealed unsafe class TapeTests
     }
 
     [Fact]
+    public void Tape_SparseBoard_FrameBodyIsLiveSized()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "northstar-sparse.tape");
+        using (var recorder = new NorthStarHarness())
+        {
+            recorder.Host.Record(path);
+            RunTicks(recorder, 0);
+            recorder.Host.EndRecord();
+        }
+
+        var length = new FileInfo(path).Length;
+        using var replay = new NorthStarHarness();
+        Assert.Equal(Ticks, replay.Host.Playback(path));
+        Assert.True(length < 400, $"sparse frames not live-compressed: {length} bytes for 3 frames (capacity 64, 4 live; v1 wrote ~848 B/frame)");
+    }
+
+    [Fact]
+    public void Tape_FutureVersion_IsRejected()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "northstar-version.tape");
+        File.WriteAllBytes(path, new byte[] { (byte)'S', (byte)'V', (byte)'T', (byte)'P', 0x63, 0, 0, 0 });
+        using var replay = new NorthStarHarness();
+        var error = Assert.Throws<InvalidDataException>(() => replay.Host.Playback(path));
+        Assert.Contains("version", error.Message);
+        File.Delete(path);
+    }
+
+    [Fact]
     public void Harness_SteadyStateWarmPath_AllocatesZeroManagedBytes()
     {
         using var harness = new NorthStarHarness();

@@ -299,8 +299,8 @@ public sealed class GameHost<TEvents, TTimelines, TKernels, THost> : IDisposable
         var game = Game;
         var axes = new uint[game.Input.Axes];
         var buttons = new ulong[game.Input.ButtonWords];
-        var length = Tape.BodyLength(game);
-        var body = (byte*)NativeMemory.Alloc((nuint)length, 16);
+        var capacity = Math.Max(64, Tape.BodyLength(game));
+        var body = (byte*)NativeMemory.Alloc((nuint)capacity, 16);
         fixed (uint* axesPtr = axes)
         fixed (ulong* buttonsPtr = buttons)
         {
@@ -358,15 +358,22 @@ public sealed class GameHost<TEvents, TTimelines, TKernels, THost> : IDisposable
                         cursor += sizeof(uint);
                         var bodyLength = *(int*)cursor;
                         cursor += sizeof(int);
-                        if (bodyLength != length || end - cursor < bodyLength)
+                        if (bodyLength < 0 || end - cursor < bodyLength)
                         {
-                            throw new InvalidDataException($"sv.compose: tape frame {frame} body corrupt (length {bodyLength}, expected {length})");
+                            throw new InvalidDataException($"sv.compose: tape frame {frame} body corrupt (length {bodyLength})");
                         }
 
                         var recordedBody = cursor;
                         cursor += bodyLength;
                         game.Input.Capture(axesPtr, buttonsPtr);
                         Frame.Run(dt);
+                        var needed = Tape.BodyLength(game);
+                        if (needed > capacity)
+                        {
+                            capacity = needed * 2;
+                            body = (byte*)NativeMemory.Realloc(body, (nuint)capacity);
+                        }
+
                         var digest = Tape.WriteBody(game, dt, body);
                         if (digest != recorded)
                         {

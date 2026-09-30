@@ -1,21 +1,24 @@
 using System;
 using System.IO;
+using System.Numerics;
 using System.Runtime.InteropServices;
 using Sv;
 
 namespace Sv.Compose;
 
 /// <summary>
-/// Determinism tape. Each recorded frame is written as
+/// Determinism tape (format v2). Each recorded frame is written as
 /// dt bits, input counts, the captured axes and button words, the frame digest, and the raw
 /// digest body. The digest is FNV-1a over the dt bits followed by the body: axes bits, button
-/// words, every sv stat column in schema order (full capacity, dead slots included), then the
-/// live bitmap words. Recording and per-frame digesting are managed-allocation-free; only the
-/// file stream and its fixed buffers are allocated, at <c>Record</c> time.
+/// words, per stat the live rows only (ascending slot order, walked via the live bitmap),
+/// then the live bitmap words — a sparse board pays for entities, not capacity; dead rows are
+/// outside the determinism contract. Recording and per-frame digesting are
+/// managed-allocation-free; only the file stream and its fixed buffers are allocated, at
+/// <c>Record</c> time.
 /// </summary>
 public static unsafe class Tape
 {
-    public const uint Version = 1;
+    public const uint Version = 2;
 
     internal static int BodyLength(Game game)
     {
@@ -23,7 +26,7 @@ public static unsafe class Tape
         return sizeof(uint)
             + game.Input.Axes * sizeof(uint)
             + game.Input.ButtonWords * sizeof(ulong)
-            + game.Board.Schema.Stats.Count * game.Board.Capacity * sizeof(float)
+            + game.Board.Schema.Stats.Count * game.Board.LiveCount * sizeof(float)
             + liveWords * sizeof(ulong);
     }
 
@@ -51,16 +54,25 @@ public static unsafe class Tape
         }
 
         var schema = game.Board.Schema;
+        var words = game.Board.LiveWordCount;
         for (var stat = 0; stat < schema.Stats.Count; stat++)
         {
             var column = game.Board.OutputPtr(schema.Stat(schema.Stats[stat].Name));
-            var bytes = game.Board.Capacity * sizeof(float);
-            Buffer.MemoryCopy(column, cursor, bytes, bytes);
-            hash = Mix(hash, cursor, bytes);
-            cursor += bytes;
+            for (var word = 0; word < words; word++)
+            {
+                var bits = game.Board.LiveWord(word);
+                while (bits != 0)
+                {
+                    var slot = (word << 6) + BitOperations.TrailingZeroCount(bits);
+                    bits &= bits - 1;
+                    *(float*)cursor = column[slot];
+                    hash = Mix(hash, cursor, sizeof(float));
+                    cursor += sizeof(float);
+                }
+            }
         }
 
-        for (var word = 0; word < game.Board.LiveWordCount; word++)
+        for (var word = 0; word < words; word++)
         {
             *(ulong*)cursor = game.Board.LiveWord(word);
             hash = Mix(hash, cursor, sizeof(ulong));
