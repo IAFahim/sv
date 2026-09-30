@@ -21,6 +21,14 @@ internal static unsafe class Guard
         }
     }
 
+    public static void ButtonWord(int word, int words)
+    {
+        if (word < 0 || word >= words)
+        {
+            throw new ArgumentOutOfRangeException(nameof(word), $"sv: button word {word} out of range (0..{words - 1})");
+        }
+    }
+
     public static void Axis(int axis, int axes)
     {
         if (axis < 0 || axis >= axes)

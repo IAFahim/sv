@@ -19,7 +19,11 @@ edges, replay ring). Entity-free at the core; ECS hosts adapt through one chunk 
   this repo's own suite; mask/run semantics by `contract/mask-fixtures.json`
   (extracted bit-exact from ecs-kernels editor-verified facts — the fleet conformance
   set). The north-star leg consumes the published tl pair only (Tl.Runtime /
-  Tl.Gen.CSharp / tlb 1.3.0).
+  Tl.Gen.CSharp / tlb 1.3.0). Since atom 13 the harness rides `Sv.Compose`'s
+  `Frame.Run`; bit-identity to the pre-migration manual loop is pinned by baked
+  digest constants (`MigrationTests`), and whole-run determinism rides the tape
+  (`Record`/`Playback`: per-frame digest always compared, full body byte-compared
+  under `SV_CHECKED`).
 - Usage: [sv-examples](https://github.com/IAFahim/sv-examples) — five runnable
   samples (core stats/intrinsics, events, input replay, the Frent adapter, and the
   frozen-frame composition with whole-run replay bit-identity), each printing a
@@ -80,6 +84,11 @@ columns. Unity/Burst hosts compile the same `delegate* unmanaged` signature nati
 | 6 | Adapter: Frent chunk seam (`sv.frent`, SvSlot mapping, zero-copy contiguous fast path, Pull/Push fallback) + Unity 6.7 handoff record | done |
 | 7 | North-star fused test — .NET leg complete: stage A ([issues/0008](issues/0008-atom-7.md)) + stage B real kernel bit-identical ([issues/0010](issues/0010-atom-7-stage-b.md)); Unity cross-host under issue #2 | done (.NET) |
 | 8 | Perf: benchmark harness, perf receipts, zero-allocation tests, managed audit, run-walk inlining (+81%) ([issues/0009](issues/0009-perf-bench.md)) | done |
+| 9 | Binding generations + sv-owned output columns: `BindExternal` handle, `InvalidateBindings` stale-throw (checked), `OutputPtr`/`Output` self-owned broadcast — [issues/0012](issues/0012-atom-9.md) | done |
+| 10 | Slot renumbering: `Board.RenumberSlots`, `Sv.Columns.Permute`, `Sv.Frent.Population` fused chunk windows + `Reconcile()` 64-aligned healing — [issues/0013](issues/0013-atom-10.md) | done |
+| 11 | `Sv.Compose`: Game/GameHost/`Frame.Run` frozen-frame composition (clause 7 verbatim), static-generic step dispatch, tl naming seam absorbed, 0 B warm — [issues/0014](issues/0014-atom-11.md) | done |
+| 12 | `Sv.Unity` adapter (com.sv.unity): SvSlot/UnityPopulation/SvChunk + svSystemBase pattern; .NET facade tests, editor leg is the integrator handoff — [issues/0015](issues/0015-atom-12.md) | done (.NET) |
+| 13 | North-star on `Frame.Run`, bit-identical to the pre-migration manual digests (baked oracle test); determinism tape `Record`/`Playback`; sv-owned outputs replace the NativeMemory blocks — [issues/0016](issues/0016-atom-13.md) | done |
 
 Atom 1 scope note: `Clamp.Stat` and the StrictFloat oracle land with atom 2 (the first
 float math); the walkers land with atom 3. Nothing ships half-wired.

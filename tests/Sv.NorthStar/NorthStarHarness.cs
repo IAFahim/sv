@@ -1,8 +1,11 @@
 using Kernels.Testing;
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Sv;
+using Sv.Compose;
 using Tl;
 
 namespace Sv.NorthStar;
@@ -51,6 +54,160 @@ public sealed class FrameRecord
     public List<string> Events = new();
 }
 
+public unsafe struct NorthStarWorld : IFrameWorld
+{
+    public float[] Position;
+
+    public float[] Velocity;
+
+    public int* Mana;
+
+    public byte* LandedCol;
+
+    public int[] LastApplied;
+
+    public List<string> Log;
+
+    public StatId MoveSpeed;
+
+    public StatId MaxMana;
+
+#if KERNELS_PRESENT
+    public Simulation.Position[] KernelPositions;
+
+    public Simulation.Velocity[] KernelVelocities;
+#endif
+
+    public void Reconcile(Game game)
+    {
+    }
+
+    public void DispatchEvent(Game game, ushort typeId, void* payload)
+    {
+        if (typeId == game.Channel<Landed>().Id)
+        {
+            var evt = *(Landed*)payload;
+            Log.Add($"landed:{evt.Slot}");
+            game.Board.AddModifier(evt.Slot, MoveSpeed, new Modifier(ModifierKind.Multi, 1.5f));
+            return;
+        }
+
+        var mana = *(ManaGained*)payload;
+        Log.Add($"mana:{mana.Slot}:{mana.Amount}");
+    }
+
+    public void RunIntrinsics(Game game)
+    {
+        if (game.Input.Pressed(NorthStarHarness.RegenButton))
+        {
+            game.Board.RunIntrinsicsChunk(Mana, 25, Clamp.StatMax(game.Board, MaxMana), 0, NorthStarHarness.Entities, game.Applied);
+        }
+    }
+
+    public void RunConditions(Game game)
+    {
+        game.Streams.EmitFromBools(game.Channel<Landed>(), LandedCol, 0, NorthStarHarness.Entities, &NorthStarEvents.MakeLanded);
+        game.Streams.EmitFromNonZero(game.Channel<ManaGained>(), game.Applied, 0, NorthStarHarness.Entities, &NorthStarEvents.MakeMana);
+        for (var i = 0; i < NorthStarHarness.Entities; i++)
+        {
+            LastApplied[i] = game.Applied[i];
+            game.Applied[i] = 0;
+        }
+    }
+}
+
+public unsafe struct NorthStarJump : ITimelineStep
+{
+    static StatId jumpPower;
+
+    static bool cached;
+
+    public static bool Loop => true;
+
+    public static void Apply(Game game, float[] effect)
+    {
+        TimelineStep<global::NorthStar.JumpTrack, global::NorthStar.JumpClip>.Apply(game, Loop, effect);
+    }
+
+    public static void Transform(Game game, float[] effect)
+    {
+        if (!cached)
+        {
+            jumpPower = game.Board.Schema.Stat("jump_power");
+            cached = true;
+        }
+
+        var power = game.Board.OutputPtr(jumpPower);
+        for (var i = 0; i < effect.Length; i++)
+        {
+            effect[i] = StrictFloat.Multiply(effect[i], power[i]);
+        }
+    }
+
+    public static void Advance(Game game)
+    {
+        TimelineStep<global::NorthStar.JumpTrack, global::NorthStar.JumpClip>.Advance(game, Loop);
+    }
+}
+
+public unsafe struct NorthStarFall : IKernelStep
+{
+    public static void Run<THost>(in THost world, Game game, float dt) where THost : struct, IFrameWorld
+    {
+        ref var host = ref Unsafe.As<THost, NorthStarWorld>(ref Unsafe.AsRef(in world));
+        var gravityDt = StrictFloat.Multiply(NorthStarHarness.GravityField, dt);
+#if KERNELS_PRESENT
+        for (var i = 0; i < NorthStarHarness.Entities; i++)
+        {
+            host.KernelVelocities[i].Y = host.Velocity[i];
+            host.KernelPositions[i].Y = host.Position[i];
+        }
+
+        var fall = new Simulation.Fall { Dt = dt, Gravity = NorthStarHarness.GravityField };
+        fall.RunChunk(host.KernelPositions, host.KernelVelocities);
+        for (var i = 0; i < NorthStarHarness.Entities; i++)
+        {
+            var velBefore = host.Velocity[i];
+            var posBefore = host.Position[i];
+            var posAfter = StrictFloat.Add(posBefore, StrictFloat.Multiply(velBefore, dt));
+            var velAfter = StrictFloat.Subtract(velBefore, gravityDt);
+            if (posAfter < 0f)
+            {
+                posAfter = 0f;
+                velAfter = 0f;
+            }
+
+            if (BitConverter.SingleToUInt32Bits(host.KernelPositions[i].Y) != BitConverter.SingleToUInt32Bits(posAfter) ||
+                BitConverter.SingleToUInt32Bits(host.KernelVelocities[i].Y) != BitConverter.SingleToUInt32Bits(velAfter))
+            {
+                throw new InvalidOperationException($"kernel/scalar divergence row {i}: pos {host.KernelPositions[i].Y} vs {posAfter}, vel {host.KernelVelocities[i].Y} vs {velAfter}");
+            }
+
+            host.Position[i] = host.KernelPositions[i].Y;
+            host.Velocity[i] = host.KernelVelocities[i].Y;
+            host.LandedCol[i] = (byte)(posBefore != 0f && posAfter == 0f ? 1 : 0);
+        }
+#else
+        for (var i = 0; i < NorthStarHarness.Entities; i++)
+        {
+            var velBefore = host.Velocity[i];
+            var posBefore = host.Position[i];
+            var posAfter = StrictFloat.Add(posBefore, StrictFloat.Multiply(velBefore, dt));
+            var velAfter = StrictFloat.Subtract(velBefore, gravityDt);
+            if (posAfter < 0f)
+            {
+                posAfter = 0f;
+                velAfter = 0f;
+            }
+
+            host.Velocity[i] = velAfter;
+            host.Position[i] = posAfter;
+            host.LandedCol[i] = (byte)(posBefore != 0f && posAfter == 0f ? 1 : 0);
+        }
+#endif
+    }
+}
+
 public sealed unsafe class NorthStarHarness : IDisposable
 {
     public const int Entities = 4;
@@ -63,6 +220,10 @@ public sealed unsafe class NorthStarHarness : IDisposable
 
     public readonly float Dt = 0.016666668f;
 
+    GameHost<EventLink<ManaGained, EventLink<Landed, Chain>>, TimelineLink<NorthStarJump, Chain>, KernelLink<NorthStarFall, Chain>, NorthStarWorld> host = null!;
+
+    public GameHost<EventLink<ManaGained, EventLink<Landed, Chain>>, TimelineLink<NorthStarJump, Chain>, KernelLink<NorthStarFall, Chain>, NorthStarWorld> Host => host;
+
     public Board Board = null!;
 
     StatId moveSpeed;
@@ -71,27 +232,11 @@ public sealed unsafe class NorthStarHarness : IDisposable
 
     StatId maxMana;
 
-    float* moveSpeedColumn;
-
-    float* jumpPowerColumn;
-
-    float* maxManaColumn;
-
     int* mana;
-
-    int* applied;
 
     byte* landedCol;
 
     public InputState Input = null!;
-
-    EventStreams streams = null!;
-
-    Channel<Landed> landedChannel = null!;
-
-    Channel<ManaGained> manaChannel = null!;
-
-    Clamp manaClamp;
 
     public float[] Position = new float[Entities];
 
@@ -118,18 +263,16 @@ public sealed unsafe class NorthStarHarness : IDisposable
     public NorthStarHarness()
     {
         ownsInput = true;
-        Initialize();
+        Initialize(InputState.Create(2, 1, 8));
     }
 
     public NorthStarHarness(InputState sharedInput)
     {
         ownsInput = false;
-        Initialize();
-        Input.Dispose();
-        Input = sharedInput;
+        Initialize(sharedInput);
     }
 
-    void Initialize()
+    void Initialize(InputState input)
     {
         var schema = SchemaBuilder.Create()
             .Stat("move_speed", 6f)
@@ -137,39 +280,47 @@ public sealed unsafe class NorthStarHarness : IDisposable
             .Stat("max_mana", 100f)
             .Intrinsic("mana")
             .Build();
-        Board = Board.Create(schema, Entities);
         moveSpeed = schema.Stat("move_speed");
         jumpPower = schema.Stat("jump_power");
         maxMana = schema.Stat("max_mana");
-        moveSpeedColumn = (float*)NativeMemory.AllocZeroed((nuint)Entities * sizeof(float), sizeof(float));
-        jumpPowerColumn = (float*)NativeMemory.AllocZeroed((nuint)Entities * sizeof(float), sizeof(float));
-        maxManaColumn = (float*)NativeMemory.AllocZeroed((nuint)Entities * sizeof(float), sizeof(float));
-        mana = (int*)NativeMemory.AllocZeroed((nuint)Entities * sizeof(int), sizeof(int));
-        applied = (int*)NativeMemory.AllocZeroed((nuint)Entities * sizeof(int), sizeof(int));
+        mana = (int*)NativeMemory.AllocZeroed((nuint)Entities * (nuint)sizeof(int), (nuint)sizeof(int));
         landedCol = (byte*)NativeMemory.AllocZeroed((nuint)Entities, 1);
-        Board.BindOutput(moveSpeed, moveSpeedColumn);
-        Board.BindOutput(jumpPower, jumpPowerColumn);
-        Board.BindOutput(maxMana, maxManaColumn);
-        manaClamp = Clamp.StatMax(Board, maxMana);
-        for (var i = 0; i < Entities; i++)
+        var world = new NorthStarWorld
         {
-            Board.Acquire();
-        }
-
-        Input = InputState.Create(2, 1, 8);
-        streams = EventStreams.Create();
-        landedChannel = streams.CreateChannel<Landed>();
-        manaChannel = streams.CreateChannel<ManaGained>();
+            Position = Position,
+            Velocity = Velocity,
+            Mana = mana,
+            LandedCol = landedCol,
+            LastApplied = LastApplied,
+            Log = EventLog,
+            MoveSpeed = moveSpeed,
+            MaxMana = maxMana,
+#if KERNELS_PRESENT
+            KernelPositions = kernelPositions,
+            KernelVelocities = kernelVelocities,
+#endif
+        };
+        host = Game.Create(schema, Entities)
+            .Event<Landed>()
+            .Event<ManaGained>()
+            .Timeline<NorthStarJump>()
+            .Kernel<NorthStarFall>()
+            .Build(world, input);
+        Board = host.Game.Board;
+        Input = input;
+        Ids = host.Game.TimelineIds;
+        TickClock = host.Game.TimelineClocks;
+        Y = host.Game.Effect(0);
 
         var jumpId = TimelineAsset.Load(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "jump.tlb")));
         for (var i = 0; i < Entities; i++)
         {
+            Board.Acquire();
             Ids[i] = jumpId;
             Position[i] = 0.01f;
             Velocity[i] = -130f;
             mana[i] = 40;
         }
-
 
         Board.Recalculate();
     }
@@ -177,127 +328,25 @@ public sealed unsafe class NorthStarHarness : IDisposable
     public void CaptureTick(uint* axesBits, ulong* buttons)
     {
         Input.Capture(axesBits, buttons);
-        RunFrame();
+        host.Frame.Run(Input.AxisF(0));
     }
 
     public void ReplayTick()
     {
         AssertTrue(Input.ReplayStep(), "replay step exhausted");
-        RunFrame();
-    }
-
-    void RunFrame()
-    {
-        while (streams.TryReadNext(out var typeId, out var payload, out _))
-        {
-            if (typeId == landedChannel.Id)
-            {
-                var evt = *(Landed*)payload;
-                EventLog.Add($"landed:{evt.Slot}");
-                Board.AddModifier(evt.Slot, moveSpeed, new Modifier(ModifierKind.Multi, 1.5f));
-            }
-            else if (typeId == manaChannel.Id)
-            {
-                var evt = *(ManaGained*)payload;
-                EventLog.Add($"mana:{evt.Slot}:{evt.Amount}");
-            }
-        }
-
-        if (Input.Pressed(RegenButton))
-        {
-            Board.RunIntrinsicsChunk(mana, 25, manaClamp, 0, Entities, applied);
-        }
-
-        Board.Recalculate();
-
-        Array.Clear(Y);
-
-        Timeline<global::NorthStar.JumpTrack, global::NorthStar.JumpClip>.Apply(Ids, TickClock, true, Y);
-        for (var i = 0; i < Entities; i++)
-        {
-            Y[i] = StrictFloat.Multiply(Y[i], jumpPowerColumn[i]);
-        }
-
-        Timeline.Advance(Ids, TickClock, true);
-
-        IntegrateMotion(Input.AxisF(0));
-
-        streams.EmitFromBools(landedChannel, landedCol, 0, Entities, &NorthStarEvents.MakeLanded);
-        streams.EmitFromNonZero(manaChannel, applied, 0, Entities, &NorthStarEvents.MakeMana);
-        for (var i = 0; i < Entities; i++)
-        {
-            LastApplied[i] = applied[i];
-            applied[i] = 0;
-        }
-
-        streams.Swap();
-    }
-
-    void IntegrateMotion(float dt)
-    {
-        var gravityDt = StrictFloat.Multiply(GravityField, dt);
-#if KERNELS_PRESENT
-        for (var i = 0; i < Entities; i++)
-        {
-            kernelVelocities[i].Y = Velocity[i];
-            kernelPositions[i].Y = Position[i];
-        }
-
-        var fall = new Simulation.Fall { Dt = dt, Gravity = GravityField };
-        fall.RunChunk(kernelPositions, kernelVelocities);
-        for (var i = 0; i < Entities; i++)
-        {
-            var velBefore = Velocity[i];
-            var posBefore = Position[i];
-            var posAfter = StrictFloat.Add(posBefore, StrictFloat.Multiply(velBefore, dt));
-            var velAfter = StrictFloat.Subtract(velBefore, gravityDt);
-            if (posAfter < 0f)
-            {
-                posAfter = 0f;
-                velAfter = 0f;
-            }
-
-            if (BitConverter.SingleToUInt32Bits(kernelPositions[i].Y) != BitConverter.SingleToUInt32Bits(posAfter) ||
-                BitConverter.SingleToUInt32Bits(kernelVelocities[i].Y) != BitConverter.SingleToUInt32Bits(velAfter))
-            {
-                throw new InvalidOperationException($"kernel/scalar divergence row {i}: pos {kernelPositions[i].Y} vs {posAfter}, vel {kernelVelocities[i].Y} vs {velAfter}");
-            }
-
-            Position[i] = kernelPositions[i].Y;
-            Velocity[i] = kernelVelocities[i].Y;
-            landedCol[i] = (byte)(posBefore != 0f && posAfter == 0f ? 1 : 0);
-        }
-#else
-        for (var i = 0; i < Entities; i++)
-        {
-            var velBefore = Velocity[i];
-            var posBefore = Position[i];
-            var posAfter = StrictFloat.Add(posBefore, StrictFloat.Multiply(velBefore, dt));
-            var velAfter = StrictFloat.Subtract(velBefore, gravityDt);
-            if (posAfter < 0f)
-            {
-                posAfter = 0f;
-                velAfter = 0f;
-            }
-
-            Velocity[i] = velAfter;
-            Position[i] = posAfter;
-            landedCol[i] = (byte)(posBefore != 0f && posAfter == 0f ? 1 : 0);
-        }
-#endif
+        host.Frame.Run(Input.AxisF(0));
     }
 
     public FrameRecord Record()
     {
-        var bits = new uint[Entities];
         var record = new FrameRecord
         {
             PositionBits = Bits(Position),
             VelocityBits = Bits(Velocity),
             YBits = Bits(Y),
-            MoveSpeedBits = ColumnBits(moveSpeedColumn),
-            JumpPowerBits = ColumnBits(jumpPowerColumn),
-            MaxManaBits = ColumnBits(maxManaColumn),
+            MoveSpeedBits = ColumnBits(moveSpeed),
+            JumpPowerBits = ColumnBits(jumpPower),
+            MaxManaBits = ColumnBits(maxMana),
             Mana = new int[Entities],
             Applied = new int[Entities],
             Landed = new byte[Entities],
@@ -315,8 +364,8 @@ public sealed unsafe class NorthStarHarness : IDisposable
 
     static uint[] Bits(float[] values)
     {
-        var bits = new uint[values.Length];
-        for (var i = 0; i < values.Length; i++)
+        var bits = new uint[Entities];
+        for (var i = 0; i < Entities; i++)
         {
             bits[i] = BitConverter.SingleToUInt32Bits(values[i]);
         }
@@ -324,8 +373,9 @@ public sealed unsafe class NorthStarHarness : IDisposable
         return bits;
     }
 
-    uint[] ColumnBits(float* column)
+    uint[] ColumnBits(StatId stat)
     {
+        var column = Board.OutputPtr(stat);
         var bits = new uint[Entities];
         for (var i = 0; i < Entities; i++)
         {
@@ -345,17 +395,12 @@ public sealed unsafe class NorthStarHarness : IDisposable
 
     public void Dispose()
     {
-        Board.Dispose();
+        host.Dispose();
+        NativeMemory.Free(mana);
+        NativeMemory.Free(landedCol);
         if (ownsInput)
         {
             Input.Dispose();
         }
-        streams.Dispose();
-        NativeMemory.Free(moveSpeedColumn);
-        NativeMemory.Free(jumpPowerColumn);
-        NativeMemory.Free(maxManaColumn);
-        NativeMemory.Free(mana);
-        NativeMemory.Free(applied);
-        NativeMemory.Free(landedCol);
     }
 }

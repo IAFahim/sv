@@ -206,6 +206,12 @@ public sealed unsafe class InputState : IDisposable
         return axisBits[axis];
     }
 
+    public ulong ButtonBits(int word)
+    {
+        Guard.ButtonWord(word, ButtonWords);
+        return buttons[word];
+    }
+
     public float AxisF(int axis)
     {
         Guard.Axis(axis, Axes);

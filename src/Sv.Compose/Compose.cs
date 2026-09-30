@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Runtime.InteropServices;
 using Tl;
 
@@ -240,6 +241,8 @@ public sealed class GameHost<TEvents, TTimelines, TKernels, THost> : IDisposable
 
     public FrameRunner Frame { get; }
 
+    TapeWriter? tape;
+
     internal GameHost(Game game, THost world)
     {
         Game = game;
@@ -247,7 +250,159 @@ public sealed class GameHost<TEvents, TTimelines, TKernels, THost> : IDisposable
         Frame = new FrameRunner(this);
     }
 
-    public void Dispose() => Game.Dispose();
+    public void Dispose()
+    {
+        tape?.Dispose();
+        tape = null;
+        Game.Dispose();
+    }
+
+    /// <summary>
+    /// Begins taping: every subsequent <see cref="FrameRunner.Run"/> appends one frame
+    /// (inputs, digest, body) to <paramref name="path"/>. Managed-allocation-free per frame;
+    /// flush on <see cref="EndRecord"/> or Dispose.
+    /// </summary>
+    public void Record(string path)
+    {
+        if (tape != null)
+        {
+            throw new InvalidOperationException("sv.compose: a tape is already recording");
+        }
+
+        tape = new TapeWriter(Game, path);
+    }
+
+    public void EndRecord()
+    {
+        if (tape == null)
+        {
+            throw new InvalidOperationException("sv.compose: no tape is recording");
+        }
+
+        tape.Dispose();
+        tape = null;
+    }
+
+    /// <summary>
+    /// Re-drives this host from a tape: for each recorded frame, re-captures the recorded
+    /// inputs, runs the frame, and compares the recomputed digest. Bit-identity is asserted
+    /// per frame; under SV_CHECKED the full body is also compared byte-for-byte.
+    /// </summary>
+    public unsafe int Playback(string path)
+    {
+        if (tape != null)
+        {
+            throw new InvalidOperationException("sv.compose: cannot play back while a tape is recording");
+        }
+
+        var bytes = File.ReadAllBytes(path);
+        var game = Game;
+        var axes = new uint[game.Input.Axes];
+        var buttons = new ulong[game.Input.ButtonWords];
+        var length = Tape.BodyLength(game);
+        var body = (byte*)NativeMemory.Alloc((nuint)length, 16);
+        fixed (uint* axesPtr = axes)
+        fixed (ulong* buttonsPtr = buttons)
+        {
+            try
+            {
+                fixed (byte* file = bytes)
+                {
+                    var cursor = file;
+                    var end = file + bytes.Length;
+                    if (end - cursor < 8 || cursor[0] != (byte)'S' || cursor[1] != (byte)'V' || cursor[2] != (byte)'T' || cursor[3] != (byte)'P')
+                    {
+                        throw new InvalidDataException("sv.compose: not a tape file");
+                    }
+
+                    cursor += 4;
+                    var version = *(uint*)cursor;
+                    cursor += 4;
+                    if (version != Tape.Version)
+                    {
+                        throw new InvalidDataException($"sv.compose: tape version {version} unsupported (expected {Tape.Version})");
+                    }
+
+                    var frame = 0;
+                    while (cursor < end)
+                    {
+                        if (end - cursor < 16)
+                        {
+                            throw new InvalidDataException($"sv.compose: tape truncated in frame {frame} header");
+                        }
+
+                        var dt = BitConverter.UInt32BitsToSingle(*(uint*)cursor);
+                        cursor += sizeof(uint);
+                        var axesCount = *(int*)cursor;
+                        cursor += sizeof(int);
+                        var wordCount = *(int*)cursor;
+                        cursor += sizeof(int);
+                        if (axesCount != game.Input.Axes || wordCount != game.Input.ButtonWords)
+                        {
+                            throw new InvalidDataException($"sv.compose: tape frame {frame} input shape ({axesCount} axes, {wordCount} words) does not match this host");
+                        }
+
+                        for (var axis = 0; axis < axesCount; axis++)
+                        {
+                            axes[axis] = *(uint*)cursor;
+                            cursor += sizeof(uint);
+                        }
+
+                        for (var word = 0; word < wordCount; word++)
+                        {
+                            buttons[word] = *(ulong*)cursor;
+                            cursor += sizeof(ulong);
+                        }
+
+                        var recorded = *(uint*)cursor;
+                        cursor += sizeof(uint);
+                        var bodyLength = *(int*)cursor;
+                        cursor += sizeof(int);
+                        if (bodyLength != length || end - cursor < bodyLength)
+                        {
+                            throw new InvalidDataException($"sv.compose: tape frame {frame} body corrupt (length {bodyLength}, expected {length})");
+                        }
+
+                        var recordedBody = cursor;
+                        cursor += bodyLength;
+                        game.Input.Capture(axesPtr, buttonsPtr);
+                        Frame.Run(dt);
+                        var digest = Tape.WriteBody(game, dt, body);
+                        if (digest != recorded)
+                        {
+                            throw new InvalidOperationException($"sv.compose: tape digest mismatch at frame {frame} (recorded {recorded:X8}, replayed {digest:X8})");
+                        }
+
+                        VerifyBody(frame, body, recordedBody, bodyLength);
+                        frame++;
+                    }
+
+                    return frame;
+                }
+            }
+            finally
+            {
+                NativeMemory.Free(body);
+            }
+        }
+    }
+
+    [System.Diagnostics.Conditional("SV_CHECKED")]
+    static unsafe void VerifyBody(int frame, byte* replayed, byte* recorded, int length)
+    {
+        for (var i = 0; i < length; i++)
+        {
+            if (replayed[i] != recorded[i])
+            {
+                throw new InvalidOperationException($"sv.compose: tape body mismatch at frame {frame} byte {i} (recorded {recorded[i]:X2}, replayed {replayed[i]:X2})");
+            }
+        }
+    }
+
+    internal void CaptureFrame(float dt)
+    {
+        tape?.CaptureFrame(dt);
+    }
 
     public sealed class FrameRunner
     {
@@ -274,6 +429,7 @@ public sealed class GameHost<TEvents, TTimelines, TKernels, THost> : IDisposable
             TKernels.Run(in world, game, dt);
             world.RunConditions(game);
             game.Streams.Swap();
+            owner.CaptureFrame(dt);
         }
 
         public unsafe void Tick(float dt, uint* axes, ulong* buttons)

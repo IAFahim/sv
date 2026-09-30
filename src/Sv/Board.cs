@@ -12,6 +12,18 @@ public sealed unsafe partial class Board : IDisposable
 
     public int LiveCount { get; private set; }
 
+    public int LiveWordCount => (Capacity + 63) >> 6;
+
+    public ulong LiveWord(int word)
+    {
+        if (word < 0 || word >= LiveWordCount)
+        {
+            throw new ArgumentOutOfRangeException(nameof(word), $"sv: live word {word} out of range (0..{LiveWordCount - 1})");
+        }
+
+        return live[word];
+    }
+
     private readonly int* freeSlots;
 
     private readonly ulong* live;
