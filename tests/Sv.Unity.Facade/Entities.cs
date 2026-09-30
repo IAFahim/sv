@@ -280,11 +280,12 @@ namespace Unity.Entities
                     Buffer.MemoryCopy((void*)(pointer + size * last), (void*)(pointer + size * row), size, size);
                 }
 
-                var movedEntity = chunk.Entities[last];
+                var entities = chunk.Entities!;
+                var movedEntity = entities[last];
                 world.Locations[movedEntity.Index] = (chunkIndex, row);
-                var entities = (Entity[])chunk.Entities.Clone();
-                entities[row] = movedEntity;
-                world.Chunks[chunkIndex] = new FakeChunk(chunk.Count - 1, chunk.Columns, chunk.EnabledMask, entities);
+                var swapped = (Entity[])entities.Clone();
+                swapped[row] = movedEntity;
+                world.Chunks[chunkIndex] = new FakeChunk(chunk.Count - 1, chunk.Columns, chunk.EnabledMask, swapped);
             }
             else
             {
