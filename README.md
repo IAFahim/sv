@@ -82,7 +82,7 @@ columns. Unity/Burst hosts compile the same `delegate* unmanaged` signature nati
 | 4 | Input: bit-captured axes, button edges, replay ring | done |
 | 5 | SIMD pass: vector chunk clamps, scan words, ANDNOT edges — width-invariance receipts, pinned stat-bound float→int (NaN→0, saturate), zero FMA | done |
 | 6 | Adapter: Frent chunk seam (`sv.frent`, SvSlot mapping, zero-copy contiguous fast path, Pull/Push fallback) + Unity 6.7 handoff record | done |
-| 7 | North-star fused test — .NET leg complete: stage A ([issues/0008](issues/0008-atom-7.md)) + stage B real kernel bit-identical ([issues/0010](issues/0010-atom-7-stage-b.md)); Unity cross-host under issue #2 | done (.NET) |
+| 7 | North-star fused test — .NET leg complete: stage A ([issues/0008](issues/0008-atom-7.md)) + stage B real kernel bit-identical ([issues/0010](issues/0010-atom-7-stage-b.md)); Unity cross-host handed to the integrator ([issues/0015](issues/0015-atom-12.md), [issues/0016](issues/0016-atom-13.md)) | done (.NET) |
 | 8 | Perf: benchmark harness, perf receipts, zero-allocation tests, managed audit, run-walk inlining (+81%) ([issues/0009](issues/0009-perf-bench.md)) | done |
 | 9 | Binding generations + sv-owned output columns: `BindExternal` handle, `InvalidateBindings` stale-throw (checked), `OutputPtr`/`Output` self-owned broadcast — [issues/0012](issues/0012-atom-9.md) | done |
 | 10 | Slot renumbering: `Board.RenumberSlots`, `Sv.Columns.Permute`, `Sv.Frent.Population` fused chunk windows + `Reconcile()` 64-aligned healing — [issues/0013](issues/0013-atom-10.md) | done |
