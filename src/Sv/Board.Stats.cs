@@ -24,6 +24,12 @@ public sealed unsafe partial class Board
 
     private int* outputStride;
 
+    private float* svColumns;
+
+    private int* boundGeneration;
+
+    private int bindingGeneration;
+
     private SetTable? table;
 
     private PairMods* pairs;
@@ -62,6 +68,12 @@ public sealed unsafe partial class Board
         outputColumn = (float**)NativeMemory.Alloc((nuint)statCount * (nuint)sizeof(float*), (nuint)sizeof(float*));
         NativeMemory.Clear(outputColumn, (nuint)statCount * (nuint)sizeof(float*));
         outputStride = Alloc<int>(statCount);
+        svColumns = (float*)NativeMemory.AllocZeroed((nuint)statCount * (nuint)capacity * (nuint)sizeof(float), (nuint)sizeof(float));
+        boundGeneration = Alloc<int>(statCount);
+        for (var i = 0; i < statCount; i++)
+        {
+            boundGeneration[i] = -1;
+        }
         var pairTotal = statCount * capacity;
         pairs = Alloc<PairMods>(pairTotal);
         NativeMemory.Clear(pairs, (nuint)pairTotal * (nuint)sizeof(PairMods));
@@ -110,6 +122,8 @@ public sealed unsafe partial class Board
         NativeMemory.Free(statBase);
         NativeMemory.Free(outputColumn);
         NativeMemory.Free(outputStride);
+        NativeMemory.Free(svColumns);
+        NativeMemory.Free(boundGeneration);
         NativeMemory.Free(pairs);
         NativeMemory.Free(pairSet);
         NativeMemory.Free(pairQueued);
@@ -132,6 +146,10 @@ public sealed unsafe partial class Board
         return stat.Index;
     }
 
+    /// <summary>
+    /// Binds an external output column. The pointer is stable from this bind until the next
+    /// <see cref="InvalidateBindings"/> or rebind; hosts owning growable storage must rebind at reconcile.
+    /// </summary>
     public void BindOutput(StatId stat, float* column, int stride = 1)
     {
         var index = StatIndex(stat);
@@ -147,7 +165,68 @@ public sealed unsafe partial class Board
 
         outputColumn[index] = column;
         outputStride[index] = stride;
+        bindingGeneration++;
+        boundGeneration[index] = bindingGeneration;
     }
+
+    /// <summary>
+    /// Binds an external output column and returns a handle capturing the binding generation;
+    /// the handle reports stale after <see cref="InvalidateBindings"/> or a rebind of the same stat.
+    /// The pointer doctrine matches <see cref="BindOutput"/>.
+    /// </summary>
+    public BindingHandle BindExternal(StatId stat, float* column, int stride = 1)
+    {
+        var index = StatIndex(stat);
+        if (column == null)
+        {
+            throw new ArgumentNullException(nameof(column));
+        }
+
+        if (stride < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(stride), "sv: stride must be >= 1");
+        }
+
+        outputColumn[index] = column;
+        outputStride[index] = stride;
+        bindingGeneration++;
+        boundGeneration[index] = bindingGeneration;
+        return new BindingHandle(stat, column, stride, bindingGeneration);
+    }
+
+    /// <summary>
+    /// Declares every external binding suspect (storage moved or slot space renumbered). Checked
+    /// builds throw on the next stat broadcast or stat-bounds use; release builds keep writing
+    /// through the recorded pointers. Rebind to re-establish freshness.
+    /// </summary>
+    public void InvalidateBindings()
+    {
+        bindingGeneration++;
+        for (var stat = 0; stat < statCount; stat++)
+        {
+            if (outputColumn[stat] != null)
+            {
+                boundGeneration[stat] = -1;
+            }
+        }
+    }
+
+    public int BindingGeneration => bindingGeneration;
+
+    internal int BoundGenerationAt(int statIndex) => boundGeneration[statIndex];
+
+    /// <summary>
+    /// Sv-owned output column for a stat: allocated at <see cref="Create"/>, fixed capacity, never
+    /// moves, needs no bind. <see cref="Recalculate"/> broadcasts into it while no external column
+    /// is bound.
+    /// </summary>
+    public float* OutputPtr(StatId stat)
+    {
+        var index = StatIndex(stat);
+        return svColumns + (nint)index * Capacity;
+    }
+
+    public Span<float> Output(StatId stat) => new(OutputPtr(stat), Capacity);
 
     public float* OutputColumn(StatId stat)
     {
@@ -289,13 +368,20 @@ public sealed unsafe partial class Board
             var computed = Fold(statBase[stat], content, contentCount);
             table.SetComputed(dirty, computed);
             var column = outputColumn[stat];
+            var members = table.Members(dirty, out var memberCount);
             if (column == null)
             {
+                var owned = svColumns + (nint)stat * Capacity;
+                for (var i = 0; i < memberCount; i++)
+                {
+                    owned[members[i]] = computed;
+                }
+
                 continue;
             }
 
+            Guard.BindingFresh(boundGeneration[stat]);
             var stride = outputStride[stat];
-            var members = table.Members(dirty, out var memberCount);
             for (var i = 0; i < memberCount; i++)
             {
                 column[members[i] * stride] = computed;

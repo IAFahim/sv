@@ -26,7 +26,17 @@ public readonly unsafe struct Clamp
 
     public float* MaxStatColumn { get; }
 
-    Clamp(ClampKind kind, int min, int max, int* minColumn, int* maxColumn, float* minStat = null, float* maxStat = null)
+    readonly Board? board;
+
+    readonly int minStatIndex;
+
+    readonly int maxStatIndex;
+
+    readonly int minGeneration;
+
+    readonly int maxGeneration;
+
+    Clamp(ClampKind kind, int min, int max, int* minColumn, int* maxColumn, float* minStat = null, float* maxStat = null, Board? board = null, int minStatIndex = -1, int maxStatIndex = -1, int minGeneration = -1, int maxGeneration = -1)
     {
         Kind = kind;
         Min = min;
@@ -35,6 +45,11 @@ public readonly unsafe struct Clamp
         MaxColumn = maxColumn;
         MinStatColumn = minStat;
         MaxStatColumn = maxStat;
+        this.board = board;
+        this.minStatIndex = minStatIndex;
+        this.maxStatIndex = maxStatIndex;
+        this.minGeneration = minGeneration;
+        this.maxGeneration = maxGeneration;
     }
 
     public static Clamp Constant(int min, int max)
@@ -59,41 +74,60 @@ public readonly unsafe struct Clamp
 
     public static Clamp Stat(Board board, StatId minStat, StatId maxStat)
     {
-        var min = board.OutputColumn(minStat);
-        var max = board.OutputColumn(maxStat);
-        if (min == null && max == null)
-        {
-            throw new ArgumentException("sv: Clamp.Stat requires bound output columns");
-        }
-
-        return new Clamp(ClampKind.StatBounds, 0, 0, null, null, min, max);
+        var min = ResolveColumn(board, minStat, out var minGeneration);
+        var max = ResolveColumn(board, maxStat, out var maxGeneration);
+        return new Clamp(ClampKind.StatBounds, 0, 0, null, null, min, max, board, minStat.Index, maxStat.Index, minGeneration, maxGeneration);
     }
 
     public static Clamp StatMax(Board board, StatId maxStat)
     {
-        var max = board.OutputColumn(maxStat);
-        if (max == null)
-        {
-            throw new ArgumentException("sv: Clamp.StatMax requires a bound output column");
-        }
-
-        return new Clamp(ClampKind.StatBounds, 0, 0, null, null, null, max);
+        var max = ResolveColumn(board, maxStat, out var maxGeneration);
+        return new Clamp(ClampKind.StatBounds, 0, 0, null, null, null, max, board, -1, maxStat.Index, -1, maxGeneration);
     }
 
     public static Clamp StatMin(Board board, StatId minStat)
     {
-        var min = board.OutputColumn(minStat);
-        if (min == null)
+        var min = ResolveColumn(board, minStat, out var minGeneration);
+        return new Clamp(ClampKind.StatBounds, 0, 0, null, null, min, null, board, minStat.Index, -1, minGeneration, -1);
+    }
+
+    static float* ResolveColumn(Board board, StatId stat, out int generation)
+    {
+        var external = board.OutputColumn(stat);
+        if (external != null)
         {
-            throw new ArgumentException("sv: Clamp.StatMin requires a bound output column");
+            generation = board.BoundGenerationAt(stat.Index);
+            Guard.BindingFresh(generation);
+            return external;
         }
 
-        return new Clamp(ClampKind.StatBounds, 0, 0, null, null, min, null);
+        generation = -1;
+        return board.OutputPtr(stat);
+    }
+
+    [System.Diagnostics.Conditional("SV_CHECKED")]
+    internal void CheckStatBounds()
+    {
+        if (Kind != ClampKind.StatBounds || board == null)
+        {
+            return;
+        }
+
+        if (minGeneration >= 0 && board.BoundGenerationAt(minStatIndex) != minGeneration)
+        {
+            throw new InvalidOperationException("sv: stale binding — storage moved; rebind");
+        }
+
+        if (maxGeneration >= 0 && board.BoundGenerationAt(maxStatIndex) != maxGeneration)
+        {
+            throw new InvalidOperationException("sv: stale binding — storage moved; rebind");
+        }
     }
 
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     public int Apply(int value, int slot)
     {
+        CheckStatBounds();
         switch (Kind)
         {
             case ClampKind.Constant:

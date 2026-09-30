@@ -64,4 +64,13 @@ internal static unsafe class Guard
             throw new ArgumentOutOfRangeException($"sv: enabled word carries bits past its {validBits} valid rows");
         }
     }
+
+    [Conditional("SV_CHECKED")]
+    public static void BindingFresh(int generation)
+    {
+        if (generation < 0)
+        {
+            throw new InvalidOperationException("sv: stale binding — storage moved; rebind");
+        }
+    }
 }

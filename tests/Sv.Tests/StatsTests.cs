@@ -226,11 +226,23 @@ public unsafe class StatsTests
     }
 
     [Fact]
-    public void ClampStat_UnboundStat_Throws()
+    public void ClampStat_UnboundStat_ResolvesSvOwnedColumn()
     {
         using var board = Board.Create(Schema(), 2);
         var maxMana = board.Schema.Stat("max_mana");
-        Assert.Throws<ArgumentException>(() => Clamp.StatMax(board, maxMana));
+        var speed = board.Schema.Stat("move_speed");
+        board.Acquire();
+        board.Acquire();
+        board.AddModifier(0, maxMana, new Modifier(ModifierKind.Added, 50f));
+        board.AddModifier(1, maxMana, new Modifier(ModifierKind.Added, 150f));
+        board.Recalculate();
+        var clamp = Clamp.StatMax(board, maxMana);
+        var value = stackalloc int[2];
+        value[0] = 500;
+        value[1] = 500;
+        board.RunIntrinsicsChunk(value, 0, clamp, 0, 2);
+        Assert.Equal(150, value[0]);
+        Assert.Equal(250, value[1]);
     }
 
     [Fact]

@@ -12,6 +12,7 @@ internal static unsafe class Simd
 
     internal static void Chunk(int* value, int* delta, int deltaValue, in Clamp clamp, int start, int count, int* applied)
     {
+        clamp.CheckStatBounds();
         if (Vector256.IsHardwareAccelerated)
         {
             ChunkW256(value, delta, deltaValue, clamp, start, count, applied);
