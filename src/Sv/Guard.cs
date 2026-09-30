@@ -46,4 +46,22 @@ internal static unsafe class Guard
             throw new ArgumentOutOfRangeException($"sv: enabled window [{offset}, {offset + 64}) exceeds capacity {capacity}");
         }
     }
+
+    [Conditional("SV_CHECKED")]
+    public static void EnabledRange(int offset, int wordCount, int capacity)
+    {
+        if (offset < 0 || wordCount < 1 || offset + wordCount * 64 > capacity)
+        {
+            throw new ArgumentOutOfRangeException($"sv: enabled window [{offset}, {offset + wordCount * 64}) exceeds capacity {capacity}");
+        }
+    }
+
+    [Conditional("SV_CHECKED")]
+    public static void EnabledTail(ulong word, int validBits)
+    {
+        if (validBits < 64 && (word & ~((1ul << validBits) - 1)) != 0)
+        {
+            throw new ArgumentOutOfRangeException($"sv: enabled word carries bits past its {validBits} valid rows");
+        }
+    }
 }

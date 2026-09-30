@@ -9,7 +9,8 @@ public unsafe class MaskFixtureTests
     {
         var json = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "mask-fixtures.json"));
         using var doc = JsonDocument.Parse(json);
-        Assert.Equal(128, doc.RootElement.GetProperty("chunkCapacity").GetInt32());
+        Assert.False(doc.RootElement.TryGetProperty("chunkCapacity", out _));
+        Assert.Equal(7, doc.RootElement.GetProperty("boundaryCounts").GetArrayLength());
 
         using var board = Board.Create(SchemaBuilder.Create().Intrinsic("mana").Build(), 128);
         var value = stackalloc int[128];

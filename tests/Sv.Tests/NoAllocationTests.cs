@@ -51,11 +51,16 @@ public unsafe class NoAllocationTests
 
         var before = GC.GetAllocatedBytesForCurrentThread();
         long sink = 0;
+        var words = stackalloc ulong[2];
+        words[0] = 0x5555_5555_5555_5555ul;
+        words[1] = 0xAAAA_AAAA_AAAA_AAAAul;
         for (var it = 0; it < 2000; it++)
         {
             board.RunIntrinsicsChunk(value, 7, clamp, 0, 128, applied);
             board.RunIntrinsicsChunk(value, delta, clamp, 0, 128, applied);
             board.RunEnabledChunk(value, 7, clamp, 0x5555_5555_5555_5555ul, 0, applied);
+            board.RunEnabledChunk(value, 7, clamp, words, 2, 0, applied);
+            board.RunEnabledChunk(value, delta, clamp, words, 2, 0, applied);
             var handle = board.AddModifier(it % 127, speed, new Modifier(ModifierKind.Multi, 1.5f));
             board.RemoveModifier(it % 127, speed, handle);
             board.Recalculate();

@@ -2,7 +2,6 @@
   "$schema": "agent-bus mask/run conformance fixture v1",
   "source": "ecs-kernels VerifiedFactsTests.DisabledPatterns (bit-exact, editor-verified on Burst 2.0)",
   "semantics": "enabled bit = entity is processed; walker = tzcnt runs, length==64 guard; disabled entities must remain bit-identical",
-  "chunkCapacity": 128,
   "boundaryCounts": [
     0,
     1,

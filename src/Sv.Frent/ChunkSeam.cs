@@ -125,9 +125,9 @@ public static unsafe class ChunkSeam
             throw new ArgumentException("sv.frent: chunk is not slot-contiguous; use Pull/Push");
         }
 
-        if (offsetSlot != start)
+        if ((offsetSlot & 63) != 0 || offsetSlot < start || offsetSlot >= start + count)
         {
-            throw new ArgumentException("sv.frent: enabled offset must equal the chunk slot base");
+            throw new ArgumentException("sv.frent: enabled window must start 64-aligned inside the chunk");
         }
 
         fixed (TColumn* rowPin = rows)
@@ -137,6 +137,44 @@ public static unsafe class ChunkSeam
             {
                 var appliedView = applied.IsEmpty ? null : appliedPin - start;
                 board.RunEnabledChunk(value, delta, clamp, enabled, offsetSlot, appliedView);
+            }
+        }
+    }
+
+    public static void RunEnabledChunk<TColumn>(
+        Board board,
+        Span<TColumn> rows,
+        ReadOnlySpan<SvSlot> slots,
+        ulong* words,
+        int wordCount,
+        int offsetSlot,
+        int delta,
+        in Clamp clamp,
+        Span<int> applied) where TColumn : unmanaged
+    {
+        if (sizeof(TColumn) != sizeof(int))
+        {
+            throw new ArgumentException("sv.frent: RunEnabledChunk column must be int-sized");
+        }
+
+        if (!TrySlotRange(slots, out var start, out var count))
+        {
+            throw new ArgumentException("sv.frent: chunk is not slot-contiguous; use Pull/Push");
+        }
+
+        if ((offsetSlot & 63) != 0 || offsetSlot < start || offsetSlot >= start + count)
+        {
+            throw new ArgumentException("sv.frent: enabled window must start 64-aligned inside the chunk");
+        }
+
+        Guard.EnabledTail(words[wordCount - 1], start + count - offsetSlot - (wordCount - 1) * 64);
+        fixed (TColumn* rowPin = rows)
+        {
+            var value = (int*)rowPin - start;
+            fixed (int* appliedPin = applied)
+            {
+                var appliedView = applied.IsEmpty ? null : appliedPin - start;
+                board.RunEnabledChunk(value, delta, clamp, words, wordCount, offsetSlot, appliedView);
             }
         }
     }

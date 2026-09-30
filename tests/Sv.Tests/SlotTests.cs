@@ -36,7 +36,11 @@ public class SlotTests
     public void Exhaustion_Throws()
     {
         using var board = Board.Create(TestSchema(), 1);
-        board.Acquire();
+        for (var i = 0; i < board.Capacity; i++)
+        {
+            board.Acquire();
+        }
+
         Assert.Throws<InvalidOperationException>(() => board.Acquire());
     }
 

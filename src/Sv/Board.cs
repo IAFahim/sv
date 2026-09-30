@@ -43,7 +43,7 @@ public sealed unsafe partial class Board : IDisposable
             throw new ArgumentOutOfRangeException(nameof(capacity), "sv: capacity must be positive");
         }
 
-        return new Board(schema, capacity);
+        return new Board(schema, (capacity + 63) & ~63);
     }
 
     public int Acquire()
@@ -168,6 +168,163 @@ public sealed unsafe partial class Board : IDisposable
         }
 
         WriteSkippedZero(applied, enabled, offset);
+    }
+
+    /// <param name="applied">Delta column indexed by absolute slot; must be sized for the full window from <paramref name="offset"/> — the entire window is written, disabled rows get zero.</param>
+    public void RunEnabledChunk(int* value, int delta, in Clamp clamp, ulong* words, int wordCount, int offset, int* applied = null)
+    {
+        if (value == null)
+        {
+            throw new ArgumentNullException(nameof(value));
+        }
+
+        if (words == null)
+        {
+            throw new ArgumentNullException(nameof(words));
+        }
+
+        Guard.EnabledRange(offset, wordCount, Capacity);
+        for (var w = 0; w < wordCount; w++)
+        {
+            var slotBase = offset + w * 64;
+            var mask = words[w];
+            while (mask != 0)
+            {
+                var bit = BitOperations.TrailingZeroCount(mask);
+                mask &= mask - 1;
+                var slot = slotBase + bit;
+                var before = value[slot];
+                var after = clamp.Apply(before + delta, slot);
+                value[slot] = after;
+                if (applied != null)
+                {
+                    applied[slot] = after - before;
+                }
+            }
+
+            WriteSkippedZero(applied, words[w], slotBase);
+        }
+    }
+
+    /// <param name="applied">Delta column indexed by absolute slot; must be sized for the full window from <paramref name="offset"/> — the entire window is written, disabled rows get zero.</param>
+    public void RunEnabledChunk(int* value, int* delta, in Clamp clamp, ulong* words, int wordCount, int offset, int* applied = null)
+    {
+        if (value == null)
+        {
+            throw new ArgumentNullException(nameof(value));
+        }
+
+        if (delta == null)
+        {
+            throw new ArgumentNullException(nameof(delta));
+        }
+
+        if (words == null)
+        {
+            throw new ArgumentNullException(nameof(words));
+        }
+
+        Guard.EnabledRange(offset, wordCount, Capacity);
+        for (var w = 0; w < wordCount; w++)
+        {
+            var slotBase = offset + w * 64;
+            var mask = words[w];
+            while (mask != 0)
+            {
+                var bit = BitOperations.TrailingZeroCount(mask);
+                mask &= mask - 1;
+                var slot = slotBase + bit;
+                var before = value[slot];
+                var after = clamp.Apply(before + delta[slot], slot);
+                value[slot] = after;
+                if (applied != null)
+                {
+                    applied[slot] = after - before;
+                }
+            }
+
+            WriteSkippedZero(applied, words[w], slotBase);
+        }
+    }
+
+    /// <param name="applied">Delta column indexed by absolute slot; must be sized for the full window from <paramref name="offset"/> — the entire window is written, disabled rows get zero.</param>
+    public void RunEnabledChunk(Span<int> value, int delta, in Clamp clamp, ulong* words, int wordCount, int offset, Span<int> applied = default)
+    {
+        if (words == null)
+        {
+            throw new ArgumentNullException(nameof(words));
+        }
+
+        Guard.EnabledRange(offset, wordCount, Capacity);
+        for (var w = 0; w < wordCount; w++)
+        {
+            var slotBase = offset + w * 64;
+            var mask = words[w];
+            while (mask != 0)
+            {
+                var bit = BitOperations.TrailingZeroCount(mask);
+                mask &= mask - 1;
+                var slot = slotBase + bit;
+                var before = value[slot];
+                var after = clamp.Apply(before + delta, slot);
+                value[slot] = after;
+                if (!applied.IsEmpty)
+                {
+                    applied[slot] = after - before;
+                }
+            }
+
+            if (!applied.IsEmpty)
+            {
+                var skipped = ~words[w];
+                while (skipped != 0)
+                {
+                    var bit = BitOperations.TrailingZeroCount(skipped);
+                    skipped &= skipped - 1;
+                    applied[slotBase + bit] = 0;
+                }
+            }
+        }
+    }
+
+    /// <param name="applied">Delta column indexed by absolute slot; must be sized for the full window from <paramref name="offset"/> — the entire window is written, disabled rows get zero.</param>
+    public void RunEnabledChunk(Span<int> value, ReadOnlySpan<int> delta, in Clamp clamp, ulong* words, int wordCount, int offset, Span<int> applied = default)
+    {
+        if (words == null)
+        {
+            throw new ArgumentNullException(nameof(words));
+        }
+
+        Guard.EnabledRange(offset, wordCount, Capacity);
+        for (var w = 0; w < wordCount; w++)
+        {
+            var slotBase = offset + w * 64;
+            var mask = words[w];
+            while (mask != 0)
+            {
+                var bit = BitOperations.TrailingZeroCount(mask);
+                mask &= mask - 1;
+                var slot = slotBase + bit;
+                var before = value[slot];
+                var after = clamp.Apply(before + delta[slot], slot);
+                value[slot] = after;
+                if (!applied.IsEmpty)
+                {
+                    applied[slot] = after - before;
+                }
+            }
+
+            if (!applied.IsEmpty)
+            {
+                var skipped = ~words[w];
+                while (skipped != 0)
+                {
+                    var bit = BitOperations.TrailingZeroCount(skipped);
+                    skipped &= skipped - 1;
+                    applied[slotBase + bit] = 0;
+                }
+            }
+        }
     }
 
     static void WriteSkippedZero(int* applied, ulong enabled, int offset)
