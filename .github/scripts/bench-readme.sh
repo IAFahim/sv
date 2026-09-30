@@ -31,7 +31,7 @@ meta="$(grep -m1 'sv-bench' /tmp/bench-md.txt | sed 's/<!-- //; s/ -->//')"
 
 section="Last refreshed $when · \`main@$commit\` · $cpu ($cores cores) · $meta
 
-| Scenario | µs/frame | M rows/s | Managed alloc |
+| Scenario | µs/frame | rate | Managed alloc |
 |---|---:|---:|---|
 $(grep '^|' /tmp/bench-md.txt)"
 

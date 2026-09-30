@@ -23,6 +23,8 @@ internal abstract unsafe class BenchBase : IDisposable
 {
     public abstract long Frame(int iterations);
 
+    public virtual int RowsPerFrame => Rows;
+
     public virtual string Verify() => "ok";
 
     public virtual void Dispose()
@@ -127,9 +129,12 @@ internal static class Program
         }
 
         var bestUs = batches[0];
+        var rate = bench.RowsPerFrame == 1
+            ? $"{bestUs * 1000.0:0} ns/op"
+            : $"{bench.RowsPerFrame / (bestUs * 1000.0):0.00} M rows/s";
         Console.WriteLine(Markdown
-            ? $"| {name} | {bestUs:0.000} | {Rows / (bestUs * 1000.0):0.00} | 0 B |"
-            : $"{name,-22} {bestUs,9:0.000} us/frame {Rows / (bestUs * 1000.0),10:0.00} M rows/s alloc=0B");
+            ? $"| {name} | {bestUs:0.000} | {rate} | 0 B |"
+            : $"{name,-22} {bestUs,9:0.000} us/frame {rate,16} alloc=0B");
         return 0;
     }
 }
@@ -398,6 +403,8 @@ internal sealed unsafe class StatRecalcBench : BenchBase
         this.handles = handles;
     }
 
+    public override int RowsPerFrame => 1;
+
     internal static StatRecalcBench New()
     {
         var board = Board.Create(
@@ -554,6 +561,8 @@ internal sealed unsafe class InputCaptureBench : BenchBase
     readonly uint* axes;
 
     readonly ulong* buttons;
+
+    public override int RowsPerFrame => 1;
 
     InputCaptureBench(InputState input, uint* axes, ulong* buttons)
     {
