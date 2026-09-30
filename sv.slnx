@@ -1,6 +1,7 @@
 <Solution>
   <Project Path="src/Sv/Sv.csproj" />
   <Project Path="src/Sv.Frent/Sv.Frent.csproj" />
+  <Project Path="src/Sv.Compose/Sv.Compose.csproj" />
   <Project Path="tests/Sv.Tests/Sv.Tests.csproj" />
   <Project Path="tests/Sv.NorthStar/Sv.NorthStar.csproj" />
   <Project Path="benchmarks/Sv.Bench/Sv.Bench.csproj" />

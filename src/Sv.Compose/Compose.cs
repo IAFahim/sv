@@ -1,0 +1,285 @@
+using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+using Tl;
+
+namespace Sv.Compose;
+
+public interface IEventChain
+{
+    static abstract void Register(Game game);
+}
+
+public interface ITimelineChain
+{
+    static abstract int Count { get; }
+
+    static abstract void Run(Game game, int index);
+}
+
+public interface IKernelChain
+{
+    static abstract void Run<THost>(in THost world, Game game, float dt) where THost : struct, IFrameWorld;
+}
+
+public readonly struct Chain : IEventChain, ITimelineChain, IKernelChain
+{
+    static void IEventChain.Register(Game game)
+    {
+    }
+
+    static int ITimelineChain.Count => 0;
+
+    static void ITimelineChain.Run(Game game, int index)
+    {
+    }
+
+    static void IKernelChain.Run<THost>(in THost world, Game game, float dt)
+    {
+    }
+}
+
+public readonly struct EventLink<T, TNext> : IEventChain where T : unmanaged where TNext : struct, IEventChain
+{
+    static void IEventChain.Register(Game game)
+    {
+        game.AddChannel<T>();
+        TNext.Register(game);
+    }
+}
+
+public readonly struct TimelineLink<TStep, TNext> : ITimelineChain where TStep : ITimelineStep where TNext : struct, ITimelineChain
+{
+    static int ITimelineChain.Count => 1 + TNext.Count;
+
+    static void ITimelineChain.Run(Game game, int index)
+    {
+        var effect = game.Effect(index);
+        Array.Clear(effect, 0, effect.Length);
+        TStep.Apply(game, effect);
+        TStep.Transform(game, effect);
+        TStep.Advance(game);
+        TNext.Run(game, index + 1);
+    }
+}
+
+public readonly struct KernelLink<TStep, TNext> : IKernelChain where TStep : IKernelStep where TNext : struct, IKernelChain
+{
+    static void IKernelChain.Run<THost>(in THost world, Game game, float dt)
+    {
+        TStep.Run(world, game, dt);
+        TNext.Run<THost>(world, game, dt);
+    }
+}
+
+/// <summary>
+/// Host world: implements the frame duties the composition layer refuses to own — event payload
+/// dispatch, the intrinsics pass (frame-frozen bounds), and the condition run-walk emits
+/// (including emit-from-applied followed by zeroing <see cref="Game.Applied"/>). Dispatched as
+/// constrained calls on a struct: direct, devirtualized, no boxing.
+/// </summary>
+public unsafe interface IFrameWorld
+{
+    void Reconcile(Game game);
+
+    void DispatchEvent(Game game, ushort typeId, void* payload);
+
+    void RunIntrinsics(Game game);
+
+    void RunConditions(Game game);
+}
+
+/// <summary>
+/// One timeline registered on the game. The tl calls live in <see cref="TimelineStep{TTrack,TClip}"/>,
+/// so the tl version seam (Apply/Advance naming) is absorbed here and nowhere else.
+/// </summary>
+public interface ITimelineStep
+{
+    static abstract bool Loop { get; }
+
+    static abstract void Apply(Game game, float[] effect);
+
+    static abstract void Transform(Game game, float[] effect);
+
+    static abstract void Advance(Game game);
+}
+
+public interface IKernelStep
+{
+    static abstract void Run<THost>(in THost world, Game game, float dt) where THost : struct, IFrameWorld;
+}
+
+public static class TimelineStep<TTrack, TClip> where TClip : unmanaged where TTrack : unmanaged, IBlend<TClip>
+{
+    public static void Apply(Game game, bool loop, float[] effect)
+    {
+        Timeline<TTrack, TClip>.Apply(game.TimelineIds, game.TimelineClocks, loop, effect);
+    }
+
+    public static void Advance(Game game, bool loop)
+    {
+        Timeline<TTrack, TClip>.Advance(game.TimelineIds, game.TimelineClocks, loop);
+    }
+}
+
+public sealed unsafe class Game : IDisposable
+{
+    public Board Board { get; }
+
+    public InputState Input { get; }
+
+    public EventStreams Streams { get; }
+
+    public int Capacity => Board.Capacity;
+
+    public ushort[] TimelineIds { get; }
+
+    public ushort[] TimelineClocks { get; }
+
+    public int* Applied { get; }
+
+    readonly float[][] effects;
+
+    readonly Dictionary<Type, object> channels;
+
+    Game(Schema schema, int capacity, int timelineCount, InputState input)
+    {
+        Board = Board.Create(schema, capacity);
+        Input = input;
+        Streams = EventStreams.Create();
+        TimelineIds = new ushort[Board.Capacity];
+        TimelineClocks = new ushort[Board.Capacity];
+        Applied = (int*)NativeMemory.AllocZeroed((nuint)Board.Capacity * (nuint)sizeof(int), (nuint)sizeof(int));
+        effects = new float[timelineCount][];
+        for (var i = 0; i < timelineCount; i++)
+        {
+            effects[i] = new float[Board.Capacity];
+        }
+
+        channels = new Dictionary<Type, object>();
+    }
+
+    public static GameBuilder<Chain, Chain, Chain> Create(Schema schema, int capacity)
+    {
+        return new GameBuilder<Chain, Chain, Chain>(schema, capacity);
+    }
+
+    public float[] Effect(int index) => effects[index];
+
+    public Channel<T> Channel<T>() where T : unmanaged
+    {
+        return (Channel<T>)channels[typeof(T)];
+    }
+
+    internal static Game Build(Schema schema, int capacity, int timelineCount, InputState input)
+    {
+        return new Game(schema, capacity, timelineCount, input);
+    }
+
+    internal void AddChannel<T>() where T : unmanaged
+    {
+        channels[typeof(T)] = Streams.CreateChannel<T>();
+    }
+
+    public void Dispose()
+    {
+        Board.Dispose();
+        Streams.Dispose();
+        NativeMemory.Free(Applied);
+    }
+}
+
+public sealed class GameBuilder<TEvents, TTimelines, TKernels>
+    where TEvents : struct, IEventChain
+    where TTimelines : struct, ITimelineChain
+    where TKernels : struct, IKernelChain
+{
+    readonly Schema schema;
+
+    readonly int capacity;
+
+    internal GameBuilder(Schema schema, int capacity)
+    {
+        this.schema = schema;
+        this.capacity = capacity;
+    }
+
+    public GameBuilder<EventLink<T, TEvents>, TTimelines, TKernels> Event<T>() where T : unmanaged
+    {
+        return new GameBuilder<EventLink<T, TEvents>, TTimelines, TKernels>(schema, capacity);
+    }
+
+    public GameBuilder<TEvents, TimelineLink<TStep, TTimelines>, TKernels> Timeline<TStep>() where TStep : ITimelineStep
+    {
+        return new GameBuilder<TEvents, TimelineLink<TStep, TTimelines>, TKernels>(schema, capacity);
+    }
+
+    public GameBuilder<TEvents, TTimelines, KernelLink<TStep, TKernels>> Kernel<TStep>() where TStep : IKernelStep
+    {
+        return new GameBuilder<TEvents, TTimelines, KernelLink<TStep, TKernels>>(schema, capacity);
+    }
+
+    public GameHost<TEvents, TTimelines, TKernels, THost> Build<THost>(THost world, InputState input)
+        where THost : struct, IFrameWorld
+    {
+        var game = Game.Build(schema, capacity, TTimelines.Count, input);
+        TEvents.Register(game);
+        return new GameHost<TEvents, TTimelines, TKernels, THost>(game, world);
+    }
+}
+
+public sealed class GameHost<TEvents, TTimelines, TKernels, THost> : IDisposable
+    where TEvents : struct, IEventChain
+    where TTimelines : struct, ITimelineChain
+    where TKernels : struct, IKernelChain
+    where THost : struct, IFrameWorld
+{
+    public Game Game { get; }
+
+    public THost World { get; }
+
+    public FrameRunner Frame { get; }
+
+    internal GameHost(Game game, THost world)
+    {
+        Game = game;
+        World = world;
+        Frame = new FrameRunner(this);
+    }
+
+    public void Dispose() => Game.Dispose();
+
+    public sealed class FrameRunner
+    {
+        readonly GameHost<TEvents, TTimelines, TKernels, THost> owner;
+
+        internal FrameRunner(GameHost<TEvents, TTimelines, TKernels, THost> owner)
+        {
+            this.owner = owner;
+        }
+
+        public unsafe void Run(float dt)
+        {
+            var game = owner.Game;
+            var world = owner.World;
+            while (game.Streams.TryReadNext(out var typeId, out var payload, out _))
+            {
+                world.DispatchEvent(game, typeId, payload);
+            }
+
+            world.Reconcile(game);
+            world.RunIntrinsics(game);
+            game.Board.Recalculate();
+            TTimelines.Run(game, 0);
+            TKernels.Run(in world, game, dt);
+            world.RunConditions(game);
+            game.Streams.Swap();
+        }
+
+        public unsafe void Tick(float dt, uint* axes, ulong* buttons)
+        {
+            owner.Game.Input.Capture(axes, buttons);
+            Run(dt);
+        }
+    }
+}
