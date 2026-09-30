@@ -1,0 +1,18 @@
+{
+    "name": "Sv.Unity.Tests",
+    "rootNamespace": "Sv.Unity",
+    "references": [
+        "Sv.Unity",
+        "Unity.Entities",
+        "Unity.Burst",
+        "Unity.Collections"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "allowUnsafeCode": true,
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ]
+}

@@ -1,0 +1,17 @@
+{
+    "name": "Sv.Unity",
+    "rootNamespace": "Sv.Unity",
+    "references": [
+        "Unity.Entities",
+        "Unity.Burst"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
