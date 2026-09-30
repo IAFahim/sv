@@ -73,7 +73,8 @@ input capture 9 ns; every scenario verified against a scalar reference and print
 columns) runs at parity with the hand-rolled fused tick (~0.85–0.93 ms/frame at
 100k rows — the composition layer itself is free, and sv-owned broadcast edges it
 ahead of the external-column loop); the determinism tape adds ~0.6–1.0 ms/frame at
-100k rows (FNV-1a digest + body over ~1.2 MB of slot space, streamed to disk);
+100k rows (FNV-1a digest + body over the live slot space, streamed to disk; tape v2
+hashes live rows only — sparse boards pay per entity, not capacity);
 both print `alloc=0B`. Standing `NoAllocationTests` assert exact-zero managed bytes for every
 warm verb; the managed-state audit shows zero managed collections outside
 `Schema` (cold authoring). Known .NET-only cost: the `UnmanagedCallersOnly` entry
