@@ -214,11 +214,7 @@ public sealed unsafe class NorthStarHarness : IDisposable
 
     public const int RegenButton = 0;
 
-    public const float Gravity = -9.8f;
-
     public const float GravityField = -9.8f;
-
-    public readonly float Dt = 0.016666668f;
 
     GameHost<EventLink<ManaGained, EventLink<Landed, Chain>>, TimelineLink<NorthStarJump, Chain>, KernelLink<NorthStarFall, Chain>, NorthStarWorld> host = null!;
 
@@ -249,10 +245,6 @@ public sealed unsafe class NorthStarHarness : IDisposable
 #endif
 
     public float[] Y = new float[Entities];
-
-    public ushort[] Ids = new ushort[Entities];
-
-    public ushort[] TickClock = new ushort[Entities];
 
     public List<string> EventLog = new();
 
@@ -308,15 +300,13 @@ public sealed unsafe class NorthStarHarness : IDisposable
             .Build(world, input);
         Board = host.Game.Board;
         Input = input;
-        Ids = host.Game.TimelineIds;
-        TickClock = host.Game.TimelineClocks;
         Y = host.Game.Effect(0);
 
         var jumpId = TimelineAsset.Load(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "jump.tlb")));
         for (var i = 0; i < Entities; i++)
         {
             Board.Acquire();
-            Ids[i] = jumpId;
+            host.Game.TimelineIds[i] = jumpId;
             Position[i] = 0.01f;
             Velocity[i] = -130f;
             mana[i] = 40;

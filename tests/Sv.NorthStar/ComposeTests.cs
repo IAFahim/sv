@@ -230,7 +230,7 @@ public sealed unsafe class ComposeTests
     }
 
     [Fact]
-    public void FrameRun_MatchesManualNorthStarLoop_BitIdentical()
+    public void FrameRun_IndependentWorldPort_MatchesNorthStarHarness_BitIdentical()
     {
         var axesBits = new[] { BitConverter.SingleToUInt32Bits(Dt), 0x3F800000u };
         var buttons = new ulong[] { 1ul << NorthStarHarness.RegenButton };
