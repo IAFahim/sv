@@ -56,6 +56,9 @@ internal static class Program
         failures += Run("events-emit", scenario, ms, EventsEmitBench.New);
         failures += Run("input-capture", scenario, ms, InputCaptureBench.New);
         failures += Run("fused-tick", scenario, ms, FusedTickBench.New);
+        failures += Run("frame-run", scenario, ms, () => FrameRunBench.New(false, ""));
+        var sink = OperatingSystem.IsLinux() ? "/dev/null" : System.IO.Path.GetTempFileName();
+        failures += Run("tape-digest", scenario, ms, () => FrameRunBench.New(true, sink));
         Console.WriteLine(failures == 0 ? "all scenarios ok" : $"{failures} scenario(s) failed");
         return failures == 0 ? 0 : 1;
     }

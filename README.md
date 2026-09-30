@@ -27,7 +27,11 @@ edges, replay ring). Entity-free at the core; ECS hosts adapt through one chunk 
 - Usage: [sv-examples](https://github.com/IAFahim/sv-examples) — five runnable
   samples (core stats/intrinsics, events, input replay, the Frent adapter, and the
   frozen-frame composition with whole-run replay bit-identity), each printing a
-  zero-managed-allocation receipt on its warm path.
+  zero-managed-allocation receipt on its warm path. This repo also carries
+  `samples/Sv.Samples` — three limit-pushing showcases (one million slots under every
+  core verb; 100k entities on the composed frame with tape record → bit-identical
+  playback; 100k Frent entities fragmenting and healing through `Reconcile`):
+  `dotnet run -c Release --project samples/Sv.Samples`.
 
 ## The Composition Contract — v1.0.3
 
@@ -65,7 +69,12 @@ escapes (`WalkNonZero`). Same pattern tl.unity's fork uses for the same reason.
 (the clause-16 pinned conversion costs ~1.9x vs constant clamps); enabled run-walk
 1.45 M rows/s after inlining `Clamp.Apply` (+81%); stat add+remove+recalculate 121 ns;
 input capture 9 ns; every scenario verified against a scalar reference and prints
-`alloc=0B`. Standing `NoAllocationTests` assert exact-zero managed bytes for every
+`alloc=0B`. Post-atoms-11–13: the composed one-call frame (`frame-run`, sv-owned
+columns) runs at parity with the hand-rolled fused tick (~0.85–0.93 ms/frame at
+100k rows — the composition layer itself is free, and sv-owned broadcast edges it
+ahead of the external-column loop); the determinism tape adds ~0.6–1.0 ms/frame at
+100k rows (FNV-1a digest + body over ~1.2 MB of slot space, streamed to disk);
+both print `alloc=0B`. Standing `NoAllocationTests` assert exact-zero managed bytes for every
 warm verb; the managed-state audit shows zero managed collections outside
 `Schema` (cold authoring). Known .NET-only cost: the `UnmanagedCallersOnly` entry
 thunk charges ~10 ns per event `make` call (~29% of a dense-emit frame); ruled a
