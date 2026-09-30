@@ -38,15 +38,28 @@ internal static class Program
     {
         var scenario = args.Length > 0 && !args[0].StartsWith("--") ? args[0] : "all";
         var ms = 2000;
-        for (var i = 0; i + 1 < args.Length; i++)
+        for (var i = 0; i < args.Length; i++)
         {
-            if (args[i] == "--ms")
+            if (args[i] == "--ms" && i + 1 < args.Length)
             {
                 ms = int.Parse(args[i + 1]);
             }
+
+            if (args[i] == "--md")
+            {
+                Markdown = true;
+            }
         }
 
-        Console.WriteLine($"sv-bench rows={Rows} vector256={Simd.Has256} vector128={Simd.Has128}");
+        if (Markdown)
+        {
+            Console.WriteLine($"<!-- sv-bench rows={Rows} vector256={Simd.Has256} vector128={Simd.Has128} -->");
+        }
+        else
+        {
+            Console.WriteLine($"sv-bench rows={Rows} vector256={Simd.Has256} vector128={Simd.Has128}");
+        }
+
         var failures = 0;
         failures += Run("intrinsics-uniform", scenario, ms, () => new IntrinsicsBench(uniform: true, statClamp: false));
         failures += Run("intrinsics-varying", scenario, ms, () => new IntrinsicsBench(uniform: false, statClamp: false));
@@ -59,9 +72,15 @@ internal static class Program
         failures += Run("frame-run", scenario, ms, () => FrameRunBench.New(false, ""));
         var sink = OperatingSystem.IsLinux() ? "/dev/null" : System.IO.Path.GetTempFileName();
         failures += Run("tape-digest", scenario, ms, () => FrameRunBench.New(true, sink));
-        Console.WriteLine(failures == 0 ? "all scenarios ok" : $"{failures} scenario(s) failed");
+        if (!Markdown)
+        {
+            Console.WriteLine(failures == 0 ? "all scenarios ok" : $"{failures} scenario(s) failed");
+        }
+
         return failures == 0 ? 0 : 1;
     }
+
+    internal static bool Markdown { get; private set; }
 
     static int Run(string name, string scenario, int ms, Func<BenchBase> factory)
     {
@@ -101,12 +120,16 @@ internal static class Program
         Array.Sort(batches);
         if (verify == null || !verify.StartsWith("ok"))
         {
-            Console.WriteLine($"{name,-22} FAIL: {verify}");
+            Console.WriteLine(Markdown
+                ? $"| {name} | FAIL: {verify} | — | — |"
+                : $"{name,-22} FAIL: {verify}");
             return 1;
         }
 
         var bestUs = batches[0];
-        Console.WriteLine($"{name,-22} {bestUs,9:0.000} us/frame {Rows / (bestUs * 1000.0),10:0.00} M rows/s alloc=0B");
+        Console.WriteLine(Markdown
+            ? $"| {name} | {bestUs:0.000} | {Rows / (bestUs * 1000.0):0.00} | 0 B |"
+            : $"{name,-22} {bestUs,9:0.000} us/frame {Rows / (bestUs * 1000.0),10:0.00} M rows/s alloc=0B");
         return 0;
     }
 }
