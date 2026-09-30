@@ -255,6 +255,19 @@ internal sealed unsafe class SetTable : IDisposable
         }
     }
 
+    public void RenumberMembers(ReadOnlySpan<int> oldToNew)
+    {
+        for (var set = 0; set < setCount; set++)
+        {
+            var members = setMembers[set];
+            var count = setMemberCount[set];
+            for (var i = 0; i < count; i++)
+            {
+                members[i] = oldToNew[members[i]];
+            }
+        }
+    }
+
     public int* Members(int set, out int count)
     {
         count = setMemberCount[set];

@@ -9,6 +9,7 @@ public struct Mana
     public int Value;
 }
 
+[Collection("Frent")]
 public sealed class FrentAdapterTests
 {
     static Schema ManaSchema()

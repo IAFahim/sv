@@ -460,4 +460,147 @@ public sealed unsafe partial class Board
         Canonicalize(scratch, mods.Ids, mods.Count);
         return Fold(statBase[index], scratch, mods.Count);
     }
+
+    /// <summary>
+    /// Compacts the slot space: live slots map through <paramref name="oldToNew"/> (negative entries
+    /// are dead slots) to distinct targets in [0, capacity) — gaps are legal (64-alignment padding).
+    /// Rewrites set members, modifier lists, the dirty queue (all live pairs re-enqueued — run
+    /// <see cref="Recalculate"/> after), live bits, and sv-owned columns; external bindings are
+    /// invalidated per the clause-12 doctrine. Modifier insertion ids ride along, so stat folds are
+    /// preserved bit-exactly.
+    /// </summary>
+    public void RenumberSlots(ReadOnlySpan<int> oldToNew, int count)
+    {
+        if (count < 0 || count > Capacity)
+        {
+            throw new ArgumentOutOfRangeException(nameof(count), $"sv: renumber count must be in [0, {Capacity}]");
+        }
+
+        if (count != LiveCount)
+        {
+            throw new InvalidOperationException($"sv: renumber count {count} != live count {LiveCount}");
+        }
+
+        if (oldToNew.Length != Capacity)
+        {
+            throw new ArgumentException($"sv: renumber map must cover capacity ({Capacity} entries)");
+        }
+
+        var words = (Capacity + 63) >> 6;
+        var newLive = Alloc<ulong>(words);
+        NativeMemory.Clear(newLive, (nuint)words * (nuint)sizeof(ulong));
+        var seen = Alloc<int>(Capacity);
+        for (var i = 0; i < Capacity; i++)
+        {
+            seen[i] = -1;
+        }
+
+        for (var slot = 0; slot < Capacity; slot++)
+        {
+            if ((live[slot >> 6] & (1ul << (slot & 63))) == 0)
+            {
+                continue;
+            }
+
+            var next = oldToNew[slot];
+            if (next < 0 || next >= Capacity || seen[next] >= 0)
+            {
+                NativeMemory.Free(newLive);
+                NativeMemory.Free(seen);
+                throw new ArgumentException("sv: renumber map does not map live slots to distinct targets");
+            }
+
+            seen[next] = slot;
+            newLive[next >> 6] |= 1ul << (next & 63);
+        }
+
+        if (statCount > 0)
+        {
+            RenumberStats(oldToNew);
+        }
+
+        new ReadOnlySpan<ulong>(newLive, words).CopyTo(new Span<ulong>(live, words));
+        NativeMemory.Free(newLive);
+        var freeCount = 0;
+        for (var slot = 0; slot < Capacity; slot++)
+        {
+            if ((live[slot >> 6] & (1ul << (slot & 63))) == 0)
+            {
+                seen[freeCount++] = slot;
+            }
+        }
+
+        freeTop = freeCount;
+        for (var i = 0; i < freeCount; i++)
+        {
+            freeSlots[freeCount - 1 - i] = seen[i];
+        }
+
+        NativeMemory.Free(seen);
+
+        if (statCount > 0)
+        {
+            NativeMemory.Clear(pairQueued, (nuint)statCount * (nuint)Capacity);
+            pairQueueCount = 0;
+            for (var slot = 0; slot < Capacity; slot++)
+            {
+                if ((live[slot >> 6] & (1ul << (slot & 63))) != 0)
+                {
+                    MarkSlotStatsDirty(slot);
+                }
+            }
+        }
+
+        InvalidateBindings();
+    }
+
+    void RenumberStats(ReadOnlySpan<int> oldToNew)
+    {
+        var pairTotal = statCount * Capacity;
+        var tempPairs = Alloc<PairMods>(pairTotal);
+        NativeMemory.Clear(tempPairs, (nuint)pairTotal * (nuint)sizeof(PairMods));
+        var tempSet = Alloc<int>(pairTotal);
+        for (var i = 0; i < pairTotal; i++)
+        {
+            tempSet[i] = -1;
+        }
+
+        for (var slot = 0; slot < Capacity; slot++)
+        {
+            if ((live[slot >> 6] & (1ul << (slot & 63))) == 0)
+            {
+                continue;
+            }
+
+            var next = oldToNew[slot];
+            for (var stat = 0; stat < statCount; stat++)
+            {
+                tempPairs[next * statCount + stat] = pairs[slot * statCount + stat];
+                tempSet[next * statCount + stat] = pairSet[slot * statCount + stat];
+            }
+        }
+
+        new ReadOnlySpan<PairMods>(tempPairs, pairTotal).CopyTo(new Span<PairMods>(pairs, pairTotal));
+        new ReadOnlySpan<int>(tempSet, pairTotal).CopyTo(new Span<int>(pairSet, pairTotal));
+        NativeMemory.Free(tempPairs);
+        NativeMemory.Free(tempSet);
+        table!.RenumberMembers(oldToNew);
+        var tempRows = Alloc<float>(Capacity);
+        for (var stat = 0; stat < statCount; stat++)
+        {
+            var column = svColumns + (nint)stat * Capacity;
+            NativeMemory.Clear(tempRows, (nuint)Capacity * (nuint)sizeof(float));
+            for (var slot = 0; slot < Capacity; slot++)
+            {
+                if ((live[slot >> 6] & (1ul << (slot & 63))) != 0)
+                {
+                    tempRows[oldToNew[slot]] = column[slot];
+                }
+            }
+
+            new ReadOnlySpan<float>(tempRows, Capacity).CopyTo(new Span<float>(column, Capacity));
+        }
+
+        NativeMemory.Free(tempRows);
+    }
 }
