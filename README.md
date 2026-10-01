@@ -33,6 +33,127 @@ edges, replay ring). Entity-free at the core; ECS hosts adapt through one chunk 
   playback; 100k Frent entities fragmenting and healing through `Reconcile`):
   `dotnet run -c Release --project samples/Sv.Samples`.
 
+## Quick start
+
+`Sv` targets `net10.0` with `<AllowUnsafeBlocks>true</AllowUnsafeBlocks>` — the data
+path is unmanaged columns by design (clause 5: the host owns storage, sv owns the slot
+space and the math). Define `SV_CHECKED` in debug builds to trap stale bindings and
+use-after-rebind (clauses 12, 14).
+
+All four verbs in one listing — schema, dense slots, stat modifiers, clamped
+intrinsics, sparse events, bit-captured input:
+
+```csharp
+using System;
+using System.Runtime.InteropServices;
+using Sv;
+
+internal static unsafe class Program
+{
+    public struct Hit
+    {
+        public int Slot;
+        public int Amount;
+    }
+
+    [UnmanagedCallersOnly]
+    static Hit MakeHit(int slot, int value) => new() { Slot = slot, Amount = value };
+
+    static int Main()
+    {
+        // 1. Schema: float stats (modifier-driven) + int intrinsics (direct writes).
+        var schema = SchemaBuilder.Create()
+            .Stat("move_speed", 6f)
+            .Stat("max_mana", 100f)
+            .Intrinsic("mana")
+            .Build();
+
+        // 2. One board = one dense slot space; capacity rounds up to a 64 boundary.
+        using var board = Board.Create(schema, capacity: 1024);
+        var slot = board.Acquire();          // host maps entity -> slot; Release() at destroy
+
+        // 3. Stats: stack modifiers, then Recalculate folds + broadcasts into columns.
+        var speed = schema.Stat("move_speed");
+        var haste = board.AddModifier(slot, speed, new Modifier(ModifierKind.Additive, 0.5f));
+        board.Recalculate();
+        Span<float> speeds = board.Output(speed);   // sv-owned column, no bind needed
+        // speeds[slot] == 9  (6 base * (1 + 0.5) additive); clause-3 canonical fold
+        board.RemoveModifier(slot, speed, haste);
+
+        // 4. Intrinsics: host-owned unmanaged int columns, written through chunk ops.
+        var mana = (int*)NativeMemory.AllocZeroed((nuint)board.Capacity * sizeof(int), sizeof(int));
+        var applied = (int*)NativeMemory.Alloc((nuint)board.Capacity * sizeof(int), sizeof(int));
+        mana[slot] = 40;
+
+        var clamp = Clamp.StatMax(board, schema.Stat("max_mana"));  // bound = last broadcast
+        board.RunIntrinsicsChunk(mana, 25, clamp, 0, board.Capacity, applied);
+        // mana[slot] == 65, applied[slot] == 25
+
+        // Masked run-walk: only set bits are touched; applied[] is 0 on skipped rows.
+        board.RunEnabledChunk(mana, 7, clamp, 0b1011ul, offset: 0, applied);
+
+        // 5. Events: sparse signals over a pooled double buffer (clause 17).
+        using var streams = EventStreams.Create(writerCount: 1, bytesPerWriter: 4096);
+        var hits = streams.CreateChannel<Hit>();
+        hits.Write(new Hit { Slot = slot, Amount = applied[slot] });
+        // ...or emit per live row off a condition column — applied != 0 -> one Hit each:
+        streams.EmitFromNonZero(hits, applied, 0, board.Capacity, &MakeHit);
+
+        streams.Swap();                          // publishes this frame's writes to readers
+        while (streams.TryReadNext(out var type, out var payload, out _))
+        {
+            if (type == hits.Id)
+            {
+                var hit = *(Hit*)payload;        // drain handlers write intrinsics here
+            }
+        }
+
+        // 6. Input: raw axis bits + button edges + a replay ring (clause 11).
+        using var input = InputState.Create(axes: 2, buttonWords: 1, ringTicks: 128);
+        var axes = stackalloc uint[2];
+        var buttons = stackalloc ulong[1];
+        axes[0] = BitConverter.SingleToUInt32Bits(0.5f);   // captured bit-verbatim
+        buttons[0] = 1ul << 3;                           // button 3 down
+        input.Capture(axes, buttons);
+        // input.Pressed(3) / Down(3) / Released(3), input.AxisF(0) == 0.5f
+        // input.BeginReplay(tick) + input.ReplayStep() walks the ring bit-identically
+
+        NativeMemory.Free(mana);
+        NativeMemory.Free(applied);
+        return 0;
+    }
+}
+```
+
+To broadcast stats into columns the host already owns, bind once after allocation —
+`board.BindOutput(stat, ptr)` or `BindExternal` for a stale-checkable handle — instead
+of reading `board.Output(stat)`. For per-row bounds, `Clamp.Columns(min*, max*)`;
+for constants, `Clamp.Constant(lo, hi)`.
+
+### The composed frame
+
+`Sv.Compose` runs the same pieces in clause-7 frozen order behind one call. The host
+supplies a `struct World : IFrameWorld` with the four duties the composition layer
+refuses to own — `Reconcile`, `DispatchEvent`, `RunIntrinsics`, `RunConditions`:
+
+```csharp
+using var input = InputState.Create(axes: 2, buttonWords: 1, ringTicks: 128);
+var host = Game.Create(schema, capacity)        // Sv.Compose
+    .Event<Landed>()                            // sparse channel, T : unmanaged
+    .Timeline<Jump>()                           // tl step: Apply/Transform/Advance
+    .Kernel<Fall>()                             // ecs-kernels step
+    .Build(world, input);
+
+host.Frame.Tick(dt, axes, buttons);             // input capture + one frozen frame
+host.Record("run.tape");                        // per-frame inputs + digest + body
+// fresh host later: replay.Playback("run.tape") — digest-checked bit-identical
+```
+
+Full listing — a real tl timeline, a gravity kernel, and tape replay on 100k entities —
+in [samples/Sv.Samples/FrameSample.cs](samples/Sv.Samples/FrameSample.cs); the
+entity-adapter walkthrough (`Sv.Frent`, `FrentBoard.Bind`/`Unbind`, `Reconcile`) lives
+in [sv-examples](https://github.com/IAFahim/sv-examples).
+
 ## The Composition Contract — v1.0.3
 
 Clause index (17), verbatim from the vendored master copy:
