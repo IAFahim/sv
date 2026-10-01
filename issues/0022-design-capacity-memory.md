@@ -1,4 +1,4 @@
-# Issue 0022 — Design: board memory scales with capacity x stats, not liveness (open — pending bus)
+# Issue 0022 — Design: board memory scales with capacity x stats, not liveness (open — on the bus)
 
 Filed as GitHub issue #22 (open). Labels: `ai`, `area:core`, `kind:perf`.
 Contract touchpoint: clause 5 (dense slots) — allocation strategy is an implementation
@@ -22,3 +22,9 @@ commits ~70+ MB of zeroed native before a single modifier or live slot exists.
 
 Not implemented before ack; the million sample stays the receipt vehicle for whichever
 direction wins.
+
+## Receipt
+
+- 2026-10-02: bus message 0033 sent to integrator (Reply-To 0029). Recommendation on
+  top: loud eager now (`Board.MemoryBytes` receipt + documented 64-rounding), chunked/
+  lazy rework gated on the million-sample bench. Ruling awaited.

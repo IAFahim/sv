@@ -1,4 +1,4 @@
-# Issue 0021 — Design: `BindOutput` column length is unvalidated (open — pending bus)
+# Issue 0021 — Design: `BindOutput` column length is unvalidated (open — on the bus)
 
 Filed as GitHub issue #21 (open). Labels: `ai`, `area:core`, `kind:feat`.
 Contract touchpoint: clause 12 (pointer stability) — any signature change is a bus
@@ -23,3 +23,9 @@ bind path keeps it.
   hosts to sv-owned columns + `BindExternal` handles.
 
 Held open until the bus merge point is reachable again; no implementation before ack.
+
+## Receipt
+
+- 2026-10-02: bus message 0032 sent to integrator (Reply-To 0029, rides the v1.0.4
+  thread). Recommendation on top: optional `int columnLength = -1`, SV_CHECKED-only.
+  Ruling awaited.
