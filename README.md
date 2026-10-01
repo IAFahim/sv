@@ -205,20 +205,20 @@ columns. Unity/Burst hosts compile the same `delegate* unmanaged` signature nati
 
 <!-- bench:begin (auto-generated — CI refreshes this on every push to main; do not edit by hand) -->
 
-Last refreshed 2026-09-30 14:56 UTC · `main@38e1d6c` · AMD EPYC 7763 64-Core Processor (2 cores) · sv-bench rows=100000 vector256=True vector128=True
+Last refreshed 2026-10-01 14:44 UTC · `main@fb5caf1` · AMD EPYC 7763 64-Core Processor (2 cores) · sv-bench rows=100000 vector256=True vector128=True
 
 | Scenario | µs/frame | rate | Managed alloc |
 |---|---:|---:|---|
-| intrinsics-uniform | 28.685 | 3.49 M rows/s | 0 B |
-| intrinsics-varying | 92.221 | 1.08 M rows/s | 0 B |
-| intrinsics-statclamp | 124.062 | 0.81 M rows/s | 0 B |
-| enabled-runwalk | 224.224 | 0.45 M rows/s | 0 B |
-| stat-recalc | 0.259 | 259 ns/op | 0 B |
-| events-emit | 956.249 | 0.10 M rows/s | 0 B |
-| input-capture | 0.013 | 13 ns/op | 0 B |
-| fused-tick | 1552.050 | 0.06 M rows/s | 0 B |
-| frame-run | 1544.431 | 0.06 M rows/s | 0 B |
-| tape-digest | 3168.411 | 0.03 M rows/s | 0 B |
+| intrinsics-uniform | 34.440 | 2.90 M rows/s | 0 B |
+| intrinsics-varying | 56.575 | 1.77 M rows/s | 0 B |
+| intrinsics-statclamp | 93.141 | 1.07 M rows/s | 0 B |
+| enabled-runwalk | 224.355 | 0.45 M rows/s | 0 B |
+| stat-recalc | 0.330 | 330 ns/op | 0 B |
+| events-emit | 959.295 | 0.10 M rows/s | 0 B |
+| input-capture | 0.021 | 21 ns/op | 0 B |
+| fused-tick | 1572.896 | 0.06 M rows/s | 0 B |
+| frame-run | 1543.353 | 0.06 M rows/s | 0 B |
+| tape-digest | 3158.123 | 0.03 M rows/s | 0 B |
 
 <!-- bench:end -->
 
