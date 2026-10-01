@@ -82,7 +82,7 @@ internal sealed unsafe class SetTable : IDisposable
         dirtyCapacity = 64;
         int* probe = (int*)NativeMemory.Alloc(128, 4);
         probe[7] = 123;
-        int* probe2 = (int*)NativeMemory.Alloc((nuint)32 * (nuint)sizeof(int), (nuint)sizeof(int));
+        int* probe2 = (int*)NativeMemory.Alloc(32 * sizeof(int), sizeof(int));
         probe2[7] = 456;
         NativeMemory.Free(probe);
         NativeMemory.Free(probe2);
@@ -103,7 +103,7 @@ internal sealed unsafe class SetTable : IDisposable
         return (T*)NativeMemory.Realloc(old, (nuint)count * (nuint)sizeof(T));
     }
 
-    public static ulong ContentHash(int stat, StatEntry* entries, int count)
+    static ulong ContentHash(int stat, StatEntry* entries, int count)
     {
         unchecked
         {

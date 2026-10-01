@@ -46,10 +46,10 @@ public sealed unsafe class EventStreams : IDisposable
     {
         this.writerCount = writerCount;
         arenas = (byte**)NativeMemory.Alloc((nuint)writerCount * 2 * (nuint)sizeof(byte*), (nuint)sizeof(byte*));
-        arenaCapacity = (int*)NativeMemory.AllocZeroed((nuint)writerCount * 2 * (nuint)sizeof(int), (nuint)sizeof(int));
-        writeOffset = (int*)NativeMemory.AllocZeroed((nuint)writerCount * (nuint)sizeof(int), (nuint)sizeof(int));
-        readOffset = (int*)NativeMemory.AllocZeroed((nuint)writerCount * (nuint)sizeof(int), (nuint)sizeof(int));
-        readCursorOffset = (int*)NativeMemory.AllocZeroed((nuint)writerCount * (nuint)sizeof(int), (nuint)sizeof(int));
+        arenaCapacity = (int*)NativeMemory.AllocZeroed((nuint)writerCount * 2 * sizeof(int), sizeof(int));
+        writeOffset = (int*)NativeMemory.AllocZeroed((nuint)writerCount * sizeof(int), sizeof(int));
+        readOffset = (int*)NativeMemory.AllocZeroed((nuint)writerCount * sizeof(int), sizeof(int));
+        readCursorOffset = (int*)NativeMemory.AllocZeroed((nuint)writerCount * sizeof(int), sizeof(int));
         appendLock = 0;
         var rounded = Round(bytesPerWriter);
         for (var w = 0; w < writerCount; w++)
@@ -101,7 +101,7 @@ public sealed unsafe class EventStreams : IDisposable
             at = writeOffset[writer];
             if (at + need > arenaCapacity[index])
             {
-                Grow(writer, index, at + need);
+                Grow(index, at + need);
                 continue;
             }
 
@@ -128,7 +128,7 @@ public sealed unsafe class EventStreams : IDisposable
         Volatile.Write(ref appendLock, 0);
     }
 
-    void Grow(int writer, int index, int needed)
+    void Grow(int index, int needed)
     {
         while (Interlocked.CompareExchange(ref appendLock, 1, 0) != 0)
         {

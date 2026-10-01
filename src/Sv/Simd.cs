@@ -1,5 +1,3 @@
-using System;
-using System.Numerics;
 using System.Runtime.Intrinsics;
 
 namespace Sv;
@@ -352,23 +350,6 @@ internal static unsafe class Simd
         }
 
         return word;
-    }
-
-    internal static void NormalizeBools(byte* src, byte* dst, int count)
-    {
-        if (Vector256.IsHardwareAccelerated)
-        {
-            NormalizeBools256(src, dst, count);
-            return;
-        }
-
-        if (Vector128.IsHardwareAccelerated)
-        {
-            NormalizeBools128(src, dst, count);
-            return;
-        }
-
-        NormalizeBoolsScalar(src, dst, count);
     }
 
     internal static void NormalizeBoolsScalar(byte* src, byte* dst, int count)

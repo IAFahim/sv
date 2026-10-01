@@ -68,7 +68,7 @@ public sealed unsafe partial class Board
         outputColumn = (float**)NativeMemory.Alloc((nuint)statCount * (nuint)sizeof(float*), (nuint)sizeof(float*));
         NativeMemory.Clear(outputColumn, (nuint)statCount * (nuint)sizeof(float*));
         outputStride = Alloc<int>(statCount);
-        svColumns = (float*)NativeMemory.AllocZeroed((nuint)statCount * (nuint)capacity * (nuint)sizeof(float), (nuint)sizeof(float));
+        svColumns = (float*)NativeMemory.AllocZeroed((nuint)statCount * (nuint)capacity * sizeof(float), sizeof(float));
         boundGeneration = Alloc<int>(statCount);
         for (var i = 0; i < statCount; i++)
         {
@@ -488,7 +488,7 @@ public sealed unsafe partial class Board
 
         var words = (Capacity + 63) >> 6;
         var newLive = Alloc<ulong>(words);
-        NativeMemory.Clear(newLive, (nuint)words * (nuint)sizeof(ulong));
+        NativeMemory.Clear(newLive, (nuint)words * sizeof(ulong));
         var seen = Alloc<int>(Capacity);
         for (var i = 0; i < Capacity; i++)
         {
@@ -589,7 +589,7 @@ public sealed unsafe partial class Board
         for (var stat = 0; stat < statCount; stat++)
         {
             var column = svColumns + (nint)stat * Capacity;
-            NativeMemory.Clear(tempRows, (nuint)Capacity * (nuint)sizeof(float));
+            NativeMemory.Clear(tempRows, (nuint)Capacity * sizeof(float));
             for (var slot = 0; slot < Capacity; slot++)
             {
                 if ((live[slot >> 6] & (1ul << (slot & 63))) != 0)

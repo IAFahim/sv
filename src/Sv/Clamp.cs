@@ -177,7 +177,7 @@ public readonly unsafe struct Clamp
         }
     }
 
-    internal static int BoundOf(float value)
+    static int BoundOf(float value)
     {
         if (float.IsNaN(value))
         {

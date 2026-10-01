@@ -31,8 +31,8 @@ public sealed unsafe class Population : IDisposable
         World = world;
         FrentBoard = new FrentBoard(schema, capacity);
         var rounded = Board.Capacity;
-        scratch = (int*)NativeMemory.AllocZeroed((nuint)rounded * (nuint)sizeof(int), (nuint)sizeof(int));
-        permutation = (int*)NativeMemory.Alloc((nuint)rounded * (nuint)sizeof(int), (nuint)sizeof(int));
+        scratch = (int*)NativeMemory.AllocZeroed((nuint)rounded * sizeof(int), sizeof(int));
+        permutation = (int*)NativeMemory.Alloc((nuint)rounded * sizeof(int), sizeof(int));
     }
 
     public int Bind(Entity entity) => FrentBoard.Bind(entity);

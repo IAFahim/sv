@@ -69,7 +69,7 @@ public readonly struct KernelLink<TStep, TNext> : IKernelChain where TStep : IKe
     static void IKernelChain.Run<THost>(in THost world, Game game, float dt)
     {
         TStep.Run(world, game, dt);
-        TNext.Run<THost>(world, game, dt);
+        TNext.Run(world, game, dt);
     }
 }
 
@@ -150,7 +150,7 @@ public sealed unsafe class Game : IDisposable
         Streams = EventStreams.Create();
         TimelineIds = new ushort[Board.Capacity];
         TimelineClocks = new ushort[Board.Capacity];
-        Applied = (int*)NativeMemory.AllocZeroed((nuint)Board.Capacity * (nuint)sizeof(int), (nuint)sizeof(int));
+        Applied = (int*)NativeMemory.AllocZeroed((nuint)Board.Capacity * sizeof(int), sizeof(int));
         effects = new float[timelineCount][];
         for (var i = 0; i < timelineCount; i++)
         {

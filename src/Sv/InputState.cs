@@ -40,14 +40,14 @@ public sealed unsafe class InputState : IDisposable
         Axes = axes;
         ButtonWords = buttonWords;
         RingTicks = ringTicks;
-        axisBits = (uint*)NativeMemory.AllocZeroed((nuint)axes * (nuint)sizeof(uint), (nuint)sizeof(uint));
-        buttons = (ulong*)NativeMemory.AllocZeroed((nuint)buttonWords * (nuint)sizeof(ulong), (nuint)sizeof(ulong));
-        previous = (ulong*)NativeMemory.AllocZeroed((nuint)buttonWords * (nuint)sizeof(ulong), (nuint)sizeof(ulong));
-        pressed = (ulong*)NativeMemory.AllocZeroed((nuint)buttonWords * (nuint)sizeof(ulong), (nuint)sizeof(ulong));
-        released = (ulong*)NativeMemory.AllocZeroed((nuint)buttonWords * (nuint)sizeof(ulong), (nuint)sizeof(ulong));
+        axisBits = (uint*)NativeMemory.AllocZeroed((nuint)axes * sizeof(uint), sizeof(uint));
+        buttons = (ulong*)NativeMemory.AllocZeroed((nuint)buttonWords * sizeof(ulong), sizeof(ulong));
+        previous = (ulong*)NativeMemory.AllocZeroed((nuint)buttonWords * sizeof(ulong), sizeof(ulong));
+        pressed = (ulong*)NativeMemory.AllocZeroed((nuint)buttonWords * sizeof(ulong), sizeof(ulong));
+        released = (ulong*)NativeMemory.AllocZeroed((nuint)buttonWords * sizeof(ulong), sizeof(ulong));
         ringStride = axes * sizeof(uint) + buttonWords * sizeof(ulong);
         ring = (byte*)NativeMemory.AllocZeroed((nuint)ringTicks * (nuint)ringStride, 16);
-        ringTickIds = (long*)NativeMemory.Alloc((nuint)ringTicks * (nuint)sizeof(long), (nuint)sizeof(long));
+        ringTickIds = (long*)NativeMemory.Alloc((nuint)ringTicks * sizeof(long), sizeof(long));
         for (var i = 0; i < ringTicks; i++)
         {
             ringTickIds[i] = -1;
@@ -62,7 +62,7 @@ public sealed unsafe class InputState : IDisposable
     {
         if (axes < 1 || buttonWords < 1 || ringTicks < 1)
         {
-            throw new ArgumentOutOfRangeException("sv: axes, buttonWords and ringTicks must be >= 1");
+            throw new ArgumentOutOfRangeException(nameof(axes), "sv: axes, buttonWords and ringTicks must be >= 1");
         }
 
         return new InputState(axes, buttonWords, ringTicks);
@@ -99,8 +99,8 @@ public sealed unsafe class InputState : IDisposable
             throw new ArgumentNullException(nameof(buttonWords));
         }
 
-        var ax = (uint*)ringToAxes(ringHead);
-        var bt = ringToButtons(ringHead);
+        var ax = (uint*)RingToAxes(ringHead);
+        var bt = RingToButtons(ringHead);
         for (var i = 0; i < Axes; i++)
         {
             var bits = axesBits[i];
@@ -119,12 +119,12 @@ public sealed unsafe class InputState : IDisposable
         tickCounter++;
     }
 
-    uint* ringToAxes(int slot)
+    uint* RingToAxes(int slot)
     {
         return (uint*)(ring + (nint)slot * ringStride);
     }
 
-    ulong* ringToButtons(int slot)
+    ulong* RingToButtons(int slot)
     {
         return (ulong*)(ring + (nint)slot * ringStride + Axes * sizeof(uint));
     }
@@ -161,8 +161,8 @@ public sealed unsafe class InputState : IDisposable
             return false;
         }
 
-        var ax = ringToAxes(replayCursor);
-        var bt = ringToButtons(replayCursor);
+        var ax = RingToAxes(replayCursor);
+        var bt = RingToButtons(replayCursor);
         for (var i = 0; i < Axes; i++)
         {
             axisBits[i] = ax[i];

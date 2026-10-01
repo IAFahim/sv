@@ -36,9 +36,9 @@ public sealed unsafe partial class Board : IDisposable
     {
         Schema = schema;
         Capacity = capacity;
-        freeSlots = (int*)NativeMemory.Alloc((nuint)capacity * (nuint)sizeof(int), (nuint)sizeof(int));
+        freeSlots = (int*)NativeMemory.Alloc((nuint)capacity * sizeof(int), sizeof(int));
         var words = (nuint)((capacity + 63) >> 6);
-        live = (ulong*)NativeMemory.AllocZeroed(words * (nuint)sizeof(ulong), (nuint)sizeof(ulong));
+        live = (ulong*)NativeMemory.AllocZeroed(words * sizeof(ulong), sizeof(ulong));
         for (var i = 0; i < capacity; i++)
         {
             freeSlots[i] = capacity - 1 - i;
@@ -182,6 +182,12 @@ public sealed unsafe partial class Board : IDisposable
         WriteSkippedZero(applied, enabled, offset);
     }
 
+    /// <param name="value">Stat column indexed by absolute slot; written for every enabled row in the window.</param>
+    /// <param name="delta">Uniform delta added to every enabled row.</param>
+    /// <param name="clamp">Bounds applied after the add.</param>
+    /// <param name="words">Enabled-mask words; bit i of word w marks row offset + w*64 + i.</param>
+    /// <param name="wordCount">Number of mask words; the window spans wordCount * 64 rows from <paramref name="offset"/>.</param>
+    /// <param name="offset">Absolute slot index of the window's first row.</param>
     /// <param name="applied">Delta column indexed by absolute slot; must be sized for the full window from <paramref name="offset"/> — the entire window is written, disabled rows get zero.</param>
     public void RunEnabledChunk(int* value, int delta, in Clamp clamp, ulong* words, int wordCount, int offset, int* applied = null)
     {
@@ -218,6 +224,12 @@ public sealed unsafe partial class Board : IDisposable
         }
     }
 
+    /// <param name="value">Stat column indexed by absolute slot; written for every enabled row in the window.</param>
+    /// <param name="delta">Per-slot delta column indexed by absolute slot.</param>
+    /// <param name="clamp">Bounds applied after the add.</param>
+    /// <param name="words">Enabled-mask words; bit i of word w marks row offset + w*64 + i.</param>
+    /// <param name="wordCount">Number of mask words; the window spans wordCount * 64 rows from <paramref name="offset"/>.</param>
+    /// <param name="offset">Absolute slot index of the window's first row.</param>
     /// <param name="applied">Delta column indexed by absolute slot; must be sized for the full window from <paramref name="offset"/> — the entire window is written, disabled rows get zero.</param>
     public void RunEnabledChunk(int* value, int* delta, in Clamp clamp, ulong* words, int wordCount, int offset, int* applied = null)
     {
@@ -259,6 +271,12 @@ public sealed unsafe partial class Board : IDisposable
         }
     }
 
+    /// <param name="value">Stat column indexed by absolute slot; written for every enabled row in the window.</param>
+    /// <param name="delta">Uniform delta added to every enabled row.</param>
+    /// <param name="clamp">Bounds applied after the add.</param>
+    /// <param name="words">Enabled-mask words; bit i of word w marks row offset + w*64 + i.</param>
+    /// <param name="wordCount">Number of mask words; the window spans wordCount * 64 rows from <paramref name="offset"/>.</param>
+    /// <param name="offset">Absolute slot index of the window's first row.</param>
     /// <param name="applied">Delta column indexed by absolute slot; must be sized for the full window from <paramref name="offset"/> — the entire window is written, disabled rows get zero.</param>
     public void RunEnabledChunk(Span<int> value, int delta, in Clamp clamp, ulong* words, int wordCount, int offset, Span<int> applied = default)
     {
@@ -299,6 +317,12 @@ public sealed unsafe partial class Board : IDisposable
         }
     }
 
+    /// <param name="value">Stat column indexed by absolute slot; written for every enabled row in the window.</param>
+    /// <param name="delta">Per-slot delta column indexed by absolute slot.</param>
+    /// <param name="clamp">Bounds applied after the add.</param>
+    /// <param name="words">Enabled-mask words; bit i of word w marks row offset + w*64 + i.</param>
+    /// <param name="wordCount">Number of mask words; the window spans wordCount * 64 rows from <paramref name="offset"/>.</param>
+    /// <param name="offset">Absolute slot index of the window's first row.</param>
     /// <param name="applied">Delta column indexed by absolute slot; must be sized for the full window from <paramref name="offset"/> — the entire window is written, disabled rows get zero.</param>
     public void RunEnabledChunk(Span<int> value, ReadOnlySpan<int> delta, in Clamp clamp, ulong* words, int wordCount, int offset, Span<int> applied = default)
     {
