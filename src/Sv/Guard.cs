@@ -81,4 +81,13 @@ internal static unsafe class Guard
             throw new InvalidOperationException("sv: stale binding — storage moved; rebind");
         }
     }
+
+    [Conditional("SV_CHECKED")]
+    public static void BoundColumnFit(int columnLength, int stride, int slot)
+    {
+        if (columnLength >= 0 && (long)slot * stride >= columnLength)
+        {
+            throw new InvalidOperationException($"sv: bound column length {columnLength} exceeded at slot {slot} (stride {stride}); rebind with the full column or pass columnLength: -1");
+        }
+    }
 }

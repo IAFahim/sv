@@ -1,4 +1,4 @@
-# Issue 0021 — Design: `BindOutput` column length is unvalidated (open — on the bus)
+# Issue 0021 — Design: `BindOutput` column length is unvalidated (implemented by atom 19, [issues/0024](0024-atom-19-bind-column-length.md))
 
 Filed as GitHub issue #21 (open). Labels: `ai`, `area:core`, `kind:feat`.
 Contract touchpoint: clause 12 (pointer stability) — any signature change is a bus
@@ -29,3 +29,6 @@ Held open until the bus merge point is reachable again; no implementation before
 - 2026-10-02: bus message 0032 sent to integrator (Reply-To 0029, rides the v1.0.4
   thread). Recommendation on top: optional `int columnLength = -1`, SV_CHECKED-only.
   Ruling awaited.
+- 2026-10-04: implemented as atom 19 ([issues/0024](0024-atom-19-bind-column-length.md))
+  under the user's in-session direction (bus message 0035); the recommended shape
+  shipped verbatim — optional `columnLength: -1`, checked-build-only enforcement.

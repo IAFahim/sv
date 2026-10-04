@@ -239,6 +239,9 @@ Last refreshed 2026-10-01 19:36 UTC · `main@f97ec52` · AMD EPYC 7763 64-Core P
 | 11 | `Sv.Compose`: Game/GameHost/`Frame.Run` frozen-frame composition (clause 7 verbatim), static-generic step dispatch, tl naming seam absorbed, 0 B warm — [issues/0014](issues/0014-atom-11.md) | done |
 | 12 | `Sv.Unity` adapter (com.sv.unity): SvSlot/UnityPopulation/SvChunk + svSystemBase pattern; .NET facade tests, editor leg is the integrator handoff — [issues/0015](issues/0015-atom-12.md) | done (.NET) |
 | 13 | North-star on `Frame.Run`, bit-identical to the pre-migration manual digests (baked oracle test); determinism tape `Record`/`Playback`; sv-owned outputs replace the NativeMemory blocks — [issues/0016](issues/0016-atom-13.md) | done |
+| 19 | Checked-only `BindOutput`/`BindExternal` column length (`columnLength: -1` legacy, >= 0 guarded per broadcast write, zero release cost) — [issues/0024](issues/0024-atom-19-bind-column-length.md) | done |
+| 20 | O(1) set-member removal: per-pair member-position index, swap-remove with fix-up — bulk modifier migration off million-member sets drops from seconds to microseconds — [issues/0025](issues/0025-atom-20-o1-member-removal.md) | done |
+| 21 | `Board.MemoryBytes` + `Board.RequestedCapacity`: the eager memory bill as a receipt, the 64-rounding loud — [issues/0026](issues/0026-atom-21-memory-receipt.md) | done |
 
 Atom 1 scope note: `Clamp.Stat` and the StrictFloat oracle land with atom 2 (the first
 float math); the walkers land with atom 3. Nothing ships half-wired.

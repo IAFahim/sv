@@ -28,6 +28,8 @@ public sealed unsafe partial class Board
 
     private int* boundGeneration;
 
+    private int* boundLength;
+
     private int bindingGeneration;
 
     private SetTable? table;
@@ -73,6 +75,12 @@ public sealed unsafe partial class Board
         for (var i = 0; i < statCount; i++)
         {
             boundGeneration[i] = -1;
+        }
+
+        boundLength = Alloc<int>(statCount);
+        for (var i = 0; i < statCount; i++)
+        {
+            boundLength[i] = -1;
         }
         var pairTotal = statCount * capacity;
         pairs = Alloc<PairMods>(pairTotal);
@@ -124,6 +132,7 @@ public sealed unsafe partial class Board
         NativeMemory.Free(outputStride);
         NativeMemory.Free(svColumns);
         NativeMemory.Free(boundGeneration);
+        NativeMemory.Free(boundLength);
         NativeMemory.Free(pairs);
         NativeMemory.Free(pairSet);
         NativeMemory.Free(pairQueued);
@@ -149,8 +158,10 @@ public sealed unsafe partial class Board
     /// <summary>
     /// Binds an external output column. The pointer is stable from this bind until the next
     /// <see cref="InvalidateBindings"/> or rebind; hosts owning growable storage must rebind at reconcile.
+    /// A positive <paramref name="columnLength"/> is the column's element count; SV_CHECKED builds throw
+    /// when a broadcast would write past it. -1 (the default) keeps length unchecked.
     /// </summary>
-    public void BindOutput(StatId stat, float* column, int stride = 1)
+    public void BindOutput(StatId stat, float* column, int stride = 1, int columnLength = -1)
     {
         var index = StatIndex(stat);
         if (column == null)
@@ -163,8 +174,14 @@ public sealed unsafe partial class Board
             throw new ArgumentOutOfRangeException(nameof(stride), "sv: stride must be >= 1");
         }
 
+        if (columnLength < -1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(columnLength), "sv: columnLength must be -1 (unchecked) or >= 0");
+        }
+
         outputColumn[index] = column;
         outputStride[index] = stride;
+        boundLength[index] = columnLength;
         bindingGeneration++;
         boundGeneration[index] = bindingGeneration;
     }
@@ -174,7 +191,7 @@ public sealed unsafe partial class Board
     /// the handle reports stale after <see cref="InvalidateBindings"/> or a rebind of the same stat.
     /// The pointer doctrine matches <see cref="BindOutput"/>.
     /// </summary>
-    public BindingHandle BindExternal(StatId stat, float* column, int stride = 1)
+    public BindingHandle BindExternal(StatId stat, float* column, int stride = 1, int columnLength = -1)
     {
         var index = StatIndex(stat);
         if (column == null)
@@ -187,8 +204,14 @@ public sealed unsafe partial class Board
             throw new ArgumentOutOfRangeException(nameof(stride), "sv: stride must be >= 1");
         }
 
+        if (columnLength < -1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(columnLength), "sv: columnLength must be -1 (unchecked) or >= 0");
+        }
+
         outputColumn[index] = column;
         outputStride[index] = stride;
+        boundLength[index] = columnLength;
         bindingGeneration++;
         boundGeneration[index] = bindingGeneration;
         return new BindingHandle(stat, column, stride, bindingGeneration);
@@ -384,6 +407,7 @@ public sealed unsafe partial class Board
             var stride = outputStride[stat];
             for (var i = 0; i < memberCount; i++)
             {
+                Guard.BoundColumnFit(boundLength[stat], stride, members[i]);
                 column[members[i] * stride] = computed;
             }
         }
