@@ -10,6 +10,8 @@ public sealed unsafe partial class Board : IDisposable
 
     public int Capacity { get; }
 
+    public int RequestedCapacity { get; }
+
     public int LiveCount { get; private set; }
 
     public int LiveWordCount => (Capacity + 63) >> 6;
@@ -32,10 +34,11 @@ public sealed unsafe partial class Board : IDisposable
 
     private bool disposed;
 
-    Board(Schema schema, int capacity)
+    Board(Schema schema, int capacity, int requestedCapacity)
     {
         Schema = schema;
         Capacity = capacity;
+        RequestedCapacity = requestedCapacity;
         freeSlots = (int*)NativeMemory.Alloc((nuint)capacity * sizeof(int), sizeof(int));
         var words = (nuint)((capacity + 63) >> 6);
         live = (ulong*)NativeMemory.AllocZeroed(words * sizeof(ulong), sizeof(ulong));
@@ -55,7 +58,47 @@ public sealed unsafe partial class Board : IDisposable
             throw new ArgumentOutOfRangeException(nameof(capacity), "sv: capacity must be positive");
         }
 
-        return new Board(schema, (capacity + 63) & ~63);
+        return new Board(schema, (capacity + 63) & ~63, capacity);
+    }
+
+    /// <summary>
+    /// Native bytes currently owned by this board: slot bookkeeping, the stats cross product
+    /// (pairs, set table, member-position index, dirty queue, scratch), sv-owned output columns,
+    /// and live per-pair modifier storage at current capacities. O(capacity x stats) walk — a
+    /// tooling receipt, not a frame-path call. <see cref="Capacity"/> rounds up to a 64 boundary;
+    /// <see cref="RequestedCapacity"/> is the pre-rounding value.
+    /// </summary>
+    public long MemoryBytes
+    {
+        get
+        {
+            var bytes = (long)Capacity * sizeof(int) + (long)((Capacity + 63) >> 6) * sizeof(ulong);
+            if (statCount == 0)
+            {
+                return bytes;
+            }
+
+            var pairTotal = (long)statCount * Capacity;
+            bytes += sizeof(float) * (long)statCount
+                + sizeof(float*) * (long)statCount
+                + sizeof(int) * (long)statCount
+                + sizeof(float) * pairTotal
+                + sizeof(int) * (long)statCount * 2
+                + sizeof(PairMods) * pairTotal
+                + sizeof(int) * pairTotal * 2
+                + pairTotal
+                + sizeof(int) * (long)pairQueueCap
+                + sizeof(StatEntry) * (long)scratchCap;
+            for (var pair = 0; pair < statCount * Capacity; pair++)
+            {
+                if (pairs[pair].Entries != null)
+                {
+                    bytes += pairs[pair].Cap * (sizeof(StatEntry) + sizeof(int));
+                }
+            }
+
+            return bytes + table!.MemoryBytes;
+        }
     }
 
     public int Acquire()

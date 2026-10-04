@@ -62,6 +62,23 @@ internal sealed unsafe class SetTable : IDisposable
 
     public int LiveSetCount => setCount;
 
+    internal long MemoryBytes
+    {
+        get
+        {
+            var bytes = (long)(bucketMask + 1) * sizeof(int)
+                + (long)setCapacity * (sizeof(int) * 6 + sizeof(ulong) * 2 + sizeof(int*) + sizeof(sbyte))
+                + sizeof(StatEntry) * (long)contentCapacity
+                + sizeof(int) * (long)dirtyCapacity;
+            for (var set = 0; set < setCount; set++)
+            {
+                bytes += setMemberCap[set] * sizeof(int);
+            }
+
+            return bytes;
+        }
+    }
+
     public SetTable()
     {
         setCapacity = 16;

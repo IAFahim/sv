@@ -1,4 +1,4 @@
-# Issue 0022 — Design: board memory scales with capacity x stats, not liveness (open — on the bus)
+# Issue 0022 — Design: board memory scales with capacity x stats, not liveness (loud-memory direction implemented by atom 21, [issues/0026](0026-atom-21-memory-receipt.md); chunked/lazy stays gated)
 
 Filed as GitHub issue #22 (open). Labels: `ai`, `area:core`, `kind:perf`.
 Contract touchpoint: clause 5 (dense slots) — allocation strategy is an implementation
@@ -25,6 +25,10 @@ direction wins.
 
 ## Receipt
 
-- 2026-10-02: bus message 0033 sent to integrator (Reply-To 0029). Recommendation on
-  top: loud eager now (`Board.MemoryBytes` receipt + documented 64-rounding), chunked/
+- 2026-10-02: bus message 0033 sent to integrator (Reply-To 0029). Recommendation
+  on top: loud eager now (`Board.MemoryBytes` receipt + documented 64-rounding), chunked/
   lazy rework gated on the million-sample bench. Ruling awaited.
+- 2026-10-04: loud-memory direction implemented as atom 21
+  ([issues/0026](0026-atom-21-memory-receipt.md)) under the user's in-session
+  direction (bus message 0035): `Board.MemoryBytes` + `Board.RequestedCapacity`.
+  Chunked/lazy rework remains gated on the million-sample bench, unstarted.

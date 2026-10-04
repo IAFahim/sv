@@ -198,7 +198,10 @@ ahead of the external-column loop); the determinism tape adds ~0.6–1.0 ms/fram
 hashes live rows only — sparse boards pay per entity, not capacity);
 both print `alloc=0B`. Standing `NoAllocationTests` assert exact-zero managed bytes for every
 warm verb; the managed-state audit shows zero managed collections outside
-`Schema` (cold authoring). Known .NET-only cost: the `UnmanagedCallersOnly` entry
+`Schema` (cold authoring). The native bill is a receipt too: `Board.MemoryBytes`
+reports everything the board owns (a 1M × 3-stat board commits ~110 MiB before the
+first modifier) and `Board.RequestedCapacity` sits beside the 64-rounded
+`Capacity`, so alignment padding is visible. Known .NET-only cost: the `UnmanagedCallersOnly` entry
 thunk charges ~10 ns per event `make` call (~29% of a dense-emit frame); ruled a
 contract cost (clause 17) — events are sparse signals, dense payloads belong in
 columns. Unity/Burst hosts compile the same `delegate* unmanaged` signature natively.
