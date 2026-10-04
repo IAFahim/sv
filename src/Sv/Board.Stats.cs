@@ -38,6 +38,8 @@ public sealed unsafe partial class Board
 
     private int* pairSet;
 
+    private int* pairPos;
+
     private sbyte* pairQueued;
 
     private int* pairQueue;
@@ -91,6 +93,8 @@ public sealed unsafe partial class Board
             pairSet[i] = -1;
         }
 
+        pairPos = Alloc<int>(pairTotal);
+
         pairQueued = Alloc<sbyte>(pairTotal);
         NativeMemory.Clear(pairQueued, (nuint)pairTotal);
         pairQueueCap = 64;
@@ -135,6 +139,7 @@ public sealed unsafe partial class Board
         NativeMemory.Free(boundLength);
         NativeMemory.Free(pairs);
         NativeMemory.Free(pairSet);
+        NativeMemory.Free(pairPos);
         NativeMemory.Free(pairQueued);
         NativeMemory.Free(pairQueue);
         NativeMemory.Free(scratch);
@@ -316,7 +321,12 @@ public sealed unsafe partial class Board
             pairs[pair].Count = 0;
             if (pairSet[pair] >= 0)
             {
-                table!.RemoveMember(pairSet[pair], slot);
+                var moved = table!.RemoveMemberAt(pairSet[pair], pairPos[pair]);
+                if (moved >= 0)
+                {
+                    pairPos[moved * statCount + stat] = pairPos[pair];
+                }
+
                 pairSet[pair] = -1;
             }
         }
@@ -372,10 +382,14 @@ public sealed unsafe partial class Board
             {
                 if (pairSet[pair] >= 0)
                 {
-                    table.RemoveMember(pairSet[pair], slot);
+                    var moved = table.RemoveMemberAt(pairSet[pair], pairPos[pair]);
+                    if (moved >= 0)
+                    {
+                        pairPos[moved * statCount + stat] = pairPos[pair];
+                    }
                 }
 
-                table.AddMember(set, slot);
+                pairPos[pair] = table.AddMember(set, slot);
                 pairSet[pair] = set;
             }
 
@@ -589,6 +603,7 @@ public sealed unsafe partial class Board
             tempSet[i] = -1;
         }
 
+        var tempPos = Alloc<int>(pairTotal);
         for (var slot = 0; slot < Capacity; slot++)
         {
             if ((live[slot >> 6] & (1ul << (slot & 63))) == 0)
@@ -601,13 +616,16 @@ public sealed unsafe partial class Board
             {
                 tempPairs[next * statCount + stat] = pairs[slot * statCount + stat];
                 tempSet[next * statCount + stat] = pairSet[slot * statCount + stat];
+                tempPos[next * statCount + stat] = pairPos[slot * statCount + stat];
             }
         }
 
         new ReadOnlySpan<PairMods>(tempPairs, pairTotal).CopyTo(new Span<PairMods>(pairs, pairTotal));
         new ReadOnlySpan<int>(tempSet, pairTotal).CopyTo(new Span<int>(pairSet, pairTotal));
+        new ReadOnlySpan<int>(tempPos, pairTotal).CopyTo(new Span<int>(pairPos, pairTotal));
         NativeMemory.Free(tempPairs);
         NativeMemory.Free(tempSet);
+        NativeMemory.Free(tempPos);
         table!.RenumberMembers(oldToNew);
         var tempRows = Alloc<float>(Capacity);
         for (var stat = 0; stat < statCount; stat++)

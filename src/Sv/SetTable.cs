@@ -227,7 +227,7 @@ internal sealed unsafe class SetTable : IDisposable
         }
     }
 
-    public void AddMember(int set, int slot)
+    public int AddMember(int set, int slot)
     {
         var count = setMemberCount[set];
         if (count == setMemberCap[set])
@@ -238,21 +238,17 @@ internal sealed unsafe class SetTable : IDisposable
 
         setMembers[set][count] = slot;
         setMemberCount[set] = count + 1;
+        return count;
     }
 
-    public void RemoveMember(int set, int slot)
+    public int RemoveMemberAt(int set, int position)
     {
         var members = setMembers[set];
-        var count = setMemberCount[set];
-        for (var i = 0; i < count; i++)
-        {
-            if (members[i] == slot)
-            {
-                members[i] = members[count - 1];
-                setMemberCount[set] = count - 1;
-                return;
-            }
-        }
+        var last = setMemberCount[set] - 1;
+        var moved = position == last ? -1 : members[last];
+        members[position] = members[last];
+        setMemberCount[set] = last;
+        return moved;
     }
 
     public void RenumberMembers(ReadOnlySpan<int> oldToNew)
