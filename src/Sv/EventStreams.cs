@@ -4,6 +4,16 @@ using System.Threading;
 
 namespace Sv;
 
+/// <summary>
+/// Struct event maker: an instance interface (C# 9 / Unity portable) the JIT devirtualizes and
+/// inlines into the emit loop, so it pays no <c>UnmanagedCallersOnly</c> entry gate. Passed by
+/// <c>ref</c>, so a maker may carry state (counters, lookup pointers).
+/// </summary>
+public interface IEventMaker<T> where T : unmanaged
+{
+    T Make(int row, int value);
+}
+
 public sealed unsafe class Channel<T> where T : unmanaged
 {
     internal EventStreams Owner = null!;
@@ -141,7 +151,9 @@ public sealed unsafe class EventStreams : IDisposable
         Volatile.Write(ref gate, 0);
     }
 
-    void EmitWord<T>(Channel<T> channel, ulong mask, int rowBase, int* values, delegate* unmanaged<int, int, T> make) where T : unmanaged
+    void EmitWord<T, TMaker>(Channel<T> channel, ulong mask, int rowBase, int* values, ref TMaker maker)
+        where T : unmanaged
+        where TMaker : struct, IEventMaker<T>
     {
         if (mask == 0)
         {
@@ -155,7 +167,7 @@ public sealed unsafe class EventStreams : IDisposable
                 var bit = System.Numerics.BitOperations.TrailingZeroCount(mask);
                 mask &= mask - 1;
                 var row = rowBase + bit;
-                var evt = make(row, values == null ? 1 : values[row]);
+                var evt = maker.Make(row, values == null ? 1 : values[row]);
                 Append(channel.Id, channel.Writer, &evt);
             }
 
@@ -169,10 +181,22 @@ public sealed unsafe class EventStreams : IDisposable
             var bit = System.Numerics.BitOperations.TrailingZeroCount(mask);
             mask &= mask - 1;
             var row = rowBase + bit;
-            batch[count++] = make(row, values == null ? 1 : values[row]);
+            batch[count++] = maker.Make(row, values == null ? 1 : values[row]);
         }
 
         AppendBatch(channel.Id, channel.Writer, batch, count);
+    }
+
+    readonly struct PointerMaker<T> : IEventMaker<T> where T : unmanaged
+    {
+        readonly delegate* unmanaged<int, int, T> make;
+
+        public PointerMaker(delegate* unmanaged<int, int, T> make)
+        {
+            this.make = make;
+        }
+
+        public T Make(int row, int value) => make(row, value);
     }
 
     public void Swap()
@@ -215,15 +239,31 @@ public sealed unsafe class EventStreams : IDisposable
 
     public void EmitFromMask<T>(Channel<T> channel, ulong enabled, int offset, delegate* unmanaged<int, int, T> make) where T : unmanaged
     {
+        var maker = new PointerMaker<T>(make);
+        EmitFromMask(channel, enabled, offset, ref maker);
+    }
+
+    public void EmitFromMask<T, TMaker>(Channel<T> channel, ulong enabled, int offset, ref TMaker maker)
+        where T : unmanaged
+        where TMaker : struct, IEventMaker<T>
+    {
         if (channel == null)
         {
             throw new ArgumentNullException(nameof(channel));
         }
 
-        EmitWord(channel, enabled, offset, null, make);
+        EmitWord(channel, enabled, offset, null, ref maker);
     }
 
     public void EmitFromBools<T>(Channel<T> channel, byte* cond, int start, int count, delegate* unmanaged<int, int, T> make) where T : unmanaged
+    {
+        var maker = new PointerMaker<T>(make);
+        EmitFromBools(channel, cond, start, count, ref maker);
+    }
+
+    public void EmitFromBools<T, TMaker>(Channel<T> channel, byte* cond, int start, int count, ref TMaker maker)
+        where T : unmanaged
+        where TMaker : struct, IEventMaker<T>
     {
         if (channel == null)
         {
@@ -234,7 +274,7 @@ public sealed unsafe class EventStreams : IDisposable
         var remaining = count;
         while (remaining >= 64)
         {
-            EmitWord(channel, Simd.BoolNonZeroWord(cond, row), row, null, make);
+            EmitWord(channel, Simd.BoolNonZeroWord(cond, row), row, null, ref maker);
             row += 64;
             remaining -= 64;
         }
@@ -248,10 +288,18 @@ public sealed unsafe class EventStreams : IDisposable
             }
         }
 
-        EmitWord(channel, tail, row, null, make);
+        EmitWord(channel, tail, row, null, ref maker);
     }
 
     public void EmitFromBools<T>(Channel<T> channel, byte* cond, ulong enabled, int offset, delegate* unmanaged<int, int, T> make) where T : unmanaged
+    {
+        var maker = new PointerMaker<T>(make);
+        EmitFromBools(channel, cond, enabled, offset, ref maker);
+    }
+
+    public void EmitFromBools<T, TMaker>(Channel<T> channel, byte* cond, ulong enabled, int offset, ref TMaker maker)
+        where T : unmanaged
+        where TMaker : struct, IEventMaker<T>
     {
         if (channel == null)
         {
@@ -270,10 +318,18 @@ public sealed unsafe class EventStreams : IDisposable
             }
         }
 
-        EmitWord(channel, hits, offset, null, make);
+        EmitWord(channel, hits, offset, null, ref maker);
     }
 
     public void EmitFromNonZero<T>(Channel<T> channel, int* values, int start, int count, delegate* unmanaged<int, int, T> make) where T : unmanaged
+    {
+        var maker = new PointerMaker<T>(make);
+        EmitFromNonZero(channel, values, start, count, ref maker);
+    }
+
+    public void EmitFromNonZero<T, TMaker>(Channel<T> channel, int* values, int start, int count, ref TMaker maker)
+        where T : unmanaged
+        where TMaker : struct, IEventMaker<T>
     {
         if (channel == null)
         {
@@ -284,7 +340,7 @@ public sealed unsafe class EventStreams : IDisposable
         var remaining = count;
         while (remaining >= 64)
         {
-            EmitWord(channel, Simd.IntNonZeroWord(values, row), row, values, make);
+            EmitWord(channel, Simd.IntNonZeroWord(values, row), row, values, ref maker);
             row += 64;
             remaining -= 64;
         }
@@ -298,10 +354,18 @@ public sealed unsafe class EventStreams : IDisposable
             }
         }
 
-        EmitWord(channel, tail, row, values, make);
+        EmitWord(channel, tail, row, values, ref maker);
     }
 
     public void EmitFromNonZero<T>(Channel<T> channel, int* values, ulong enabled, int offset, delegate* unmanaged<int, int, T> make) where T : unmanaged
+    {
+        var maker = new PointerMaker<T>(make);
+        EmitFromNonZero(channel, values, enabled, offset, ref maker);
+    }
+
+    public void EmitFromNonZero<T, TMaker>(Channel<T> channel, int* values, ulong enabled, int offset, ref TMaker maker)
+        where T : unmanaged
+        where TMaker : struct, IEventMaker<T>
     {
         if (channel == null)
         {
@@ -320,7 +384,7 @@ public sealed unsafe class EventStreams : IDisposable
             }
         }
 
-        EmitWord(channel, hits, offset, values, make);
+        EmitWord(channel, hits, offset, values, ref maker);
     }
 
     public static void WalkNonZero(int* values, ulong enabled, int offset, delegate* unmanaged<int, int, void> visit)

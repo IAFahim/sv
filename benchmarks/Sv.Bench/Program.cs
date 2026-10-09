@@ -69,7 +69,8 @@ internal static class Program
         failures += Run("enabled-runwalk", scenario, ms, EnabledRunwalkBench.New);
         failures += Run("stat-recalc", scenario, ms, () => StatRecalcBench.New(false));
         failures += Run("stat-churn", scenario, ms, () => StatRecalcBench.New(true));
-        failures += Run("events-emit", scenario, ms, EventsEmitBench.New);
+        failures += Run("events-emit", scenario, ms, () => EventsEmitBench.New(false));
+        failures += Run("events-emit-struct", scenario, ms, () => EventsEmitBench.New(true));
         failures += Run("input-capture", scenario, ms, InputCaptureBench.New);
         failures += Run("fused-tick", scenario, ms, FusedTickBench.New);
         failures += Run("frame-run", scenario, ms, () => FrameRunBench.New(false, ""));
@@ -474,6 +475,11 @@ internal struct ManaEvent
     public int Amount;
 }
 
+internal struct ManaMaker : IEventMaker<ManaEvent>
+{
+    public ManaEvent Make(int slot, int value) => new() { Slot = slot, Amount = value };
+}
+
 internal static class Makers
 {
     [UnmanagedCallersOnly]
@@ -492,8 +498,11 @@ internal sealed unsafe class EventsEmitBench : BenchBase
 
     readonly int expectedCount;
 
-    EventsEmitBench(EventStreams streams, Channel<ManaEvent> channel, byte* cond, int* applied, int expectedCount)
+    readonly bool structMaker;
+
+    EventsEmitBench(EventStreams streams, Channel<ManaEvent> channel, byte* cond, int* applied, int expectedCount, bool structMaker)
     {
+        this.structMaker = structMaker;
         this.streams = streams;
         this.channel = channel;
         this.cond = cond;
@@ -501,7 +510,7 @@ internal sealed unsafe class EventsEmitBench : BenchBase
         this.expectedCount = expectedCount;
     }
 
-    internal static EventsEmitBench New()
+    internal static EventsEmitBench New(bool structMaker)
     {
         var streams = EventStreams.Create(1, 1 << 20);
         var channel = streams.CreateChannel<ManaEvent>();
@@ -516,7 +525,7 @@ internal sealed unsafe class EventsEmitBench : BenchBase
             expected += (cond[i] != 0 ? 1 : 0) + (applied[i] != 0 ? 1 : 0);
         }
 
-        return new EventsEmitBench(streams, channel, cond, applied, expected);
+        return new EventsEmitBench(streams, channel, cond, applied, expected, structMaker);
     }
 
     public override string Verify()
@@ -538,8 +547,18 @@ internal sealed unsafe class EventsEmitBench : BenchBase
         long checksum = 0;
         for (var it = 0; it < iterations; it++)
         {
-            streams.EmitFromBools(channel, cond, 0, Rows, &Makers.MakeMana);
-            streams.EmitFromNonZero(channel, applied, 0, Rows, &Makers.MakeMana);
+            if (structMaker)
+            {
+                var maker = new ManaMaker();
+                streams.EmitFromBools(channel, cond, 0, Rows, ref maker);
+                streams.EmitFromNonZero(channel, applied, 0, Rows, ref maker);
+            }
+            else
+            {
+                streams.EmitFromBools(channel, cond, 0, Rows, &Makers.MakeMana);
+                streams.EmitFromNonZero(channel, applied, 0, Rows, &Makers.MakeMana);
+            }
+
             streams.Swap();
             while (streams.TryReadNext(out _, out var payload, out _))
             {
