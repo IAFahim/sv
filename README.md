@@ -125,6 +125,31 @@ internal static unsafe class Program
 }
 ```
 
+### Beyond the core verbs (atoms 31–38; contract v1.1.0 proposed on bus 0036)
+
+```csharp
+var schema = SchemaBuilder.Create()
+    .Stat("str", 10f)
+    .Derived("atk", 1f, ("str", 2f))          // atk = 1 + 2*str, then atk's own modifiers
+    .Stat("max_mana", 100f)
+    .Intrinsic("mana")
+    .Build();
+
+board.AddModifier(slot, str, new Modifier(ModifierKind.Added, 5f), source: SwordItem, expiresAtTick: tick + 300);
+board.RemoveSource(slot, SwordItem);         // unequip: every modifier the sword granted
+board.ExpireModifiers(tick);                 // deterministic (tick, insertion id) order
+board.Recalculate();
+ulong* changedAtk = board.ChangedWords(atk); // rows whose atk bits changed — a run-walk mask
+
+var clamp = Clamp.StatMirror(board, floor, maxMana); // int mirrors written at broadcast
+var maker = new HitMaker();                          // struct IEventMaker<T>: inlined, no gate
+streams.EmitFromNonZero(hits, applied, 0, board.Capacity, ref maker);
+
+using var state = new SvState();             // rollback: save, simulate, load, resimulate
+game.SaveState(state);                       // board + input + events + tl columns
+game.LoadState(state);
+```
+
 To broadcast stats into columns the host already owns, bind once after allocation —
 `board.BindOutput(stat, ptr)` or `BindExternal` for a stale-checkable handle — instead
 of reading `board.Output(stat)`. For per-row bounds, `Clamp.Columns(min*, max*)`;
@@ -185,27 +210,30 @@ escapes (`WalkNonZero`). Same pattern tl.unity's fork uses for the same reason.
 
 ## Performance receipts
 
-`benchmarks/Sv.Bench` (100k rows/frame, AVX2): intrinsics chunk 5.9–6.8 G rows/s
-(bandwidth-bound, 100% of samples inside `Simd.ChunkW256`); stat clamp 3.2 G rows/s
-(the clause-16 pinned conversion costs ~1.9x vs constant clamps); enabled run-walk
-1.45 G rows/s after inlining `Clamp.Apply` (+81%); stat add+remove+recalculate 121 ns;
-input capture 9 ns; every scenario verified against a scalar reference and prints
-`alloc=0B`. Post-atoms-11–13: the composed one-call frame (`frame-run`, sv-owned
-columns) runs at parity with the hand-rolled fused tick (~0.85–0.93 ms/frame at
-100k rows — the composition layer itself is free, and sv-owned broadcast edges it
-ahead of the external-column loop); the determinism tape adds ~0.06 ms/frame at
-100k rows (tape v3: 64-bit XXH64 digest + body over the live slot space, streamed to
-disk; fully live words copy whole; live rows only — sparse boards pay per entity, not
-capacity; was ~0.6 ms with v2's byte-serial FNV-1a);
-both print `alloc=0B`. Standing `NoAllocationTests` assert exact-zero managed bytes for every
-warm verb; the managed-state audit shows zero managed collections outside
-`Schema` (cold authoring). The native bill is a receipt too: `Board.MemoryBytes`
-reports everything the board owns (a 1M × 3-stat board commits ~15 MiB empty — pair
-storage is paged and allocated on first touch — and ~78 MiB fully live) and `Board.RequestedCapacity` sits beside the 64-rounded
-`Capacity`, so alignment padding is visible. Known .NET-only cost: the `UnmanagedCallersOnly` entry
-thunk charges ~10 ns per event `make` call (~29% of a dense-emit frame); ruled a
-contract cost (clause 17) — events are sparse signals, dense payloads belong in
-columns. Unity/Burst hosts compile the same `delegate* unmanaged` signature natively.
+`benchmarks/Sv.Bench` (100k rows/frame, AVX2, Ryzen dev box, 2026-10-10 after atoms
+22–38): intrinsics chunk ~6 G rows/s (bandwidth-bound; struct-specialized loops per
+clamp kind × delta × applied); stat clamp ~4 G rows/s (`Clamp.StatMirror*` 5–10%
+faster and stride-capable); enabled run-walk ~4.5 G rows/s on an alternating mask
+(full words take the dense loop, partial words AVX2 masked load/store — disabled rows
+are never touched); stat add+remove+recalculate 22 ns, and the buff-expiry pattern
+(a slot rejoining a population-wide set) 16 ns — join-only broadcast writes one row,
+not the set; input capture 6 ns; every scenario verified against a scalar reference
+and prints `alloc=0B`. The composed one-call frame (`frame-run`) runs at parity with
+the hand-rolled fused tick (~0.67–0.70 ms/frame at 100k rows — the composition layer
+itself is free); the determinism tape adds ~0.06 ms/frame (tape v3: 64-bit XXH64
+digest + body over live rows, fully live words copied whole; was ~0.6 ms with v2's
+byte-serial FNV-1a). Events: dense emit (15k events/frame) 455 µs through
+`delegate* unmanaged` makers vs 97 µs through struct `IEventMaker<T>` makers (no
+`UnmanagedCallersOnly` gate); parallel writers scale (8 writers: 793 M events/s
+aggregate, per-writer cache-line-padded locks). Standing `NoAllocationTests` assert
+exact-zero managed bytes for every warm verb; the managed-state audit shows zero
+managed collections outside `Schema` (cold authoring). The native bill is a receipt
+too: `Board.MemoryBytes` reports everything the board owns (a 1M × 3-stat board
+commits ~15 MiB empty — pair storage is paged and allocated on first touch — and
+~78 MiB fully live) and `Board.RequestedCapacity` sits beside the 64-rounded
+`Capacity`, so alignment padding is visible. Determinism is proven across ISAs: a
+baked 64-bit scenario digest is identical on the AVX2, 128-bit and scalar paths, and
+the `determinism` CI matrix runs it on x64, arm64, macOS and Windows.
 
 <!-- bench:begin (auto-generated — CI refreshes this on every push to main; do not edit by hand) -->
 

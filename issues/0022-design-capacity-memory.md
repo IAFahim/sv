@@ -32,3 +32,6 @@ direction wins.
   ([issues/0026](0026-atom-21-memory-receipt.md)) under the user's in-session
   direction (bus message 0035): `Board.MemoryBytes` + `Board.RequestedCapacity`.
   Chunked/lazy rework remains gated on the million-sample bench, unstarted.
+- 2026-10-10: chunked/lazy direction implemented as atom 29
+  ([issues/0034](0034-atom-29-paged-pair-storage.md)) under the user's in-session
+  direction; recorded on the bus (0036). Empty 1M x 3-stat board 109.8 -> 15.4 MiB.
