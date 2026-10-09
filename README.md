@@ -141,7 +141,7 @@ board.ExpireModifiers(tick);                 // deterministic (tick, insertion i
 board.Recalculate();
 ulong* changedAtk = board.ChangedWords(atk); // rows whose atk bits changed — a run-walk mask
 
-var clamp = Clamp.StatMirror(board, floor, maxMana); // int mirrors written at broadcast
+var clamp = Clamp.StatMirrorMax(board, maxMana);     // int mirror written at broadcast
 var maker = new HitMaker();                          // struct IEventMaker<T>: inlined, no gate
 streams.EmitFromNonZero(hits, applied, 0, board.Capacity, ref maker);
 
