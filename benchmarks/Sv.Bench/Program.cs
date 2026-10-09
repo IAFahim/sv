@@ -67,7 +67,8 @@ internal static class Program
         failures += Run("intrinsics-varying", scenario, ms, () => new IntrinsicsBench(uniform: false, statClamp: false));
         failures += Run("intrinsics-statclamp", scenario, ms, () => new IntrinsicsBench(uniform: false, statClamp: true));
         failures += Run("enabled-runwalk", scenario, ms, EnabledRunwalkBench.New);
-        failures += Run("stat-recalc", scenario, ms, StatRecalcBench.New);
+        failures += Run("stat-recalc", scenario, ms, () => StatRecalcBench.New(false));
+        failures += Run("stat-churn", scenario, ms, () => StatRecalcBench.New(true));
         failures += Run("events-emit", scenario, ms, EventsEmitBench.New);
         failures += Run("input-capture", scenario, ms, InputCaptureBench.New);
         failures += Run("fused-tick", scenario, ms, FusedTickBench.New);
@@ -395,17 +396,20 @@ internal sealed unsafe class StatRecalcBench : BenchBase
 
     readonly ModifierHandle[] handles;
 
-    StatRecalcBench(Board board, float* column, StatId power, ModifierHandle[] handles)
+    readonly int churn;
+
+    StatRecalcBench(Board board, float* column, StatId power, ModifierHandle[] handles, bool churn)
     {
         this.board = board;
         this.column = column;
         this.power = power;
         this.handles = handles;
+        this.churn = churn ? 1 : 0;
     }
 
     public override int RowsPerFrame => 1;
 
-    internal static StatRecalcBench New()
+    internal static StatRecalcBench New(bool churn)
     {
         var board = Board.Create(
             SchemaBuilder.Create().Stat("power", 10f).Intrinsic("mana").Build(), Rows);
@@ -424,13 +428,13 @@ internal sealed unsafe class StatRecalcBench : BenchBase
         }
 
         board.Recalculate();
-        return new StatRecalcBench(board, column, power, handles);
+        return new StatRecalcBench(board, column, power, handles, churn);
     }
 
     public override string Verify()
     {
-        var expected = StrictFloat.Multiply(10f, StrictFloat.Add(1f, 1f));
-        var actual = column[0];
+        var expected = churn == 0 ? StrictFloat.Multiply(10f, StrictFloat.Add(1f, 1f)) : 10f;
+        var actual = column[churn];
         if (BitConverter.SingleToUInt32Bits(expected) != BitConverter.SingleToUInt32Bits(actual))
         {
             return $"MISMATCH broadcast: expected {expected} got {actual}";
@@ -445,7 +449,7 @@ internal sealed unsafe class StatRecalcBench : BenchBase
         for (var it = 0; it < iterations; it++)
         {
             var g = it % 1000;
-            var slot = (g * 97) % Rows;
+            var slot = (g * 97 + churn) % Rows;
             var fresh = board.AddModifier(slot, power, new Modifier(ModifierKind.Multi, 1.5f));
             board.RemoveModifier(slot, power, fresh);
             board.Recalculate();

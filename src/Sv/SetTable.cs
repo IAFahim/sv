@@ -44,6 +44,8 @@ internal sealed unsafe class SetTable : IDisposable
 
     private sbyte* setDirty;
 
+    private sbyte* setFolded;
+
     private StatEntry* contentArena;
 
     private int contentUsed;
@@ -67,7 +69,7 @@ internal sealed unsafe class SetTable : IDisposable
         get
         {
             var bytes = (long)(bucketMask + 1) * sizeof(int)
-                + (long)setCapacity * (sizeof(int) * 6 + sizeof(ulong) * 2 + sizeof(int*) + sizeof(sbyte))
+                + (long)setCapacity * (sizeof(int) * 6 + sizeof(ulong) * 2 + sizeof(int*) + sizeof(sbyte) * 2)
                 + sizeof(StatEntry) * (long)contentCapacity
                 + sizeof(int) * (long)dirtyCapacity;
             for (var set = 0; set < setCount; set++)
@@ -93,6 +95,7 @@ internal sealed unsafe class SetTable : IDisposable
         setMemberCap = Alloc<int>(setCapacity);
         setMembers = (int**)NativeMemory.Alloc((nuint)setCapacity * (nuint)sizeof(int*), (nuint)sizeof(int*));
         setDirty = AllocZeroed<sbyte>(setCapacity);
+        setFolded = AllocZeroed<sbyte>(setCapacity);
         contentArena = Alloc<StatEntry>(64);
         contentCapacity = 64;
         dirtyQueue = Alloc<int>(64);
@@ -190,6 +193,7 @@ internal sealed unsafe class SetTable : IDisposable
             setMemberCap = Realloc(setMemberCap, setCapacity);
             setMembers = (int**)NativeMemory.Realloc(setMembers, (nuint)setCapacity * (nuint)sizeof(int*));
             setDirty = Realloc(setDirty, setCapacity);
+            setFolded = Realloc(setFolded, setCapacity);
         }
 
         while (contentUsed + count > contentCapacity)
@@ -214,6 +218,7 @@ internal sealed unsafe class SetTable : IDisposable
         setMembers[index] = Alloc<int>(2);
         setComputed[index] = 0f;
         setDirty[index] = 0;
+        setFolded[index] = 0;
         return index;
     }
 
@@ -291,7 +296,24 @@ internal sealed unsafe class SetTable : IDisposable
 
     public float Computed(int set) => setComputed[set];
 
-    public void SetComputed(int set, float value) => setComputed[set] = value;
+    public void SetComputed(int set, float value)
+    {
+        setComputed[set] = value;
+        setFolded[set] = 1;
+    }
+
+    public bool Folded(int set) => setFolded[set] != 0;
+
+    public void MarkStatDirty(int stat)
+    {
+        for (var set = 0; set < setCount; set++)
+        {
+            if (setStat[set] == stat && setMemberCount[set] > 0)
+            {
+                MarkDirty(set);
+            }
+        }
+    }
 
     public void MarkDirty(int set)
     {
@@ -346,6 +368,7 @@ internal sealed unsafe class SetTable : IDisposable
         NativeMemory.Free(setContentCount);
         NativeMemory.Free(setMemberCount);
         NativeMemory.Free(setDirty);
+        NativeMemory.Free(setFolded);
         NativeMemory.Free(contentArena);
         NativeMemory.Free(dirtyQueue);
         for (var set = 0; set < setCount; set++)

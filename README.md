@@ -246,6 +246,7 @@ Last refreshed 2026-10-01 19:36 UTC · `main@f97ec52` · AMD EPYC 7763 64-Core P
 | 20 | O(1) set-member removal: per-pair member-position index, swap-remove with fix-up — bulk modifier migration off million-member sets drops from seconds to microseconds — [issues/0025](issues/0025-atom-20-o1-member-removal.md) | done |
 | 21 | `Board.MemoryBytes` + `Board.RequestedCapacity`: the eager memory bill as a receipt, the 64-rounding loud — [issues/0026](issues/0026-atom-21-memory-receipt.md) | done |
 | 22 | Bench rate label fixed (was rows/ns printed as M rows/s — 1000x understated); stray `SetTable` probe allocations removed — [issues/0027](issues/0027-atom-22-bench-rate-and-settable-probe.md) | done |
+| 23 | Join-only broadcast: set values are immutable, so a slot joining a folded set writes one row instead of rebroadcasting the set; bind refills the column — churn 30.8 µs → 13 ns — [issues/0028](issues/0028-atom-23-join-only-broadcast.md) | done |
 
 Atom 1 scope note: `Clamp.Stat` and the StrictFloat oracle land with atom 2 (the first
 float math); the walkers land with atom 3. Nothing ships half-wired.

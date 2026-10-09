@@ -163,6 +163,7 @@ public sealed unsafe partial class Board
     /// <summary>
     /// Binds an external output column. The pointer is stable from this bind until the next
     /// <see cref="InvalidateBindings"/> or rebind; hosts owning growable storage must rebind at reconcile.
+    /// The next <see cref="Recalculate"/> rebroadcasts every populated set of the stat into the column.
     /// A positive <paramref name="columnLength"/> is the column's element count; SV_CHECKED builds throw
     /// when a broadcast would write past it. -1 (the default) keeps length unchecked.
     /// </summary>
@@ -189,6 +190,7 @@ public sealed unsafe partial class Board
         boundLength[index] = columnLength;
         bindingGeneration++;
         boundGeneration[index] = bindingGeneration;
+        table!.MarkStatDirty(index);
     }
 
     /// <summary>
@@ -219,6 +221,7 @@ public sealed unsafe partial class Board
         boundLength[index] = columnLength;
         bindingGeneration++;
         boundGeneration[index] = bindingGeneration;
+        table!.MarkStatDirty(index);
         return new BindingHandle(stat, column, stride, bindingGeneration);
     }
 
@@ -393,7 +396,13 @@ public sealed unsafe partial class Board
                 pairSet[pair] = set;
             }
 
-            table.MarkDirty(set);
+            if (!table.Folded(set))
+            {
+                table.MarkDirty(set);
+                continue;
+            }
+
+            BroadcastOne(stat, slot, table.Computed(set));
         }
 
         pairQueueCount = 0;
@@ -401,9 +410,18 @@ public sealed unsafe partial class Board
         while (table!.TryDequeueDirty(out var dirty))
         {
             var stat = table.SetStat(dirty);
-            var content = table.Content(dirty, out var contentCount);
-            var computed = Fold(statBase[stat], content, contentCount);
-            table.SetComputed(dirty, computed);
+            float computed;
+            if (table.Folded(dirty))
+            {
+                computed = table.Computed(dirty);
+            }
+            else
+            {
+                var content = table.Content(dirty, out var contentCount);
+                computed = Fold(statBase[stat], content, contentCount);
+                table.SetComputed(dirty, computed);
+            }
+
             var column = outputColumn[stat];
             var members = table.Members(dirty, out var memberCount);
             if (column == null)
@@ -425,6 +443,21 @@ public sealed unsafe partial class Board
                 column[members[i] * stride] = computed;
             }
         }
+    }
+
+    void BroadcastOne(int stat, int slot, float computed)
+    {
+        var column = outputColumn[stat];
+        if (column == null)
+        {
+            svColumns[(nint)stat * Capacity + slot] = computed;
+            return;
+        }
+
+        Guard.BindingFresh(boundGeneration[stat]);
+        var stride = outputStride[stat];
+        Guard.BoundColumnFit(boundLength[stat], stride, slot);
+        column[slot * stride] = computed;
     }
 
     static void Canonicalize(StatEntry* entries, int* ids, int count)
