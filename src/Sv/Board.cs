@@ -86,6 +86,7 @@ public sealed unsafe partial class Board : IDisposable
                 + sizeof(int) * (long)statCount * 2
                 + PairBytes
                 + MirrorBytes
+                + (sizeof(ulong) + sizeof(int)) * (long)statCount * LiveWordCount
                 + sizeof(int) * (long)pairQueueCap
                 + (sizeof(StatEntry) + sizeof(int)) * (long)scratchCap
                 + (long)expiryCap * sizeof(Expiry);

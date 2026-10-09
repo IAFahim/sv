@@ -62,6 +62,12 @@ public sealed unsafe partial class Board
 
     private int** mirrors;
 
+    private ulong* changed;
+
+    private int* changedTouched;
+
+    private int changedTouchedCount;
+
     private int* boundLength;
 
     private int bindingGeneration;
@@ -114,6 +120,9 @@ public sealed unsafe partial class Board
         }
 
         mirrors = (int**)NativeMemory.AllocZeroed((nuint)statCount * (nuint)sizeof(int*));
+        var changedWords = (nuint)statCount * (nuint)((capacity + 63) >> 6);
+        changed = (ulong*)NativeMemory.AllocZeroed(changedWords * sizeof(ulong));
+        changedTouched = (int*)NativeMemory.Alloc(changedWords * sizeof(int));
         boundLength = Alloc<int>(statCount);
         for (var i = 0; i < statCount; i++)
         {
@@ -165,6 +174,8 @@ public sealed unsafe partial class Board
         }
 
         NativeMemory.Free(mirrors);
+        NativeMemory.Free(changed);
+        NativeMemory.Free(changedTouched);
         NativeMemory.Free(pairQueue);
         NativeMemory.Free(scratch);
         NativeMemory.Free(scratchIds);
@@ -713,6 +724,12 @@ public sealed unsafe partial class Board
             return;
         }
 
+        for (var i = 0; i < changedTouchedCount; i++)
+        {
+            changed[changedTouched[i]] = 0;
+        }
+
+        changedTouchedCount = 0;
         var queueCount = pairQueueCount;
         var dequeueIndex = 0;
         while (dequeueIndex < queueCount)
@@ -787,6 +804,7 @@ public sealed unsafe partial class Board
                 var owned = svColumns + (nint)stat * Capacity;
                 for (var i = 0; i < memberCount; i++)
                 {
+                    MarkChanged(stat, members[i], owned[members[i]], computed);
                     owned[members[i]] = computed;
                 }
 
@@ -798,6 +816,7 @@ public sealed unsafe partial class Board
             for (var i = 0; i < memberCount; i++)
             {
                 Guard.BoundColumnFit(boundLength[stat], stride, members[i]);
+                MarkChanged(stat, members[i], column[members[i] * stride], computed);
                 column[members[i] * stride] = computed;
             }
         }
@@ -841,14 +860,45 @@ public sealed unsafe partial class Board
         var column = outputColumn[stat];
         if (column == null)
         {
-            svColumns[(nint)stat * Capacity + slot] = computed;
+            ref var owned = ref svColumns[(nint)stat * Capacity + slot];
+            MarkChanged(stat, slot, owned, computed);
+            owned = computed;
             return;
         }
 
         Guard.BindingFresh(boundGeneration[stat]);
         var stride = outputStride[stat];
         Guard.BoundColumnFit(boundLength[stat], stride, slot);
+        MarkChanged(stat, slot, column[slot * stride], computed);
         column[slot * stride] = computed;
+    }
+
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+    void MarkChanged(int stat, int slot, float before, float after)
+    {
+        if (BitConverter.SingleToUInt32Bits(before) == BitConverter.SingleToUInt32Bits(after))
+        {
+            return;
+        }
+
+        var index = stat * LiveWordCount + (slot >> 6);
+        if (changed[index] == 0)
+        {
+            changedTouched[changedTouchedCount++] = index;
+        }
+
+        changed[index] |= 1ul << (slot & 63);
+    }
+
+    /// <summary>
+    /// Changed mask of the last <see cref="Recalculate"/> for a stat: bit i of word w is set iff row
+    /// w*64+i was broadcast a value whose bits differ from what its output column held before.
+    /// <see cref="LiveWordCount"/> words, valid until the next Recalculate — the clause-5 word-span
+    /// shape, so it feeds <see cref="RunEnabledChunk(int*, int, in Clamp, ulong*, int, int, int*)"/> directly.
+    /// </summary>
+    public ulong* ChangedWords(StatId stat)
+    {
+        return changed + (nint)StatIndex(stat) * LiveWordCount;
     }
 
     static void Canonicalize(StatEntry* entries, int* ids, int count)

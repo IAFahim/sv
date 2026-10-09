@@ -260,6 +260,7 @@ Last refreshed 2026-10-01 19:36 UTC · `main@f97ec52` · AMD EPYC 7763 64-Core P
 | 33 | **Fix**: `Clamp.Stat*` read stride-bound columns as contiguous (wrong bounds); now rejected at construction — [issues/0038](issues/0038-atom-33-fix-clamp-stat-stride.md) | done |
 | 34 | Stat-bound mirrors: `Board.MirrorBounds` keeps an sv-owned int `BoundOf` column written at broadcast; `Clamp.StatMirror*` clamps through the int-column path and works for any binding stride (~5% over `Clamp.Stat`) — [issues/0039](issues/0039-atom-34-stat-bound-mirrors.md) | done (contract: bus 0036 pending) |
 | 35 | Modifier lifetimes: source tags (`RemoveSource`) and expiry ticks (`ExpireModifiers`, deterministic (tick, id) heap), renumber-safe, 0 B warm — [issues/0040](issues/0040-atom-35-modifier-sources-and-expiry.md) | done (contract: bus 0036 pending) |
+| 36 | Changed masks: `ChangedWords(stat)` — rows whose broadcast bits changed, clause-5 word span, cleared in O(changes); feeds the run-walk directly — [issues/0041](issues/0041-atom-36-changed-masks.md) | done (contract: bus 0036 pending) |
 
 Atom 1 scope note: `Clamp.Stat` and the StrictFloat oracle land with atom 2 (the first
 float math); the walkers land with atom 3. Nothing ships half-wired.
