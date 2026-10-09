@@ -47,7 +47,12 @@ public readonly struct StatId : IEquatable<StatId>
     public override string ToString() => $"Stat({Index})";
 }
 
-public sealed record StatDef(string Name, float Base);
+public readonly record struct StatSource(StatId Stat, float Coefficient);
+
+public sealed record StatDef(string Name, float Base)
+{
+    public IReadOnlyList<StatSource> Sources { get; init; } = Array.Empty<StatSource>();
+}
 
 public sealed record IntrinsicDef(string Name, int? Min, int? Max);
 
@@ -124,6 +129,43 @@ public sealed class SchemaBuilder
         }
 
         stats.Add(new StatDef(name, @base));
+        return this;
+    }
+
+    /// <summary>
+    /// Declares a stat derived from earlier-declared stats: each source contributes one synthetic
+    /// Added entry, coefficient * source value (one IEEE multiply), folded before every real
+    /// modifier in declaration order. Sources must already be declared, so the graph is acyclic.
+    /// </summary>
+    public SchemaBuilder Derived(string name, float @base, params (string Source, float Coefficient)[] sources)
+    {
+        Stat(name, @base);
+        if (sources == null || sources.Length == 0)
+        {
+            stats.RemoveAt(stats.Count - 1);
+            throw new ArgumentException($"sv: derived stat '{name}' needs at least one source");
+        }
+
+        var resolved = new StatSource[sources.Length];
+        for (var i = 0; i < sources.Length; i++)
+        {
+            var index = stats.FindIndex(0, stats.Count - 1, def => def.Name == sources[i].Source);
+            if (index < 0)
+            {
+                stats.RemoveAt(stats.Count - 1);
+                throw new ArgumentException($"sv: derived stat '{name}' source '{sources[i].Source}' must be declared before it");
+            }
+
+            if (!float.IsFinite(sources[i].Coefficient))
+            {
+                stats.RemoveAt(stats.Count - 1);
+                throw new ArgumentException($"sv: derived stat '{name}' coefficient for '{sources[i].Source}' must be finite");
+            }
+
+            resolved[i] = new StatSource(new StatId(index), sources[i].Coefficient);
+        }
+
+        stats[stats.Count - 1] = stats[stats.Count - 1] with { Sources = resolved };
         return this;
     }
 

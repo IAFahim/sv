@@ -62,6 +62,16 @@ public sealed unsafe partial class Board
 
     private int** mirrors;
 
+    private int* sourceOffset;
+
+    private int* sourceStat;
+
+    private float* sourceCoefficient;
+
+    private int* dependentOffset;
+
+    private int* dependentStat;
+
     private ulong* changed;
 
     private int* changedTouched;
@@ -120,6 +130,7 @@ public sealed unsafe partial class Board
         }
 
         mirrors = (int**)NativeMemory.AllocZeroed((nuint)statCount * (nuint)sizeof(int*));
+        InitSources(schema);
         var changedWords = (nuint)statCount * (nuint)((capacity + 63) >> 6);
         changed = (ulong*)NativeMemory.AllocZeroed(changedWords * sizeof(ulong));
         changedTouched = (int*)NativeMemory.Alloc(changedWords * sizeof(int));
@@ -138,6 +149,55 @@ public sealed unsafe partial class Board
         scratchIds = Alloc<int>(scratchCap);
         expiryCap = 16;
         expiries = Alloc<Expiry>(expiryCap);
+    }
+
+    void InitSources(Schema schema)
+    {
+        var total = 0;
+        for (var i = 0; i < statCount; i++)
+        {
+            total += schema.Stats[i].Sources.Count;
+        }
+
+        sourceOffset = Alloc<int>(statCount + 1);
+        sourceStat = Alloc<int>(Math.Max(total, 1));
+        sourceCoefficient = Alloc<float>(Math.Max(total, 1));
+        dependentOffset = (int*)NativeMemory.AllocZeroed((nuint)(statCount + 1) * sizeof(int));
+        dependentStat = Alloc<int>(Math.Max(total, 1));
+        var at = 0;
+        for (var i = 0; i < statCount; i++)
+        {
+            sourceOffset[i] = at;
+            foreach (var source in schema.Stats[i].Sources)
+            {
+                sourceStat[at] = source.Stat.Index;
+                sourceCoefficient[at] = source.Coefficient;
+                dependentOffset[source.Stat.Index + 1]++;
+                at++;
+            }
+        }
+
+        sourceOffset[statCount] = at;
+        for (var i = 0; i < statCount; i++)
+        {
+            dependentOffset[i + 1] += dependentOffset[i];
+        }
+
+        var fill = Alloc<int>(statCount);
+        for (var i = 0; i < statCount; i++)
+        {
+            fill[i] = dependentOffset[i];
+        }
+
+        for (var i = 0; i < statCount; i++)
+        {
+            for (var k = sourceOffset[i]; k < sourceOffset[i + 1]; k++)
+            {
+                dependentStat[fill[sourceStat[k]]++] = i;
+            }
+        }
+
+        NativeMemory.Free(fill);
     }
 
     static T* Alloc<T>(int count) where T : unmanaged
@@ -174,6 +234,11 @@ public sealed unsafe partial class Board
         }
 
         NativeMemory.Free(mirrors);
+        NativeMemory.Free(sourceOffset);
+        NativeMemory.Free(sourceStat);
+        NativeMemory.Free(sourceCoefficient);
+        NativeMemory.Free(dependentOffset);
+        NativeMemory.Free(dependentStat);
         NativeMemory.Free(changed);
         NativeMemory.Free(changedTouched);
         NativeMemory.Free(pairQueue);
@@ -730,9 +795,8 @@ public sealed unsafe partial class Board
         }
 
         changedTouchedCount = 0;
-        var queueCount = pairQueueCount;
         var dequeueIndex = 0;
-        while (dequeueIndex < queueCount)
+        while (dequeueIndex < pairQueueCount)
         {
             var pair = pairQueue[dequeueIndex++];
             var slot = pair / statCount;
@@ -759,12 +823,18 @@ public sealed unsafe partial class Board
 
                 meta.Pos = table.AddMember(set, slot);
                 meta.Set = set;
-            }
+                for (var d = dependentOffset[stat]; d < dependentOffset[stat + 1]; d++)
+                {
+                    EnqueuePair(slot, dependentStat[d]);
+                }
 
-            if (!table.Folded(set))
-            {
-                table.MarkDirty(set);
-                continue;
+                if (!table.Folded(set))
+                {
+                    var content = table.Content(set, out var contentCount);
+                    table.SetComputed(set, Fold(statBase[stat], content, contentCount));
+                    table.MarkDirty(set);
+                    continue;
+                }
             }
 
             BroadcastOne(stat, slot, table.Computed(set));
@@ -824,13 +894,15 @@ public sealed unsafe partial class Board
 
     int Gather(int slot, int stat)
     {
+        var synthetic = sourceOffset[stat + 1] - sourceOffset[stat];
         var mods = ModsOrNull(slot, stat);
-        if (mods == null || mods->Count == 0)
+        var real = mods == null ? 0 : mods->Count;
+        var count = synthetic + real;
+        if (count == 0)
         {
             return 0;
         }
 
-        var count = mods->Count;
         if (count > scratchCap)
         {
             scratchCap = count * 2;
@@ -838,15 +910,31 @@ public sealed unsafe partial class Board
             scratchIds = Realloc(scratchIds, scratchCap);
         }
 
-        var ids = mods->Ids;
-        for (var i = 0; i < count; i++)
+        for (var k = 0; k < synthetic; k++)
         {
-            scratch[i] = mods->Entries[i];
-            scratchIds[i] = ids[i];
+            var at = sourceOffset[stat] + k;
+            scratch[k] = new StatEntry(ModifierKind.Added, sourceCoefficient[at] * SourceValue(slot, sourceStat[at]));
+            scratchIds[k] = int.MinValue + k;
+        }
+
+        if (real > 0)
+        {
+            var ids = mods->Ids;
+            for (var i = 0; i < real; i++)
+            {
+                scratch[synthetic + i] = mods->Entries[i];
+                scratchIds[synthetic + i] = ids[i];
+            }
         }
 
         Canonicalize(scratch, scratchIds, count);
         return count;
+    }
+
+    float SourceValue(int slot, int stat)
+    {
+        var set = Meta(slot, stat).Set;
+        return set >= 0 && table!.Folded(set) ? table.Computed(set) : statBase[stat];
     }
 
     void BroadcastOne(int stat, int slot, float computed)
