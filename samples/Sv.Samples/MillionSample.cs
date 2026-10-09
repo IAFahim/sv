@@ -45,7 +45,7 @@ internal static unsafe class MillionSample
 
         var clamp = Clamp.StatMax(board, schema.Stat("ceiling"));
         var (us, bytes) = Program.Measure(20, () => board.RunIntrinsicsChunk(mana, 25, clamp, 0, Rows, applied));
-        Console.WriteLine($"  intrinsics +25 under a stat clamp:   {us:0.0} us  ({Rows / us / 1000.0:0.00} M rows/s, {bytes} B)");
+        Console.WriteLine($"  intrinsics +25 under a stat clamp:   {us:0.0} us  ({Rows / us:0} M rows/s, {bytes} B)");
 
         (us, bytes) = Program.Measure(5, () =>
         {
@@ -54,7 +54,7 @@ internal static unsafe class MillionSample
                 board.RunEnabledChunk(mana, 7, clamp, 0x5555_5555_5555_5555ul, offset, applied);
             }
         });
-        Console.WriteLine($"  enabled run-walk, 50% of slots:     {us:0.0} us  ({Rows / us / 1000.0:0.00} M rows/s, {bytes} B)");
+        Console.WriteLine($"  enabled run-walk, 50% of slots:     {us:0.0} us  ({Rows / us:0} M rows/s, {bytes} B)");
 
         using var streams = EventStreams.Create(1, 1 << 22);
         var channel = streams.CreateChannel<ManaEvent>();

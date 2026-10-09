@@ -20,6 +20,11 @@ Filed as GitHub issue #27 (pending — see receipts). Labels: `ai`, `area:bench`
   next push to main (the bench markers are not hand-edited).
 - Probe allocations removed.
 
+## Follow-up (after atom 27)
+
+`samples/Sv.Samples` (MillionSample, FrameSample) carried the same rows/ns-as-M-rows/s
+formula; fixed to rows/us. (`M broadcasts/s` in MillionSample was already correct.)
+
 ## Receipts
 
 - Local bench (Ryzen, AVX2), post-fix labels: intrinsics-uniform 16.2 us = 6158.9 M

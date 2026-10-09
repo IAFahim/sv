@@ -244,7 +244,7 @@ internal static unsafe class FrameSample
             Console.WriteLine($"  tape: {new FileInfo(path).Length / 1024.0:0.0} KiB — inputs + digest + body per frame");
 
             var (steady, bytes) = Program.Measure(200, () => Tick(live, axes, idle, 0));
-            Console.WriteLine($"  steady frame:                        {steady:0.0} us  ({Rows / steady / 1000.0:0.00} M entities/s, {bytes} B)");
+            Console.WriteLine($"  steady frame:                        {steady:0.0} us  ({Rows / steady:0} M entities/s, {bytes} B)");
 
             var sink = OperatingSystem.IsLinux() ? "/dev/null" : Path.Combine(Path.GetTempPath(), "sv-frame-sink.tape");
             live.Record(sink);
