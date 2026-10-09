@@ -257,6 +257,7 @@ Last refreshed 2026-10-01 19:36 UTC · `main@f97ec52` · AMD EPYC 7763 64-Core P
 | 30 | Cross-host determinism: baked 64-bit digest over a full churn/clamp/run-walk/events scenario, identical on AVX2 / 128-bit / scalar paths; CI matrix x64 · no-AVX2 · scalar · arm64 · macOS · Windows — [issues/0035](issues/0035-atom-30-cross-host-determinism.md) | done (ARM legs on next CI run) |
 | 31 | Struct event makers `IEventMaker<T>` (C# 9 portable, inlined, no entry gate) beside the fnptr emitters — dense emit 450 → 98 µs — [issues/0036](issues/0036-atom-31-struct-event-makers.md) | done (contract: bus 0036 pending) |
 | 32 | **Fix**: pairs queued for a slot released before `Recalculate` made the dead slot a set member; after `RenumberSlots` it became member −1 and broadcast wrote `column[-1]` (heap corruption, since atom 10) — [issues/0037](issues/0037-atom-32-fix-dead-slot-queue.md) | done |
+| 33 | **Fix**: `Clamp.Stat*` read stride-bound columns as contiguous (wrong bounds); now rejected at construction — [issues/0038](issues/0038-atom-33-fix-clamp-stat-stride.md) | done |
 
 Atom 1 scope note: `Clamp.Stat` and the StrictFloat oracle land with atom 2 (the first
 float math); the walkers land with atom 3. Nothing ships half-wired.

@@ -341,6 +341,8 @@ public sealed unsafe partial class Board
 
     internal int BoundGenerationAt(int statIndex) => boundGeneration[statIndex];
 
+    internal int OutputStrideAt(int statIndex) => outputStride[statIndex];
+
     /// <summary>
     /// Sv-owned output column for a stat: allocated at <see cref="Create"/>, fixed capacity, never
     /// moves, needs no bind. <see cref="Recalculate"/> broadcasts into it while no external column

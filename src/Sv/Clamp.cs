@@ -96,6 +96,11 @@ public readonly unsafe struct Clamp
         var external = board.OutputColumn(stat);
         if (external != null)
         {
+            if (board.OutputStrideAt(stat.Index) != 1)
+            {
+                throw new ArgumentException($"sv: Clamp.Stat reads its bound column contiguously; stat {stat.Index} is bound with stride {board.OutputStrideAt(stat.Index)}");
+            }
+
             generation = board.BoundGenerationAt(stat.Index);
             Guard.BindingFresh(generation);
             return external;
