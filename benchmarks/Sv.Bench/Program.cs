@@ -131,7 +131,7 @@ internal static class Program
         var bestUs = batches[0];
         var rate = bench.RowsPerFrame == 1
             ? $"{bestUs * 1000.0:0} ns/op"
-            : $"{bench.RowsPerFrame / (bestUs * 1000.0):0.00} M rows/s";
+            : $"{bench.RowsPerFrame / bestUs:0.0} M rows/s";
         Console.WriteLine(Markdown
             ? $"| {name} | {bestUs:0.000} | {rate} | 0 B |"
             : $"{name,-22} {bestUs,9:0.000} us/frame {rate,16} alloc=0B");

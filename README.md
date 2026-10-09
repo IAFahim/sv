@@ -185,10 +185,10 @@ escapes (`WalkNonZero`). Same pattern tl.unity's fork uses for the same reason.
 
 ## Performance receipts
 
-`benchmarks/Sv.Bench` (100k rows/frame, AVX2): intrinsics chunk 5.9–6.8 M rows/s
-(bandwidth-bound, 100% of samples inside `Simd.ChunkW256`); stat clamp 3.2 M rows/s
+`benchmarks/Sv.Bench` (100k rows/frame, AVX2): intrinsics chunk 5.9–6.8 G rows/s
+(bandwidth-bound, 100% of samples inside `Simd.ChunkW256`); stat clamp 3.2 G rows/s
 (the clause-16 pinned conversion costs ~1.9x vs constant clamps); enabled run-walk
-1.45 M rows/s after inlining `Clamp.Apply` (+81%); stat add+remove+recalculate 121 ns;
+1.45 G rows/s after inlining `Clamp.Apply` (+81%); stat add+remove+recalculate 121 ns;
 input capture 9 ns; every scenario verified against a scalar reference and prints
 `alloc=0B`. Post-atoms-11–13: the composed one-call frame (`frame-run`, sv-owned
 columns) runs at parity with the hand-rolled fused tick (~0.85–0.93 ms/frame at
@@ -245,6 +245,7 @@ Last refreshed 2026-10-01 19:36 UTC · `main@f97ec52` · AMD EPYC 7763 64-Core P
 | 19 | Checked-only `BindOutput`/`BindExternal` column length (`columnLength: -1` legacy, >= 0 guarded per broadcast write, zero release cost) — [issues/0024](issues/0024-atom-19-bind-column-length.md) | done |
 | 20 | O(1) set-member removal: per-pair member-position index, swap-remove with fix-up — bulk modifier migration off million-member sets drops from seconds to microseconds — [issues/0025](issues/0025-atom-20-o1-member-removal.md) | done |
 | 21 | `Board.MemoryBytes` + `Board.RequestedCapacity`: the eager memory bill as a receipt, the 64-rounding loud — [issues/0026](issues/0026-atom-21-memory-receipt.md) | done |
+| 22 | Bench rate label fixed (was rows/ns printed as M rows/s — 1000x understated); stray `SetTable` probe allocations removed — [issues/0027](issues/0027-atom-22-bench-rate-and-settable-probe.md) | done |
 
 Atom 1 scope note: `Clamp.Stat` and the StrictFloat oracle land with atom 2 (the first
 float math); the walkers land with atom 3. Nothing ships half-wired.

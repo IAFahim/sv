@@ -97,12 +97,6 @@ internal sealed unsafe class SetTable : IDisposable
         contentCapacity = 64;
         dirtyQueue = Alloc<int>(64);
         dirtyCapacity = 64;
-        int* probe = (int*)NativeMemory.Alloc(128, 4);
-        probe[7] = 123;
-        int* probe2 = (int*)NativeMemory.Alloc(32 * sizeof(int), sizeof(int));
-        probe2[7] = 456;
-        NativeMemory.Free(probe);
-        NativeMemory.Free(probe2);
     }
 
     static T* Alloc<T>(int count) where T : unmanaged
