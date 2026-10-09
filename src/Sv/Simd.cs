@@ -2,7 +2,7 @@ using System.Runtime.Intrinsics;
 
 namespace Sv;
 
-internal static unsafe class Simd
+internal static unsafe partial class Simd
 {
     internal static bool Has128 => Vector128.IsHardwareAccelerated;
 
@@ -44,150 +44,12 @@ internal static unsafe class Simd
 
     internal static void ChunkW128(int* value, int* delta, int deltaValue, in Clamp clamp, int start, int count, int* applied)
     {
-        int i;
-        for (i = 0; i + 4 <= count; i += 4)
-        {
-            var slot = start + i;
-            var before = Vector128.Load(value + slot);
-            var d = delta == null ? Vector128.Create(deltaValue) : Vector128.Load(delta + slot);
-            var sum = before + d;
-            Vector128<int> after;
-            switch (clamp.Kind)
-            {
-                case ClampKind.Constant:
-                    after = ClampBoth(sum, Vector128.Create(clamp.Min), Vector128.Create(clamp.Max));
-                    break;
-                case ClampKind.Columns:
-                    if (clamp.MinColumn == null)
-                    {
-                        after = MaxOnly(sum, Vector128.Load(clamp.MaxColumn + slot));
-                    }
-                    else if (clamp.MaxColumn == null)
-                    {
-                        after = MinOnly(sum, Vector128.Load(clamp.MinColumn + slot));
-                    }
-                    else
-                    {
-                        after = ClampBoth(sum, Vector128.Load(clamp.MinColumn + slot), Vector128.Load(clamp.MaxColumn + slot));
-                    }
-
-                    break;
-                case ClampKind.StatBounds:
-                    if (clamp.MinStatColumn == null)
-                    {
-                        after = MaxOnly(sum, BoundsOf(Vector128.Load(clamp.MaxStatColumn + slot)));
-                    }
-                    else if (clamp.MaxStatColumn == null)
-                    {
-                        after = MinOnly(sum, BoundsOf(Vector128.Load(clamp.MinStatColumn + slot)));
-                    }
-                    else
-                    {
-                        after = ClampBoth(
-                            sum,
-                            BoundsOf(Vector128.Load(clamp.MinStatColumn + slot)),
-                            BoundsOf(Vector128.Load(clamp.MaxStatColumn + slot)));
-                    }
-
-                    break;
-                default:
-                    after = sum;
-                    break;
-            }
-
-            Vector128.Store(after, value + slot);
-            if (applied != null)
-            {
-                Vector128.Store(after - before, applied + slot);
-            }
-        }
-
-        for (; i < count; i++)
-        {
-            var slot = start + i;
-            var before = value[slot];
-            var sum = delta == null ? before + deltaValue : before + delta[slot];
-            var after = clamp.Apply(sum, slot);
-            value[slot] = after;
-            if (applied != null)
-            {
-                applied[slot] = after - before;
-            }
-        }
+        Dispatch<Width128>(value, delta, deltaValue, clamp, start, count, applied);
     }
 
     internal static void ChunkW256(int* value, int* delta, int deltaValue, in Clamp clamp, int start, int count, int* applied)
     {
-        int i;
-        for (i = 0; i + 8 <= count; i += 8)
-        {
-            var slot = start + i;
-            var before = Vector256.Load(value + slot);
-            var d = delta == null ? Vector256.Create(deltaValue) : Vector256.Load(delta + slot);
-            var sum = before + d;
-            Vector256<int> after;
-            switch (clamp.Kind)
-            {
-                case ClampKind.Constant:
-                    after = ClampBoth(sum, Vector256.Create(clamp.Min), Vector256.Create(clamp.Max));
-                    break;
-                case ClampKind.Columns:
-                    if (clamp.MinColumn == null)
-                    {
-                        after = MaxOnly(sum, Vector256.Load(clamp.MaxColumn + slot));
-                    }
-                    else if (clamp.MaxColumn == null)
-                    {
-                        after = MinOnly(sum, Vector256.Load(clamp.MinColumn + slot));
-                    }
-                    else
-                    {
-                        after = ClampBoth(sum, Vector256.Load(clamp.MinColumn + slot), Vector256.Load(clamp.MaxColumn + slot));
-                    }
-
-                    break;
-                case ClampKind.StatBounds:
-                    if (clamp.MinStatColumn == null)
-                    {
-                        after = MaxOnly(sum, BoundsOf(Vector256.Load(clamp.MaxStatColumn + slot)));
-                    }
-                    else if (clamp.MaxStatColumn == null)
-                    {
-                        after = MinOnly(sum, BoundsOf(Vector256.Load(clamp.MinStatColumn + slot)));
-                    }
-                    else
-                    {
-                        after = ClampBoth(
-                            sum,
-                            BoundsOf(Vector256.Load(clamp.MinStatColumn + slot)),
-                            BoundsOf(Vector256.Load(clamp.MaxStatColumn + slot)));
-                    }
-
-                    break;
-                default:
-                    after = sum;
-                    break;
-            }
-
-            Vector256.Store(after, value + slot);
-            if (applied != null)
-            {
-                Vector256.Store(after - before, applied + slot);
-            }
-        }
-
-        for (; i < count; i++)
-        {
-            var slot = start + i;
-            var before = value[slot];
-            var sum = delta == null ? before + deltaValue : before + delta[slot];
-            var after = clamp.Apply(sum, slot);
-            value[slot] = after;
-            if (applied != null)
-            {
-                applied[slot] = after - before;
-            }
-        }
+        Dispatch<Width256>(value, delta, deltaValue, clamp, start, count, applied);
     }
 
     static Vector128<int> BoundsOf(Vector128<float> v)
