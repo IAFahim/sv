@@ -11,5 +11,6 @@
   <ItemGroup>
     <ProjectReference Include="../Sv/Sv.csproj" />
     <PackageReference Include="Tl.Runtime" Version="1.3.0" />
+    <InternalsVisibleTo Include="Sv.NorthStar" />
   </ItemGroup>
 </Project>

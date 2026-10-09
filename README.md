@@ -193,9 +193,10 @@ input capture 9 ns; every scenario verified against a scalar reference and print
 `alloc=0B`. Post-atoms-11–13: the composed one-call frame (`frame-run`, sv-owned
 columns) runs at parity with the hand-rolled fused tick (~0.85–0.93 ms/frame at
 100k rows — the composition layer itself is free, and sv-owned broadcast edges it
-ahead of the external-column loop); the determinism tape adds ~0.6–1.0 ms/frame at
-100k rows (FNV-1a digest + body over the live slot space, streamed to disk; tape v2
-hashes live rows only — sparse boards pay per entity, not capacity);
+ahead of the external-column loop); the determinism tape adds ~0.06 ms/frame at
+100k rows (tape v3: 64-bit XXH64 digest + body over the live slot space, streamed to
+disk; fully live words copy whole; live rows only — sparse boards pay per entity, not
+capacity; was ~0.6 ms with v2's byte-serial FNV-1a);
 both print `alloc=0B`. Standing `NoAllocationTests` assert exact-zero managed bytes for every
 warm verb; the managed-state audit shows zero managed collections outside
 `Schema` (cold authoring). The native bill is a receipt too: `Board.MemoryBytes`
@@ -250,6 +251,7 @@ Last refreshed 2026-10-01 19:36 UTC · `main@f97ec52` · AMD EPYC 7763 64-Core P
 | 24 | Specialized chunk loops: struct strategies for clamp kind × delta × applied, branch-free per instantiation, C# 9 portable — statclamp −19%, varying −24% — [issues/0029](issues/0029-atom-24-specialized-chunk-loops.md) | done |
 | 25 | Vectorized enabled run-walk: full words take the dense loop, partial words AVX2 masked load/store (disabled rows never touched), `Span` twins vectorized behind up-front length guards — run-walk 2.8× — [issues/0030](issues/0030-atom-25-vector-runwalk-and-span-twins.md) | done |
 | 26 | Per-writer cache-line-padded event locks + word-batched emit — 8 parallel writers 2.7 → 793 M events/s — [issues/0031](issues/0031-atom-26-per-writer-event-locks.md) | done |
+| 27 | Tape v3: XXH64 64-bit digest (verified against the reference at every length 0–300 + published vectors), whole-word body copy — tape overhead ~576 → ~58 µs/frame at 100k rows — [issues/0032](issues/0032-atom-27-tape-v3-xxh64.md) | done |
 
 Atom 1 scope note: `Clamp.Stat` and the StrictFloat oracle land with atom 2 (the first
 float math); the walkers land with atom 3. Nothing ships half-wired.

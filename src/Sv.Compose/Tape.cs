@@ -6,18 +6,18 @@ using System.Runtime.InteropServices;
 namespace Sv.Compose;
 
 /// <summary>
-/// Determinism tape (format v2). Each recorded frame is written as
-/// dt bits, input counts, the captured axes and button words, the frame digest, and the raw
-/// digest body. The digest is FNV-1a over the dt bits followed by the body: axes bits, button
-/// words, per stat the live rows only (ascending slot order, walked via the live bitmap),
-/// then the live bitmap words — a sparse board pays for entities, not capacity; dead rows are
-/// outside the determinism contract. Recording and per-frame digesting are
+/// Determinism tape (format v3). Each recorded frame is written as
+/// dt bits, input counts, the captured axes and button words, the 64-bit frame digest, and the
+/// raw digest body. The body is the dt bits, axes bits, button words, per stat the live rows
+/// only (ascending slot order, walked via the live bitmap; fully live words copy whole), then
+/// the live bitmap words — a sparse board pays for entities, not capacity; dead rows are
+/// outside the determinism contract. The digest is XXH64 (seed 0) over the body. Recording and per-frame digesting are
 /// managed-allocation-free; only the file stream and its fixed buffers are allocated, at
 /// <c>Record</c> time.
 /// </summary>
 public static unsafe class Tape
 {
-    public const uint Version = 2;
+    public const uint Version = 3;
 
     internal static int BodyLength(Game game)
     {
@@ -29,43 +29,44 @@ public static unsafe class Tape
             + liveWords * sizeof(ulong);
     }
 
-    internal static uint WriteBody(Game game, float dt, byte* body)
+    internal static ulong WriteBody(Game game, float dt, byte* body)
     {
         var cursor = body;
-        var hash = 2166136261u;
-        var dtBits = BitConverter.SingleToUInt32Bits(dt);
-        *(uint*)cursor = dtBits;
-        hash = Mix(hash, cursor, sizeof(uint));
+        *(uint*)cursor = BitConverter.SingleToUInt32Bits(dt);
         cursor += sizeof(uint);
-
         for (var axis = 0; axis < game.Input.Axes; axis++)
         {
             *(uint*)cursor = game.Input.AxisBits(axis);
-            hash = Mix(hash, cursor, sizeof(uint));
             cursor += sizeof(uint);
         }
 
         for (var word = 0; word < game.Input.ButtonWords; word++)
         {
             *(ulong*)cursor = game.Input.ButtonBits(word);
-            hash = Mix(hash, cursor, sizeof(ulong));
             cursor += sizeof(ulong);
         }
 
-        var schema = game.Board.Schema;
-        var words = game.Board.LiveWordCount;
-        for (var stat = 0; stat < schema.Stats.Count; stat++)
+        var board = game.Board;
+        var stats = board.Schema.Stats.Count;
+        var words = board.LiveWordCount;
+        for (var stat = 0; stat < stats; stat++)
         {
-            var column = game.Board.OutputPtr(schema.Stat(schema.Stats[stat].Name));
+            var column = board.OutputPtr(board.Schema.Stat(board.Schema.Stats[stat].Name));
             for (var word = 0; word < words; word++)
             {
-                var bits = game.Board.LiveWord(word);
+                var bits = board.LiveWord(word);
+                if (bits == ulong.MaxValue)
+                {
+                    Buffer.MemoryCopy(column + (word << 6), cursor, 64 * sizeof(float), 64 * sizeof(float));
+                    cursor += 64 * sizeof(float);
+                    continue;
+                }
+
                 while (bits != 0)
                 {
                     var slot = (word << 6) + BitOperations.TrailingZeroCount(bits);
                     bits &= bits - 1;
                     *(float*)cursor = column[slot];
-                    hash = Mix(hash, cursor, sizeof(float));
                     cursor += sizeof(float);
                 }
             }
@@ -73,22 +74,11 @@ public static unsafe class Tape
 
         for (var word = 0; word < words; word++)
         {
-            *(ulong*)cursor = game.Board.LiveWord(word);
-            hash = Mix(hash, cursor, sizeof(ulong));
+            *(ulong*)cursor = board.LiveWord(word);
             cursor += sizeof(ulong);
         }
 
-        return hash;
-    }
-
-    static uint Mix(uint hash, byte* bytes, int count)
-    {
-        for (var i = 0; i < count; i++)
-        {
-            hash = (hash ^ bytes[i]) * 16777619u;
-        }
-
-        return hash;
+        return XxHash64.Hash(body, (int)(cursor - body));
     }
 }
 
@@ -137,7 +127,7 @@ internal sealed unsafe class TapeWriter : IDisposable
         stream.Write(new ReadOnlySpan<byte>(&axesCount, sizeof(int)));
         stream.Write(new ReadOnlySpan<byte>(&wordCount, sizeof(int)));
         stream.Write(new ReadOnlySpan<byte>(body + sizeof(uint), inputBytes));
-        stream.Write(new ReadOnlySpan<byte>(&digest, sizeof(uint)));
+        stream.Write(new ReadOnlySpan<byte>(&digest, sizeof(ulong)));
         stream.Write(new ReadOnlySpan<byte>(&length, sizeof(int)));
         stream.Write(new ReadOnlySpan<byte>(body, length));
     }

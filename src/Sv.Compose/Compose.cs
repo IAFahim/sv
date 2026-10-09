@@ -354,8 +354,13 @@ public sealed class GameHost<TEvents, TTimelines, TKernels, THost> : IDisposable
                             cursor += sizeof(ulong);
                         }
 
-                        var recorded = *(uint*)cursor;
-                        cursor += sizeof(uint);
+                        if (end - cursor < sizeof(ulong) + sizeof(int))
+                        {
+                            throw new InvalidDataException($"sv.compose: tape truncated in frame {frame} digest");
+                        }
+
+                        var recorded = *(ulong*)cursor;
+                        cursor += sizeof(ulong);
                         var bodyLength = *(int*)cursor;
                         cursor += sizeof(int);
                         if (bodyLength < 0 || end - cursor < bodyLength)
@@ -377,7 +382,7 @@ public sealed class GameHost<TEvents, TTimelines, TKernels, THost> : IDisposable
                         var digest = Tape.WriteBody(game, dt, body);
                         if (digest != recorded)
                         {
-                            throw new InvalidOperationException($"sv.compose: tape digest mismatch at frame {frame} (recorded {recorded:X8}, replayed {digest:X8})");
+                            throw new InvalidOperationException($"sv.compose: tape digest mismatch at frame {frame} (recorded {recorded:X16}, replayed {digest:X16})");
                         }
 
                         VerifyBody(frame, body, recordedBody, bodyLength);
