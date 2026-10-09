@@ -254,6 +254,7 @@ Last refreshed 2026-10-01 19:36 UTC · `main@f97ec52` · AMD EPYC 7763 64-Core P
 | 27 | Tape v3: XXH64 64-bit digest (verified against the reference at every length 0–300 + published vectors), whole-word body copy — tape overhead ~576 → ~58 µs/frame at 100k rows — [issues/0032](issues/0032-atom-27-tape-v3-xxh64.md) | done |
 | 28 | **Fix**: recalc permuted stored modifier ids in place, so `RemoveModifier` could remove the wrong modifier (since atom 2); independent-oracle churn tests added — [issues/0033](issues/0033-atom-28-fix-modifier-id-permutation.md) | done |
 | 29 | Paged pair storage (4096-slot pages, metadata on first acquire, modifier lists on first modifier, 16 B lists) — empty 1M×3 board 110 → 15 MiB; renumber leak of released slots' buffers fixed — [issues/0034](issues/0034-atom-29-paged-pair-storage.md) | done |
+| 30 | Cross-host determinism: baked 64-bit digest over a full churn/clamp/run-walk/events scenario, identical on AVX2 / 128-bit / scalar paths; CI matrix x64 · no-AVX2 · scalar · arm64 · macOS · Windows — [issues/0035](issues/0035-atom-30-cross-host-determinism.md) | done (ARM legs on next CI run) |
 
 Atom 1 scope note: `Clamp.Stat` and the StrictFloat oracle land with atom 2 (the first
 float math); the walkers land with atom 3. Nothing ships half-wired.
