@@ -91,6 +91,26 @@ public readonly unsafe struct Clamp
         return new Clamp(ClampKind.StatBounds, 0, 0, null, null, min, null, board, minStat.Index, -1, minGeneration, -1);
     }
 
+    /// <summary>
+    /// Clamps against the stats' sv-owned int mirrors (<see cref="Board.MirrorBounds"/>): the
+    /// clause-16 conversion runs once per broadcast instead of once per row per op. Same results
+    /// as <see cref="Stat"/> whenever the bound columns are written only by broadcast.
+    /// </summary>
+    public static Clamp StatMirror(Board board, StatId minStat, StatId maxStat)
+    {
+        return Columns(board.MirrorBounds(minStat), board.MirrorBounds(maxStat));
+    }
+
+    public static Clamp StatMirrorMax(Board board, StatId maxStat)
+    {
+        return Columns(null, board.MirrorBounds(maxStat));
+    }
+
+    public static Clamp StatMirrorMin(Board board, StatId minStat)
+    {
+        return Columns(board.MirrorBounds(minStat), null);
+    }
+
     static float* ResolveColumn(Board board, StatId stat, out int generation)
     {
         var external = board.OutputColumn(stat);
@@ -182,7 +202,7 @@ public readonly unsafe struct Clamp
         }
     }
 
-    static int BoundOf(float value)
+    public static int BoundOf(float value)
     {
         if (float.IsNaN(value))
         {

@@ -66,6 +66,7 @@ internal static class Program
         failures += Run("intrinsics-uniform", scenario, ms, () => new IntrinsicsBench(uniform: true, statClamp: false));
         failures += Run("intrinsics-varying", scenario, ms, () => new IntrinsicsBench(uniform: false, statClamp: false));
         failures += Run("intrinsics-statclamp", scenario, ms, () => new IntrinsicsBench(uniform: false, statClamp: true));
+        failures += Run("intrinsics-statmirror", scenario, ms, () => new IntrinsicsBench(uniform: false, statClamp: true, mirror: true));
         failures += Run("enabled-runwalk", scenario, ms, EnabledRunwalkBench.New);
         failures += Run("stat-recalc", scenario, ms, () => StatRecalcBench.New(false));
         failures += Run("stat-churn", scenario, ms, () => StatRecalcBench.New(true));
@@ -159,7 +160,7 @@ internal sealed unsafe class IntrinsicsBench : BenchBase
 
     readonly bool uniform;
 
-    internal IntrinsicsBench(bool uniform, bool statClamp)
+    internal IntrinsicsBench(bool uniform, bool statClamp, bool mirror = false)
     {
         this.uniform = uniform;
         board = Board.Create(statClamp ? StatSchema() : SimpleSchema(), Rows);
@@ -188,7 +189,21 @@ internal sealed unsafe class IntrinsicsBench : BenchBase
             var maxStat = board.Schema.Stat("ceiling");
             board.BindOutput(minStat, minCol);
             board.BindOutput(maxStat, maxCol);
-            clamp = Clamp.Stat(board, minStat, maxStat);
+            if (mirror)
+            {
+                for (var i = 0; i < Rows; i++)
+                {
+                    board.Acquire();
+                }
+
+                board.MirrorBounds(minStat);
+                board.MirrorBounds(maxStat);
+                clamp = Clamp.StatMirror(board, minStat, maxStat);
+            }
+            else
+            {
+                clamp = Clamp.Stat(board, minStat, maxStat);
+            }
         }
         else
         {

@@ -85,6 +85,7 @@ public sealed unsafe partial class Board : IDisposable
                 + sizeof(float) * (long)statCount * Capacity
                 + sizeof(int) * (long)statCount * 2
                 + PairBytes
+                + MirrorBytes
                 + sizeof(int) * (long)pairQueueCap
                 + (sizeof(StatEntry) + sizeof(int)) * (long)scratchCap;
             return bytes + table!.MemoryBytes;

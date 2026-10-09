@@ -41,6 +41,8 @@ public sealed unsafe partial class Board
 
     private int* boundGeneration;
 
+    private int** mirrors;
+
     private int* boundLength;
 
     private int bindingGeneration;
@@ -92,6 +94,7 @@ public sealed unsafe partial class Board
             boundGeneration[i] = -1;
         }
 
+        mirrors = (int**)NativeMemory.AllocZeroed((nuint)statCount * (nuint)sizeof(int*));
         boundLength = Alloc<int>(statCount);
         for (var i = 0; i < statCount; i++)
         {
@@ -132,6 +135,15 @@ public sealed unsafe partial class Board
         NativeMemory.Free(svColumns);
         NativeMemory.Free(boundGeneration);
         NativeMemory.Free(boundLength);
+        for (var i = 0; i < statCount; i++)
+        {
+            if (mirrors[i] != null)
+            {
+                NativeMemory.Free(mirrors[i]);
+            }
+        }
+
+        NativeMemory.Free(mirrors);
         NativeMemory.Free(pairQueue);
         NativeMemory.Free(scratch);
         NativeMemory.Free(scratchIds);
@@ -356,6 +368,56 @@ public sealed unsafe partial class Board
 
     public Span<float> Output(StatId stat) => new(OutputPtr(stat), Capacity);
 
+    /// <summary>
+    /// Sv-owned int mirror of a stat's bound: <see cref="Clamp.BoundOf"/> of each row's broadcast
+    /// value (clause-16 conversion), written by every broadcast from now on and filled from the
+    /// current output column on first call. Capacity-sized, never moves. Host writes to a bound
+    /// float column are not seen by the mirror. <see cref="Clamp.StatMirror"/> clamps against it.
+    /// </summary>
+    public int* MirrorBounds(StatId stat)
+    {
+        var index = StatIndex(stat);
+        if (mirrors[index] != null)
+        {
+            return mirrors[index];
+        }
+
+        var mirror = (int*)NativeMemory.AllocZeroed((nuint)Capacity * sizeof(int), sizeof(int));
+        var external = outputColumn[index];
+        var stride = outputStride[index];
+        var owned = svColumns + (nint)index * Capacity;
+        for (var word = 0; word < LiveWordCount; word++)
+        {
+            var bits = live[word];
+            while (bits != 0)
+            {
+                var slot = (word << 6) + System.Numerics.BitOperations.TrailingZeroCount(bits);
+                bits &= bits - 1;
+                mirror[slot] = Clamp.BoundOf(external == null ? owned[slot] : external[slot * stride]);
+            }
+        }
+
+        mirrors[index] = mirror;
+        return mirror;
+    }
+
+    internal long MirrorBytes
+    {
+        get
+        {
+            long bytes = (long)statCount * sizeof(int*);
+            for (var i = 0; i < statCount; i++)
+            {
+                if (mirrors[i] != null)
+                {
+                    bytes += (long)Capacity * sizeof(int);
+                }
+            }
+
+            return bytes;
+        }
+    }
+
     public float* OutputColumn(StatId stat)
     {
         return outputColumn[StatIndex(stat)];
@@ -531,6 +593,16 @@ public sealed unsafe partial class Board
 
             var column = outputColumn[stat];
             var members = table.Members(dirty, out var memberCount);
+            var mirror = mirrors[stat];
+            if (mirror != null)
+            {
+                var bound = Clamp.BoundOf(computed);
+                for (var i = 0; i < memberCount; i++)
+                {
+                    mirror[members[i]] = bound;
+                }
+            }
+
             if (column == null)
             {
                 var owned = svColumns + (nint)stat * Capacity;
@@ -581,6 +653,12 @@ public sealed unsafe partial class Board
 
     void BroadcastOne(int stat, int slot, float computed)
     {
+        var mirror = mirrors[stat];
+        if (mirror != null)
+        {
+            mirror[slot] = Clamp.BoundOf(computed);
+        }
+
         var column = outputColumn[stat];
         if (column == null)
         {
@@ -790,6 +868,23 @@ public sealed unsafe partial class Board
             }
 
             new ReadOnlySpan<float>(tempRows, Capacity).CopyTo(new Span<float>(column, Capacity));
+            var mirror = mirrors[stat];
+            if (mirror == null)
+            {
+                continue;
+            }
+
+            var mirrorRows = (int*)tempRows;
+            NativeMemory.Clear(mirrorRows, (nuint)Capacity * sizeof(int));
+            for (var slot = 0; slot < Capacity; slot++)
+            {
+                if ((live[slot >> 6] & (1ul << (slot & 63))) != 0)
+                {
+                    mirrorRows[oldToNew[slot]] = mirror[slot];
+                }
+            }
+
+            new ReadOnlySpan<int>(mirrorRows, Capacity).CopyTo(new Span<int>(mirror, Capacity));
         }
 
         NativeMemory.Free(tempRows);

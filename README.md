@@ -258,6 +258,7 @@ Last refreshed 2026-10-01 19:36 UTC · `main@f97ec52` · AMD EPYC 7763 64-Core P
 | 31 | Struct event makers `IEventMaker<T>` (C# 9 portable, inlined, no entry gate) beside the fnptr emitters — dense emit 450 → 98 µs — [issues/0036](issues/0036-atom-31-struct-event-makers.md) | done (contract: bus 0036 pending) |
 | 32 | **Fix**: pairs queued for a slot released before `Recalculate` made the dead slot a set member; after `RenumberSlots` it became member −1 and broadcast wrote `column[-1]` (heap corruption, since atom 10) — [issues/0037](issues/0037-atom-32-fix-dead-slot-queue.md) | done |
 | 33 | **Fix**: `Clamp.Stat*` read stride-bound columns as contiguous (wrong bounds); now rejected at construction — [issues/0038](issues/0038-atom-33-fix-clamp-stat-stride.md) | done |
+| 34 | Stat-bound mirrors: `Board.MirrorBounds` keeps an sv-owned int `BoundOf` column written at broadcast; `Clamp.StatMirror*` clamps through the int-column path and works for any binding stride (~5% over `Clamp.Stat`) — [issues/0039](issues/0039-atom-34-stat-bound-mirrors.md) | done (contract: bus 0036 pending) |
 
 Atom 1 scope note: `Clamp.Stat` and the StrictFloat oracle land with atom 2 (the first
 float math); the walkers land with atom 3. Nothing ships half-wired.
