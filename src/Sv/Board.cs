@@ -176,22 +176,7 @@ public sealed unsafe partial class Board : IDisposable
         }
 
         Guard.EnabledRange(offset, Capacity);
-        var mask = enabled;
-        while (mask != 0)
-        {
-            var bit = BitOperations.TrailingZeroCount(mask);
-            mask &= mask - 1;
-            var slot = offset + bit;
-            var before = value[slot];
-            var after = clamp.Apply(before + delta, slot);
-            value[slot] = after;
-            if (applied != null)
-            {
-                applied[slot] = after - before;
-            }
-        }
-
-        WriteSkippedZero(applied, enabled, offset);
+        Simd.EnabledWord(value, null, delta, clamp, enabled, offset, applied);
     }
 
     public void RunEnabledChunk(int* value, int* delta, in Clamp clamp, ulong enabled, int offset, int* applied = null)
@@ -207,22 +192,7 @@ public sealed unsafe partial class Board : IDisposable
         }
 
         Guard.EnabledRange(offset, Capacity);
-        var mask = enabled;
-        while (mask != 0)
-        {
-            var bit = BitOperations.TrailingZeroCount(mask);
-            mask &= mask - 1;
-            var slot = offset + bit;
-            var before = value[slot];
-            var after = clamp.Apply(before + delta[slot], slot);
-            value[slot] = after;
-            if (applied != null)
-            {
-                applied[slot] = after - before;
-            }
-        }
-
-        WriteSkippedZero(applied, enabled, offset);
+        Simd.EnabledWord(value, delta, 0, clamp, enabled, offset, applied);
     }
 
     /// <param name="value">Stat column indexed by absolute slot; written for every enabled row in the window.</param>
@@ -247,23 +217,7 @@ public sealed unsafe partial class Board : IDisposable
         Guard.EnabledRange(offset, wordCount, Capacity);
         for (var w = 0; w < wordCount; w++)
         {
-            var slotBase = offset + w * 64;
-            var mask = words[w];
-            while (mask != 0)
-            {
-                var bit = BitOperations.TrailingZeroCount(mask);
-                mask &= mask - 1;
-                var slot = slotBase + bit;
-                var before = value[slot];
-                var after = clamp.Apply(before + delta, slot);
-                value[slot] = after;
-                if (applied != null)
-                {
-                    applied[slot] = after - before;
-                }
-            }
-
-            WriteSkippedZero(applied, words[w], slotBase);
+            Simd.EnabledWord(value, null, delta, clamp, words[w], offset + w * 64, applied);
         }
     }
 
@@ -294,23 +248,7 @@ public sealed unsafe partial class Board : IDisposable
         Guard.EnabledRange(offset, wordCount, Capacity);
         for (var w = 0; w < wordCount; w++)
         {
-            var slotBase = offset + w * 64;
-            var mask = words[w];
-            while (mask != 0)
-            {
-                var bit = BitOperations.TrailingZeroCount(mask);
-                mask &= mask - 1;
-                var slot = slotBase + bit;
-                var before = value[slot];
-                var after = clamp.Apply(before + delta[slot], slot);
-                value[slot] = after;
-                if (applied != null)
-                {
-                    applied[slot] = after - before;
-                }
-            }
-
-            WriteSkippedZero(applied, words[w], slotBase);
+            Simd.EnabledWord(value, delta, 0, clamp, words[w], offset + w * 64, applied);
         }
     }
 
@@ -329,33 +267,15 @@ public sealed unsafe partial class Board : IDisposable
         }
 
         Guard.EnabledRange(offset, wordCount, Capacity);
-        for (var w = 0; w < wordCount; w++)
+        var reach = Reach(words, wordCount, offset);
+        Guard.SpanReach(value.Length, reach, nameof(value));
+        Guard.SpanWindow(applied.Length, offset + wordCount * 64, nameof(applied));
+        fixed (int* v = value)
+        fixed (int* a = applied)
         {
-            var slotBase = offset + w * 64;
-            var mask = words[w];
-            while (mask != 0)
+            for (var w = 0; w < wordCount; w++)
             {
-                var bit = BitOperations.TrailingZeroCount(mask);
-                mask &= mask - 1;
-                var slot = slotBase + bit;
-                var before = value[slot];
-                var after = clamp.Apply(before + delta, slot);
-                value[slot] = after;
-                if (!applied.IsEmpty)
-                {
-                    applied[slot] = after - before;
-                }
-            }
-
-            if (!applied.IsEmpty)
-            {
-                var skipped = ~words[w];
-                while (skipped != 0)
-                {
-                    var bit = BitOperations.TrailingZeroCount(skipped);
-                    skipped &= skipped - 1;
-                    applied[slotBase + bit] = 0;
-                }
+                Simd.EnabledWord(v, null, delta, clamp, words[w], offset + w * 64, a);
             }
         }
     }
@@ -375,142 +295,86 @@ public sealed unsafe partial class Board : IDisposable
         }
 
         Guard.EnabledRange(offset, wordCount, Capacity);
-        for (var w = 0; w < wordCount; w++)
+        var reach = Reach(words, wordCount, offset);
+        Guard.SpanReach(value.Length, reach, nameof(value));
+        Guard.SpanReach(delta.Length, reach, nameof(delta));
+        Guard.SpanWindow(applied.Length, offset + wordCount * 64, nameof(applied));
+        fixed (int* v = value)
+        fixed (int* d = delta)
+        fixed (int* a = applied)
         {
-            var slotBase = offset + w * 64;
-            var mask = words[w];
-            while (mask != 0)
+            for (var w = 0; w < wordCount; w++)
             {
-                var bit = BitOperations.TrailingZeroCount(mask);
-                mask &= mask - 1;
-                var slot = slotBase + bit;
-                var before = value[slot];
-                var after = clamp.Apply(before + delta[slot], slot);
-                value[slot] = after;
-                if (!applied.IsEmpty)
-                {
-                    applied[slot] = after - before;
-                }
-            }
-
-            if (!applied.IsEmpty)
-            {
-                var skipped = ~words[w];
-                while (skipped != 0)
-                {
-                    var bit = BitOperations.TrailingZeroCount(skipped);
-                    skipped &= skipped - 1;
-                    applied[slotBase + bit] = 0;
-                }
+                Simd.EnabledWord(v, d, 0, clamp, words[w], offset + w * 64, a);
             }
         }
     }
 
-    static void WriteSkippedZero(int* applied, ulong enabled, int offset)
+    static int Reach(ulong* words, int wordCount, int offset)
     {
-        if (applied == null)
+        for (var w = wordCount - 1; w >= 0; w--)
         {
-            return;
+            if (words[w] != 0)
+            {
+                return offset + w * 64 + 64 - BitOperations.LeadingZeroCount(words[w]);
+            }
         }
 
-        var skipped = ~enabled;
-        while (skipped != 0)
-        {
-            var bit = BitOperations.TrailingZeroCount(skipped);
-            skipped &= skipped - 1;
-            applied[offset + bit] = 0;
-        }
+        return 0;
     }
+
+    static int Reach(ulong word, int offset) => word == 0 ? 0 : offset + 64 - BitOperations.LeadingZeroCount(word);
 
     public void RunIntrinsicsChunk(Span<int> value, int delta, in Clamp clamp, int start, int count, Span<int> applied = default)
     {
         Guard.ChunkRange(start, count, Capacity);
-        for (var i = 0; i < count; i++)
+        Guard.SpanReach(value.Length, start + count, nameof(value));
+        Guard.SpanWindow(applied.Length, start + count, nameof(applied));
+        fixed (int* v = value)
+        fixed (int* a = applied)
         {
-            var slot = start + i;
-            var before = value[slot];
-            var after = clamp.Apply(before + delta, slot);
-            value[slot] = after;
-            if (!applied.IsEmpty)
-            {
-                applied[slot] = after - before;
-            }
+            Simd.Chunk(v, null, delta, clamp, start, count, a);
         }
     }
 
     public void RunIntrinsicsChunk(Span<int> value, ReadOnlySpan<int> delta, in Clamp clamp, int start, int count, Span<int> applied = default)
     {
         Guard.ChunkRange(start, count, Capacity);
-        for (var i = 0; i < count; i++)
+        Guard.SpanReach(value.Length, start + count, nameof(value));
+        Guard.SpanReach(delta.Length, start + count, nameof(delta));
+        Guard.SpanWindow(applied.Length, start + count, nameof(applied));
+        fixed (int* v = value)
+        fixed (int* d = delta)
+        fixed (int* a = applied)
         {
-            var slot = start + i;
-            var before = value[slot];
-            var after = clamp.Apply(before + delta[slot], slot);
-            value[slot] = after;
-            if (!applied.IsEmpty)
-            {
-                applied[slot] = after - before;
-            }
+            Simd.Chunk(v, d, 0, clamp, start, count, a);
         }
     }
 
     public void RunEnabledChunk(Span<int> value, int delta, in Clamp clamp, ulong enabled, int offset, Span<int> applied = default)
     {
         Guard.EnabledRange(offset, Capacity);
-        var mask = enabled;
-        while (mask != 0)
+        Guard.SpanReach(value.Length, Reach(enabled, offset), nameof(value));
+        Guard.SpanWindow(applied.Length, offset + 64, nameof(applied));
+        fixed (int* v = value)
+        fixed (int* a = applied)
         {
-            var bit = BitOperations.TrailingZeroCount(mask);
-            mask &= mask - 1;
-            var slot = offset + bit;
-            var before = value[slot];
-            var after = clamp.Apply(before + delta, slot);
-            value[slot] = after;
-            if (!applied.IsEmpty)
-            {
-                applied[slot] = after - before;
-            }
-        }
-
-        if (!applied.IsEmpty)
-        {
-            var skipped = ~enabled;
-            while (skipped != 0)
-            {
-                var bit = BitOperations.TrailingZeroCount(skipped);
-                skipped &= skipped - 1;
-                applied[offset + bit] = 0;
-            }
+            Simd.EnabledWord(v, null, delta, clamp, enabled, offset, a);
         }
     }
 
     public void RunEnabledChunk(Span<int> value, ReadOnlySpan<int> delta, in Clamp clamp, ulong enabled, int offset, Span<int> applied = default)
     {
         Guard.EnabledRange(offset, Capacity);
-        var mask = enabled;
-        while (mask != 0)
+        var reach = Reach(enabled, offset);
+        Guard.SpanReach(value.Length, reach, nameof(value));
+        Guard.SpanReach(delta.Length, reach, nameof(delta));
+        Guard.SpanWindow(applied.Length, offset + 64, nameof(applied));
+        fixed (int* v = value)
+        fixed (int* d = delta)
+        fixed (int* a = applied)
         {
-            var bit = BitOperations.TrailingZeroCount(mask);
-            mask &= mask - 1;
-            var slot = offset + bit;
-            var before = value[slot];
-            var after = clamp.Apply(before + delta[slot], slot);
-            value[slot] = after;
-            if (!applied.IsEmpty)
-            {
-                applied[slot] = after - before;
-            }
-        }
-
-        if (!applied.IsEmpty)
-        {
-            var skipped = ~enabled;
-            while (skipped != 0)
-            {
-                var bit = BitOperations.TrailingZeroCount(skipped);
-                skipped &= skipped - 1;
-                applied[offset + bit] = 0;
-            }
+            Simd.EnabledWord(v, d, 0, clamp, enabled, offset, a);
         }
     }
 

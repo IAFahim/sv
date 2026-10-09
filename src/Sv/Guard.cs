@@ -46,6 +46,22 @@ internal static unsafe class Guard
         }
     }
 
+    public static void SpanReach(int length, int reach, string name)
+    {
+        if (length < reach)
+        {
+            throw new ArgumentException($"sv: span of {length} rows does not reach row {reach - 1}", name);
+        }
+    }
+
+    public static void SpanWindow(int length, int window, string name)
+    {
+        if (length != 0 && length < window)
+        {
+            throw new ArgumentException($"sv: applied span of {length} rows does not cover the window end {window}", name);
+        }
+    }
+
     [Conditional("SV_CHECKED")]
     public static void EnabledRange(int offset, int capacity)
     {
