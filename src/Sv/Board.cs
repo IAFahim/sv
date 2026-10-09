@@ -87,7 +87,8 @@ public sealed unsafe partial class Board : IDisposable
                 + PairBytes
                 + MirrorBytes
                 + sizeof(int) * (long)pairQueueCap
-                + (sizeof(StatEntry) + sizeof(int)) * (long)scratchCap;
+                + (sizeof(StatEntry) + sizeof(int)) * (long)scratchCap
+                + (long)expiryCap * sizeof(Expiry);
             return bytes + table!.MemoryBytes;
         }
     }

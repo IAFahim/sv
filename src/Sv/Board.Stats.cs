@@ -18,7 +18,26 @@ public sealed unsafe partial class Board
         public int Cap;
 
         public readonly int* Ids => (int*)(Entries + Cap);
+
+        public readonly int* Sources => (int*)(Entries + Cap) + Cap;
     }
+
+    private struct Expiry
+    {
+        public long Tick;
+
+        public int Id;
+
+        public int Slot;
+
+        public int Stat;
+    }
+
+    private Expiry* expiries;
+
+    private int expiryCount;
+
+    private int expiryCap;
 
     private struct PairMeta
     {
@@ -108,6 +127,8 @@ public sealed unsafe partial class Board
         scratchCap = 32;
         scratch = Alloc<StatEntry>(scratchCap);
         scratchIds = Alloc<int>(scratchCap);
+        expiryCap = 16;
+        expiries = Alloc<Expiry>(expiryCap);
     }
 
     static T* Alloc<T>(int count) where T : unmanaged
@@ -147,6 +168,7 @@ public sealed unsafe partial class Board
         NativeMemory.Free(pairQueue);
         NativeMemory.Free(scratch);
         NativeMemory.Free(scratchIds);
+        NativeMemory.Free(expiries);
     }
 
     void FreePages(PairMods** mods, PairMeta** metas)
@@ -243,7 +265,7 @@ public sealed unsafe partial class Board
                     bytes += (long)pageWidth * sizeof(PairMods);
                     for (var i = 0; i < pageWidth; i++)
                     {
-                        bytes += (long)modPages[page][i].Cap * (sizeof(StatEntry) + sizeof(int));
+                        bytes += (long)modPages[page][i].Cap * (sizeof(StatEntry) + sizeof(int) * 2);
                     }
                 }
             }
@@ -429,17 +451,29 @@ public sealed unsafe partial class Board
 
     public ModifierHandle AddModifier(int slot, StatId stat, in Modifier modifier)
     {
+        return AddModifier(slot, stat, modifier, 0, long.MaxValue);
+    }
+
+    /// <summary>
+    /// Adds a modifier tagged with <paramref name="source"/> (see <see cref="RemoveSource"/>) that
+    /// <see cref="ExpireModifiers"/> removes once its tick reaches <paramref name="expiresAtTick"/>
+    /// (<see cref="long.MaxValue"/>: never). Like every modifier change it takes effect at the next
+    /// <see cref="Recalculate"/>.
+    /// </summary>
+    public ModifierHandle AddModifier(int slot, StatId stat, in Modifier modifier, int source, long expiresAtTick = long.MaxValue)
+    {
         var index = StatIndex(stat);
         Guard.SlotLive(slot, live, Capacity);
         ref var mods = ref ModPage(modPages, slot)[(slot & (PageSlots - 1)) * statCount + index];
         if (mods.Count == mods.Cap)
         {
             var cap = mods.Cap == 0 ? 4 : mods.Cap * 2;
-            var block = (StatEntry*)NativeMemory.Alloc((nuint)cap * (nuint)(sizeof(StatEntry) + sizeof(int)));
+            var block = (StatEntry*)NativeMemory.Alloc((nuint)cap * (nuint)(sizeof(StatEntry) + sizeof(int) * 2));
             if (mods.Entries != null)
             {
                 Buffer.MemoryCopy(mods.Entries, block, (long)cap * sizeof(StatEntry), (long)mods.Count * sizeof(StatEntry));
                 Buffer.MemoryCopy(mods.Ids, block + cap, (long)cap * sizeof(int), (long)mods.Count * sizeof(int));
+                Buffer.MemoryCopy(mods.Sources, (int*)(block + cap) + cap, (long)cap * sizeof(int), (long)mods.Count * sizeof(int));
                 NativeMemory.Free(mods.Entries);
             }
 
@@ -450,9 +484,157 @@ public sealed unsafe partial class Board
         var id = ++nextInsertionId;
         mods.Entries[mods.Count] = new StatEntry(modifier.Kind, modifier.Value);
         mods.Ids[mods.Count] = id;
+        mods.Sources[mods.Count] = source;
         mods.Count++;
         EnqueuePair(slot, index);
+        if (expiresAtTick != long.MaxValue)
+        {
+            PushExpiry(new Expiry { Tick = expiresAtTick, Id = id, Slot = slot, Stat = index });
+        }
+
         return new ModifierHandle(id);
+    }
+
+    /// <summary>
+    /// Removes every modifier on <paramref name="slot"/> (all stats) carrying <paramref name="source"/>.
+    /// Returns how many were removed.
+    /// </summary>
+    public int RemoveSource(int slot, int source)
+    {
+        Guard.SlotLive(slot, live, Capacity);
+        var removed = 0;
+        for (var stat = 0; stat < statCount; stat++)
+        {
+            var mods = ModsOrNull(slot, stat);
+            if (mods == null)
+            {
+                continue;
+            }
+
+            var before = removed;
+            var i = 0;
+            while (i < mods->Count)
+            {
+                if (mods->Sources[i] == source)
+                {
+                    RemoveAt(mods, i);
+                    removed++;
+                    continue;
+                }
+
+                i++;
+            }
+
+            if (removed != before)
+            {
+                EnqueuePair(slot, stat);
+            }
+        }
+
+        return removed;
+    }
+
+    /// <summary>
+    /// Removes every modifier whose expiry tick is <= <paramref name="tick"/>, in (tick, insertion id)
+    /// order. Modifiers already removed (by handle, source or slot release) are skipped. Returns how
+    /// many were removed.
+    /// </summary>
+    public int ExpireModifiers(long tick)
+    {
+        var removed = 0;
+        while (expiryCount > 0 && expiries[0].Tick <= tick)
+        {
+            var top = expiries[0];
+            PopExpiry();
+            if (top.Slot < 0 || (live[top.Slot >> 6] & (1ul << (top.Slot & 63))) == 0)
+            {
+                continue;
+            }
+
+            var mods = ModsOrNull(top.Slot, top.Stat);
+            var count = mods == null ? 0 : mods->Count;
+            for (var i = 0; i < count; i++)
+            {
+                if (mods->Ids[i] == top.Id)
+                {
+                    RemoveAt(mods, i);
+                    EnqueuePair(top.Slot, top.Stat);
+                    removed++;
+                    break;
+                }
+            }
+        }
+
+        return removed;
+    }
+
+    public int PendingExpiries => expiryCount;
+
+    static void RemoveAt(PairMods* mods, int i)
+    {
+        var last = mods->Count - 1;
+        mods->Entries[i] = mods->Entries[last];
+        mods->Ids[i] = mods->Ids[last];
+        mods->Sources[i] = mods->Sources[last];
+        mods->Count = last;
+    }
+
+    static bool Before(in Expiry a, in Expiry b) => a.Tick < b.Tick || (a.Tick == b.Tick && a.Id < b.Id);
+
+    void PushExpiry(Expiry entry)
+    {
+        if (expiryCount == expiryCap)
+        {
+            expiryCap *= 2;
+            expiries = Realloc(expiries, expiryCap);
+        }
+
+        var at = expiryCount++;
+        while (at > 0)
+        {
+            var parent = (at - 1) >> 1;
+            if (!Before(entry, expiries[parent]))
+            {
+                break;
+            }
+
+            expiries[at] = expiries[parent];
+            at = parent;
+        }
+
+        expiries[at] = entry;
+    }
+
+    void PopExpiry()
+    {
+        var last = expiries[--expiryCount];
+        var at = 0;
+        while (true)
+        {
+            var child = at * 2 + 1;
+            if (child >= expiryCount)
+            {
+                break;
+            }
+
+            if (child + 1 < expiryCount && Before(expiries[child + 1], expiries[child]))
+            {
+                child++;
+            }
+
+            if (!Before(expiries[child], last))
+            {
+                break;
+            }
+
+            expiries[at] = expiries[child];
+            at = child;
+        }
+
+        if (expiryCount > 0)
+        {
+            expiries[at] = last;
+        }
     }
 
     public void RemoveModifier(int slot, StatId stat, ModifierHandle handle)
@@ -463,12 +645,9 @@ public sealed unsafe partial class Board
         var count = mods == null ? 0 : mods->Count;
         for (var i = 0; i < count; i++)
         {
-            var ids = mods->Ids;
-            if (ids[i] == handle.Id)
+            if (mods->Ids[i] == handle.Id)
             {
-                mods->Entries[i] = mods->Entries[count - 1];
-                ids[i] = ids[count - 1];
-                mods->Count--;
+                RemoveAt(mods, i);
                 EnqueuePair(slot, index);
                 return;
             }
@@ -853,6 +1032,12 @@ public sealed unsafe partial class Board
         FreePages(modPages, metaPages);
         modPages = nextMods;
         metaPages = nextMetas;
+        for (var i = 0; i < expiryCount; i++)
+        {
+            var slot = expiries[i].Slot;
+            expiries[i].Slot = slot >= 0 && (live[slot >> 6] & (1ul << (slot & 63))) != 0 ? oldToNew[slot] : -1;
+        }
+
         table!.RenumberMembers(oldToNew);
         var tempRows = Alloc<float>(Capacity);
         for (var stat = 0; stat < statCount; stat++)
