@@ -280,6 +280,20 @@ internal sealed unsafe class SetTable : IDisposable
         }
     }
 
+    internal int MemberTotal(int stat)
+    {
+        var total = 0;
+        for (var set = 0; set < setCount; set++)
+        {
+            if (setStat[set] == stat)
+            {
+                total += setMemberCount[set];
+            }
+        }
+
+        return total;
+    }
+
     public int* Members(int set, out int count)
     {
         count = setMemberCount[set];

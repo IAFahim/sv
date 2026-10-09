@@ -361,6 +361,8 @@ public sealed unsafe partial class Board
 
     public int SetCount => table?.LiveSetCount ?? 0;
 
+    internal int MemberTotal(StatId stat) => table!.MemberTotal(StatIndex(stat));
+
     public ModifierHandle AddModifier(int slot, StatId stat, in Modifier modifier)
     {
         var index = StatIndex(stat);
@@ -477,6 +479,11 @@ public sealed unsafe partial class Board
             var stat = pair - slot * statCount;
             ref var meta = ref Meta(slot, stat);
             meta.Queued = 0;
+            if ((live[slot >> 6] & (1ul << (slot & 63))) == 0)
+            {
+                continue;
+            }
+
             var count = Gather(slot, stat);
             var set = table!.Resolve(stat, scratch, count);
             if (meta.Set != set)

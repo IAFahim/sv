@@ -7,7 +7,7 @@ using Xunit.Abstractions;
 
 public unsafe class CrossHostDigestTests
 {
-    const ulong Expected = 0x43C10FAD8972E593ul;
+    const ulong Expected = 0xF27280C52591D65Aul;
 
     readonly ITestOutputHelper output;
 
@@ -131,14 +131,20 @@ public unsafe class CrossHostDigestTests
                 }
 
                 board.RunIntrinsicsChunk(mana, delta, Clamp.Stat(board, floor, maxMana), 0, cap, applied);
-                streams.EmitFromNonZero(gained, applied, 0, cap, &MakeGained);
+                for (var w = 0; w < board.LiveWordCount; w++)
+                {
+                    streams.EmitFromNonZero(gained, applied, board.LiveWord(w), w << 6, &MakeGained);
+                }
                 for (var w = 0; w < cap / 64; w++)
                 {
                     words[w] = rng.Next() & rng.Next();
                 }
 
                 board.RunEnabledChunk(mana, 3, Clamp.StatMax(board, maxMana), words, cap / 64, 0, applied);
-                streams.EmitFromNonZero(gained, applied, 0, cap, &MakeGained);
+                for (var w = 0; w < board.LiveWordCount; w++)
+                {
+                    streams.EmitFromNonZero(gained, applied, board.LiveWord(w), w << 6, &MakeGained);
+                }
                 streams.Swap();
                 while (streams.TryReadNext(out var type, out var payload, out _))
                 {
