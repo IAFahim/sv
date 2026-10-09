@@ -36,7 +36,13 @@ public sealed unsafe class EventStreams : IDisposable
 
     private int active;
 
-    private nint appendLock;
+    private const int LockStride = 8;
+
+    private const int BatchBytes = 256;
+
+    private const int OffsetStride = LockStride * 2;
+
+    private readonly nint* locks;
 
     private int nextTypeId;
 
@@ -47,10 +53,11 @@ public sealed unsafe class EventStreams : IDisposable
         this.writerCount = writerCount;
         arenas = (byte**)NativeMemory.Alloc((nuint)writerCount * 2 * (nuint)sizeof(byte*), (nuint)sizeof(byte*));
         arenaCapacity = (int*)NativeMemory.AllocZeroed((nuint)writerCount * 2 * sizeof(int), sizeof(int));
-        writeOffset = (int*)NativeMemory.AllocZeroed((nuint)writerCount * sizeof(int), sizeof(int));
         readOffset = (int*)NativeMemory.AllocZeroed((nuint)writerCount * sizeof(int), sizeof(int));
         readCursorOffset = (int*)NativeMemory.AllocZeroed((nuint)writerCount * sizeof(int), sizeof(int));
-        appendLock = 0;
+        locks = (nint*)NativeMemory.AlignedAlloc((nuint)(writerCount * LockStride * sizeof(nint)), 64);
+        NativeMemory.Clear(locks, (nuint)(writerCount * LockStride * sizeof(nint)));
+        writeOffset = (int*)(locks + 1);
         var rounded = Round(bytesPerWriter);
         for (var w = 0; w < writerCount; w++)
         {
@@ -92,71 +99,88 @@ public sealed unsafe class EventStreams : IDisposable
 
     internal void Append<T>(ushort id, int writer, T* payload) where T : unmanaged
     {
+        AppendBatch(id, writer, payload, 1);
+    }
+
+    internal void AppendBatch<T>(ushort id, int writer, T* payload, int count) where T : unmanaged
+    {
         var size = sizeof(T);
-        var need = HeaderBytes + Round(size);
-        var index = writer * 2 + active;
-        int at;
-        while (true)
+        var stride = HeaderBytes + Round(size);
+        var need = stride * count;
+        ref var gate = ref locks[writer * LockStride];
+        while (Interlocked.CompareExchange(ref gate, 1, 0) != 0)
         {
-            at = writeOffset[writer];
-            if (at + need > arenaCapacity[index])
+            Thread.SpinWait(1);
+        }
+
+        var index = writer * 2 + active;
+        var at = writeOffset[writer * OffsetStride];
+        if (at + need > arenaCapacity[index])
+        {
+            var capacity = arenaCapacity[index];
+            while (capacity < at + need)
             {
-                Grow(index, at + need);
-                continue;
+                capacity *= 2;
             }
 
-            if (Interlocked.CompareExchange(ref appendLock, 1, 0) != 0)
-            {
-                continue;
-            }
-
-            if (writeOffset[writer] != at)
-            {
-                Volatile.Write(ref appendLock, 0);
-                continue;
-            }
-
-            break;
+            arenas[index] = (byte*)NativeMemory.Realloc(arenas[index], (nuint)capacity);
+            arenaCapacity[index] = capacity;
         }
 
         var dst = arenas[index] + at;
-        *(ushort*)dst = id;
-        *(ushort*)(dst + 2) = 0;
-        *(int*)(dst + 4) = size;
-        *(T*)(dst + HeaderBytes) = *payload;
-        writeOffset[writer] = at + need;
-        Volatile.Write(ref appendLock, 0);
-    }
-
-    void Grow(int index, int needed)
-    {
-        while (Interlocked.CompareExchange(ref appendLock, 1, 0) != 0)
+        for (var i = 0; i < count; i++)
         {
+            *(ushort*)dst = id;
+            *(ushort*)(dst + 2) = 0;
+            *(int*)(dst + 4) = size;
+            *(T*)(dst + HeaderBytes) = payload[i];
+            dst += stride;
         }
 
-        if (arenaCapacity[index] >= needed)
+        writeOffset[writer * OffsetStride] = at + need;
+        Volatile.Write(ref gate, 0);
+    }
+
+    void EmitWord<T>(Channel<T> channel, ulong mask, int rowBase, int* values, delegate* unmanaged<int, int, T> make) where T : unmanaged
+    {
+        if (mask == 0)
         {
-            Volatile.Write(ref appendLock, 0);
             return;
         }
 
-        var capacity = arenaCapacity[index];
-        while (capacity < needed)
+        if (sizeof(T) > BatchBytes)
         {
-            capacity *= 2;
+            while (mask != 0)
+            {
+                var bit = System.Numerics.BitOperations.TrailingZeroCount(mask);
+                mask &= mask - 1;
+                var row = rowBase + bit;
+                var evt = make(row, values == null ? 1 : values[row]);
+                Append(channel.Id, channel.Writer, &evt);
+            }
+
+            return;
         }
 
-        arenas[index] = (byte*)NativeMemory.Realloc(arenas[index], (nuint)capacity);
-        arenaCapacity[index] = capacity;
-        Volatile.Write(ref appendLock, 0);
+        var batch = stackalloc T[64];
+        var count = 0;
+        while (mask != 0)
+        {
+            var bit = System.Numerics.BitOperations.TrailingZeroCount(mask);
+            mask &= mask - 1;
+            var row = rowBase + bit;
+            batch[count++] = make(row, values == null ? 1 : values[row]);
+        }
+
+        AppendBatch(channel.Id, channel.Writer, batch, count);
     }
 
     public void Swap()
     {
         for (var w = 0; w < writerCount; w++)
         {
-            readOffset[w] = writeOffset[w];
-            writeOffset[w] = 0;
+            readOffset[w] = writeOffset[w * OffsetStride];
+            writeOffset[w * OffsetStride] = 0;
             readCursorOffset[w] = 0;
         }
 
@@ -196,14 +220,7 @@ public sealed unsafe class EventStreams : IDisposable
             throw new ArgumentNullException(nameof(channel));
         }
 
-        var mask = enabled;
-        while (mask != 0)
-        {
-            var bit = System.Numerics.BitOperations.TrailingZeroCount(mask);
-            mask &= mask - 1;
-            var evt = make(offset + bit, 1);
-            Append(channel.Id, channel.Writer, &evt);
-        }
+        EmitWord(channel, enabled, offset, null, make);
     }
 
     public void EmitFromBools<T>(Channel<T> channel, byte* cond, int start, int count, delegate* unmanaged<int, int, T> make) where T : unmanaged
@@ -217,27 +234,21 @@ public sealed unsafe class EventStreams : IDisposable
         var remaining = count;
         while (remaining >= 64)
         {
-            var mask = Simd.BoolNonZeroWord(cond, row);
-            while (mask != 0)
-            {
-                var bit = System.Numerics.BitOperations.TrailingZeroCount(mask);
-                mask &= mask - 1;
-                var evt = make(row + bit, 1);
-                Append(channel.Id, channel.Writer, &evt);
-            }
-
+            EmitWord(channel, Simd.BoolNonZeroWord(cond, row), row, null, make);
             row += 64;
             remaining -= 64;
         }
 
+        ulong tail = 0;
         for (var i = 0; i < remaining; i++)
         {
             if (cond[row + i] != 0)
             {
-                var evt = make(row + i, 1);
-                Append(channel.Id, channel.Writer, &evt);
+                tail |= 1ul << i;
             }
         }
+
+        EmitWord(channel, tail, row, null, make);
     }
 
     public void EmitFromBools<T>(Channel<T> channel, byte* cond, ulong enabled, int offset, delegate* unmanaged<int, int, T> make) where T : unmanaged
@@ -248,17 +259,18 @@ public sealed unsafe class EventStreams : IDisposable
         }
 
         var mask = enabled;
+        ulong hits = 0;
         while (mask != 0)
         {
             var bit = System.Numerics.BitOperations.TrailingZeroCount(mask);
             mask &= mask - 1;
-            var row = offset + bit;
-            if (cond[row] != 0)
+            if (cond[offset + bit] != 0)
             {
-                var evt = make(row, 1);
-                Append(channel.Id, channel.Writer, &evt);
+                hits |= 1ul << bit;
             }
         }
+
+        EmitWord(channel, hits, offset, null, make);
     }
 
     public void EmitFromNonZero<T>(Channel<T> channel, int* values, int start, int count, delegate* unmanaged<int, int, T> make) where T : unmanaged
@@ -272,30 +284,21 @@ public sealed unsafe class EventStreams : IDisposable
         var remaining = count;
         while (remaining >= 64)
         {
-            var mask = Simd.IntNonZeroWord(values, row);
-            while (mask != 0)
-            {
-                var bit = System.Numerics.BitOperations.TrailingZeroCount(mask);
-                mask &= mask - 1;
-                var hit = row + bit;
-                var evt = make(hit, values[hit]);
-                Append(channel.Id, channel.Writer, &evt);
-            }
-
+            EmitWord(channel, Simd.IntNonZeroWord(values, row), row, values, make);
             row += 64;
             remaining -= 64;
         }
 
+        ulong tail = 0;
         for (var i = 0; i < remaining; i++)
         {
-            var hit = row + i;
-            var value = values[hit];
-            if (value != 0)
+            if (values[row + i] != 0)
             {
-                var evt = make(hit, value);
-                Append(channel.Id, channel.Writer, &evt);
+                tail |= 1ul << i;
             }
         }
+
+        EmitWord(channel, tail, row, values, make);
     }
 
     public void EmitFromNonZero<T>(Channel<T> channel, int* values, ulong enabled, int offset, delegate* unmanaged<int, int, T> make) where T : unmanaged
@@ -306,18 +309,18 @@ public sealed unsafe class EventStreams : IDisposable
         }
 
         var mask = enabled;
+        ulong hits = 0;
         while (mask != 0)
         {
             var bit = System.Numerics.BitOperations.TrailingZeroCount(mask);
             mask &= mask - 1;
-            var row = offset + bit;
-            var value = values[row];
-            if (value != 0)
+            if (values[offset + bit] != 0)
             {
-                var evt = make(row, value);
-                Append(channel.Id, channel.Writer, &evt);
+                hits |= 1ul << bit;
             }
         }
+
+        EmitWord(channel, hits, offset, values, make);
     }
 
     public static void WalkNonZero(int* values, ulong enabled, int offset, delegate* unmanaged<int, int, void> visit)
@@ -351,9 +354,9 @@ public sealed unsafe class EventStreams : IDisposable
 
         NativeMemory.Free(arenas);
         NativeMemory.Free(arenaCapacity);
-        NativeMemory.Free(writeOffset);
         NativeMemory.Free(readOffset);
         NativeMemory.Free(readCursorOffset);
+        NativeMemory.AlignedFree(locks);
         disposed = true;
     }
 }

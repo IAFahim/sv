@@ -249,6 +249,7 @@ Last refreshed 2026-10-01 19:36 UTC · `main@f97ec52` · AMD EPYC 7763 64-Core P
 | 23 | Join-only broadcast: set values are immutable, so a slot joining a folded set writes one row instead of rebroadcasting the set; bind refills the column — churn 30.8 µs → 13 ns — [issues/0028](issues/0028-atom-23-join-only-broadcast.md) | done |
 | 24 | Specialized chunk loops: struct strategies for clamp kind × delta × applied, branch-free per instantiation, C# 9 portable — statclamp −19%, varying −24% — [issues/0029](issues/0029-atom-24-specialized-chunk-loops.md) | done |
 | 25 | Vectorized enabled run-walk: full words take the dense loop, partial words AVX2 masked load/store (disabled rows never touched), `Span` twins vectorized behind up-front length guards — run-walk 2.8× — [issues/0030](issues/0030-atom-25-vector-runwalk-and-span-twins.md) | done |
+| 26 | Per-writer cache-line-padded event locks + word-batched emit — 8 parallel writers 2.7 → 793 M events/s — [issues/0031](issues/0031-atom-26-per-writer-event-locks.md) | done |
 
 Atom 1 scope note: `Clamp.Stat` and the StrictFloat oracle land with atom 2 (the first
 float math); the walkers land with atom 3. Nothing ships half-wired.
