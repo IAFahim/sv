@@ -88,7 +88,7 @@ public sealed unsafe partial class Board : IDisposable
                 + sizeof(int) * pairTotal * 2
                 + pairTotal
                 + sizeof(int) * (long)pairQueueCap
-                + sizeof(StatEntry) * (long)scratchCap;
+                + (sizeof(StatEntry) + sizeof(int)) * (long)scratchCap;
             for (var pair = 0; pair < statCount * Capacity; pair++)
             {
                 if (pairs[pair].Entries != null)

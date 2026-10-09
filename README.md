@@ -252,6 +252,7 @@ Last refreshed 2026-10-01 19:36 UTC · `main@f97ec52` · AMD EPYC 7763 64-Core P
 | 25 | Vectorized enabled run-walk: full words take the dense loop, partial words AVX2 masked load/store (disabled rows never touched), `Span` twins vectorized behind up-front length guards — run-walk 2.8× — [issues/0030](issues/0030-atom-25-vector-runwalk-and-span-twins.md) | done |
 | 26 | Per-writer cache-line-padded event locks + word-batched emit — 8 parallel writers 2.7 → 793 M events/s — [issues/0031](issues/0031-atom-26-per-writer-event-locks.md) | done |
 | 27 | Tape v3: XXH64 64-bit digest (verified against the reference at every length 0–300 + published vectors), whole-word body copy — tape overhead ~576 → ~58 µs/frame at 100k rows — [issues/0032](issues/0032-atom-27-tape-v3-xxh64.md) | done |
+| 28 | **Fix**: recalc permuted stored modifier ids in place, so `RemoveModifier` could remove the wrong modifier (since atom 2); independent-oracle churn tests added — [issues/0033](issues/0033-atom-28-fix-modifier-id-permutation.md) | done |
 
 Atom 1 scope note: `Clamp.Stat` and the StrictFloat oracle land with atom 2 (the first
 float math); the walkers land with atom 3. Nothing ships half-wired.

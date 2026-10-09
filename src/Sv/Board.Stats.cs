@@ -52,6 +52,8 @@ public sealed unsafe partial class Board
 
     private StatEntry* scratch;
 
+    private int* scratchIds;
+
     private int scratchCap;
 
     private void InitStats(Schema schema, int capacity)
@@ -101,6 +103,7 @@ public sealed unsafe partial class Board
         pairQueue = Alloc<int>(pairQueueCap);
         scratchCap = 32;
         scratch = Alloc<StatEntry>(scratchCap);
+        scratchIds = Alloc<int>(scratchCap);
     }
 
     static T* Alloc<T>(int count) where T : unmanaged
@@ -143,6 +146,7 @@ public sealed unsafe partial class Board
         NativeMemory.Free(pairQueued);
         NativeMemory.Free(pairQueue);
         NativeMemory.Free(scratch);
+        NativeMemory.Free(scratchIds);
     }
 
     int StatIndex(StatId stat)
@@ -368,18 +372,7 @@ public sealed unsafe partial class Board
             var slot = pair / statCount;
             var stat = pair % statCount;
             ref var mods = ref pairs[pair];
-            if (mods.Count > scratchCap)
-            {
-                scratchCap = mods.Count * 2;
-                scratch = Realloc(scratch, scratchCap);
-            }
-
-            for (var i = 0; i < mods.Count; i++)
-            {
-                scratch[i] = mods.Entries[i];
-            }
-
-            Canonicalize(scratch, mods.Ids, mods.Count);
+            Gather(ref mods);
             var set = table!.Resolve(stat, scratch, mods.Count);
             if (pairSet[pair] != set)
             {
@@ -443,6 +436,24 @@ public sealed unsafe partial class Board
                 column[members[i] * stride] = computed;
             }
         }
+    }
+
+    void Gather(ref PairMods mods)
+    {
+        if (mods.Count > scratchCap)
+        {
+            scratchCap = mods.Count * 2;
+            scratch = Realloc(scratch, scratchCap);
+            scratchIds = Realloc(scratchIds, scratchCap);
+        }
+
+        for (var i = 0; i < mods.Count; i++)
+        {
+            scratch[i] = mods.Entries[i];
+            scratchIds[i] = mods.Ids[i];
+        }
+
+        Canonicalize(scratch, scratchIds, mods.Count);
     }
 
     void BroadcastOne(int stat, int slot, float computed)
@@ -517,18 +528,7 @@ public sealed unsafe partial class Board
         Guard.SlotLive(slot, live, Capacity);
         var pair = slot * statCount + index;
         ref var mods = ref pairs[pair];
-        if (mods.Count > scratchCap)
-        {
-            scratchCap = mods.Count * 2;
-            scratch = Realloc(scratch, scratchCap);
-        }
-
-        for (var i = 0; i < mods.Count; i++)
-        {
-            scratch[i] = mods.Entries[i];
-        }
-
-        Canonicalize(scratch, mods.Ids, mods.Count);
+        Gather(ref mods);
         return Fold(statBase[index], scratch, mods.Count);
     }
 
