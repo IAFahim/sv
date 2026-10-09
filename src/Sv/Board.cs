@@ -94,6 +94,60 @@ public sealed unsafe partial class Board : IDisposable
         }
     }
 
+    const uint StateMagic = 0x44425653;
+
+    long StateShape => ((long)Capacity << 20) ^ ((long)statCount << 8) ^ Schema.Intrinsics.Count;
+
+    /// <summary>
+    /// Saves the board's complete state into <paramref name="state"/> (overwriting it): slot space,
+    /// modifier storage and insertion ids, sources and expiries, set identities and membership,
+    /// sv-owned output columns, mirrors, changed masks and the dirty queue. External bindings are not
+    /// state — host-owned columns are the host's to save. Warm saves are managed-allocation-free.
+    /// </summary>
+    public void SaveState(SvState state)
+    {
+        state.BeginWrite();
+        WriteState(state);
+    }
+
+    /// <summary>
+    /// Restores a state saved from a board of the same schema shape and capacity, bit-exactly:
+    /// resimulating the same inputs reproduces the same results. Bindings stay as they are;
+    /// sv-owned columns and mirrors hold the saved broadcast.
+    /// </summary>
+    public void LoadState(SvState state)
+    {
+        state.BeginRead();
+        ReadState(state);
+        state.EndRead();
+    }
+
+    internal void WriteState(SvState state)
+    {
+        state.Header(StateMagic, StateShape);
+        state.Write(LiveCount);
+        state.Write(freeTop);
+        state.Write(freeSlots, (long)freeTop * sizeof(int));
+        state.Write(live, (long)LiveWordCount * sizeof(ulong));
+        if (statCount > 0)
+        {
+            WriteStats(state);
+        }
+    }
+
+    internal void ReadState(SvState state)
+    {
+        state.Expect(StateMagic, StateShape, "board");
+        LiveCount = state.Read<int>();
+        freeTop = state.Read<int>();
+        state.Read(freeSlots, (long)freeTop * sizeof(int));
+        state.Read(live, (long)LiveWordCount * sizeof(ulong));
+        if (statCount > 0)
+        {
+            ReadStats(state);
+        }
+    }
+
     public int Acquire()
     {
         if (disposed)

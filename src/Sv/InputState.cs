@@ -218,6 +218,57 @@ public sealed unsafe class InputState : IDisposable
         return BitConverter.UInt32BitsToSingle(axisBits[axis]);
     }
 
+    const uint StateMagic = 0x4E495653;
+
+    long StateShape => ((long)Axes << 40) ^ ((long)ButtonWords << 20) ^ RingTicks;
+
+    /// <summary>
+    /// Saves current axes, button words and edges, the replay ring and its cursors. Warm saves are
+    /// managed-allocation-free.
+    /// </summary>
+    public void SaveState(SvState state)
+    {
+        state.BeginWrite();
+        WriteState(state);
+    }
+
+    public void LoadState(SvState state)
+    {
+        state.BeginRead();
+        ReadState(state);
+        state.EndRead();
+    }
+
+    internal void WriteState(SvState state)
+    {
+        state.Header(StateMagic, StateShape);
+        state.Write(axisBits, (long)Axes * sizeof(uint));
+        state.Write(buttons, (long)ButtonWords * sizeof(ulong));
+        state.Write(previous, (long)ButtonWords * sizeof(ulong));
+        state.Write(pressed, (long)ButtonWords * sizeof(ulong));
+        state.Write(released, (long)ButtonWords * sizeof(ulong));
+        state.Write(ring, (long)RingTicks * ringStride);
+        state.Write(ringTickIds, (long)RingTicks * sizeof(long));
+        state.Write(ringHead);
+        state.Write(tickCounter);
+        state.Write(replayCursor);
+    }
+
+    internal void ReadState(SvState state)
+    {
+        state.Expect(StateMagic, StateShape, "input state");
+        state.Read(axisBits, (long)Axes * sizeof(uint));
+        state.Read(buttons, (long)ButtonWords * sizeof(ulong));
+        state.Read(previous, (long)ButtonWords * sizeof(ulong));
+        state.Read(pressed, (long)ButtonWords * sizeof(ulong));
+        state.Read(released, (long)ButtonWords * sizeof(ulong));
+        state.Read(ring, (long)RingTicks * ringStride);
+        state.Read(ringTickIds, (long)RingTicks * sizeof(long));
+        ringHead = state.Read<int>();
+        tickCounter = state.Read<long>();
+        replayCursor = state.Read<int>();
+    }
+
     public void Dispose()
     {
         if (disposed)

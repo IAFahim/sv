@@ -262,6 +262,7 @@ Last refreshed 2026-10-01 19:36 UTC · `main@f97ec52` · AMD EPYC 7763 64-Core P
 | 35 | Modifier lifetimes: source tags (`RemoveSource`) and expiry ticks (`ExpireModifiers`, deterministic (tick, id) heap), renumber-safe, 0 B warm — [issues/0040](issues/0040-atom-35-modifier-sources-and-expiry.md) | done (contract: bus 0036 pending) |
 | 36 | Changed masks: `ChangedWords(stat)` — rows whose broadcast bits changed, clause-5 word span, cleared in O(changes); feeds the run-walk directly — [issues/0041](issues/0041-atom-36-changed-masks.md) | done (contract: bus 0036 pending) |
 | 37 | Derived stats: `SchemaBuilder.Derived(name, base, (source, coefficient)...)` — synthetic canonical entries keep sets immutable and deduped; acyclic by declaration order — [issues/0042](issues/0042-atom-37-derived-stats.md) | done (contract: bus 0036 pending) |
+| 38 | State save/load: `SvState` + `SaveState/LoadState` on Board, InputState, EventStreams and `Game` — exact set identities, 0 B warm, rollback resimulation bit-identical (100k × 3 stats: save 1.1 ms / load 0.9 ms) — [issues/0043](issues/0043-atom-38-state-save-load.md) | done (contract: bus 0036 pending) |
 
 Atom 1 scope note: `Clamp.Stat` and the StrictFloat oracle land with atom 2 (the first
 float math); the walkers land with atom 3. Nothing ships half-wired.

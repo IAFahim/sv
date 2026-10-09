@@ -367,6 +367,125 @@ internal sealed unsafe class SetTable : IDisposable
         return true;
     }
 
+    internal void Write(SvState state)
+    {
+        state.Write(setCount);
+        state.Write(setCapacity);
+        state.Write(bucketMask);
+        state.Write(buckets, (long)(bucketMask + 1) * sizeof(int));
+        state.Write(setStat, (long)setCount * sizeof(int));
+        state.Write(setHash, (long)setCount * sizeof(ulong));
+        state.Write(setComputed, (long)setCount * sizeof(float));
+        state.Write(setContentOffset, (long)setCount * sizeof(int));
+        state.Write(setContentCount, (long)setCount * sizeof(int));
+        state.Write(setMemberCount, (long)setCount * sizeof(int));
+        state.Write(setMemberCap, (long)setCount * sizeof(int));
+        state.Write(setDirty, setCount);
+        state.Write(setFolded, setCount);
+        for (var set = 0; set < setCount; set++)
+        {
+            state.Write(setMembers[set], (long)setMemberCount[set] * sizeof(int));
+        }
+
+        state.Write(contentUsed);
+        state.Write(contentCapacity);
+        state.Write(contentArena, (long)contentUsed * sizeof(StatEntry));
+        state.Write(dirtyHead);
+        state.Write(dirtyTail);
+        state.Write(dirtyCapacity);
+        state.Write(dirtyQueue, (long)dirtyTail * sizeof(int));
+    }
+
+    internal void Read(SvState state)
+    {
+        var count = state.Read<int>();
+        var capacity = state.Read<int>();
+        var mask = state.Read<int>();
+        if (count < 0 || capacity < count || mask < 0)
+        {
+            throw new System.IO.InvalidDataException("sv: corrupt set table state");
+        }
+
+        for (var set = count; set < setCount; set++)
+        {
+            NativeMemory.Free(setMembers[set]);
+        }
+
+        if (capacity != setCapacity)
+        {
+            setStat = Realloc(setStat, capacity);
+            setHash = Realloc(setHash, capacity);
+            setComputed = Realloc(setComputed, capacity);
+            setContentOffset = Realloc(setContentOffset, capacity);
+            setContentCount = Realloc(setContentCount, capacity);
+            setMemberCount = Realloc(setMemberCount, capacity);
+            setMemberCap = Realloc(setMemberCap, capacity);
+            setMembers = (int**)NativeMemory.Realloc(setMembers, (nuint)capacity * (nuint)sizeof(int*));
+            setDirty = Realloc(setDirty, capacity);
+            setFolded = Realloc(setFolded, capacity);
+        }
+
+        var previous = setCount;
+        setCount = count;
+        setCapacity = capacity;
+        if (mask != bucketMask)
+        {
+            buckets = Realloc(buckets, mask + 1);
+            bucketMask = mask;
+        }
+
+        state.Read(buckets, (long)(bucketMask + 1) * sizeof(int));
+        state.Read(setStat, (long)count * sizeof(int));
+        state.Read(setHash, (long)count * sizeof(ulong));
+        state.Read(setComputed, (long)count * sizeof(float));
+        state.Read(setContentOffset, (long)count * sizeof(int));
+        state.Read(setContentCount, (long)count * sizeof(int));
+        state.Read(setMemberCount, (long)count * sizeof(int));
+        var restoredCaps = (int*)NativeMemory.Alloc((nuint)Math.Max(count, 1) * sizeof(int));
+        state.Read(restoredCaps, (long)count * sizeof(int));
+        for (var set = 0; set < count; set++)
+        {
+            if (set >= previous)
+            {
+                setMembers[set] = Alloc<int>(restoredCaps[set]);
+            }
+            else if (setMemberCap[set] != restoredCaps[set])
+            {
+                setMembers[set] = Realloc(setMembers[set], restoredCaps[set]);
+            }
+
+            setMemberCap[set] = restoredCaps[set];
+        }
+
+        NativeMemory.Free(restoredCaps);
+        state.Read(setDirty, count);
+        state.Read(setFolded, count);
+        for (var set = 0; set < count; set++)
+        {
+            state.Read(setMembers[set], (long)setMemberCount[set] * sizeof(int));
+        }
+
+        contentUsed = state.Read<int>();
+        var arenaCapacity = state.Read<int>();
+        if (arenaCapacity != contentCapacity)
+        {
+            contentArena = Realloc(contentArena, arenaCapacity);
+            contentCapacity = arenaCapacity;
+        }
+
+        state.Read(contentArena, (long)contentUsed * sizeof(StatEntry));
+        dirtyHead = state.Read<int>();
+        dirtyTail = state.Read<int>();
+        var queueCapacity = state.Read<int>();
+        if (queueCapacity != dirtyCapacity)
+        {
+            dirtyQueue = Realloc(dirtyQueue, queueCapacity);
+            dirtyCapacity = queueCapacity;
+        }
+
+        state.Read(dirtyQueue, (long)dirtyTail * sizeof(int));
+    }
+
     public void Dispose()
     {
         if (disposed)

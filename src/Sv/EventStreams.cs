@@ -403,6 +403,76 @@ public sealed unsafe class EventStreams : IDisposable
         }
     }
 
+    const uint StateMagic = 0x56455653;
+
+    /// <summary>
+    /// Saves both halves of the double buffer (this frame's writes and the published frame being
+    /// drained) with every cursor. Channels are cold setup, not state: the loading streams must
+    /// have created the same channels. Warm saves are managed-allocation-free.
+    /// </summary>
+    public void SaveState(SvState state)
+    {
+        state.BeginWrite();
+        WriteState(state);
+    }
+
+    public void LoadState(SvState state)
+    {
+        state.BeginRead();
+        ReadState(state);
+        state.EndRead();
+    }
+
+    internal void WriteState(SvState state)
+    {
+        state.Header(StateMagic, ((long)writerCount << 32) | (uint)nextTypeId);
+        state.Write(active);
+        for (var w = 0; w < writerCount; w++)
+        {
+            var written = writeOffset[w * OffsetStride];
+            state.Write(written);
+            state.Write(readOffset[w]);
+            state.Write(readCursorOffset[w]);
+            state.Write(arenas[w * 2 + active], written);
+            state.Write(arenas[w * 2 + (1 - active)], readOffset[w]);
+        }
+    }
+
+    internal void ReadState(SvState state)
+    {
+        state.Expect(StateMagic, ((long)writerCount << 32) | (uint)nextTypeId, "event streams");
+        active = state.Read<int>();
+        for (var w = 0; w < writerCount; w++)
+        {
+            var written = state.Read<int>();
+            var published = state.Read<int>();
+            readCursorOffset[w] = state.Read<int>();
+            EnsureArena(w * 2 + active, written);
+            EnsureArena(w * 2 + (1 - active), published);
+            writeOffset[w * OffsetStride] = written;
+            readOffset[w] = published;
+            state.Read(arenas[w * 2 + active], written);
+            state.Read(arenas[w * 2 + (1 - active)], published);
+        }
+    }
+
+    void EnsureArena(int index, int bytes)
+    {
+        if (arenaCapacity[index] >= bytes)
+        {
+            return;
+        }
+
+        var capacity = arenaCapacity[index];
+        while (capacity < bytes)
+        {
+            capacity *= 2;
+        }
+
+        arenas[index] = (byte*)NativeMemory.Realloc(arenas[index], (nuint)capacity);
+        arenaCapacity[index] = capacity;
+    }
+
     public void Dispose()
     {
         if (disposed)

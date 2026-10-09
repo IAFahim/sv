@@ -182,6 +182,60 @@ public sealed unsafe class Game : IDisposable
         channels[typeof(T)] = Streams.CreateChannel<T>();
     }
 
+    /// <summary>
+    /// Saves the whole composed frame state — board, input, event streams, timeline ids and clocks,
+    /// the applied column and every tl effect column — into one reusable buffer. Loading it and
+    /// re-running the same inputs reproduces the same frames bit-identically (rollback). The host
+    /// world's own columns are the host's to save.
+    /// </summary>
+    public void SaveState(SvState state)
+    {
+        state.BeginWrite();
+        Board.WriteState(state);
+        Input.WriteState(state);
+        Streams.WriteState(state);
+        fixed (ushort* ids = TimelineIds)
+        fixed (ushort* clocks = TimelineClocks)
+        {
+            state.Write(ids, (long)TimelineIds.Length * sizeof(ushort));
+            state.Write(clocks, (long)TimelineClocks.Length * sizeof(ushort));
+        }
+
+        state.Write(Applied, (long)Capacity * sizeof(int));
+        foreach (var effect in effects)
+        {
+            fixed (float* column = effect)
+            {
+                state.Write(column, (long)effect.Length * sizeof(float));
+            }
+        }
+    }
+
+    public void LoadState(SvState state)
+    {
+        state.BeginRead();
+        Board.ReadState(state);
+        Input.ReadState(state);
+        Streams.ReadState(state);
+        fixed (ushort* ids = TimelineIds)
+        fixed (ushort* clocks = TimelineClocks)
+        {
+            state.Read(ids, (long)TimelineIds.Length * sizeof(ushort));
+            state.Read(clocks, (long)TimelineClocks.Length * sizeof(ushort));
+        }
+
+        state.Read(Applied, (long)Capacity * sizeof(int));
+        foreach (var effect in effects)
+        {
+            fixed (float* column = effect)
+            {
+                state.Read(column, (long)effect.Length * sizeof(float));
+            }
+        }
+
+        state.EndRead();
+    }
+
     public void Dispose()
     {
         Board.Dispose();

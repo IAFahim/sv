@@ -1140,6 +1140,189 @@ public sealed unsafe partial class Board
         InvalidateBindings();
     }
 
+    void WriteStats(SvState state)
+    {
+        var words = LiveWordCount;
+        state.Write(nextInsertionId);
+        state.Write(pairQueueCount);
+        state.Write(pairQueue, (long)pairQueueCount * sizeof(int));
+        state.Write(changedTouchedCount);
+        state.Write(changedTouched, (long)changedTouchedCount * sizeof(int));
+        state.Write(changed, (long)statCount * words * sizeof(ulong));
+        state.Write(svColumns, (long)statCount * Capacity * sizeof(float));
+        for (var stat = 0; stat < statCount; stat++)
+        {
+            var mirror = mirrors[stat];
+            state.Write((byte)(mirror == null ? 0 : 1));
+            if (mirror != null)
+            {
+                state.Write(mirror, (long)Capacity * sizeof(int));
+            }
+        }
+
+        state.Write(expiryCount);
+        state.Write(expiries, (long)expiryCount * sizeof(Expiry));
+        var pageWidth = PageSlots * statCount;
+        for (var page = 0; page < pageCount; page++)
+        {
+            var metas = metaPages[page];
+            state.Write((byte)(metas == null ? 0 : 1));
+            if (metas != null)
+            {
+                state.Write(metas, (long)pageWidth * sizeof(PairMeta));
+            }
+
+            var mods = modPages[page];
+            state.Write((byte)(mods == null ? 0 : 1));
+            if (mods == null)
+            {
+                continue;
+            }
+
+            for (var i = 0; i < pageWidth; i++)
+            {
+                var count = mods[i].Count;
+                state.Write(count);
+                state.Write(mods[i].Cap);
+                if (mods[i].Cap == 0)
+                {
+                    continue;
+                }
+
+                state.Write(mods[i].Entries, (long)count * sizeof(StatEntry));
+                state.Write(mods[i].Ids, (long)count * sizeof(int));
+                state.Write(mods[i].Sources, (long)count * sizeof(int));
+            }
+        }
+
+        table!.Write(state);
+    }
+
+    void ReadStats(SvState state)
+    {
+        var words = LiveWordCount;
+        nextInsertionId = state.Read<int>();
+        var queued = state.Read<int>();
+        if (queued > pairQueueCap)
+        {
+            pairQueueCap = queued;
+            pairQueue = Realloc(pairQueue, pairQueueCap);
+        }
+
+        pairQueueCount = queued;
+        state.Read(pairQueue, (long)queued * sizeof(int));
+        changedTouchedCount = state.Read<int>();
+        state.Read(changedTouched, (long)changedTouchedCount * sizeof(int));
+        state.Read(changed, (long)statCount * words * sizeof(ulong));
+        state.Read(svColumns, (long)statCount * Capacity * sizeof(float));
+        for (var stat = 0; stat < statCount; stat++)
+        {
+            if (state.Read<byte>() == 0)
+            {
+                if (mirrors[stat] != null)
+                {
+                    NativeMemory.Free(mirrors[stat]);
+                    mirrors[stat] = null;
+                }
+
+                continue;
+            }
+
+            if (mirrors[stat] == null)
+            {
+                mirrors[stat] = (int*)NativeMemory.Alloc((nuint)Capacity * sizeof(int), sizeof(int));
+            }
+
+            state.Read(mirrors[stat], (long)Capacity * sizeof(int));
+        }
+
+        var heap = state.Read<int>();
+        if (heap > expiryCap)
+        {
+            expiryCap = heap;
+            expiries = Realloc(expiries, expiryCap);
+        }
+
+        expiryCount = heap;
+        state.Read(expiries, (long)heap * sizeof(Expiry));
+        var pageWidth = PageSlots * statCount;
+        for (var page = 0; page < pageCount; page++)
+        {
+            if (state.Read<byte>() == 0)
+            {
+                if (metaPages[page] != null)
+                {
+                    NativeMemory.Free(metaPages[page]);
+                    metaPages[page] = null;
+                }
+            }
+            else
+            {
+                if (metaPages[page] == null)
+                {
+                    metaPages[page] = Alloc<PairMeta>(pageWidth);
+                }
+
+                state.Read(metaPages[page], (long)pageWidth * sizeof(PairMeta));
+            }
+
+            var hasMods = state.Read<byte>() != 0;
+            var mods = modPages[page];
+            if (!hasMods)
+            {
+                if (mods != null)
+                {
+                    for (var i = 0; i < pageWidth; i++)
+                    {
+                        if (mods[i].Entries != null)
+                        {
+                            NativeMemory.Free(mods[i].Entries);
+                        }
+                    }
+
+                    NativeMemory.Free(mods);
+                    modPages[page] = null;
+                }
+
+                continue;
+            }
+
+            if (mods == null)
+            {
+                mods = (PairMods*)NativeMemory.AllocZeroed((nuint)pageWidth * (nuint)sizeof(PairMods));
+                modPages[page] = mods;
+            }
+
+            for (var i = 0; i < pageWidth; i++)
+            {
+                var count = state.Read<int>();
+                var cap = state.Read<int>();
+                if (cap != mods[i].Cap)
+                {
+                    if (mods[i].Entries != null)
+                    {
+                        NativeMemory.Free(mods[i].Entries);
+                    }
+
+                    mods[i].Entries = cap == 0 ? null : (StatEntry*)NativeMemory.Alloc((nuint)cap * (nuint)(sizeof(StatEntry) + sizeof(int) * 2));
+                    mods[i].Cap = cap;
+                }
+
+                mods[i].Count = count;
+                if (cap == 0)
+                {
+                    continue;
+                }
+
+                state.Read(mods[i].Entries, (long)count * sizeof(StatEntry));
+                state.Read(mods[i].Ids, (long)count * sizeof(int));
+                state.Read(mods[i].Sources, (long)count * sizeof(int));
+            }
+        }
+
+        table!.Read(state);
+    }
+
     void RenumberStats(ReadOnlySpan<int> oldToNew)
     {
         var nextMods = (PairMods**)NativeMemory.AllocZeroed((nuint)pageCount * (nuint)sizeof(PairMods*));
