@@ -5,15 +5,28 @@ namespace Sv;
 
 public sealed unsafe partial class Board
 {
+    private const int PageShift = 12;
+
+    private const int PageSlots = 1 << PageShift;
+
     private struct PairMods
     {
         public StatEntry* Entries;
 
-        public int* Ids;
-
         public int Count;
 
         public int Cap;
+
+        public readonly int* Ids => (int*)(Entries + Cap);
+    }
+
+    private struct PairMeta
+    {
+        public int Set;
+
+        public int Pos;
+
+        public int Queued;
     }
 
     private int statCount;
@@ -34,13 +47,11 @@ public sealed unsafe partial class Board
 
     private SetTable? table;
 
-    private PairMods* pairs;
+    private int pageCount;
 
-    private int* pairSet;
+    private PairMods** modPages;
 
-    private int* pairPos;
-
-    private sbyte* pairQueued;
+    private PairMeta** metaPages;
 
     private int* pairQueue;
 
@@ -86,19 +97,9 @@ public sealed unsafe partial class Board
         {
             boundLength[i] = -1;
         }
-        var pairTotal = statCount * capacity;
-        pairs = Alloc<PairMods>(pairTotal);
-        NativeMemory.Clear(pairs, (nuint)pairTotal * (nuint)sizeof(PairMods));
-        pairSet = Alloc<int>(pairTotal);
-        for (var i = 0; i < pairTotal; i++)
-        {
-            pairSet[i] = -1;
-        }
-
-        pairPos = Alloc<int>(pairTotal);
-
-        pairQueued = Alloc<sbyte>(pairTotal);
-        NativeMemory.Clear(pairQueued, (nuint)pairTotal);
+        pageCount = (capacity + PageSlots - 1) >> PageShift;
+        modPages = (PairMods**)NativeMemory.AllocZeroed((nuint)pageCount * (nuint)sizeof(PairMods*));
+        metaPages = (PairMeta**)NativeMemory.AllocZeroed((nuint)pageCount * (nuint)sizeof(PairMeta*));
         pairQueueCap = 64;
         pairQueue = Alloc<int>(pairQueueCap);
         scratchCap = 32;
@@ -123,16 +124,7 @@ public sealed unsafe partial class Board
             return;
         }
 
-        var pairTotal = statCount * Capacity;
-        for (var i = 0; i < pairTotal; i++)
-        {
-            if (pairs[i].Entries != null)
-            {
-                NativeMemory.Free(pairs[i].Entries);
-                NativeMemory.Free(pairs[i].Ids);
-            }
-        }
-
+        FreePages(modPages, metaPages);
         table!.Dispose();
         NativeMemory.Free(statBase);
         NativeMemory.Free(outputColumn);
@@ -140,13 +132,112 @@ public sealed unsafe partial class Board
         NativeMemory.Free(svColumns);
         NativeMemory.Free(boundGeneration);
         NativeMemory.Free(boundLength);
-        NativeMemory.Free(pairs);
-        NativeMemory.Free(pairSet);
-        NativeMemory.Free(pairPos);
-        NativeMemory.Free(pairQueued);
         NativeMemory.Free(pairQueue);
         NativeMemory.Free(scratch);
         NativeMemory.Free(scratchIds);
+    }
+
+    void FreePages(PairMods** mods, PairMeta** metas)
+    {
+        var pageWidth = PageSlots * statCount;
+        for (var page = 0; page < pageCount; page++)
+        {
+            if (mods[page] != null)
+            {
+                for (var i = 0; i < pageWidth; i++)
+                {
+                    if (mods[page][i].Entries != null)
+                    {
+                        NativeMemory.Free(mods[page][i].Entries);
+                    }
+                }
+
+                NativeMemory.Free(mods[page]);
+            }
+
+            if (metas[page] != null)
+            {
+                NativeMemory.Free(metas[page]);
+            }
+        }
+
+        NativeMemory.Free(mods);
+        NativeMemory.Free(metas);
+    }
+
+    PairMeta* MetaPage(PairMeta** metas, int slot)
+    {
+        var page = slot >> PageShift;
+        if (metas[page] == null)
+        {
+            var width = PageSlots * statCount;
+            var fresh = Alloc<PairMeta>(width);
+            for (var i = 0; i < width; i++)
+            {
+                fresh[i] = new PairMeta { Set = -1 };
+            }
+
+            metas[page] = fresh;
+        }
+
+        return metas[page];
+    }
+
+    PairMods* ModPage(PairMods** mods, int slot)
+    {
+        var page = slot >> PageShift;
+        if (mods[page] == null)
+        {
+            var bytes = (nuint)(PageSlots * statCount) * (nuint)sizeof(PairMods);
+            mods[page] = (PairMods*)NativeMemory.AllocZeroed(bytes);
+        }
+
+        return mods[page];
+    }
+
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+    ref PairMeta Meta(int slot, int stat)
+    {
+        return ref metaPages[slot >> PageShift][(slot & (PageSlots - 1)) * statCount + stat];
+    }
+
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+    PairMods* ModsOrNull(int slot, int stat)
+    {
+        var page = modPages[slot >> PageShift];
+        return page == null ? null : page + (slot & (PageSlots - 1)) * statCount + stat;
+    }
+
+    internal void EnsureSlotPages(int slot)
+    {
+        MetaPage(metaPages, slot);
+    }
+
+    internal long PairBytes
+    {
+        get
+        {
+            long bytes = (long)pageCount * (sizeof(PairMods*) + sizeof(PairMeta*));
+            var pageWidth = PageSlots * statCount;
+            for (var page = 0; page < pageCount; page++)
+            {
+                if (metaPages[page] != null)
+                {
+                    bytes += (long)pageWidth * sizeof(PairMeta);
+                }
+
+                if (modPages[page] != null)
+                {
+                    bytes += (long)pageWidth * sizeof(PairMods);
+                    for (var i = 0; i < pageWidth; i++)
+                    {
+                        bytes += (long)modPages[page][i].Cap * (sizeof(StatEntry) + sizeof(int));
+                    }
+                }
+            }
+
+            return bytes;
+        }
     }
 
     int StatIndex(StatId stat)
@@ -274,20 +365,27 @@ public sealed unsafe partial class Board
     {
         var index = StatIndex(stat);
         Guard.SlotLive(slot, live, Capacity);
-        var pair = slot * statCount + index;
-        ref var mods = ref pairs[pair];
+        ref var mods = ref ModPage(modPages, slot)[(slot & (PageSlots - 1)) * statCount + index];
         if (mods.Count == mods.Cap)
         {
-            mods.Cap = mods.Cap == 0 ? 4 : mods.Cap * 2;
-            mods.Entries = mods.Entries == null ? Alloc<StatEntry>(mods.Cap) : Realloc(mods.Entries, mods.Cap);
-            mods.Ids = mods.Ids == null ? Alloc<int>(mods.Cap) : Realloc(mods.Ids, mods.Cap);
+            var cap = mods.Cap == 0 ? 4 : mods.Cap * 2;
+            var block = (StatEntry*)NativeMemory.Alloc((nuint)cap * (nuint)(sizeof(StatEntry) + sizeof(int)));
+            if (mods.Entries != null)
+            {
+                Buffer.MemoryCopy(mods.Entries, block, (long)cap * sizeof(StatEntry), (long)mods.Count * sizeof(StatEntry));
+                Buffer.MemoryCopy(mods.Ids, block + cap, (long)cap * sizeof(int), (long)mods.Count * sizeof(int));
+                NativeMemory.Free(mods.Entries);
+            }
+
+            mods.Entries = block;
+            mods.Cap = cap;
         }
 
         var id = ++nextInsertionId;
         mods.Entries[mods.Count] = new StatEntry(modifier.Kind, modifier.Value);
         mods.Ids[mods.Count] = id;
         mods.Count++;
-        EnqueuePair(pair);
+        EnqueuePair(slot, index);
         return new ModifierHandle(id);
     }
 
@@ -295,16 +393,17 @@ public sealed unsafe partial class Board
     {
         var index = StatIndex(stat);
         Guard.SlotLive(slot, live, Capacity);
-        var pair = slot * statCount + index;
-        ref var mods = ref pairs[pair];
-        for (var i = 0; i < mods.Count; i++)
+        var mods = ModsOrNull(slot, index);
+        var count = mods == null ? 0 : mods->Count;
+        for (var i = 0; i < count; i++)
         {
-            if (mods.Ids[i] == handle.Id)
+            var ids = mods->Ids;
+            if (ids[i] == handle.Id)
             {
-                mods.Entries[i] = mods.Entries[mods.Count - 1];
-                mods.Ids[i] = mods.Ids[mods.Count - 1];
-                mods.Count--;
-                EnqueuePair(pair);
+                mods->Entries[i] = mods->Entries[count - 1];
+                ids[i] = ids[count - 1];
+                mods->Count--;
+                EnqueuePair(slot, index);
                 return;
             }
         }
@@ -316,7 +415,7 @@ public sealed unsafe partial class Board
     {
         for (var stat = 0; stat < statCount; stat++)
         {
-            EnqueuePair(slot * statCount + stat);
+            EnqueuePair(slot, stat);
         }
     }
 
@@ -324,24 +423,30 @@ public sealed unsafe partial class Board
     {
         for (var stat = 0; stat < statCount; stat++)
         {
-            var pair = slot * statCount + stat;
-            pairs[pair].Count = 0;
-            if (pairSet[pair] >= 0)
+            var mods = ModsOrNull(slot, stat);
+            if (mods != null)
             {
-                var moved = table!.RemoveMemberAt(pairSet[pair], pairPos[pair]);
+                mods->Count = 0;
+            }
+
+            ref var meta = ref Meta(slot, stat);
+            if (meta.Set >= 0)
+            {
+                var moved = table!.RemoveMemberAt(meta.Set, meta.Pos);
                 if (moved >= 0)
                 {
-                    pairPos[moved * statCount + stat] = pairPos[pair];
+                    Meta(moved, stat).Pos = meta.Pos;
                 }
 
-                pairSet[pair] = -1;
+                meta.Set = -1;
             }
         }
     }
 
-    void EnqueuePair(int pair)
+    void EnqueuePair(int slot, int stat)
     {
-        if (pairQueued[pair] != 0)
+        ref var meta = ref Meta(slot, stat);
+        if (meta.Queued != 0)
         {
             return;
         }
@@ -352,8 +457,8 @@ public sealed unsafe partial class Board
             pairQueue = Realloc(pairQueue, pairQueueCap);
         }
 
-        pairQueued[pair] = 1;
-        pairQueue[pairQueueCount++] = pair;
+        meta.Queued = 1;
+        pairQueue[pairQueueCount++] = slot * statCount + stat;
     }
 
     public void Recalculate()
@@ -368,25 +473,25 @@ public sealed unsafe partial class Board
         while (dequeueIndex < queueCount)
         {
             var pair = pairQueue[dequeueIndex++];
-            pairQueued[pair] = 0;
             var slot = pair / statCount;
-            var stat = pair % statCount;
-            ref var mods = ref pairs[pair];
-            Gather(ref mods);
-            var set = table!.Resolve(stat, scratch, mods.Count);
-            if (pairSet[pair] != set)
+            var stat = pair - slot * statCount;
+            ref var meta = ref Meta(slot, stat);
+            meta.Queued = 0;
+            var count = Gather(slot, stat);
+            var set = table!.Resolve(stat, scratch, count);
+            if (meta.Set != set)
             {
-                if (pairSet[pair] >= 0)
+                if (meta.Set >= 0)
                 {
-                    var moved = table.RemoveMemberAt(pairSet[pair], pairPos[pair]);
+                    var moved = table.RemoveMemberAt(meta.Set, meta.Pos);
                     if (moved >= 0)
                     {
-                        pairPos[moved * statCount + stat] = pairPos[pair];
+                        Meta(moved, stat).Pos = meta.Pos;
                     }
                 }
 
-                pairPos[pair] = table.AddMember(set, slot);
-                pairSet[pair] = set;
+                meta.Pos = table.AddMember(set, slot);
+                meta.Set = set;
             }
 
             if (!table.Folded(set))
@@ -438,22 +543,31 @@ public sealed unsafe partial class Board
         }
     }
 
-    void Gather(ref PairMods mods)
+    int Gather(int slot, int stat)
     {
-        if (mods.Count > scratchCap)
+        var mods = ModsOrNull(slot, stat);
+        if (mods == null || mods->Count == 0)
         {
-            scratchCap = mods.Count * 2;
+            return 0;
+        }
+
+        var count = mods->Count;
+        if (count > scratchCap)
+        {
+            scratchCap = count * 2;
             scratch = Realloc(scratch, scratchCap);
             scratchIds = Realloc(scratchIds, scratchCap);
         }
 
-        for (var i = 0; i < mods.Count; i++)
+        var ids = mods->Ids;
+        for (var i = 0; i < count; i++)
         {
-            scratch[i] = mods.Entries[i];
-            scratchIds[i] = mods.Ids[i];
+            scratch[i] = mods->Entries[i];
+            scratchIds[i] = ids[i];
         }
 
-        Canonicalize(scratch, scratchIds, mods.Count);
+        Canonicalize(scratch, scratchIds, count);
+        return count;
     }
 
     void BroadcastOne(int stat, int slot, float computed)
@@ -526,10 +640,8 @@ public sealed unsafe partial class Board
     {
         var index = StatIndex(stat);
         Guard.SlotLive(slot, live, Capacity);
-        var pair = slot * statCount + index;
-        ref var mods = ref pairs[pair];
-        Gather(ref mods);
-        return Fold(statBase[index], scratch, mods.Count);
+        var count = Gather(slot, index);
+        return Fold(statBase[index], scratch, count);
     }
 
     /// <summary>
@@ -611,7 +723,6 @@ public sealed unsafe partial class Board
 
         if (statCount > 0)
         {
-            NativeMemory.Clear(pairQueued, (nuint)statCount * (nuint)Capacity);
             pairQueueCount = 0;
             for (var slot = 0; slot < Capacity; slot++)
             {
@@ -627,16 +738,8 @@ public sealed unsafe partial class Board
 
     void RenumberStats(ReadOnlySpan<int> oldToNew)
     {
-        var pairTotal = statCount * Capacity;
-        var tempPairs = Alloc<PairMods>(pairTotal);
-        NativeMemory.Clear(tempPairs, (nuint)pairTotal * (nuint)sizeof(PairMods));
-        var tempSet = Alloc<int>(pairTotal);
-        for (var i = 0; i < pairTotal; i++)
-        {
-            tempSet[i] = -1;
-        }
-
-        var tempPos = Alloc<int>(pairTotal);
+        var nextMods = (PairMods**)NativeMemory.AllocZeroed((nuint)pageCount * (nuint)sizeof(PairMods*));
+        var nextMetas = (PairMeta**)NativeMemory.AllocZeroed((nuint)pageCount * (nuint)sizeof(PairMeta*));
         for (var slot = 0; slot < Capacity; slot++)
         {
             if ((live[slot >> 6] & (1ul << (slot & 63))) == 0)
@@ -645,20 +748,24 @@ public sealed unsafe partial class Board
             }
 
             var next = oldToNew[slot];
+            var to = (next & (PageSlots - 1)) * statCount;
+            var metaPage = MetaPage(nextMetas, next);
             for (var stat = 0; stat < statCount; stat++)
             {
-                tempPairs[next * statCount + stat] = pairs[slot * statCount + stat];
-                tempSet[next * statCount + stat] = pairSet[slot * statCount + stat];
-                tempPos[next * statCount + stat] = pairPos[slot * statCount + stat];
+                ref var meta = ref Meta(slot, stat);
+                metaPage[to + stat] = new PairMeta { Set = meta.Set, Pos = meta.Pos };
+                var mods = ModsOrNull(slot, stat);
+                if (mods != null && mods->Entries != null)
+                {
+                    ModPage(nextMods, next)[to + stat] = *mods;
+                    *mods = default;
+                }
             }
         }
 
-        new ReadOnlySpan<PairMods>(tempPairs, pairTotal).CopyTo(new Span<PairMods>(pairs, pairTotal));
-        new ReadOnlySpan<int>(tempSet, pairTotal).CopyTo(new Span<int>(pairSet, pairTotal));
-        new ReadOnlySpan<int>(tempPos, pairTotal).CopyTo(new Span<int>(pairPos, pairTotal));
-        NativeMemory.Free(tempPairs);
-        NativeMemory.Free(tempSet);
-        NativeMemory.Free(tempPos);
+        FreePages(modPages, metaPages);
+        modPages = nextMods;
+        metaPages = nextMetas;
         table!.RenumberMembers(oldToNew);
         var tempRows = Alloc<float>(Capacity);
         for (var stat = 0; stat < statCount; stat++)

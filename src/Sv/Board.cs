@@ -62,9 +62,10 @@ public sealed unsafe partial class Board : IDisposable
     }
 
     /// <summary>
-    /// Native bytes currently owned by this board: slot bookkeeping, the stats cross product
-    /// (pairs, set table, member-position index, dirty queue, scratch), sv-owned output columns,
-    /// and live per-pair modifier storage at current capacities. O(capacity x stats) walk — a
+    /// Native bytes currently owned by this board: slot bookkeeping, the stats pair pages (metadata
+    /// pages exist once a slot in the 4096-slot page was acquired; modifier pages once a slot in it
+    /// took a modifier), the set table, dirty queue, scratch, sv-owned output columns, and live
+    /// per-pair modifier storage at current capacities. O(touched pages x stats) walk — a
     /// tooling receipt, not a frame-path call. <see cref="Capacity"/> rounds up to a 64 boundary;
     /// <see cref="RequestedCapacity"/> is the pre-rounding value.
     /// </summary>
@@ -78,25 +79,14 @@ public sealed unsafe partial class Board : IDisposable
                 return bytes;
             }
 
-            var pairTotal = (long)statCount * Capacity;
             bytes += sizeof(float) * (long)statCount
                 + sizeof(float*) * (long)statCount
                 + sizeof(int) * (long)statCount
-                + sizeof(float) * pairTotal
+                + sizeof(float) * (long)statCount * Capacity
                 + sizeof(int) * (long)statCount * 2
-                + sizeof(PairMods) * pairTotal
-                + sizeof(int) * pairTotal * 2
-                + pairTotal
+                + PairBytes
                 + sizeof(int) * (long)pairQueueCap
                 + (sizeof(StatEntry) + sizeof(int)) * (long)scratchCap;
-            for (var pair = 0; pair < statCount * Capacity; pair++)
-            {
-                if (pairs[pair].Entries != null)
-                {
-                    bytes += pairs[pair].Cap * (sizeof(StatEntry) + sizeof(int));
-                }
-            }
-
             return bytes + table!.MemoryBytes;
         }
     }
@@ -118,6 +108,7 @@ public sealed unsafe partial class Board : IDisposable
         LiveCount++;
         if (statCount > 0)
         {
+            EnsureSlotPages(slot);
             MarkSlotStatsDirty(slot);
         }
 

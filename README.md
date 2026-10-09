@@ -200,8 +200,8 @@ capacity; was ~0.6 ms with v2's byte-serial FNV-1a);
 both print `alloc=0B`. Standing `NoAllocationTests` assert exact-zero managed bytes for every
 warm verb; the managed-state audit shows zero managed collections outside
 `Schema` (cold authoring). The native bill is a receipt too: `Board.MemoryBytes`
-reports everything the board owns (a 1M × 3-stat board commits ~110 MiB before the
-first modifier) and `Board.RequestedCapacity` sits beside the 64-rounded
+reports everything the board owns (a 1M × 3-stat board commits ~15 MiB empty — pair
+storage is paged and allocated on first touch — and ~78 MiB fully live) and `Board.RequestedCapacity` sits beside the 64-rounded
 `Capacity`, so alignment padding is visible. Known .NET-only cost: the `UnmanagedCallersOnly` entry
 thunk charges ~10 ns per event `make` call (~29% of a dense-emit frame); ruled a
 contract cost (clause 17) — events are sparse signals, dense payloads belong in
@@ -253,6 +253,7 @@ Last refreshed 2026-10-01 19:36 UTC · `main@f97ec52` · AMD EPYC 7763 64-Core P
 | 26 | Per-writer cache-line-padded event locks + word-batched emit — 8 parallel writers 2.7 → 793 M events/s — [issues/0031](issues/0031-atom-26-per-writer-event-locks.md) | done |
 | 27 | Tape v3: XXH64 64-bit digest (verified against the reference at every length 0–300 + published vectors), whole-word body copy — tape overhead ~576 → ~58 µs/frame at 100k rows — [issues/0032](issues/0032-atom-27-tape-v3-xxh64.md) | done |
 | 28 | **Fix**: recalc permuted stored modifier ids in place, so `RemoveModifier` could remove the wrong modifier (since atom 2); independent-oracle churn tests added — [issues/0033](issues/0033-atom-28-fix-modifier-id-permutation.md) | done |
+| 29 | Paged pair storage (4096-slot pages, metadata on first acquire, modifier lists on first modifier, 16 B lists) — empty 1M×3 board 110 → 15 MiB; renumber leak of released slots' buffers fixed — [issues/0034](issues/0034-atom-29-paged-pair-storage.md) | done |
 
 Atom 1 scope note: `Clamp.Stat` and the StrictFloat oracle land with atom 2 (the first
 float math); the walkers land with atom 3. Nothing ships half-wired.

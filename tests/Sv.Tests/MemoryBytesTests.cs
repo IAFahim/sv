@@ -29,15 +29,32 @@ public unsafe class MemoryBytesTests
     }
 
     [Fact]
-    public void MillionSlotBoard_BillIsVisible()
+    public void MillionSlotBoard_BillScalesWithTouchedPages()
     {
         using var board = Board.Create(SchemaBuilder.Create()
             .Stat("attack", 10f)
             .Stat("max_health", 100f)
             .Stat("regen", 2f)
             .Build(), 1_000_000);
-        var mb = board.MemoryBytes / (1024.0 * 1024.0);
-        Assert.True(mb > 60, $"1M x 3-stat eager bill should be visible, got {mb:0.0} MiB");
-        Assert.True(mb < 200, $"1M x 3-stat eager bill should stay bounded, got {mb:0.0} MiB");
+        var empty = board.MemoryBytes / (1024.0 * 1024.0);
+        Assert.True(empty < 20, $"1M x 3-stat empty board pays only output columns + slot bookkeeping, got {empty:0.0} MiB");
+
+        for (var i = 0; i < 10_000; i++)
+        {
+            board.Acquire();
+        }
+
+        board.Recalculate();
+        var sparse = board.MemoryBytes / (1024.0 * 1024.0);
+        Assert.True(sparse - empty < 1, $"10k live slots touch 3 pages, got +{sparse - empty:0.00} MiB");
+
+        for (var i = 10_000; i < 1_000_000; i++)
+        {
+            board.Acquire();
+        }
+
+        board.Recalculate();
+        var full = board.MemoryBytes / (1024.0 * 1024.0);
+        Assert.True(full > 40 && full < 100, $"1M live, modifier-free: metadata pages for every slot, got {full:0.0} MiB");
     }
 }
