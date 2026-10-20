@@ -216,3 +216,85 @@ public unsafe class InputTests
         Assert.Throws<ArgumentOutOfRangeException>(() => input.AxisF(-1));
     }
 }
+
+public unsafe class ReplayEdgeTests
+{
+    [Fact]
+    public void BeginReplay_MidStream_HeldButtonIsNotPressedAgain()
+    {
+        using var input = InputState.Create(axes: 1, buttonWords: 1, ringTicks: 8);
+        var axes = stackalloc uint[1];
+        var buttons = stackalloc ulong[1];
+
+        buttons[0] = 1ul;
+        input.Capture(axes, buttons);
+        Assert.True(input.Pressed(0));
+        input.Capture(axes, buttons);
+        Assert.False(input.Pressed(0));
+        input.Capture(axes, buttons);
+        Assert.False(input.Pressed(0));
+
+        input.BeginReplay(1);
+        Assert.True(input.ReplayStep());
+        Assert.True(input.Down(0));
+        Assert.False(input.Pressed(0));
+        Assert.False(input.Released(0));
+        Assert.True(input.ReplayStep());
+        Assert.False(input.Pressed(0));
+    }
+
+    [Fact]
+    public void BeginReplay_AtTickZero_ZeroPriorReportsPress()
+    {
+        using var input = InputState.Create(axes: 1, buttonWords: 1, ringTicks: 8);
+        var axes = stackalloc uint[1];
+        var buttons = stackalloc ulong[1];
+
+        buttons[0] = 1ul;
+        input.Capture(axes, buttons);
+        input.Capture(axes, buttons);
+
+        input.BeginReplay(0);
+        Assert.True(input.ReplayStep());
+        Assert.True(input.Pressed(0));
+    }
+
+    [Fact]
+    public void BeginReplay_EvictedPrior_FallsBackToZeroSeed()
+    {
+        using var input = InputState.Create(axes: 1, buttonWords: 1, ringTicks: 2);
+        var axes = stackalloc uint[1];
+        var buttons = stackalloc ulong[1];
+
+        buttons[0] = 1ul;
+        for (var tick = 0; tick < 4; tick++)
+        {
+            input.Capture(axes, buttons);
+        }
+
+        Assert.Equal(2, input.OldestRingTick);
+        input.BeginReplay(2);
+        Assert.True(input.ReplayStep());
+        Assert.True(input.Pressed(0));
+    }
+
+    [Fact]
+    public void BeginReplay_MidStream_RealReleaseEdgeIsReproduced()
+    {
+        using var input = InputState.Create(axes: 1, buttonWords: 1, ringTicks: 8);
+        var axes = stackalloc uint[1];
+        var buttons = stackalloc ulong[1];
+
+        buttons[0] = 1ul;
+        input.Capture(axes, buttons);
+        buttons[0] = 0;
+        input.Capture(axes, buttons);
+        Assert.True(input.Released(0));
+
+        input.BeginReplay(1);
+        Assert.True(input.ReplayStep());
+        Assert.False(input.Down(0));
+        Assert.True(input.Released(0));
+        Assert.False(input.Pressed(0));
+    }
+}

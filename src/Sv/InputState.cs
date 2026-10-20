@@ -129,6 +129,13 @@ public sealed unsafe class InputState : IDisposable
         return (ulong*)(ring + (nint)slot * ringStride + Axes * sizeof(uint));
     }
 
+    /// <summary>
+    /// Positions replay at <paramref name="fromTick"/> so the next <see cref="ReplayStep"/>
+    /// re-derives that tick. Button state is seeded from the ring entry of tick fromTick − 1 when
+    /// it is still resident, so buttons held across the replay boundary replay as held, not
+    /// freshly pressed; when no prior tick exists or it was evicted, both button words are zeroed
+    /// and every held button reports as pressed on the first replayed tick.
+    /// </summary>
     public void BeginReplay(long fromTick)
     {
         if (fromTick < 0 || fromTick >= tickCounter)
@@ -142,8 +149,23 @@ public sealed unsafe class InputState : IDisposable
         }
 
         var slot = (int)(fromTick % RingTicks);
-        new Span<ulong>(previous, ButtonWords).Fill(0);
-        new Span<ulong>(buttons, ButtonWords).Fill(0);
+        var prior = fromTick - 1;
+        var priorSlot = (int)(prior % RingTicks);
+        if (prior >= 0 && ringTickIds[priorSlot] == prior)
+        {
+            var priorButtons = RingToButtons(priorSlot);
+            for (var w = 0; w < ButtonWords; w++)
+            {
+                buttons[w] = priorButtons[w];
+                previous[w] = priorButtons[w];
+            }
+        }
+        else
+        {
+            new Span<ulong>(previous, ButtonWords).Fill(0);
+            new Span<ulong>(buttons, ButtonWords).Fill(0);
+        }
+
         replayCursor = slot;
     }
 
