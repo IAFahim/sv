@@ -143,6 +143,8 @@ public sealed unsafe class Game : IDisposable
 
     readonly Dictionary<Type, object> channels;
 
+    bool disposed;
+
     Game(Schema schema, int capacity, int timelineCount, InputState input)
     {
         Board = Board.Create(schema, capacity);
@@ -238,9 +240,15 @@ public sealed unsafe class Game : IDisposable
 
     public void Dispose()
     {
+        if (disposed)
+        {
+            return;
+        }
+
         Board.Dispose();
         Streams.Dispose();
         NativeMemory.Free(Applied);
+        disposed = true;
     }
 }
 

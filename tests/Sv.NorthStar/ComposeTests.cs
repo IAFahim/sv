@@ -310,4 +310,14 @@ public sealed unsafe class ComposeTests
         var deltaBytes = GC.GetAllocatedBytesForCurrentThread() - before;
         Assert.True(deltaBytes == 0, $"Frame.Run allocated {deltaBytes} managed bytes over 2,000 frames (sink {sink})");
     }
+
+    [Fact]
+    public void GameDispose_IsIdempotent()
+    {
+        using var input = InputState.Create(2, 1, 8);
+        var host = BuildGame(input);
+        host.Game.Dispose();
+        host.Game.Dispose();
+        host.Dispose();
+    }
 }
