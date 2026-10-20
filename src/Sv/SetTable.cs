@@ -134,9 +134,18 @@ internal sealed unsafe class SetTable : IDisposable
                 Mix((ulong)entries[i].Kind | ((ulong)BitConverter.SingleToUInt32Bits(entries[i].Value) << 8));
             }
 
+            hash ^= hash >> 33;
+            hash *= 0xFF51AFD7ED558CCDul;
+            hash ^= hash >> 33;
+            hash *= 0xC4CEB9FE1A85EC53ul;
+            hash ^= hash >> 33;
             return hash;
         }
     }
+
+    internal ulong HashOf(int stat, StatEntry* entries, int count) => ContentHash(stat, entries, count);
+
+    internal int BucketCount => bucketMask + 1;
 
     public int Resolve(int stat, StatEntry* canonical, int count)
     {
@@ -148,6 +157,12 @@ internal sealed unsafe class SetTable : IDisposable
             var existing = buckets[slot];
             if (existing == 0)
             {
+                if ((setCount + 1) * 2 > bucketMask + 1)
+                {
+                    GrowBuckets();
+                    return Resolve(stat, canonical, count);
+                }
+
                 var set = CreateSet(stat, canonical, count, hash);
                 buckets[slot] = set + 1;
                 return set;

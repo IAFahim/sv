@@ -96,7 +96,9 @@ public sealed unsafe partial class Board : IDisposable
 
     const uint StateMagic = 0x44425653;
 
-    long StateShape => ((long)Capacity << 20) ^ ((long)statCount << 8) ^ Schema.Intrinsics.Count;
+    const long SetTableFormatVersion = 2;
+
+    long StateShape => ((long)Capacity << 20) ^ ((long)statCount << 8) ^ Schema.Intrinsics.Count ^ SetTableFormatVersion;
 
     /// <summary>
     /// Saves the board's complete state into <paramref name="state"/> (overwriting it): slot space,
