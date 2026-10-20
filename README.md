@@ -237,23 +237,23 @@ the `determinism` CI matrix runs it on x64, arm64, macOS and Windows.
 
 <!-- bench:begin (auto-generated — CI refreshes this on every push to main; do not edit by hand) -->
 
-Last refreshed 2026-10-20 17:26 UTC · `main@0c063b1` · AMD EPYC 7763 64-Core Processor (2 cores) · sv-bench rows=100000 vector256=True vector128=True
+Last refreshed 2026-10-20 19:49 UTC · `main@bef9fd6` · AMD EPYC 7763 64-Core Processor (2 cores) · sv-bench rows=100000 vector256=True vector128=True
 
 | Scenario | µs/frame | rate | Managed alloc |
 |---|---:|---:|---|
-| intrinsics-uniform | 36.715 | 2723.7 M rows/s | 0 B |
-| intrinsics-varying | 64.063 | 1561.0 M rows/s | 0 B |
-| intrinsics-statclamp | 100.512 | 994.9 M rows/s | 0 B |
-| intrinsics-statmirror | 40.680 | 2458.2 M rows/s | 0 B |
-| enabled-runwalk | 140.337 | 712.6 M rows/s | 0 B |
-| stat-recalc | 0.106 | 106 ns/op | 0 B |
-| stat-churn | 0.063 | 63 ns/op | 0 B |
-| events-emit | 642.864 | 155.6 M rows/s | 0 B |
-| events-emit-struct | 222.817 | 448.8 M rows/s | 0 B |
-| input-capture | 0.020 | 20 ns/op | 0 B |
-| fused-tick | 1334.647 | 74.9 M rows/s | 0 B |
-| frame-run | 1423.376 | 70.3 M rows/s | 0 B |
-| tape-digest | 1528.414 | 65.4 M rows/s | 0 B |
+| intrinsics-uniform | 43.148 | 2317.6 M rows/s | 0 B |
+| intrinsics-varying | 60.412 | 1655.3 M rows/s | 0 B |
+| intrinsics-statclamp | 104.132 | 960.3 M rows/s | 0 B |
+| intrinsics-statmirror | 39.811 | 2511.9 M rows/s | 0 B |
+| enabled-runwalk | 135.535 | 737.8 M rows/s | 0 B |
+| stat-recalc | 0.103 | 103 ns/op | 0 B |
+| stat-churn | 0.062 | 62 ns/op | 0 B |
+| events-emit | 644.444 | 155.2 M rows/s | 0 B |
+| events-emit-struct | 153.166 | 652.9 M rows/s | 0 B |
+| input-capture | 0.013 | 13 ns/op | 0 B |
+| fused-tick | 1343.742 | 74.4 M rows/s | 0 B |
+| frame-run | 1393.662 | 71.8 M rows/s | 0 B |
+| tape-digest | 1500.302 | 66.7 M rows/s | 0 B |
 
 <!-- bench:end -->
 
