@@ -867,7 +867,7 @@ public sealed unsafe partial class Board
                 if (!table.Folded(set))
                 {
                     var content = table.Content(set, out var contentCount);
-                    table.SetComputed(set, Fold(statBase[stat], content, contentCount));
+                    table.SetComputed(set, CanonicalNaN(Fold(statBase[stat], content, contentCount)));
                     table.MarkDirty(set);
                     continue;
                 }
@@ -889,7 +889,7 @@ public sealed unsafe partial class Board
             else
             {
                 var content = table.Content(dirty, out var contentCount);
-                computed = Fold(statBase[stat], content, contentCount);
+                computed = CanonicalNaN(Fold(statBase[stat], content, contentCount));
                 table.SetComputed(dirty, computed);
             }
 
@@ -1042,6 +1042,11 @@ public sealed unsafe partial class Board
             entries[j + 1] = entry;
             ids[j + 1] = id;
         }
+    }
+
+    internal static float CanonicalNaN(float value)
+    {
+        return float.IsNaN(value) ? BitConverter.UInt32BitsToSingle(0x7FC00000u) : value;
     }
 
     internal static float Fold(float @base, StatEntry* entries, int count)

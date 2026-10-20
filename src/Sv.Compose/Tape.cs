@@ -51,11 +51,14 @@ public static unsafe class Tape
         var words = board.LiveWordCount;
         for (var stat = 0; stat < stats; stat++)
         {
-            var column = board.OutputPtr(board.Schema.Stat(board.Schema.Stats[stat].Name));
+            var id = board.Schema.Stat(board.Schema.Stats[stat].Name);
+            var external = board.OutputColumn(id);
+            var column = external != null ? external : board.OutputPtr(id);
+            var stride = external == null ? 1 : board.OutputStrideAt(id.Index);
             for (var word = 0; word < words; word++)
             {
                 var bits = board.LiveWord(word);
-                if (bits == ulong.MaxValue)
+                if (bits == ulong.MaxValue && stride == 1)
                 {
                     Buffer.MemoryCopy(column + (word << 6), cursor, 64 * sizeof(float), 64 * sizeof(float));
                     cursor += 64 * sizeof(float);
@@ -66,7 +69,7 @@ public static unsafe class Tape
                 {
                     var slot = (word << 6) + BitOperations.TrailingZeroCount(bits);
                     bits &= bits - 1;
-                    *(float*)cursor = column[slot];
+                    *(float*)cursor = column[(nint)slot * stride];
                     cursor += sizeof(float);
                 }
             }
