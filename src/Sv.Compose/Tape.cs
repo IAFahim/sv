@@ -114,7 +114,7 @@ internal sealed unsafe class TapeWriter : IDisposable
         {
             bodyCapacity = Math.Max(length, bodyCapacity * 2);
             body = body == null
-                ? (byte*)NativeMemory.Alloc((nuint)bodyCapacity, 16)
+                ? (byte*)NativeMemory.Alloc((nuint)bodyCapacity)
                 : (byte*)NativeMemory.Realloc(body, (nuint)bodyCapacity);
         }
 

@@ -61,10 +61,10 @@ public sealed unsafe class EventStreams : IDisposable
     EventStreams(int writerCount, int bytesPerWriter)
     {
         this.writerCount = writerCount;
-        arenas = (byte**)NativeMemory.Alloc((nuint)writerCount * 2 * (nuint)sizeof(byte*), (nuint)sizeof(byte*));
-        arenaCapacity = (int*)NativeMemory.AllocZeroed((nuint)writerCount * 2 * sizeof(int), sizeof(int));
-        readOffset = (int*)NativeMemory.AllocZeroed((nuint)writerCount * sizeof(int), sizeof(int));
-        readCursorOffset = (int*)NativeMemory.AllocZeroed((nuint)writerCount * sizeof(int), sizeof(int));
+        arenas = (byte**)NativeMemory.Alloc((nuint)writerCount * 2 * (nuint)sizeof(byte*));
+        arenaCapacity = (int*)NativeMemory.AllocZeroed((nuint)writerCount * 2 * sizeof(int));
+        readOffset = (int*)NativeMemory.AllocZeroed((nuint)writerCount * sizeof(int));
+        readCursorOffset = (int*)NativeMemory.AllocZeroed((nuint)writerCount * sizeof(int));
         locks = (nint*)NativeMemory.AlignedAlloc((nuint)(writerCount * LockStride * sizeof(nint)), 64);
         NativeMemory.Clear(locks, (nuint)(writerCount * LockStride * sizeof(nint)));
         writeOffset = (int*)(locks + 1);
@@ -74,7 +74,7 @@ public sealed unsafe class EventStreams : IDisposable
             for (var b = 0; b < 2; b++)
             {
                 var index = w * 2 + b;
-                arenas[index] = (byte*)NativeMemory.Alloc((nuint)rounded, (nuint)sizeof(nint));
+                arenas[index] = (byte*)NativeMemory.Alloc((nuint)rounded);
                 arenaCapacity[index] = rounded;
             }
         }

@@ -152,7 +152,7 @@ public sealed unsafe class Game : IDisposable
         Streams = EventStreams.Create();
         TimelineIds = new ushort[Board.Capacity];
         TimelineClocks = new ushort[Board.Capacity];
-        Applied = (int*)NativeMemory.AllocZeroed((nuint)Board.Capacity * sizeof(int), sizeof(int));
+        Applied = (int*)NativeMemory.AllocZeroed((nuint)Board.Capacity * sizeof(int));
         effects = new float[timelineCount][];
         for (var i = 0; i < timelineCount; i++)
         {
@@ -362,7 +362,7 @@ public sealed class GameHost<TEvents, TTimelines, TKernels, THost> : IDisposable
         var axes = new uint[game.Input.Axes];
         var buttons = new ulong[game.Input.ButtonWords];
         var capacity = Math.Max(64, Tape.BodyLength(game));
-        var body = (byte*)NativeMemory.Alloc((nuint)capacity, 16);
+        var body = (byte*)NativeMemory.Alloc((nuint)capacity);
         fixed (uint* axesPtr = axes)
         fixed (ulong* buttonsPtr = buttons)
         {

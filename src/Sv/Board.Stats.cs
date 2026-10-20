@@ -119,10 +119,10 @@ public sealed unsafe partial class Board
             statBase[i] = schema.Stats[i].Base;
         }
 
-        outputColumn = (float**)NativeMemory.Alloc((nuint)statCount * (nuint)sizeof(float*), (nuint)sizeof(float*));
+        outputColumn = (float**)NativeMemory.Alloc((nuint)statCount * (nuint)sizeof(float*));
         NativeMemory.Clear(outputColumn, (nuint)statCount * (nuint)sizeof(float*));
         outputStride = Alloc<int>(statCount);
-        svColumns = (float*)NativeMemory.AllocZeroed((nuint)statCount * (nuint)capacity * sizeof(float), sizeof(float));
+        svColumns = (float*)NativeMemory.AllocZeroed((nuint)statCount * (nuint)capacity * sizeof(float));
         boundGeneration = Alloc<int>(statCount);
         for (var i = 0; i < statCount; i++)
         {
@@ -202,7 +202,7 @@ public sealed unsafe partial class Board
 
     static T* Alloc<T>(int count) where T : unmanaged
     {
-        return (T*)NativeMemory.Alloc((nuint)count * (nuint)sizeof(T), (nuint)sizeof(T));
+        return (T*)NativeMemory.Alloc((nuint)count * (nuint)sizeof(T));
     }
 
     static T* Realloc<T>(T* old, int count) where T : unmanaged
@@ -480,7 +480,7 @@ public sealed unsafe partial class Board
             return mirrors[index];
         }
 
-        var mirror = (int*)NativeMemory.AllocZeroed((nuint)Capacity * sizeof(int), sizeof(int));
+        var mirror = (int*)NativeMemory.AllocZeroed((nuint)Capacity * sizeof(int));
         var external = outputColumn[index];
         var stride = outputStride[index];
         var owned = svColumns + (nint)index * Capacity;
@@ -1230,7 +1230,7 @@ public sealed unsafe partial class Board
 
             if (mirrors[stat] == null)
             {
-                mirrors[stat] = (int*)NativeMemory.Alloc((nuint)Capacity * sizeof(int), sizeof(int));
+                mirrors[stat] = (int*)NativeMemory.Alloc((nuint)Capacity * sizeof(int));
             }
 
             state.Read(mirrors[stat], (long)Capacity * sizeof(int));

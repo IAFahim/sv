@@ -40,14 +40,14 @@ public sealed unsafe class InputState : IDisposable
         Axes = axes;
         ButtonWords = buttonWords;
         RingTicks = ringTicks;
-        axisBits = (uint*)NativeMemory.AllocZeroed((nuint)axes * sizeof(uint), sizeof(uint));
-        buttons = (ulong*)NativeMemory.AllocZeroed((nuint)buttonWords * sizeof(ulong), sizeof(ulong));
-        previous = (ulong*)NativeMemory.AllocZeroed((nuint)buttonWords * sizeof(ulong), sizeof(ulong));
-        pressed = (ulong*)NativeMemory.AllocZeroed((nuint)buttonWords * sizeof(ulong), sizeof(ulong));
-        released = (ulong*)NativeMemory.AllocZeroed((nuint)buttonWords * sizeof(ulong), sizeof(ulong));
+        axisBits = (uint*)NativeMemory.AllocZeroed((nuint)axes * sizeof(uint));
+        buttons = (ulong*)NativeMemory.AllocZeroed((nuint)buttonWords * sizeof(ulong));
+        previous = (ulong*)NativeMemory.AllocZeroed((nuint)buttonWords * sizeof(ulong));
+        pressed = (ulong*)NativeMemory.AllocZeroed((nuint)buttonWords * sizeof(ulong));
+        released = (ulong*)NativeMemory.AllocZeroed((nuint)buttonWords * sizeof(ulong));
         ringStride = axes * sizeof(uint) + buttonWords * sizeof(ulong);
-        ring = (byte*)NativeMemory.AllocZeroed((nuint)ringTicks * (nuint)ringStride, 16);
-        ringTickIds = (long*)NativeMemory.Alloc((nuint)ringTicks * sizeof(long), sizeof(long));
+        ring = (byte*)NativeMemory.AllocZeroed((nuint)ringTicks * (nuint)ringStride);
+        ringTickIds = (long*)NativeMemory.Alloc((nuint)ringTicks * sizeof(long));
         for (var i = 0; i < ringTicks; i++)
         {
             ringTickIds[i] = -1;

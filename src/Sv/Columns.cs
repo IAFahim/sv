@@ -28,7 +28,7 @@ public static unsafe class Columns
             return;
         }
 
-        var temp = (T*)NativeMemory.Alloc((nuint)count * (nuint)sizeof(T), (nuint)sizeof(T));
+        var temp = (T*)NativeMemory.Alloc((nuint)count * (nuint)sizeof(T));
         for (var old = 0; old < oldToNew.Length; old++)
         {
             var next = oldToNew[old];

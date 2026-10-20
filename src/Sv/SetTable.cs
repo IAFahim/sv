@@ -93,7 +93,7 @@ internal sealed unsafe class SetTable : IDisposable
         setContentCount = Alloc<int>(setCapacity);
         setMemberCount = Alloc<int>(setCapacity);
         setMemberCap = Alloc<int>(setCapacity);
-        setMembers = (int**)NativeMemory.Alloc((nuint)setCapacity * (nuint)sizeof(int*), (nuint)sizeof(int*));
+        setMembers = (int**)NativeMemory.Alloc((nuint)setCapacity * (nuint)sizeof(int*));
         setDirty = AllocZeroed<sbyte>(setCapacity);
         setFolded = AllocZeroed<sbyte>(setCapacity);
         contentArena = Alloc<StatEntry>(64);
@@ -104,12 +104,12 @@ internal sealed unsafe class SetTable : IDisposable
 
     static T* Alloc<T>(int count) where T : unmanaged
     {
-        return (T*)NativeMemory.Alloc((nuint)count * (nuint)sizeof(T), (nuint)sizeof(T));
+        return (T*)NativeMemory.Alloc((nuint)count * (nuint)sizeof(T));
     }
 
     static T* AllocZeroed<T>(int count) where T : unmanaged
     {
-        return (T*)NativeMemory.AllocZeroed((nuint)count * (nuint)sizeof(T), (nuint)sizeof(T));
+        return (T*)NativeMemory.AllocZeroed((nuint)count * (nuint)sizeof(T));
     }
 
     static T* Realloc<T>(T* old, int count) where T : unmanaged

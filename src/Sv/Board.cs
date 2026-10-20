@@ -39,9 +39,9 @@ public sealed unsafe partial class Board : IDisposable
         Schema = schema;
         Capacity = capacity;
         RequestedCapacity = requestedCapacity;
-        freeSlots = (int*)NativeMemory.Alloc((nuint)capacity * sizeof(int), sizeof(int));
+        freeSlots = (int*)NativeMemory.Alloc((nuint)capacity * sizeof(int));
         var words = (nuint)((capacity + 63) >> 6);
-        live = (ulong*)NativeMemory.AllocZeroed(words * sizeof(ulong), sizeof(ulong));
+        live = (ulong*)NativeMemory.AllocZeroed(words * sizeof(ulong));
         for (var i = 0; i < capacity; i++)
         {
             freeSlots[i] = capacity - 1 - i;
