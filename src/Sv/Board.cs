@@ -113,7 +113,11 @@ public sealed unsafe partial class Board : IDisposable
     /// <summary>
     /// Restores a state saved from a board of the same schema shape and capacity, bit-exactly:
     /// resimulating the same inputs reproduces the same results. Bindings stay as they are;
-    /// sv-owned columns and mirrors hold the saved broadcast.
+    /// sv-owned columns and mirrors hold the saved broadcast. A mirror that exists only locally
+    /// (the snapshot predates it) is kept — never freed, so cached <see cref="Clamp.StatMirror"/>
+    /// pointers stay valid — refilled from the restored output, and every bound or mirrored stat
+    /// is marked dirty so the next <see cref="Recalculate"/> rebroadcasts the restored values
+    /// into bound columns and mirrors.
     /// </summary>
     public void LoadState(SvState state)
     {

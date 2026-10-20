@@ -481,6 +481,13 @@ public sealed unsafe partial class Board
         }
 
         var mirror = (int*)NativeMemory.AllocZeroed((nuint)Capacity * sizeof(int));
+        FillMirrorFromColumns(index, mirror);
+        mirrors[index] = mirror;
+        return mirror;
+    }
+
+    void FillMirrorFromColumns(int index, int* mirror)
+    {
         var external = outputColumn[index];
         var stride = outputStride[index];
         var owned = svColumns + (nint)index * Capacity;
@@ -494,9 +501,6 @@ public sealed unsafe partial class Board
                 mirror[slot] = Clamp.BoundOf(external == null ? owned[slot] : external[slot * stride]);
             }
         }
-
-        mirrors[index] = mirror;
-        return mirror;
     }
 
     internal long MirrorBytes
@@ -1219,10 +1223,10 @@ public sealed unsafe partial class Board
         {
             if (state.Read<byte>() == 0)
             {
-                if (mirrors[stat] != null)
+                var mirror = mirrors[stat];
+                if (mirror != null && outputColumn[stat] == null)
                 {
-                    NativeMemory.Free(mirrors[stat]);
-                    mirrors[stat] = null;
+                    FillMirrorFromColumns(stat, mirror);
                 }
 
                 continue;
@@ -1230,7 +1234,7 @@ public sealed unsafe partial class Board
 
             if (mirrors[stat] == null)
             {
-                mirrors[stat] = (int*)NativeMemory.Alloc((nuint)Capacity * sizeof(int));
+                mirrors[stat] = (int*)NativeMemory.AllocZeroed((nuint)Capacity * sizeof(int));
             }
 
             state.Read(mirrors[stat], (long)Capacity * sizeof(int));
@@ -1321,6 +1325,18 @@ public sealed unsafe partial class Board
         }
 
         table!.Read(state);
+        MarkRestoredBindingsDirty();
+    }
+
+    void MarkRestoredBindingsDirty()
+    {
+        for (var stat = 0; stat < statCount; stat++)
+        {
+            if (outputColumn[stat] != null || mirrors[stat] != null)
+            {
+                table!.MarkStatDirty(stat);
+            }
+        }
     }
 
     void RenumberStats(ReadOnlySpan<int> oldToNew)
