@@ -57,16 +57,13 @@ public sealed unsafe class Population : IDisposable
     /// 64-aligned so enabled windows work), renumbers the board once, and returns the permutation
     /// for host-owned slot columns (<see cref="Sv.Columns.Permute{T}(T*, ReadOnlySpan{int}, int)"/>).
     /// Call at the drain step — the structural-change boundary. Every live board slot must be
-    /// bound to an entity in this world.
+    /// bound to an entity in this world; validation runs before any rewrite, so a failed reconcile
+    /// leaves world and board exactly as they were.
     /// </summary>
     public ReadOnlySpan<int> Reconcile()
     {
         var capacity = Board.Capacity;
-        for (var i = 0; i < capacity; i++)
-        {
-            permutation[i] = -1;
-        }
-
+        var mapped = 0;
         var next = 0;
         foreach (var chunk in World.Query<SvSlot>().EnumerateChunks<SvSlot>())
         {
@@ -77,6 +74,25 @@ public sealed unsafe class Population : IDisposable
                 throw new InvalidOperationException("sv.frent: reconcile exceeds board capacity (64-alignment padding)");
             }
 
+            next += slots.Length;
+            mapped += slots.Length;
+        }
+
+        if (mapped != Board.LiveCount)
+        {
+            throw new InvalidOperationException($"sv.frent: reconcile found {mapped} bound slots for {Board.LiveCount} live board slots — every live slot must be bound before reconcile");
+        }
+
+        for (var i = 0; i < capacity; i++)
+        {
+            permutation[i] = -1;
+        }
+
+        next = 0;
+        foreach (var chunk in World.Query<SvSlot>().EnumerateChunks<SvSlot>())
+        {
+            chunk.Deconstruct(out var slots);
+            next = (next + 63) & ~63;
             for (var i = 0; i < slots.Length; i++)
             {
                 var oldSlot = slots[i].Slot;
