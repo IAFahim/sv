@@ -87,6 +87,11 @@ public sealed unsafe class EventStreams : IDisposable
             throw new ArgumentOutOfRangeException(nameof(writerCount), "sv: 1..64 writers");
         }
 
+        if (bytesPerWriter < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(bytesPerWriter), "sv: bytesPerWriter must be >= 1 (0 rounds to 0 and the growth loop never terminates)");
+        }
+
         return new EventStreams(writerCount, bytesPerWriter);
     }
 
@@ -123,32 +128,44 @@ public sealed unsafe class EventStreams : IDisposable
             Thread.SpinWait(1);
         }
 
-        var index = writer * 2 + active;
-        var at = writeOffset[writer * OffsetStride];
-        if (at + need > arenaCapacity[index])
+        try
         {
-            var capacity = arenaCapacity[index];
-            while (capacity < at + need)
+            var index = writer * 2 + active;
+            var at = writeOffset[writer * OffsetStride];
+            var required = (long)at + need;
+            if (required > int.MaxValue / 2)
             {
-                capacity *= 2;
+                throw new InvalidOperationException("sv: event arena exceeded 1 GiB per writer");
             }
 
-            arenas[index] = (byte*)NativeMemory.Realloc(arenas[index], (nuint)capacity);
-            arenaCapacity[index] = capacity;
-        }
+            if (required > arenaCapacity[index])
+            {
+                var capacity = arenaCapacity[index];
+                while (capacity < required)
+                {
+                    capacity *= 2;
+                }
 
-        var dst = arenas[index] + at;
-        for (var i = 0; i < count; i++)
+                arenas[index] = (byte*)NativeMemory.Realloc(arenas[index], (nuint)capacity);
+                arenaCapacity[index] = capacity;
+            }
+
+            var dst = arenas[index] + at;
+            for (var i = 0; i < count; i++)
+            {
+                *(ushort*)dst = id;
+                *(ushort*)(dst + 2) = 0;
+                *(int*)(dst + 4) = size;
+                *(T*)(dst + HeaderBytes) = payload[i];
+                dst += stride;
+            }
+
+            writeOffset[writer * OffsetStride] = at + need;
+        }
+        finally
         {
-            *(ushort*)dst = id;
-            *(ushort*)(dst + 2) = 0;
-            *(int*)(dst + 4) = size;
-            *(T*)(dst + HeaderBytes) = payload[i];
-            dst += stride;
+            Volatile.Write(ref gate, 0);
         }
-
-        writeOffset[writer * OffsetStride] = at + need;
-        Volatile.Write(ref gate, 0);
     }
 
     void EmitWord<T, TMaker>(Channel<T> channel, ulong mask, int rowBase, int* values, ref TMaker maker)
@@ -446,6 +463,11 @@ public sealed unsafe class EventStreams : IDisposable
         {
             var written = state.Read<int>();
             var published = state.Read<int>();
+            if (written < 0 || published < 0)
+            {
+                throw new System.IO.InvalidDataException("sv: event stream state carries negative offsets");
+            }
+
             readCursorOffset[w] = state.Read<int>();
             EnsureArena(w * 2 + active, written);
             EnsureArena(w * 2 + (1 - active), published);
@@ -461,6 +483,11 @@ public sealed unsafe class EventStreams : IDisposable
         if (arenaCapacity[index] >= bytes)
         {
             return;
+        }
+
+        if (bytes > int.MaxValue / 2)
+        {
+            throw new System.IO.InvalidDataException("sv: event stream state exceeds 1 GiB per writer");
         }
 
         var capacity = arenaCapacity[index];
