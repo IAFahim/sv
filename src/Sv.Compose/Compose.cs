@@ -174,6 +174,37 @@ public sealed unsafe class Game : IDisposable
         return (Channel<T>)channels[typeof(T)];
     }
 
+    /// <summary>
+    /// Applies a reconcile permutation to every slot-indexed column the game owns: timeline ids,
+    /// clocks, the applied column and every timeline effect column. Dead slots read zero
+    /// afterwards. Pass the permutation returned by <c>Population.Reconcile</c> alongside
+    /// <see cref="Board.RenumberSlots"/>; the host remains responsible for its own columns via
+    /// <see cref="Sv.Columns.Permute{T}(T*, ReadOnlySpan{int}, int)"/>.
+    /// </summary>
+    public unsafe void Renumber(ReadOnlySpan<int> oldToNew)
+    {
+        if (oldToNew.Length != Capacity)
+        {
+            throw new ArgumentException($"sv.compose: renumber map must cover capacity ({Capacity} entries)");
+        }
+
+        fixed (ushort* ids = TimelineIds)
+        fixed (ushort* clocks = TimelineClocks)
+        {
+            Columns.Permute(ids, oldToNew, TimelineIds.Length);
+            Columns.Permute(clocks, oldToNew, TimelineClocks.Length);
+        }
+
+        Columns.Permute(Applied, oldToNew, Capacity);
+        foreach (var effect in effects)
+        {
+            fixed (float* column = effect)
+            {
+                Columns.Permute(column, oldToNew, effect.Length);
+            }
+        }
+    }
+
     internal static Game Build(Schema schema, int capacity, int timelineCount, InputState input)
     {
         return new Game(schema, capacity, timelineCount, input);

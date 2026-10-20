@@ -8,8 +8,11 @@ public static unsafe class Columns
     /// <summary>
     /// Applies a reconcile permutation to a host-owned slot column in place:
     /// entries with a non-negative <paramref name="oldToNew"/> value scatter to their new index;
-    /// negative entries (dead slots) are skipped. Call with the span returned by
-    /// <c>Population.Reconcile</c> before reading the column again.
+    /// negative entries (dead slots) are skipped, and unmapped target slots read zero. Call with
+    /// the span returned by <c>Population.Reconcile</c> before reading the column again.
+    /// <paramref name="count"/> is one past the highest new index — the column's length (capacity)
+    /// is always safe; <c>board.LiveCount</c> is not, because 64-alignment padding can push
+    /// targets above it.
     /// </summary>
     public static void Permute<T>(T* column, ReadOnlySpan<int> oldToNew, int count) where T : unmanaged
     {
