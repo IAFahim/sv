@@ -744,6 +744,43 @@ public sealed unsafe partial class Board
         }
     }
 
+    internal void ZeroSlotRows(int slot)
+    {
+        for (var stat = 0; stat < statCount; stat++)
+        {
+            svColumns[(nint)stat * Capacity + slot] = 0f;
+            var mirror = mirrors[stat];
+            if (mirror != null)
+            {
+                mirror[slot] = 0;
+            }
+        }
+    }
+
+    internal void MarkSlotAcquired(int slot)
+    {
+        for (var stat = 0; stat < statCount; stat++)
+        {
+            var index = stat * LiveWordCount + (slot >> 6);
+            if (changed[index] == 0)
+            {
+                changedTouched[changedTouchedCount++] = index;
+            }
+
+            changed[index] |= 1ul << (slot & 63);
+        }
+    }
+
+    internal void ClearChangedMasks()
+    {
+        for (var i = 0; i < changedTouchedCount; i++)
+        {
+            changed[changedTouched[i]] = 0;
+        }
+
+        changedTouchedCount = 0;
+    }
+
     internal void ClearSlotStats(int slot)
     {
         for (var stat = 0; stat < statCount; stat++)
@@ -793,12 +830,7 @@ public sealed unsafe partial class Board
             return;
         }
 
-        for (var i = 0; i < changedTouchedCount; i++)
-        {
-            changed[changedTouched[i]] = 0;
-        }
-
-        changedTouchedCount = 0;
+        ClearChangedMasks();
         var dequeueIndex = 0;
         while (dequeueIndex < pairQueueCount)
         {
@@ -1131,6 +1163,7 @@ public sealed unsafe partial class Board
 
         if (statCount > 0)
         {
+            ClearChangedMasks();
             pairQueueCount = 0;
             for (var slot = 0; slot < Capacity; slot++)
             {

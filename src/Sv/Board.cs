@@ -173,6 +173,7 @@ public sealed unsafe partial class Board : IDisposable
         {
             EnsureSlotPages(slot);
             MarkSlotStatsDirty(slot);
+            MarkSlotAcquired(slot);
         }
 
         return slot;
@@ -189,6 +190,7 @@ public sealed unsafe partial class Board : IDisposable
         if (statCount > 0)
         {
             ClearSlotStats(slot);
+            ZeroSlotRows(slot);
         }
 
         freeSlots[freeTop++] = slot;
