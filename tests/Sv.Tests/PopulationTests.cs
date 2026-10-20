@@ -150,6 +150,83 @@ public sealed unsafe class PopulationTests
     }
 
     [Fact]
+    public void RemapChunk_OverflowHeal_SaturatesInsteadOfWrapping()
+    {
+        using var world = new World();
+        using var population = new Population(world, Schema(), 512);
+        var entities = new Entity[96];
+        for (var i = 0; i < 96; i++)
+        {
+            entities[i] = world.Create(new Health { Value = 2_000_000_000 });
+            population.Bind(entities[i]);
+        }
+
+        for (var i = 2; i < 96; i += 3)
+        {
+            population.Unbind(entities[i]);
+            entities[i].Delete();
+        }
+
+        var clamp = Clamp.Constant(0, 100);
+        var applied = new int[512];
+        foreach (var window in population.Chunks<Health>())
+        {
+            window.Apply(population.Board, 2_000_000_000, clamp, applied);
+        }
+
+        Assert.True(population.RemapChunks >= 1, "post-delete frame should remap");
+        for (var i = 0; i < 96; i++)
+        {
+            if (i % 3 == 2 && i >= 2)
+            {
+                continue;
+            }
+
+            Assert.Equal(100, entities[i].Get<Health>().Value);
+        }
+    }
+
+    [Fact]
+    public void RemapEnabledChunk_OverflowDamage_SaturatesInsteadOfWrapping()
+    {
+        using var world = new World();
+        using var population = new Population(world, Schema(), 512);
+        var entities = new Entity[96];
+        for (var i = 0; i < 96; i++)
+        {
+            entities[i] = world.Create(new Health { Value = -2_000_000_000 });
+            population.Bind(entities[i]);
+        }
+
+        for (var i = 2; i < 96; i += 3)
+        {
+            population.Unbind(entities[i]);
+            entities[i].Delete();
+        }
+
+        var clamp = Clamp.Constant(0, 100);
+        var applied = new int[512];
+        var words = stackalloc ulong[2];
+        words[0] = ulong.MaxValue;
+        words[1] = ulong.MaxValue;
+        foreach (var window in population.Chunks<Health>())
+        {
+            window.ApplyEnabled(population.Board, words, 2, 0, -2_000_000_000, clamp, applied);
+        }
+
+        Assert.True(population.RemapChunks >= 1, "post-delete frame should remap");
+        for (var i = 0; i < 96; i++)
+        {
+            if (i % 3 == 2 && i >= 2)
+            {
+                continue;
+            }
+
+            Assert.Equal(0, entities[i].Get<Health>().Value);
+        }
+    }
+
+    [Fact]
     public void Reconcile_RenumbersPerArchetype_WithAlignment()
     {
         using var world = new World();

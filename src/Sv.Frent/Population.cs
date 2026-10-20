@@ -204,7 +204,7 @@ public readonly unsafe ref struct ChunkWindow<TColumn> where TColumn : unmanaged
             {
                 var slot = slots[i].Slot;
                 var before = values[slot];
-                var after = clamp.Apply(before + delta, slot);
+                var after = clamp.Apply(Simd.SaturatingAdd(before, delta), slot);
                 values[slot] = after;
                 if (!applied.IsEmpty)
                 {
@@ -259,7 +259,7 @@ public readonly unsafe ref struct ChunkWindow<TColumn> where TColumn : unmanaged
                 }
 
                 var before = values[slot];
-                var after = clamp.Apply(before + delta, slot);
+                var after = clamp.Apply(Simd.SaturatingAdd(before, delta), slot);
                 values[slot] = after;
                 if (!applied.IsEmpty)
                 {

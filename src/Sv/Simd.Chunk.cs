@@ -374,7 +374,7 @@ public Vector256<int> LoadMasked256(int slot, Vector256<int> mask) => Avx2.MaskL
             {
                 var slot = start + i;
                 var before = Vector256.Load(value + slot);
-                var after = bound.Apply(before + delta.Load256(slot), slot);
+                var after = bound.Apply(SaturatingAdd(before, delta.Load256(slot)), slot);
                 Vector256.Store(after, value + slot);
                 applied.Store(after - before, slot);
             }
@@ -385,7 +385,7 @@ public Vector256<int> LoadMasked256(int slot, Vector256<int> mask) => Avx2.MaskL
             {
                 var slot = start + i;
                 var before = Vector128.Load(value + slot);
-                var after = bound.Apply(before + delta.Load128(slot), slot);
+                var after = bound.Apply(SaturatingAdd(before, delta.Load128(slot)), slot);
                 Vector128.Store(after, value + slot);
                 applied.Store(after - before, slot);
             }
@@ -395,7 +395,7 @@ public Vector256<int> LoadMasked256(int slot, Vector256<int> mask) => Avx2.MaskL
         {
             var slot = start + i;
             var before = value[slot];
-            var after = clamp.Apply(before + delta.Load(slot), slot);
+            var after = clamp.Apply(SaturatingAdd(before, delta.Load(slot)), slot);
             value[slot] = after;
             applied.Store(after - before, slot);
         }
@@ -434,7 +434,7 @@ public Vector256<int> LoadMasked256(int slot, Vector256<int> mask) => Avx2.MaskL
             mask &= mask - 1;
             var slot = offset + bit;
             var before = value[slot];
-            var after = clamp.Apply(before + (delta == null ? deltaValue : delta[slot]), slot);
+            var after = clamp.Apply(SaturatingAdd(before, delta == null ? deltaValue : delta[slot]), slot);
             value[slot] = after;
             if (applied != null)
             {
@@ -475,7 +475,7 @@ public Vector256<int> LoadMasked256(int slot, Vector256<int> mask) => Avx2.MaskL
             if (lanes == 0xFF)
             {
                 var full = Vector256.Load(value + slot);
-                var fullAfter = bound.Apply(full + delta.Load256(slot), slot);
+                var fullAfter = bound.Apply(SaturatingAdd(full, delta.Load256(slot)), slot);
                 Vector256.Store(fullAfter, value + slot);
                 applied.Store(fullAfter - full, slot);
                 continue;
@@ -483,9 +483,25 @@ public Vector256<int> LoadMasked256(int slot, Vector256<int> mask) => Avx2.MaskL
 
             var mask = ~Vector256.Equals(Vector256.Create(lanes) & laneBits, Vector256<int>.Zero);
             var before = Avx2.MaskLoad(value + slot, mask);
-            var after = bound.ApplyMasked(before + delta.LoadMasked256(slot, mask), slot, mask);
+            var after = bound.ApplyMasked(SaturatingAdd(before, delta.LoadMasked256(slot, mask)), slot, mask);
             Avx2.MaskStore(value + slot, mask, after);
             applied.Store((after - before) & mask, slot);
         }
+    }
+
+    static Vector128<int> SaturatingAdd(Vector128<int> a, Vector128<int> b)
+    {
+        var sum = a + b;
+        var overflow = Vector128.LessThan((a ^ sum) & (b ^ sum), Vector128<int>.Zero);
+        var saturated = Vector128.ConditionalSelect(Vector128.LessThan(b, Vector128<int>.Zero), Vector128.Create(int.MinValue), Vector128.Create(int.MaxValue));
+        return Vector128.ConditionalSelect(overflow, saturated, sum);
+    }
+
+    static Vector256<int> SaturatingAdd(Vector256<int> a, Vector256<int> b)
+    {
+        var sum = a + b;
+        var overflow = Vector256.LessThan((a ^ sum) & (b ^ sum), Vector256<int>.Zero);
+        var saturated = Vector256.ConditionalSelect(Vector256.LessThan(b, Vector256<int>.Zero), Vector256.Create(int.MinValue), Vector256.Create(int.MaxValue));
+        return Vector256.ConditionalSelect(overflow, saturated, sum);
     }
 }

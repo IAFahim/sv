@@ -259,7 +259,7 @@ public unsafe class IntrinsicsTests
     }
 
     [Fact]
-    public void Overflow_WrapsUnchecked()
+    public void Overflow_SaturatesBeforeClamp()
     {
         using var board = Board.Create(TestSchema(), 4);
         var value = stackalloc int[4];
@@ -268,8 +268,8 @@ public unsafe class IntrinsicsTests
 
         board.RunIntrinsicsChunk(value, 1, Clamp.Constant(int.MinValue, int.MaxValue), 0, 1, applied);
 
-        Assert.Equal(unchecked(int.MaxValue + 1), value[0]);
-        Assert.Equal(1, applied[0]);
+        Assert.Equal(int.MaxValue, value[0]);
+        Assert.Equal(0, applied[0]);
     }
 
     [Fact]

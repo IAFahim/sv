@@ -8,6 +8,12 @@ internal static unsafe partial class Simd
 
     internal static bool Has256 => Vector256.IsHardwareAccelerated;
 
+    internal static int SaturatingAdd(int a, int b)
+    {
+        var sum = a + b;
+        return ((a ^ sum) & (b ^ sum)) < 0 ? (b < 0 ? int.MinValue : int.MaxValue) : sum;
+    }
+
     internal static void Chunk(int* value, int* delta, int deltaValue, in Clamp clamp, int start, int count, int* applied)
     {
         clamp.CheckStatBounds();
@@ -32,7 +38,7 @@ internal static unsafe partial class Simd
         {
             var slot = start + i;
             var before = value[slot];
-            var sum = delta == null ? before + deltaValue : before + delta[slot];
+            var sum = delta == null ? SaturatingAdd(before, deltaValue) : SaturatingAdd(before, delta[slot]);
             var after = clamp.Apply(sum, slot);
             value[slot] = after;
             if (applied != null)
