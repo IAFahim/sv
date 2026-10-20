@@ -37,7 +37,6 @@ internal static unsafe class Guard
         }
     }
 
-    [Conditional("SV_CHECKED")]
     public static void ChunkRange(int start, int count, int capacity)
     {
         if (start < 0 || count < 0 || start + count > capacity)
@@ -62,7 +61,6 @@ internal static unsafe class Guard
         }
     }
 
-    [Conditional("SV_CHECKED")]
     public static void EnabledRange(int offset, int capacity)
     {
         if (offset < 0 || offset + 64 > capacity)
@@ -71,7 +69,6 @@ internal static unsafe class Guard
         }
     }
 
-    [Conditional("SV_CHECKED")]
     public static void EnabledRange(int offset, int wordCount, int capacity)
     {
         if (offset < 0 || wordCount < 1 || offset + wordCount * 64 > capacity)
@@ -80,7 +77,6 @@ internal static unsafe class Guard
         }
     }
 
-    [Conditional("SV_CHECKED")]
     public static void EnabledTail(ulong word, int validBits)
     {
         if (validBits < 64 && (word & ~((1ul << validBits) - 1)) != 0)

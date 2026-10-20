@@ -130,6 +130,7 @@ public static unsafe class ChunkSeam
             throw new ArgumentException("sv.frent: enabled window must start 64-aligned inside the chunk");
         }
 
+        Guard.EnabledTail(enabled, start + count - offsetSlot);
         fixed (TColumn* rowPin = rows)
         {
             var value = (int*)rowPin - start;
