@@ -61,6 +61,11 @@ public static unsafe class ChunkSeam
             throw new ArgumentException("sv.frent: chunk is not slot-contiguous; use Pull/Push");
         }
 
+        if (!applied.IsEmpty && applied.Length < count)
+        {
+            throw new ArgumentException($"sv.frent: applied span of {applied.Length} rows does not cover the chunk's {count}");
+        }
+
         fixed (TColumn* rowPin = rows)
         {
             var value = (int*)rowPin - start;
@@ -88,6 +93,16 @@ public static unsafe class ChunkSeam
         if (!TrySlotRange(slots, out var start, out var count))
         {
             throw new ArgumentException("sv.frent: chunk is not slot-contiguous; use Pull/Push");
+        }
+
+        if (deltas.Length < count)
+        {
+            throw new ArgumentException($"sv.frent: deltas span of {deltas.Length} rows does not cover the chunk's {count}");
+        }
+
+        if (!applied.IsEmpty && applied.Length < count)
+        {
+            throw new ArgumentException($"sv.frent: applied span of {applied.Length} rows does not cover the chunk's {count}");
         }
 
         fixed (TColumn* rowPin = rows)
@@ -130,6 +145,11 @@ public static unsafe class ChunkSeam
             throw new ArgumentException("sv.frent: enabled window must start 64-aligned inside the chunk");
         }
 
+        if (!applied.IsEmpty && applied.Length < offsetSlot - start + 64)
+        {
+            throw new ArgumentException($"sv.frent: applied span of {applied.Length} rows does not cover the window's {offsetSlot - start + 64}");
+        }
+
         Guard.EnabledTail(enabled, start + count - offsetSlot);
         fixed (TColumn* rowPin = rows)
         {
@@ -166,6 +186,17 @@ public static unsafe class ChunkSeam
         if ((offsetSlot & 63) != 0 || offsetSlot < start || offsetSlot >= start + count)
         {
             throw new ArgumentException("sv.frent: enabled window must start 64-aligned inside the chunk");
+        }
+
+        var exactWords = (start + count - offsetSlot + 63) >> 6;
+        if (wordCount != exactWords)
+        {
+            throw new ArgumentException($"sv.frent: enabled window of {wordCount} words must span exactly the chunk's remaining {start + count - offsetSlot} rows ({exactWords} words)");
+        }
+
+        if (!applied.IsEmpty && applied.Length < (long)offsetSlot - start + wordCount * 64)
+        {
+            throw new ArgumentException($"sv.frent: applied span of {applied.Length} rows does not cover the window's {offsetSlot - start + wordCount * 64}");
         }
 
         Guard.EnabledTail(words[wordCount - 1], start + count - offsetSlot - (wordCount - 1) * 64);

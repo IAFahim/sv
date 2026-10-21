@@ -182,6 +182,11 @@ public readonly unsafe ref struct ChunkWindow<TColumn> where TColumn : unmanaged
     public void Apply(Board board, int delta, in Clamp clamp, Span<int> applied)
     {
         GuardShape();
+        if (!applied.IsEmpty && applied.Length < slots.Length)
+        {
+            throw new ArgumentException($"sv.frent: applied span of {applied.Length} rows does not cover the chunk's {slots.Length}");
+        }
+
         fixed (TColumn* rowPin = rows)
         {
             if (ChunkSeam.TrySlotRange(slots, out var start, out var count))
@@ -229,6 +234,22 @@ public readonly unsafe ref struct ChunkWindow<TColumn> where TColumn : unmanaged
             if (ChunkSeam.TrySlotRange(slots, out var start, out var count))
             {
                 population.FastPathChunks++;
+                if ((offset & 63) != 0 || offset < start || offset >= start + count)
+                {
+                    throw new ArgumentException("sv.frent: enabled window must start 64-aligned inside the chunk");
+                }
+
+                var exactWords = (start + count - offset + 63) >> 6;
+                if (wordCount != exactWords)
+                {
+                    throw new ArgumentException($"sv.frent: enabled window of {wordCount} words must span exactly the chunk's remaining {start + count - offset} rows ({exactWords} words)");
+                }
+
+                if (!applied.IsEmpty && applied.Length < (long)offset - start + wordCount * 64)
+                {
+                    throw new ArgumentException($"sv.frent: applied span of {applied.Length} rows does not cover the window's {offset - start + wordCount * 64}");
+                }
+
                 Guard.EnabledTail(words[wordCount - 1], start + count - offset - (wordCount - 1) * 64);
                 var value = (int*)rowPin - start;
                 fixed (int* appliedPin = applied)

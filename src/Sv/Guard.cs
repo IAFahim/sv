@@ -39,9 +39,9 @@ internal static unsafe class Guard
 
     public static void ChunkRange(int start, int count, int capacity)
     {
-        if (start < 0 || count < 0 || start + count > capacity)
+        if (start < 0 || count < 0 || (long)start + count > capacity)
         {
-            throw new ArgumentOutOfRangeException($"sv: chunk [{start}, {start + count}) exceeds capacity {capacity}");
+            throw new ArgumentOutOfRangeException($"sv: chunk [{start}, {(long)start + count}) exceeds capacity {capacity}");
         }
     }
 
@@ -53,7 +53,7 @@ internal static unsafe class Guard
         }
     }
 
-    public static void SpanWindow(int length, int window, string name)
+    public static void SpanWindow(int length, long window, string name)
     {
         if (length != 0 && length < window)
         {
@@ -63,22 +63,27 @@ internal static unsafe class Guard
 
     public static void EnabledRange(int offset, int capacity)
     {
-        if (offset < 0 || offset + 64 > capacity)
+        if (offset < 0 || (long)offset + 64 > capacity)
         {
-            throw new ArgumentOutOfRangeException($"sv: enabled window [{offset}, {offset + 64}) exceeds capacity {capacity}");
+            throw new ArgumentOutOfRangeException($"sv: enabled window [{offset}, {(long)offset + 64}) exceeds capacity {capacity}");
         }
     }
 
     public static void EnabledRange(int offset, int wordCount, int capacity)
     {
-        if (offset < 0 || wordCount < 1 || offset + wordCount * 64 > capacity)
+        if (offset < 0 || wordCount < 1 || (long)offset + (long)wordCount * 64 > capacity)
         {
-            throw new ArgumentOutOfRangeException($"sv: enabled window [{offset}, {offset + wordCount * 64}) exceeds capacity {capacity}");
+            throw new ArgumentOutOfRangeException($"sv: enabled window [{offset}, {(long)offset + (long)wordCount * 64}) exceeds capacity {capacity}");
         }
     }
 
     public static void EnabledTail(ulong word, int validBits)
     {
+        if (validBits < 1 || validBits > 64)
+        {
+            throw new ArgumentOutOfRangeException($"sv: enabled tail spans {validBits} valid rows (1..64)");
+        }
+
         if (validBits < 64 && (word & ~((1ul << validBits) - 1)) != 0)
         {
             throw new ArgumentOutOfRangeException($"sv: enabled word carries bits past its {validBits} valid rows");

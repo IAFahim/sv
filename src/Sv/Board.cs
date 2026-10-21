@@ -325,7 +325,7 @@ public sealed unsafe partial class Board : IDisposable
         Guard.EnabledRange(offset, wordCount, Capacity);
         var reach = Reach(words, wordCount, offset);
         Guard.SpanReach(value.Length, reach, nameof(value));
-        Guard.SpanWindow(applied.Length, offset + wordCount * 64, nameof(applied));
+        Guard.SpanWindow(applied.Length, (long)offset + wordCount * 64, nameof(applied));
         fixed (int* v = value)
         fixed (int* a = applied)
         {
@@ -354,7 +354,7 @@ public sealed unsafe partial class Board : IDisposable
         var reach = Reach(words, wordCount, offset);
         Guard.SpanReach(value.Length, reach, nameof(value));
         Guard.SpanReach(delta.Length, reach, nameof(delta));
-        Guard.SpanWindow(applied.Length, offset + wordCount * 64, nameof(applied));
+        Guard.SpanWindow(applied.Length, (long)offset + wordCount * 64, nameof(applied));
         fixed (int* v = value)
         fixed (int* d = delta)
         fixed (int* a = applied)

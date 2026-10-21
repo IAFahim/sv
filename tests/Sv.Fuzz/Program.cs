@@ -9,8 +9,9 @@ using Frent;
 // PROT_NONE page, so any read or write past the offered memory kills this process —
 // the parent test reads the exit status. `--list` prints `id|expected-today` for the
 // parent; `--case <id>` runs one case and prints `ok` or `threw:<Type>` on success.
-// Expected-today encodes the KNOWN defects (F1/F2/F3/F23); atom 1.1 flips every
-// expectation to ok/threw and the same table proves the fixes.
+// After atom 1.1 (issue 0062) every window defect case expects a throw; the three
+// rawapi-* cases pin that the RAW int* Board API is length-blind by design (clause 5:
+// host storage is capacity-sized) — those crash forever as caller-misuse documentation.
 
 internal static unsafe class Program
 {
@@ -142,25 +143,25 @@ internal static unsafe class Program
                 ("board-uniform-ok", "ok"),
                 ("board-uniform-past-capacity", "threw"),
                 ("board-uniform-count-negative", "threw"),
-                ("board-uniform-short-applied", "crash"),
-                ("board-varying-short-delta", "crash"),
-                ("board-enabled-words-overrun", "crash"),
+                ("rawapi-uniform-short-applied", "crash"),
+                ("rawapi-varying-short-delta", "crash"),
+                ("rawapi-enabled-words-overrun", "crash"),
                 ("board-enabled-words-past-capacity", "threw"),
                 ("board-enabled-wordcount-zero", "threw"),
                 ("board-span-twin-short-applied", "threw"),
-                ("board-f23-chunk-overflow", "crash"),
-                ("board-f23-enabled-overflow", "crash"),
+                ("board-f23-chunk-overflow", "threw"),
+                ("board-f23-enabled-overflow", "threw"),
                 ("seam-runchunk-ok", "ok"),
-                ("seam-runchunk-short-applied", "crash"),
-                ("seam-runchunk-short-deltas", "crash"),
+                ("seam-runchunk-short-applied", "threw"),
+                ("seam-runchunk-short-deltas", "threw"),
                 ("seam-enabled-ok-multiword", "ok"),
                 ("seam-enabled-tail-policed", "threw"),
-                ("seam-enabled-interior-past-chunk", "crash"),
-                ("seam-enabled-applied-window-overrun", "crash"),
+                ("seam-enabled-interior-past-chunk", "threw"),
+                ("seam-enabled-applied-window-overrun", "threw"),
                 ("seam-enabled-offset-outside", "threw"),
                 ("population-enabled-ok", "ok"),
-                ("population-enabled-wordcount-zero", "crash"),
-                ("population-enabled-wordcount-negative", "crash"),
+                ("population-enabled-wordcount-zero", "threw"),
+                ("population-enabled-wordcount-negative", "threw"),
             };
         }
 
@@ -198,7 +199,7 @@ internal static unsafe class Program
                     return "ok";
                 }
 
-                case "board-uniform-short-applied":
+                case "rawapi-uniform-short-applied":
                 {
                     var value = IntsEndFlush(64);
                     var applied = IntsEndFlush(32);
@@ -206,7 +207,7 @@ internal static unsafe class Program
                     return "ok";
                 }
 
-                case "board-varying-short-delta":
+                case "rawapi-varying-short-delta":
                 {
                     var value = IntsEndFlush(64);
                     var delta = IntsEndFlush(32);
@@ -214,7 +215,7 @@ internal static unsafe class Program
                     return "ok";
                 }
 
-                case "board-enabled-words-overrun":
+                case "rawapi-enabled-words-overrun":
                 {
                     var value = IntsEndFlush(64);
                     var words = UlongsStartFlush(3);
@@ -356,13 +357,13 @@ internal static unsafe class Program
                         population.Bind(world.Create(new Mana { Value = 40 }));
                     }
 
-                    var words = UlongsStartFlush(2);
+                    var words = UlongsStartFlush(8);
                     words[0] = 1;
-                    words[1] = 0;
                     foreach (var window in population.Chunks<Mana>())
                     {
-                        var applied = IntsEndFlush(64);
-                        window.ApplyEnabled(population.Board, words, 1, 0, 7, clamp, SpanOf(applied, 64));
+                        var exact = (window.RowCount + 63) >> 6;
+                        var applied = IntsEndFlush(exact * 64);
+                        window.ApplyEnabled(population.Board, words, exact, 0, 7, clamp, SpanOf(applied, exact * 64));
                         break;
                     }
 
