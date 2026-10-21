@@ -237,24 +237,24 @@ the `determinism` CI matrix runs it on x64, arm64, macOS and Windows.
 
 <!-- bench:begin (auto-generated — CI refreshes this on every push to main; do not edit by hand) -->
 
-Last refreshed 2026-10-21 23:00 UTC · `main@566099d` · AMD EPYC 7763 64-Core Processor (2 cores) · sv-bench rows=100000 vector256=True vector128=True
+Last refreshed 2026-10-21 23:10 UTC · `main@f569969` · AMD EPYC 7763 64-Core Processor (2 cores) · sv-bench rows=100000 vector256=True vector128=True
 
 | Scenario | µs/frame | rate | Managed alloc |
 |---|---:|---:|---|
-| intrinsics-uniform | 58.468 | 1710.3 M rows/s | 0 B |
-| intrinsics-varying | 44.996 | 2222.4 M rows/s | 0 B |
-| intrinsics-statclamp | 104.368 | 958.2 M rows/s | 0 B |
-| intrinsics-statmirror | 33.304 | 3002.6 M rows/s | 0 B |
-| enabled-runwalk | 141.008 | 709.2 M rows/s | 0 B |
-| stat-recalc | 0.141 | 141 ns/op | 0 B |
-| stat-churn | 0.086 | 86 ns/op | 0 B |
-| events-emit | 655.969 | 152.4 M rows/s | 0 B |
-| events-emit-struct | 153.665 | 650.8 M rows/s | 0 B |
-| input-capture | 0.013 | 13 ns/op | 0 B |
-| fused-tick | 1354.580 | 73.8 M rows/s | 0 B |
-| frame-run | 1394.959 | 71.7 M rows/s | 0 B |
-| tape-digest | 1516.042 | 66.0 M rows/s | 0 B |
-| ff1m | 3581.8 | p99 6595.4 µs · 1048576 rows · Δ=128 | 0 B |
+| intrinsics-uniform | 133.861 | 747.0 M rows/s | 0 B |
+| intrinsics-varying | 59.825 | 1671.5 M rows/s | 0 B |
+| intrinsics-statclamp | 104.462 | 957.3 M rows/s | 0 B |
+| intrinsics-statmirror | 51.557 | 1939.6 M rows/s | 0 B |
+| enabled-runwalk | 139.267 | 718.0 M rows/s | 0 B |
+| stat-recalc | 0.075 | 75 ns/op | 0 B |
+| stat-churn | 0.063 | 63 ns/op | 0 B |
+| events-emit | 649.584 | 153.9 M rows/s | 0 B |
+| events-emit-struct | 154.055 | 649.1 M rows/s | 0 B |
+| input-capture | 0.014 | 14 ns/op | 0 B |
+| fused-tick | 1348.446 | 74.2 M rows/s | 0 B |
+| frame-run | 1396.228 | 71.6 M rows/s | 0 B |
+| tape-digest | 1497.259 | 66.8 M rows/s | 0 B |
+| ff1m | 4026.6 | p99 7184.8 µs · 1048576 rows · Δ=128 | 0 B |
 
 <!-- bench:end -->
 
