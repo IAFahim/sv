@@ -78,6 +78,12 @@ public sealed unsafe partial class Board
 
     private int changedTouchedCount;
 
+    private ulong* acquired;
+
+    private int* acquiredTouched;
+
+    private int acquiredTouchedCount;
+
     private int* boundLength;
 
     private int bindingGeneration;
@@ -134,6 +140,8 @@ public sealed unsafe partial class Board
         var changedWords = (nuint)statCount * (nuint)((capacity + 63) >> 6);
         changed = (ulong*)NativeMemory.AllocZeroed(changedWords * sizeof(ulong));
         changedTouched = (int*)NativeMemory.Alloc(changedWords * sizeof(int));
+        acquired = (ulong*)NativeMemory.AllocZeroed(changedWords * sizeof(ulong));
+        acquiredTouched = (int*)NativeMemory.Alloc(changedWords * sizeof(int));
         boundLength = Alloc<int>(statCount);
         for (var i = 0; i < statCount; i++)
         {
@@ -241,6 +249,8 @@ public sealed unsafe partial class Board
         NativeMemory.Free(dependentStat);
         NativeMemory.Free(changed);
         NativeMemory.Free(changedTouched);
+        NativeMemory.Free(acquired);
+        NativeMemory.Free(acquiredTouched);
         NativeMemory.Free(pairQueue);
         NativeMemory.Free(scratch);
         NativeMemory.Free(scratchIds);
@@ -762,12 +772,12 @@ public sealed unsafe partial class Board
         for (var stat = 0; stat < statCount; stat++)
         {
             var index = stat * LiveWordCount + (slot >> 6);
-            if (changed[index] == 0)
+            if (acquired[index] == 0)
             {
-                changedTouched[changedTouchedCount++] = index;
+                acquiredTouched[acquiredTouchedCount++] = index;
             }
 
-            changed[index] |= 1ul << (slot & 63);
+            acquired[index] |= 1ul << (slot & 63);
         }
     }
 
@@ -779,6 +789,12 @@ public sealed unsafe partial class Board
         }
 
         changedTouchedCount = 0;
+        for (var i = 0; i < acquiredTouchedCount; i++)
+        {
+            acquired[acquiredTouched[i]] = 0;
+        }
+
+        acquiredTouchedCount = 0;
     }
 
     internal void ClearSlotStats(int slot)
@@ -1025,6 +1041,17 @@ public sealed unsafe partial class Board
         return changed + (nint)StatIndex(stat) * LiveWordCount;
     }
 
+    /// <summary>
+    /// Acquired mask of the slots acquired since the last <see cref="Recalculate"/>: bit i of word w
+    /// marks row w*64+i. Set by <see cref="Acquire"/>, cleared when the next Recalculate begins —
+    /// read it in the spawn-to-recalc window (clause-7 step 2 to step 3). Changed words carry value
+    /// changes only, so a stat whose base is 0 spawns visibly here and never there.
+    /// </summary>
+    public ulong* AcquiredWords(StatId stat)
+    {
+        return acquired + (nint)StatIndex(stat) * LiveWordCount;
+    }
+
     static void Canonicalize(StatEntry* entries, int* ids, int count)
     {
         for (var i = 1; i < count; i++)
@@ -1191,6 +1218,9 @@ public sealed unsafe partial class Board
         state.Write(changedTouchedCount);
         state.Write(changedTouched, (long)changedTouchedCount * sizeof(int));
         state.Write(changed, (long)statCount * words * sizeof(ulong));
+        state.Write(acquiredTouchedCount);
+        state.Write(acquiredTouched, (long)acquiredTouchedCount * sizeof(int));
+        state.Write(acquired, (long)statCount * words * sizeof(ulong));
         state.Write(svColumns, (long)statCount * Capacity * sizeof(float));
         for (var stat = 0; stat < statCount; stat++)
         {
@@ -1256,6 +1286,9 @@ public sealed unsafe partial class Board
         changedTouchedCount = state.Read<int>();
         state.Read(changedTouched, (long)changedTouchedCount * sizeof(int));
         state.Read(changed, (long)statCount * words * sizeof(ulong));
+        acquiredTouchedCount = state.Read<int>();
+        state.Read(acquiredTouched, (long)acquiredTouchedCount * sizeof(int));
+        state.Read(acquired, (long)statCount * words * sizeof(ulong));
         state.Read(svColumns, (long)statCount * Capacity * sizeof(float));
         for (var stat = 0; stat < statCount; stat++)
         {
