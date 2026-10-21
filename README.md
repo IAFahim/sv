@@ -237,24 +237,24 @@ the `determinism` CI matrix runs it on x64, arm64, macOS and Windows.
 
 <!-- bench:begin (auto-generated — CI refreshes this on every push to main; do not edit by hand) -->
 
-Last refreshed 2026-10-21 23:10 UTC · `main@f569969` · AMD EPYC 7763 64-Core Processor (2 cores) · sv-bench rows=100000 vector256=True vector128=True
+Last refreshed 2026-10-21 23:17 UTC · `main@bbd3cfd` · AMD EPYC 7763 64-Core Processor (2 cores) · sv-bench rows=100000 vector256=True vector128=True
 
 | Scenario | µs/frame | rate | Managed alloc |
 |---|---:|---:|---|
-| intrinsics-uniform | 133.861 | 747.0 M rows/s | 0 B |
-| intrinsics-varying | 59.825 | 1671.5 M rows/s | 0 B |
-| intrinsics-statclamp | 104.462 | 957.3 M rows/s | 0 B |
-| intrinsics-statmirror | 51.557 | 1939.6 M rows/s | 0 B |
-| enabled-runwalk | 139.267 | 718.0 M rows/s | 0 B |
-| stat-recalc | 0.075 | 75 ns/op | 0 B |
-| stat-churn | 0.063 | 63 ns/op | 0 B |
-| events-emit | 649.584 | 153.9 M rows/s | 0 B |
-| events-emit-struct | 154.055 | 649.1 M rows/s | 0 B |
-| input-capture | 0.014 | 14 ns/op | 0 B |
-| fused-tick | 1348.446 | 74.2 M rows/s | 0 B |
-| frame-run | 1396.228 | 71.6 M rows/s | 0 B |
-| tape-digest | 1497.259 | 66.8 M rows/s | 0 B |
-| ff1m | 4026.6 | p99 7184.8 µs · 1048576 rows · Δ=128 | 0 B |
+| intrinsics-uniform | 35.171 | 2843.2 M rows/s | 0 B |
+| intrinsics-varying | 57.016 | 1753.9 M rows/s | 0 B |
+| intrinsics-statclamp | 63.117 | 1584.4 M rows/s | 0 B |
+| intrinsics-statmirror | 39.006 | 2563.7 M rows/s | 0 B |
+| enabled-runwalk | 140.474 | 711.9 M rows/s | 0 B |
+| stat-recalc | 0.089 | 89 ns/op | 0 B |
+| stat-churn | 0.066 | 66 ns/op | 0 B |
+| events-emit | 647.627 | 154.4 M rows/s | 0 B |
+| events-emit-struct | 222.342 | 449.8 M rows/s | 0 B |
+| input-capture | 0.021 | 21 ns/op | 0 B |
+| fused-tick | 1339.696 | 74.6 M rows/s | 0 B |
+| frame-run | 1403.637 | 71.2 M rows/s | 0 B |
+| tape-digest | 1505.493 | 66.4 M rows/s | 0 B |
+| ff1m | 3818.1 | p99 7168.6 µs · 1048576 rows · Δ=128 | 0 B |
 
 <!-- bench:end -->
 
