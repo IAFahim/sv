@@ -89,4 +89,90 @@ public unsafe class ReconcileAtomicityTests
 
         Assert.Equal(0b1111, seen);
     }
+
+    [Fact]
+    public void Reconcile_DuplicateAndMissing_Counterbalanced_ThrowsBeforeRewrite()
+    {
+        using var world = new World();
+        using var population = new Population(world, TestSchema(), 256);
+        var entities = new Entity[64];
+        for (var i = 0; i < 64; i++)
+        {
+            entities[i] = world.Create(new Health { Value = i });
+            population.Bind(entities[i]);
+        }
+
+        var clone = world.Create(new Health { Value = 0 }, entities[0].Get<SvSlot>());
+        entities[7].Delete();
+
+        var before = new int[64];
+        for (var i = 0; i < 64; i++)
+        {
+            before[i] = entities[i].IsAlive ? entities[i].Get<SvSlot>().Slot : -1;
+        }
+
+        Assert.Throws<InvalidOperationException>(() => population.Reconcile());
+
+        for (var i = 0; i < 64; i++)
+        {
+            if (i != 7)
+            {
+                Assert.Equal(before[i], entities[i].Get<SvSlot>().Slot);
+            }
+        }
+
+        Assert.Equal(before[0], clone.Get<SvSlot>().Slot);
+        Assert.Equal(64, population.Board.LiveCount);
+    }
+
+    [Fact]
+    public void Bind_IsIdempotent_ForBoundLiveEntity()
+    {
+        using var world = new World();
+        using var population = new Population(world, TestSchema(), 64);
+        var entity = world.Create(new Health { Value = 1 });
+        var first = population.Bind(entity);
+        var second = population.Bind(entity);
+        Assert.Equal(first, second);
+        Assert.Equal(1, population.Board.LiveCount);
+    }
+
+    [Fact]
+    public void Bind_FailedAdd_LeavesNoLiveSlot()
+    {
+        using var world = new World();
+        using var population = new Population(world, TestSchema(), 64);
+        var entity = world.Create(new Health { Value = 1 });
+        entity.Delete();
+        try
+        {
+            population.Bind(entity);
+            Assert.Equal(1, population.Board.LiveCount);
+        }
+        catch
+        {
+            Assert.Equal(0, population.Board.LiveCount);
+        }
+    }
+
+    [Fact]
+    public void Unbind_StaleSlot_KeepsTheComponent()
+    {
+        using var world = new World();
+        using var population = new Population(world, TestSchema(), 64);
+        var entity = world.Create(new Health { Value = 1 });
+        var slot = population.Bind(entity);
+        population.Board.Release(slot);
+        Assert.ThrowsAny<Exception>(() => population.Unbind(entity));
+        Assert.True(entity.Has<SvSlot>());
+    }
+
+    [Fact]
+    public void Dispose_Twice_FreesOnce()
+    {
+        using var world = new World();
+        var population = new Population(world, TestSchema(), 64);
+        population.Dispose();
+        population.Dispose();
+    }
 }

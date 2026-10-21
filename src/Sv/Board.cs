@@ -179,6 +179,11 @@ public sealed unsafe partial class Board : IDisposable
         return slot;
     }
 
+    internal bool IsLive(int slot)
+    {
+        return slot >= 0 && slot < Capacity && (live[slot >> 6] & (1ul << (slot & 63))) != 0;
+    }
+
     public void Release(int slot)
     {
         if (slot < 0 || slot >= Capacity || (live[slot >> 6] & (1ul << (slot & 63))) == 0)

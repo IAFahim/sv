@@ -24,16 +24,36 @@ public sealed class FrentBoard : IDisposable
 
     public int Bind(Entity entity)
     {
+        if (entity.Has<SvSlot>())
+        {
+            var existing = entity.Get<SvSlot>().Slot;
+            if (!Board.IsLive(existing))
+            {
+                throw new InvalidOperationException($"sv.frent: entity carries stale SvSlot {existing} — reconcile or rebuild the binding before binding again");
+            }
+
+            return existing;
+        }
+
         var slot = Board.Acquire();
-        entity.Add(new SvSlot(slot));
+        try
+        {
+            entity.Add(new SvSlot(slot));
+        }
+        catch
+        {
+            Board.Release(slot);
+            throw;
+        }
+
         return slot;
     }
 
     public void Unbind(Entity entity)
     {
         var slot = entity.Get<SvSlot>().Slot;
-        entity.Remove<SvSlot>();
         Board.Release(slot);
+        entity.Remove<SvSlot>();
     }
 
     public bool TrySlot(Entity entity, out int slot)

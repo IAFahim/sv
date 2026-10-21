@@ -65,6 +65,11 @@ public sealed unsafe class Population : IDisposable
         var capacity = Board.Capacity;
         var mapped = 0;
         var next = 0;
+        for (var i = 0; i < capacity; i++)
+        {
+            permutation[i] = -1;
+        }
+
         foreach (var chunk in World.Query<SvSlot>().EnumerateChunks<SvSlot>())
         {
             chunk.Deconstruct(out var slots);
@@ -75,17 +80,22 @@ public sealed unsafe class Population : IDisposable
             }
 
             next += slots.Length;
-            mapped += slots.Length;
+            for (var i = 0; i < slots.Length; i++)
+            {
+                var slot = slots[i].Slot;
+                if (slot < 0 || slot >= capacity || !Board.IsLive(slot) || permutation[slot] == 0)
+                {
+                    throw new InvalidOperationException($"sv.frent: SvSlot {slot} is out of range, not live, or bound twice — reconcile rewrites nothing until every live slot is bound exactly once");
+                }
+
+                permutation[slot] = 0;
+                mapped++;
+            }
         }
 
         if (mapped != Board.LiveCount)
         {
             throw new InvalidOperationException($"sv.frent: reconcile found {mapped} bound slots for {Board.LiveCount} live board slots — every live slot must be bound before reconcile");
-        }
-
-        for (var i = 0; i < capacity; i++)
-        {
-            permutation[i] = -1;
         }
 
         next = 0;
@@ -108,10 +118,18 @@ public sealed unsafe class Population : IDisposable
 
     public void Dispose()
     {
+        if (disposed)
+        {
+            return;
+        }
+
+        disposed = true;
         FrentBoard.Dispose();
         NativeMemory.Free(scratch);
         NativeMemory.Free(permutation);
     }
+
+    bool disposed;
 }
 
 public struct ChunkSource<TColumn> where TColumn : unmanaged
