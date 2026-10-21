@@ -77,6 +77,7 @@ internal static class Program
         failures += Run("frame-run", scenario, ms, () => FrameRunBench.New(false, ""));
         var sink = OperatingSystem.IsLinux() ? "/dev/null" : System.IO.Path.GetTempFileName();
         failures += Run("tape-digest", scenario, ms, () => FrameRunBench.New(true, sink));
+        failures += Ff1m.Run(scenario, ms);
         if (!Markdown)
         {
             Console.WriteLine(failures == 0 ? "all scenarios ok" : $"{failures} scenario(s) failed");
