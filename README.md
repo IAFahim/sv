@@ -309,6 +309,7 @@ Last refreshed 2026-10-21 23:10 UTC · `main@f569969` · AMD EPYC 7763 64-Core P
 | 49 | `Game.Renumber(perm)` — timeline ids, clocks, applied and effect columns permuted with the board at reconcile; `Columns.Permute` count contract documented — [issues/0056](issues/0056-atom-49-game-renumber.md) | done |
 | 51 | FF-1M benchmark (roadmap [issues/0058](issues/0058-roadmap-1m-entities-5us.md) §2.2): 1M entities × 16 stats × 4 intrinsics × 2 timed modifiers, 1 timeline, 4 channels, Δ=128 busy frame — **measured p50 3,134 µs/frame, board 887 MiB, snapshot 558 MiB** (the gap the O(Δ) design closes) — [issues/0059](issues/0059-atom-51-ff1m-bench.md) | done |
 | 52 | Guard-page fuzz harness (`tests/Sv.Fuzz` child + pinned-outcome fact): every public window API against `PROT_NONE`-flanked columns — **F1/F2/F3/F23 reproduce as 11 pinned crashes today; atom 1.1 flips them to throws** — [issues/0060](issues/0060-atom-52-guard-page-fuzz.md) | done |
+| 53 | The eager oracle, frozen: independent managed model of the canonical fold (synthetic entries, set-change propagation) and the saturating intrinsics step; random programs (600 ops × 5 seeds) and 240 frame rounds pin production bit-for-bit — the reference for laws L1/L7 — [issues/0061](issues/0061-atom-53-frozen-eager-oracle.md) | done |
 
 Atom 1 scope note: `Clamp.Stat` and the StrictFloat oracle land with atom 2 (the first
 float math); the walkers land with atom 3. Nothing ships half-wired.
