@@ -237,24 +237,24 @@ the `determinism` CI matrix runs it on x64, arm64, macOS and Windows.
 
 <!-- bench:begin (auto-generated — CI refreshes this on every push to main; do not edit by hand) -->
 
-Last refreshed 2026-10-21 23:24 UTC · `main@788969a` · AMD EPYC 9V74 80-Core Processor (2 cores) · sv-bench rows=100000 vector256=True vector128=True
+Last refreshed 2026-10-21 23:27 UTC · `main@f427613` · Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz (2 cores) · sv-bench rows=100000 vector256=True vector128=True
 
 | Scenario | µs/frame | rate | Managed alloc |
 |---|---:|---:|---|
-| intrinsics-uniform | 47.069 | 2124.5 M rows/s | 0 B |
-| intrinsics-varying | 43.462 | 2300.9 M rows/s | 0 B |
-| intrinsics-statclamp | 84.043 | 1189.9 M rows/s | 0 B |
-| intrinsics-statmirror | 30.063 | 3326.4 M rows/s | 0 B |
-| enabled-runwalk | 112.234 | 891.0 M rows/s | 0 B |
-| stat-recalc | 0.057 | 57 ns/op | 0 B |
-| stat-churn | 0.046 | 46 ns/op | 0 B |
-| events-emit | 346.553 | 288.6 M rows/s | 0 B |
-| events-emit-struct | 105.670 | 946.3 M rows/s | 0 B |
-| input-capture | 0.011 | 11 ns/op | 0 B |
-| fused-tick | 1076.335 | 92.9 M rows/s | 0 B |
-| frame-run | 1066.896 | 93.7 M rows/s | 0 B |
-| tape-digest | 1142.576 | 87.5 M rows/s | 0 B |
-| ff1m | 3314.7 | p99 5175.0 µs · 1048576 rows · Δ=128 | 0 B |
+| intrinsics-uniform | 102.615 | 974.5 M rows/s | 0 B |
+| intrinsics-varying | 102.877 | 972.0 M rows/s | 0 B |
+| intrinsics-statclamp | 173.257 | 577.2 M rows/s | 0 B |
+| intrinsics-statmirror | 82.123 | 1217.7 M rows/s | 0 B |
+| enabled-runwalk | 91.451 | 1093.5 M rows/s | 0 B |
+| stat-recalc | 0.122 | 122 ns/op | 0 B |
+| stat-churn | 0.058 | 58 ns/op | 0 B |
+| events-emit | 681.246 | 146.8 M rows/s | 0 B |
+| events-emit-struct | 171.068 | 584.6 M rows/s | 0 B |
+| input-capture | 0.012 | 12 ns/op | 0 B |
+| fused-tick | 1679.644 | 59.5 M rows/s | 0 B |
+| frame-run | 1296.375 | 77.1 M rows/s | 0 B |
+| tape-digest | 1422.732 | 70.3 M rows/s | 0 B |
+| ff1m | 6121.4 | p99 9088.0 µs · 1048576 rows · Δ=128 | 0 B |
 
 <!-- bench:end -->
 
