@@ -237,24 +237,24 @@ the `determinism` CI matrix runs it on x64, arm64, macOS and Windows.
 
 <!-- bench:begin (auto-generated — CI refreshes this on every push to main; do not edit by hand) -->
 
-Last refreshed 2026-10-22 04:12 UTC · `main@8dcfcbf` · INTEL(R) XEON(R) PLATINUM 8573C (2 cores) · sv-bench rows=100000 vector256=True vector128=True
+Last refreshed 2026-10-22 04:36 UTC · `main@847e3c8` · INTEL(R) XEON(R) PLATINUM 8573C (2 cores) · sv-bench rows=100000 vector256=True vector128=True
 
 | Scenario | µs/frame | rate | Managed alloc |
 |---|---:|---:|---|
-| intrinsics-uniform | 63.355 | 1578.4 M rows/s | 0 B |
-| intrinsics-varying | 52.486 | 1905.3 M rows/s | 0 B |
-| intrinsics-statclamp | 107.296 | 932.0 M rows/s | 0 B |
-| intrinsics-statmirror | 55.094 | 1815.1 M rows/s | 0 B |
-| enabled-runwalk | 76.198 | 1312.4 M rows/s | 0 B |
-| stat-recalc | 0.062 | 62 ns/op | 0 B |
-| stat-churn | 0.051 | 51 ns/op | 0 B |
-| events-emit | 1120.950 | 89.2 M rows/s | 0 B |
-| events-emit-struct | 169.895 | 588.6 M rows/s | 0 B |
-| input-capture | 0.011 | 11 ns/op | 0 B |
-| fused-tick | 1317.025 | 75.9 M rows/s | 0 B |
-| frame-run | 1331.254 | 75.1 M rows/s | 0 B |
-| tape-digest | 1461.004 | 68.4 M rows/s | 0 B |
-| ff1m | 5142.7 | p99 7193.9 µs · 1048576 rows · Δ=128 | 0 B |
+| intrinsics-uniform | 55.779 | 1792.8 M rows/s | 0 B |
+| intrinsics-varying | 53.804 | 1858.6 M rows/s | 0 B |
+| intrinsics-statclamp | 73.939 | 1352.5 M rows/s | 0 B |
+| intrinsics-statmirror | 52.112 | 1919.0 M rows/s | 0 B |
+| enabled-runwalk | 65.815 | 1519.4 M rows/s | 0 B |
+| stat-recalc | 0.052 | 52 ns/op | 0 B |
+| stat-churn | 0.044 | 44 ns/op | 0 B |
+| events-emit | 714.526 | 140.0 M rows/s | 0 B |
+| events-emit-struct | 143.250 | 698.1 M rows/s | 0 B |
+| input-capture | 0.009 | 9 ns/op | 0 B |
+| fused-tick | 1152.545 | 86.8 M rows/s | 0 B |
+| frame-run | 1156.355 | 86.5 M rows/s | 0 B |
+| tape-digest | 1281.312 | 78.0 M rows/s | 0 B |
+| ff1m | 4214.2 | p99 6125.0 µs · 1048576 rows · Δ=128 | 0 B |
 
 <!-- bench:end -->
 
