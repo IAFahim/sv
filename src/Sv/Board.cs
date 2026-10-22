@@ -76,7 +76,7 @@ public sealed unsafe partial class Board : IDisposable
     /// <summary>
     /// Native bytes currently owned by this board: slot bookkeeping, the stats pair pages (metadata
     /// pages exist once a slot in the 4096-slot page was acquired; modifier pages once a slot in it
-    /// took a modifier), the set table, dirty queue, scratch, sv-owned output columns, and live
+    /// took a modifier), the set table, dirty masks, scratch, sv-owned output columns, and live
     /// per-pair modifier storage at current capacities. O(touched pages x stats) walk — a
     /// tooling receipt, not a frame-path call. <see cref="Capacity"/> rounds up to a 64 boundary;
     /// <see cref="RequestedCapacity"/> is the pre-rounding value.
@@ -99,7 +99,9 @@ public sealed unsafe partial class Board : IDisposable
                 + PairBytes
                 + MirrorBytes
                 + 2 * (sizeof(ulong) + sizeof(int)) * (long)statCount * LiveWordCount
-                + sizeof(int) * (long)pairQueueCap
+                + sizeof(uint) * (long)Capacity * statMaskWords
+                + sizeof(uint) * (long)statCount * statMaskWords
+                + sizeof(int) * (long)dirtyTouchedCap
                 + (sizeof(StatEntry) + sizeof(int)) * (long)scratchCap
                 + (long)expiryCap * sizeof(Expiry);
             return bytes + table!.MemoryBytes;
@@ -108,14 +110,14 @@ public sealed unsafe partial class Board : IDisposable
 
     const uint StateMagic = 0x44425653;
 
-    const long SetTableFormatVersion = 4;
+    const long SetTableFormatVersion = 5;
 
     internal long StateShape { get; }
 
     /// <summary>
     /// Saves the board's complete state into <paramref name="state"/> (overwriting it): slot space,
     /// modifier storage and insertion ids, sources and expiries, set identities and membership,
-    /// sv-owned output columns, mirrors, changed masks and the dirty queue. External bindings are not
+    /// sv-owned output columns, mirrors, changed masks and the dirty stat masks. External bindings are not
     /// state — host-owned columns are the host's to save. Warm saves are managed-allocation-free.
     /// </summary>
     public void SaveState(SvState state)

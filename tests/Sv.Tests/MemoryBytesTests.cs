@@ -37,7 +37,7 @@ public unsafe class MemoryBytesTests
             .Stat("regen", 2f)
             .Build(), 1_000_000);
         var empty = board.MemoryBytes / (1024.0 * 1024.0);
-        Assert.True(empty < 20, $"1M x 3-stat empty board pays only output columns + slot bookkeeping, got {empty:0.0} MiB");
+        Assert.True(empty < 21, $"1M x 3-stat empty board pays output columns + slot bookkeeping + per-slot dirty masks, got {empty:0.0} MiB");
 
         for (var i = 0; i < 10_000; i++)
         {
@@ -55,6 +55,6 @@ public unsafe class MemoryBytesTests
 
         board.Recalculate();
         var full = board.MemoryBytes / (1024.0 * 1024.0);
-        Assert.True(full > 40 && full < 100, $"1M live, modifier-free: metadata pages for every slot, got {full:0.0} MiB");
+        Assert.True(full > 30 && full < 60, $"1M live, modifier-free: 4 B/pair set-id pages for every slot, got {full:0.0} MiB");
     }
 }
