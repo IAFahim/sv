@@ -855,6 +855,7 @@ public sealed unsafe partial class Board
         }
 
         ClearChangedMasks();
+        table!.Tick();
         var dequeueIndex = 0;
         while (dequeueIndex < pairQueueCount)
         {

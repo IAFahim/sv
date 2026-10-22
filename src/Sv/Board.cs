@@ -108,7 +108,7 @@ public sealed unsafe partial class Board : IDisposable
 
     const uint StateMagic = 0x44425653;
 
-    const long SetTableFormatVersion = 2;
+    const long SetTableFormatVersion = 3;
 
     internal long StateShape { get; }
 

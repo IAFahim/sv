@@ -73,11 +73,13 @@ public sealed unsafe class RollbackTests
             using var state = new SvState();
             var axes = stackalloc uint[1];
             var buttons = stackalloc ulong[1];
+            var sawTimed = false;
             ulong Step(int frame)
             {
                 axes[0] = (uint)(frame * 2654435761u);
                 buttons[0] = (ulong)frame;
                 host.Frame.Tick(1f / 60f, axes, buttons);
+                sawTimed |= host.Game.Board.PendingExpiries > 0 || host.Game.Board.SetCount > 1;
                 var digest = Tape.WriteBody(host.Game, 1f / 60f, body);
                 for (var i = 0; i < Rows; i++)
                 {
@@ -100,7 +102,7 @@ public sealed unsafe class RollbackTests
                 expected[i] = Step(12 + i);
             }
 
-            Assert.True(host.Game.Board.PendingExpiries > 0 || host.Game.Board.SetCount > 1, "scenario must exercise timed modifiers");
+            Assert.True(sawTimed, "scenario must exercise timed modifiers");
             for (var attempt = 0; attempt < 2; attempt++)
             {
                 host.Game.LoadState(state);
