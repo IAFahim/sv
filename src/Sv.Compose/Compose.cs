@@ -394,107 +394,77 @@ public sealed class GameHost<TEvents, TTimelines, TKernels, THost> : IDisposable
         var game = Game;
         var axes = new uint[game.Input.Axes];
         var buttons = new ulong[game.Input.ButtonWords];
-        var capacity = Math.Max(64, Tape.BodyLength(game));
-        var body = (byte*)NativeMemory.Alloc((nuint)capacity);
         fixed (uint* axesPtr = axes)
         fixed (ulong* buttonsPtr = buttons)
         {
-            try
+            fixed (byte* file = bytes)
             {
-                fixed (byte* file = bytes)
+                var cursor = file;
+                var end = file + bytes.Length;
+                if (end - cursor < 8 || cursor[0] != (byte)'S' || cursor[1] != (byte)'V' || cursor[2] != (byte)'T' || cursor[3] != (byte)'P')
                 {
-                    var cursor = file;
-                    var end = file + bytes.Length;
-                    if (end - cursor < 8 || cursor[0] != (byte)'S' || cursor[1] != (byte)'V' || cursor[2] != (byte)'T' || cursor[3] != (byte)'P')
-                    {
-                        throw new InvalidDataException("sv.compose: not a tape file");
-                    }
-
-                    cursor += 4;
-                    var version = *(uint*)cursor;
-                    cursor += 4;
-                    if (version != Tape.Version)
-                    {
-                        throw new InvalidDataException($"sv.compose: tape version {version} unsupported (expected {Tape.Version})");
-                    }
-
-                    var frame = 0;
-                    while (cursor < end)
-                    {
-                        if (end - cursor < 16)
-                        {
-                            throw new InvalidDataException($"sv.compose: tape truncated in frame {frame} header");
-                        }
-
-                        var dt = BitConverter.UInt32BitsToSingle(*(uint*)cursor);
-                        cursor += sizeof(uint);
-                        var axesCount = *(int*)cursor;
-                        cursor += sizeof(int);
-                        var wordCount = *(int*)cursor;
-                        cursor += sizeof(int);
-                        if (axesCount < 0 || wordCount < 0 || axesCount != game.Input.Axes || wordCount != game.Input.ButtonWords)
-                        {
-                            throw new InvalidDataException($"sv.compose: tape frame {frame} input shape ({axesCount} axes, {wordCount} words) does not match this host");
-                        }
-
-                        if (end - cursor < (long)axesCount * sizeof(uint) + (long)wordCount * sizeof(ulong))
-                        {
-                            throw new InvalidDataException($"sv.compose: tape truncated in frame {frame} inputs");
-                        }
-
-                        for (var axis = 0; axis < axesCount; axis++)
-                        {
-                            axes[axis] = *(uint*)cursor;
-                            cursor += sizeof(uint);
-                        }
-
-                        for (var word = 0; word < wordCount; word++)
-                        {
-                            buttons[word] = *(ulong*)cursor;
-                            cursor += sizeof(ulong);
-                        }
-
-                        if (end - cursor < sizeof(ulong) + sizeof(int))
-                        {
-                            throw new InvalidDataException($"sv.compose: tape truncated in frame {frame} digest");
-                        }
-
-                        var recorded = *(ulong*)cursor;
-                        cursor += sizeof(ulong);
-                        var bodyLength = *(int*)cursor;
-                        cursor += sizeof(int);
-                        if (bodyLength < 0 || end - cursor < bodyLength)
-                        {
-                            throw new InvalidDataException($"sv.compose: tape frame {frame} body corrupt (length {bodyLength})");
-                        }
-
-                        var recordedBody = cursor;
-                        cursor += bodyLength;
-                        game.Input.Capture(axesPtr, buttonsPtr);
-                        Frame.Run(dt);
-                        var needed = Tape.BodyLength(game);
-                        if (needed > capacity)
-                        {
-                            capacity = needed * 2;
-                            body = (byte*)NativeMemory.Realloc(body, (nuint)capacity);
-                        }
-
-                        var digest = Tape.WriteBody(game, dt, body);
-                        if (digest != recorded)
-                        {
-                            throw new InvalidOperationException($"sv.compose: tape digest mismatch at frame {frame} (recorded {recorded:X16}, replayed {digest:X16})");
-                        }
-
-                        VerifyBody(frame, body, recordedBody, bodyLength);
-                        frame++;
-                    }
-
-                    return frame;
+                    throw new InvalidDataException("sv.compose: not a tape file");
                 }
-            }
-            finally
-            {
-                NativeMemory.Free(body);
+
+                cursor += 4;
+                var version = *(uint*)cursor;
+                cursor += 4;
+                if (version != Tape.Version)
+                {
+                    throw new InvalidDataException($"sv.compose: tape version {version} unsupported (expected {Tape.Version})");
+                }
+
+                var frame = 0;
+                while (cursor < end)
+                {
+                    if (end - cursor < 12)
+                    {
+                        throw new InvalidDataException($"sv.compose: tape truncated in frame {frame} header");
+                    }
+
+                    var dt = BitConverter.UInt32BitsToSingle(*(uint*)cursor);
+                    cursor += sizeof(uint);
+                    var axesCount = *(int*)cursor;
+                    cursor += sizeof(int);
+                    var wordCount = *(int*)cursor;
+                    cursor += sizeof(int);
+                    if (axesCount < 0 || wordCount < 0 || axesCount != game.Input.Axes || wordCount != game.Input.ButtonWords)
+                    {
+                        throw new InvalidDataException($"sv.compose: tape frame {frame} input shape ({axesCount} axes, {wordCount} words) does not match this host");
+                    }
+
+                    if (end - cursor < (long)axesCount * sizeof(uint) + (long)wordCount * sizeof(ulong) + sizeof(ulong))
+                    {
+                        throw new InvalidDataException($"sv.compose: tape truncated in frame {frame} inputs");
+                    }
+
+                    for (var axis = 0; axis < axesCount; axis++)
+                    {
+                        axes[axis] = *(uint*)cursor;
+                        cursor += sizeof(uint);
+                    }
+
+                    for (var word = 0; word < wordCount; word++)
+                    {
+                        buttons[word] = *(ulong*)cursor;
+                        cursor += sizeof(ulong);
+                    }
+
+                    var recorded = *(ulong*)cursor;
+                    cursor += sizeof(ulong);
+                    game.Input.Capture(axesPtr, buttonsPtr);
+                    Frame.Run(dt);
+                    var digest = Tape.FrameDigest(game, dt);
+                    if (digest != recorded)
+                    {
+                        var hint = game.Board.RecomputeDigest() != digest ? " (board incremental digest drifted from a from-scratch recompute)" : "";
+                        throw new InvalidOperationException($"sv.compose: tape digest mismatch at frame {frame} (recorded {recorded:X16}, replayed {digest:X16}){hint}");
+                    }
+
+                    frame++;
+                }
+
+                return frame;
             }
         }
     }

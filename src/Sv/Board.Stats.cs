@@ -82,6 +82,12 @@ public sealed unsafe partial class Board
 
     private ulong* changed;
 
+    private ulong digest;
+
+    private bool digestPagesDirty;
+
+    private ulong* pageDigests;
+
     private int* changedTouched;
 
     private int* changedTouchedCounts;
@@ -173,6 +179,7 @@ public sealed unsafe partial class Board
         InitSources(schema);
         var changedWords = statCount * ((capacity + 63) >> 6);
         changed = arena.AllocZeroed<ulong>(changedWords);
+        pageDigests = arena.AllocZeroed<ulong>(statCount * ((capacity + 255) >> 8));
         changedTouched = arena.Alloc<int>(changedWords);
         changedTouchedCounts = arena.AllocZeroed<int>(statCount);
         acquired = arena.AllocZeroed<ulong>(changedWords);
@@ -380,6 +387,112 @@ public sealed unsafe partial class Board
     {
         var block = Slot(slot).Block;
         return block >= 0 ? blocks!.Set(block, stat) : -1;
+    }
+
+    internal int PageCount => (Capacity + 255) >> 8;
+
+    public ulong Digest
+    {
+        get
+        {
+            EnsureDigestCurrent();
+            return digest;
+        }
+    }
+
+    void EnsureDigestCurrent()
+    {
+        if (digestPagesDirty)
+        {
+            RecomputeDigest();
+        }
+    }
+
+    static ulong DigestKey(int stat, int slot, uint bits)
+    {
+        unchecked
+        {
+            var key = ((ulong)(uint)stat << 40) ^ ((ulong)(uint)slot << 8) ^ (bits * 0x9E3779B97F4A7C15ul);
+            key ^= key >> 33;
+            key *= 0xFF51AFD7ED558CCDul;
+            key ^= key >> 33;
+            key *= 0xC4CEB9FE1A85EC53ul;
+            return key ^ (key >> 33);
+        }
+    }
+
+    void DigestKeyAdd(int slot, int stat, int set)
+    {
+        var key = DigestKey(stat, slot, BitConverter.SingleToUInt32Bits(table!.Computed(set)));
+        digest += key;
+        pageDigests[(nint)stat * PageCount + (slot >> 8)] += key;
+    }
+
+    void DigestMove(int slot, int stat, int oldSet, int newSet)
+    {
+        if (oldSet == newSet)
+        {
+            return;
+        }
+
+        var oldKey = oldSet >= 0 ? DigestKey(stat, slot, BitConverter.SingleToUInt32Bits(table!.Computed(oldSet))) : 0ul;
+        var newKey = newSet >= 0 ? DigestKey(stat, slot, BitConverter.SingleToUInt32Bits(table!.Computed(newSet))) : 0ul;
+        if (oldKey == newKey)
+        {
+            return;
+        }
+
+        var delta = newKey - oldKey;
+        digest += delta;
+        pageDigests[(nint)stat * PageCount + (slot >> 8)] += delta;
+    }
+
+    internal ulong RecomputeDigest()
+    {
+        digestPagesDirty = false;
+        NativeMemory.Clear(pageDigests, (nuint)(statCount * PageCount) * sizeof(ulong));
+        digest = 0;
+        for (var word = 0; word < LiveWordCount; word++)
+        {
+            var bits = live[word];
+            while (bits != 0)
+            {
+                var slot = (word << 6) + System.Numerics.BitOperations.TrailingZeroCount(bits);
+                bits &= bits - 1;
+                var block = Slot(slot).Block;
+                if (block < 0)
+                {
+                    continue;
+                }
+
+                for (var stat = 0; stat < statCount; stat++)
+                {
+                    var set = blocks!.Set(block, stat);
+                    if (set >= 0)
+                    {
+                        DigestKeyAdd(slot, stat, set);
+                    }
+                }
+            }
+        }
+
+        return digest;
+    }
+
+    internal int FirstDivergentPage(Board other)
+    {
+        EnsureDigestCurrent();
+        other.EnsureDigestCurrent();
+        var total = statCount * PageCount;
+        for (var i = 0; i < total; i++)
+        {
+            if (pageDigests[i] != other.pageDigests[i])
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
@@ -1020,6 +1133,26 @@ public sealed unsafe partial class Board
         LiveCount += count;
         MarkSlotsAcquired(slots, count);
         blocks!.AddRefMany(template, count);
+        if ((long)count * statCount > 65536)
+        {
+            digestPagesDirty = true;
+        }
+        else
+        {
+            for (var stat = 0; stat < statCount; stat++)
+            {
+                var set = blocks!.Set(template, stat);
+                if (set < 0)
+                {
+                    continue;
+                }
+
+                for (var i = 0; i < count; i++)
+                {
+                    DigestKeyAdd(slots[i], stat, set);
+                }
+            }
+        }
         var last = slots[count - 1];
         for (var stat = 0; stat < statCount; stat++)
         {
@@ -1096,6 +1229,11 @@ public sealed unsafe partial class Board
         if (state.Block >= 0)
         {
             var block = state.Block;
+            for (var stat = 0; stat < statCount; stat++)
+            {
+                DigestMove(slot, stat, blocks!.Set(block, stat), -1);
+            }
+
             state.Block = -1;
             DropBlockRef(block);
         }
@@ -1231,6 +1369,12 @@ public sealed unsafe partial class Board
                 var before = current >= 0 ? table!.Computed(current) : 0f;
                 var count = Gather(slot, stat);
                 var set = table!.Resolve(stat, scratch, count);
+                if (!table.Folded(set))
+                {
+                    var freshContent = table.Content(set, out var freshCount);
+                    table.SetComputed(set, CanonicalNaN(Fold(statBase[stat], freshContent, freshCount)));
+                }
+
                 if (current != set)
                 {
                     if (block >= 0)
@@ -1247,6 +1391,11 @@ public sealed unsafe partial class Board
 
                     tupleScratch[stat] = set;
                     var next = InternTuple(tupleScratch);
+                    for (var k = 0; k < statCount; k++)
+                    {
+                        DigestMove(slot, k, k == stat ? current : tupleScratch[k], blocks!.Set(next, k));
+                    }
+
                     if (block >= 0)
                     {
                         DropBlockRef(block);
@@ -1257,12 +1406,6 @@ public sealed unsafe partial class Board
                     for (var k = 0; k < statMaskWords; k++)
                     {
                         mask[k] |= dependents[k];
-                    }
-
-                    if (!table.Folded(set))
-                    {
-                        var content = table.Content(set, out var contentCount);
-                        table.SetComputed(set, CanonicalNaN(Fold(statBase[stat], content, contentCount)));
                     }
                 }
 
@@ -1854,6 +1997,7 @@ public sealed unsafe partial class Board
             arena.Free(staleColumns!, statCount);
             arena.Free(staleMirrors!, statCount);
             RefillRestoredBindings();
+            RecomputeDigest();
         }
     }
 
@@ -1925,5 +2069,6 @@ public sealed unsafe partial class Board
         }
 
         arena.Free(tempRows, Capacity);
+        RecomputeDigest();
     }
 }

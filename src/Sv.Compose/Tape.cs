@@ -6,18 +6,15 @@ using System.Runtime.InteropServices;
 namespace Sv.Compose;
 
 /// <summary>
-/// Determinism tape (format v3). Each recorded frame is written as
-/// dt bits, input counts, the captured axes and button words, the 64-bit frame digest, and the
-/// raw digest body. The body is the dt bits, axes bits, button words, per stat the live rows
-/// only (ascending slot order, walked via the live bitmap; fully live words copy whole), then
-/// the live bitmap words — a sparse board pays for entities, not capacity; dead rows are
-/// outside the determinism contract. The digest is XXH64 (seed 0) over the body. Recording and per-frame digesting are
-/// managed-allocation-free; only the file stream and its fixed buffers are allocated, at
-/// <c>Record</c> time.
+/// Determinism tape (format v4). Each recorded frame is written as dt bits, input counts, the
+/// captured axes and button words, and the 64-bit frame digest — the Zobrist digest the board
+/// maintains in O(changes) plus the frame's inputs, hashed together. No body is stored:
+/// <see cref="WriteBody"/> materializes a body on demand to locate a divergence. Recording is
+/// managed-allocation-free.
 /// </summary>
 public static unsafe class Tape
 {
-    public const uint Version = 3;
+    public const uint Version = 4;
 
     internal static int BodyLength(Game game)
     {
@@ -83,6 +80,29 @@ public static unsafe class Tape
 
         return XxHash64.Hash(body, (int)(cursor - body));
     }
+
+    internal static ulong FrameDigest(Game game, float dt)
+    {
+        var length = sizeof(uint) + game.Input.Axes * sizeof(uint) + game.Input.ButtonWords * sizeof(ulong) + sizeof(ulong);
+        var buffer = stackalloc byte[32];
+        var cursor = buffer;
+        *(uint*)cursor = BitConverter.SingleToUInt32Bits(dt);
+        cursor += sizeof(uint);
+        for (var axis = 0; axis < game.Input.Axes; axis++)
+        {
+            *(uint*)cursor = game.Input.AxisBits(axis);
+            cursor += sizeof(uint);
+        }
+
+        for (var word = 0; word < game.Input.ButtonWords; word++)
+        {
+            *(ulong*)cursor = game.Input.ButtonBits(word);
+            cursor += sizeof(ulong);
+        }
+
+        *(ulong*)cursor = game.Board.Digest;
+        return XxHash64.Hash(buffer, length);
+    }
 }
 
 internal sealed unsafe class TapeWriter : IDisposable
@@ -90,10 +110,6 @@ internal sealed unsafe class TapeWriter : IDisposable
     readonly FileStream stream;
 
     readonly Game game;
-
-    byte* body;
-
-    int bodyCapacity;
 
     bool disposed;
 
@@ -112,27 +128,29 @@ internal sealed unsafe class TapeWriter : IDisposable
 
     public void CaptureFrame(float dt)
     {
-        var length = Tape.BodyLength(game);
-        if (length > bodyCapacity)
-        {
-            bodyCapacity = Math.Max(length, bodyCapacity * 2);
-            body = body == null
-                ? (byte*)NativeMemory.Alloc((nuint)bodyCapacity)
-                : (byte*)NativeMemory.Realloc(body, (nuint)bodyCapacity);
-        }
-
-        var digest = Tape.WriteBody(game, dt, body);
         var inputBytes = game.Input.Axes * sizeof(uint) + game.Input.ButtonWords * sizeof(ulong);
+        var digest = Tape.FrameDigest(game, dt);
         var dtBits = BitConverter.SingleToUInt32Bits(dt);
         var axesCount = game.Input.Axes;
         var wordCount = game.Input.ButtonWords;
         stream.Write(new ReadOnlySpan<byte>(&dtBits, sizeof(uint)));
         stream.Write(new ReadOnlySpan<byte>(&axesCount, sizeof(int)));
         stream.Write(new ReadOnlySpan<byte>(&wordCount, sizeof(int)));
-        stream.Write(new ReadOnlySpan<byte>(body + sizeof(uint), inputBytes));
+        var axes = stackalloc uint[game.Input.Axes];
+        for (var axis = 0; axis < game.Input.Axes; axis++)
+        {
+            axes[axis] = game.Input.AxisBits(axis);
+        }
+
+        var buttons = stackalloc ulong[game.Input.ButtonWords];
+        for (var word = 0; word < game.Input.ButtonWords; word++)
+        {
+            buttons[word] = game.Input.ButtonBits(word);
+        }
+
+        stream.Write(new ReadOnlySpan<byte>(axes, inputBytes - game.Input.ButtonWords * sizeof(ulong)));
+        stream.Write(new ReadOnlySpan<byte>(buttons, game.Input.ButtonWords * sizeof(ulong)));
         stream.Write(new ReadOnlySpan<byte>(&digest, sizeof(ulong)));
-        stream.Write(new ReadOnlySpan<byte>(&length, sizeof(int)));
-        stream.Write(new ReadOnlySpan<byte>(body, length));
     }
 
     public void Dispose()
@@ -143,11 +161,6 @@ internal sealed unsafe class TapeWriter : IDisposable
         }
 
         stream.Dispose();
-        if (body != null)
-        {
-            NativeMemory.Free(body);
-        }
-
         disposed = true;
     }
 }

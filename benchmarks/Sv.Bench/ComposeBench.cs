@@ -154,3 +154,71 @@ internal sealed unsafe class FrameRunBench : BenchBase
         NativeMemory.Free(counter);
     }
 }
+
+internal sealed unsafe class TapeRecordBench : BenchBase
+{
+    GameHost<EventLink<ManaEvent, Chain>, Chain, Chain, FrameWorld> host = null!;
+
+    int* mana;
+
+    byte* landed;
+
+    long* counter;
+
+    internal static TapeRecordBench New(string path)
+    {
+        var bench = new TapeRecordBench();
+        var schema = SchemaBuilder.Create()
+            .Stat("power", 10f)
+            .Stat("ceiling", 900_000f)
+            .Intrinsic("mana")
+            .Build();
+        bench.mana = (int*)NativeMemory.AllocZeroed((nuint)Rows * (nuint)sizeof(int), (nuint)sizeof(int));
+        bench.landed = (byte*)NativeMemory.AllocZeroed((nuint)Rows, 1);
+        bench.counter = (long*)NativeMemory.AllocZeroed(sizeof(long), sizeof(long));
+        var world = new FrameWorld
+        {
+            Mana = bench.mana,
+            Landed = bench.landed,
+            Counter = bench.counter,
+            Ceiling = schema.Stat("ceiling"),
+        };
+        bench.host = Game.Create(schema, Rows)
+            .Event<ManaEvent>()
+            .Build(world, InputState.Create(1, 1, 16));
+        for (var i = 0; i < Rows; i++)
+        {
+            bench.host.Game.Board.Acquire();
+        }
+
+        bench.host.Game.Board.Recalculate();
+        bench.host.Record(path);
+        return bench;
+    }
+
+    public override string Verify()
+    {
+        return "ok";
+    }
+
+    public override long Frame(int iterations)
+    {
+        long checksum = 0;
+        for (var it = 0; it < iterations; it++)
+        {
+            host.CaptureFrame(0.016666668f);
+            checksum += it;
+        }
+
+        return checksum;
+    }
+
+    public override void Dispose()
+    {
+        host.EndRecord();
+        host.Dispose();
+        NativeMemory.Free(mana);
+        NativeMemory.Free(landed);
+        NativeMemory.Free(counter);
+    }
+}
