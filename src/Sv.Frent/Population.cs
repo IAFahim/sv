@@ -6,7 +6,7 @@ namespace Sv.Frent;
 
 /// <summary>
 /// Fused chunk driver over a Frent world: owns the query, bind/unbind, and slot compaction.
-/// Windows transparently take the contiguous fast path or the Pull/walk/Push remap; after
+/// Windows transparently take the contiguous fast path or the in-place row walk; after
 /// <see cref="Reconcile"/> every archetype is contiguous and 64-aligned again, so the fast path
 /// is restored until the next structural change.
 /// </summary>
@@ -22,17 +22,13 @@ public sealed unsafe class Population : IDisposable
 
     public int RemapChunks { get; internal set; }
 
-    internal readonly int* scratch;
-
     internal readonly int* permutation;
 
     public Population(World world, Schema schema, int capacity)
     {
         World = world;
         FrentBoard = new FrentBoard(schema, capacity);
-        var rounded = Board.Capacity;
-        scratch = (int*)NativeMemory.AllocZeroed((nuint)rounded * sizeof(int));
-        permutation = (int*)NativeMemory.Alloc((nuint)rounded * sizeof(int));
+        permutation = (int*)NativeMemory.Alloc((nuint)Board.Capacity * sizeof(int));
     }
 
     public int Bind(Entity entity) => FrentBoard.Bind(entity);
@@ -43,7 +39,7 @@ public sealed unsafe class Population : IDisposable
 
     /// <summary>
     /// Enumerates fused chunk windows; counters reset per enumeration. Apply reads/writes the
-    /// Frent column in place. Do not nest enumerations (they share the remap scratch).
+    /// Frent column in place. Do not nest enumerations — the counters are shared.
     /// </summary>
     public ChunkSource<TColumn> Chunks<TColumn>() where TColumn : unmanaged
     {
@@ -125,7 +121,6 @@ public sealed unsafe class Population : IDisposable
 
         disposed = true;
         FrentBoard.Dispose();
-        NativeMemory.Free(scratch);
         NativeMemory.Free(permutation);
     }
 
@@ -166,7 +161,8 @@ public ref struct ChunkCursor<TColumn> where TColumn : unmanaged
         get
         {
             enumerator.Current.Deconstruct(out var rows, out var slots);
-            return new ChunkWindow<TColumn>(rows, slots, population);
+            ChunkSeam.TrySlotRange(slots, out var start, out var count);
+            return new ChunkWindow<TColumn>(rows, slots, population, start, count);
         }
     }
 
@@ -175,8 +171,9 @@ public ref struct ChunkCursor<TColumn> where TColumn : unmanaged
 
 /// <summary>
 /// One archetype window over a host column: contiguous chunks run the sv chunk verb zero-copy;
-/// fragmented chunks pull into slot space, walk, and push back. Fragmentation never throws —
-/// only unsupported column shapes do (non-int-sized columns).
+/// fragmented chunks walk their rows in place, reading the clamp's bounds by slot. Contiguity is
+/// classified once per chunk visit, not per operation. Fragmentation never throws — only
+/// unsupported column shapes do (non-int-sized columns).
 /// </summary>
 public readonly unsafe ref struct ChunkWindow<TColumn> where TColumn : unmanaged
 {
@@ -186,16 +183,22 @@ public readonly unsafe ref struct ChunkWindow<TColumn> where TColumn : unmanaged
 
     readonly Population population;
 
-    internal ChunkWindow(Span<TColumn> rows, Span<SvSlot> slots, Population population)
+    readonly int rangeStart;
+
+    readonly int rangeCount;
+
+    internal ChunkWindow(Span<TColumn> rows, Span<SvSlot> slots, Population population, int rangeStart, int rangeCount)
     {
         this.rows = rows;
         this.slots = slots;
         this.population = population;
+        this.rangeStart = rangeStart;
+        this.rangeCount = rangeCount;
     }
 
     public int RowCount => rows.Length;
 
-    public bool IsContiguous => ChunkSeam.TrySlotRange(slots, out _, out _);
+    public bool IsContiguous => rangeCount != 0;
 
     public void Apply(Board board, int delta, in Clamp clamp, Span<int> applied)
     {
@@ -207,35 +210,32 @@ public readonly unsafe ref struct ChunkWindow<TColumn> where TColumn : unmanaged
 
         fixed (TColumn* rowPin = rows)
         {
-            if (ChunkSeam.TrySlotRange(slots, out var start, out var count))
+            if (rangeCount != 0)
             {
                 population.FastPathChunks++;
-                var value = (int*)rowPin - start;
+                var value = (int*)rowPin - rangeStart;
                 fixed (int* appliedPin = applied)
                 {
-                    var appliedView = applied.IsEmpty ? null : appliedPin - start;
-                    board.RunIntrinsicsChunk(value, delta, clamp, start, count, appliedView);
+                    var appliedView = applied.IsEmpty ? null : appliedPin - rangeStart;
+                    board.RunIntrinsicsChunk(value, delta, clamp, rangeStart, rangeCount, appliedView);
                 }
 
                 return;
             }
 
             population.RemapChunks++;
-            ChunkSeam.Pull(rows, slots, (TColumn*)population.scratch);
-            var values = population.scratch;
+            var values = (int*)rowPin;
             for (var i = 0; i < slots.Length; i++)
             {
                 var slot = slots[i].Slot;
-                var before = values[slot];
+                var before = values[i];
                 var after = clamp.Apply(Simd.SaturatingAdd(before, delta), slot);
-                values[slot] = after;
+                values[i] = after;
                 if (!applied.IsEmpty)
                 {
                     applied[i] = after - before;
                 }
             }
-
-            ChunkSeam.Push((TColumn*)population.scratch, slots, rows);
         }
     }
 
@@ -249,30 +249,30 @@ public readonly unsafe ref struct ChunkWindow<TColumn> where TColumn : unmanaged
 
         fixed (TColumn* rowPin = rows)
         {
-            if (ChunkSeam.TrySlotRange(slots, out var start, out var count))
+            if (rangeCount != 0)
             {
                 population.FastPathChunks++;
-                if ((offset & 63) != 0 || offset < start || offset >= start + count)
+                if ((offset & 63) != 0 || offset < rangeStart || offset >= rangeStart + rangeCount)
                 {
                     throw new ArgumentException("sv.frent: enabled window must start 64-aligned inside the chunk");
                 }
 
-                var exactWords = (start + count - offset + 63) >> 6;
+                var exactWords = (rangeStart + rangeCount - offset + 63) >> 6;
                 if (wordCount != exactWords)
                 {
-                    throw new ArgumentException($"sv.frent: enabled window of {wordCount} words must span exactly the chunk's remaining {start + count - offset} rows ({exactWords} words)");
+                    throw new ArgumentException($"sv.frent: enabled window of {wordCount} words must span exactly the chunk's remaining {rangeStart + rangeCount - offset} rows ({exactWords} words)");
                 }
 
-                if (!applied.IsEmpty && applied.Length < (long)offset - start + wordCount * 64)
+                if (!applied.IsEmpty && applied.Length < (long)offset - rangeStart + wordCount * 64)
                 {
-                    throw new ArgumentException($"sv.frent: applied span of {applied.Length} rows does not cover the window's {offset - start + wordCount * 64}");
+                    throw new ArgumentException($"sv.frent: applied span of {applied.Length} rows does not cover the window's {offset - rangeStart + wordCount * 64}");
                 }
 
-                Guard.EnabledTail(words[wordCount - 1], start + count - offset - (wordCount - 1) * 64);
-                var value = (int*)rowPin - start;
+                Guard.EnabledTail(words[wordCount - 1], rangeStart + rangeCount - offset - (wordCount - 1) * 64);
+                var value = (int*)rowPin - rangeStart;
                 fixed (int* appliedPin = applied)
                 {
-                    var appliedView = applied.IsEmpty ? null : appliedPin - start;
+                    var appliedView = applied.IsEmpty ? null : appliedPin - rangeStart;
                     board.RunEnabledChunk(value, delta, clamp, words, wordCount, offset, appliedView);
                 }
 
@@ -280,8 +280,7 @@ public readonly unsafe ref struct ChunkWindow<TColumn> where TColumn : unmanaged
             }
 
             population.RemapChunks++;
-            ChunkSeam.Pull(rows, slots, (TColumn*)population.scratch);
-            var values = population.scratch;
+            var values = (int*)rowPin;
             var window = wordCount * 64;
             for (var i = 0; i < slots.Length; i++)
             {
@@ -297,16 +296,14 @@ public readonly unsafe ref struct ChunkWindow<TColumn> where TColumn : unmanaged
                     continue;
                 }
 
-                var before = values[slot];
+                var before = values[i];
                 var after = clamp.Apply(Simd.SaturatingAdd(before, delta), slot);
-                values[slot] = after;
+                values[i] = after;
                 if (!applied.IsEmpty)
                 {
                     applied[i] = after - before;
                 }
             }
-
-            ChunkSeam.Push((TColumn*)population.scratch, slots, rows);
         }
     }
 

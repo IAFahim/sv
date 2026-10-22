@@ -114,50 +114,37 @@ public sealed class FrentAdapterTests
     }
 
     [Fact]
-    public void FragmentedChunk_PullPushFallback_MatchesOracle()
+    public void FragmentedChunk_InPlaceWalk_MatchesOracle()
     {
         using var world = new World();
-        using var adapter = new FrentBoard(ManaSchema(), 512);
+        using var population = new Population(world, ManaSchema(), 512);
         var entities = new Entity[256];
         for (var i = 0; i < 256; i++)
         {
             entities[i] = world.Create(new Mana { Value = 500 - i });
-            adapter.Bind(entities[i]);
+            population.Bind(entities[i]);
         }
 
-        var removed = 0;
         for (var i = 2; i < 256; i += 3)
         {
-            adapter.Unbind(entities[i]);
+            population.Unbind(entities[i]);
             entities[i].Delete();
-            removed++;
         }
 
         var sawFragmented = false;
         var clamp = Clamp.Constant(0, 400);
-        unsafe
+        foreach (var window in population.Chunks<Mana>())
         {
-            var native = stackalloc int[512];
-            foreach (var chunk in world.Query<Mana, SvSlot>().EnumerateChunks<Mana, SvSlot>())
+            if (!window.IsContiguous)
             {
-                chunk.Deconstruct(out var rows, out var slots);
-                if (ChunkSeam.TrySlotRange(slots, out _, out _))
-                {
-                    continue;
-                }
-
                 sawFragmented = true;
-                ChunkSeam.Pull(rows, slots, (Mana*)native);
-                for (var i = 0; i < rows.Length; i++)
-                {
-                    native[slots[i].Slot] = Math.Clamp(native[slots[i].Slot] - 3, 0, 400);
-                }
-
-                ChunkSeam.Push((Mana*)native, slots, rows);
             }
+
+            window.Apply(population.Board, -3, clamp, default);
         }
 
         Assert.True(sawFragmented);
+        Assert.True(population.RemapChunks >= 1);
         for (var i = 0; i < 256; i++)
         {
             if (i % 3 == 2 && i >= 2)

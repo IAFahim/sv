@@ -27,22 +27,6 @@ public static unsafe class ChunkSeam
         return true;
     }
 
-    public static void Pull<T>(ReadOnlySpan<T> rows, ReadOnlySpan<SvSlot> slots, T* dst) where T : unmanaged
-    {
-        for (var i = 0; i < rows.Length; i++)
-        {
-            dst[slots[i].Slot] = rows[i];
-        }
-    }
-
-    public static void Push<T>(T* src, ReadOnlySpan<SvSlot> slots, Span<T> rows) where T : unmanaged
-    {
-        for (var i = 0; i < rows.Length; i++)
-        {
-            rows[i] = src[slots[i].Slot];
-        }
-    }
-
     public static void RunChunk<TColumn>(
         Board board,
         Span<TColumn> rows,
@@ -58,7 +42,7 @@ public static unsafe class ChunkSeam
 
         if (!TrySlotRange(slots, out var start, out var count))
         {
-            throw new ArgumentException("sv.frent: chunk is not slot-contiguous; use Pull/Push");
+            throw new ArgumentException("sv.frent: chunk is not slot-contiguous; use the Population window driver");
         }
 
         if (!applied.IsEmpty && applied.Length < count)
@@ -92,7 +76,7 @@ public static unsafe class ChunkSeam
 
         if (!TrySlotRange(slots, out var start, out var count))
         {
-            throw new ArgumentException("sv.frent: chunk is not slot-contiguous; use Pull/Push");
+            throw new ArgumentException("sv.frent: chunk is not slot-contiguous; use the Population window driver");
         }
 
         if (deltas.Length < count)
@@ -137,7 +121,7 @@ public static unsafe class ChunkSeam
 
         if (!TrySlotRange(slots, out var start, out var count))
         {
-            throw new ArgumentException("sv.frent: chunk is not slot-contiguous; use Pull/Push");
+            throw new ArgumentException("sv.frent: chunk is not slot-contiguous; use the Population window driver");
         }
 
         if ((offsetSlot & 63) != 0 || offsetSlot < start || offsetSlot >= start + count)
@@ -180,7 +164,7 @@ public static unsafe class ChunkSeam
 
         if (!TrySlotRange(slots, out var start, out var count))
         {
-            throw new ArgumentException("sv.frent: chunk is not slot-contiguous; use Pull/Push");
+            throw new ArgumentException("sv.frent: chunk is not slot-contiguous; use the Population window driver");
         }
 
         if ((offsetSlot & 63) != 0 || offsetSlot < start || offsetSlot >= start + count)

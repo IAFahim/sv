@@ -322,4 +322,98 @@ public sealed unsafe class PopulationTests
         var deltaBytes = GC.GetAllocatedBytesForCurrentThread() - before;
         Assert.True(deltaBytes == 0, $"population windows allocated {deltaBytes} managed bytes (sink {sink})");
     }
+
+    [Fact]
+    public void SameWindow_ClassificationServesEveryOp()
+    {
+        using var world = new World();
+        using var population = new Population(world, Schema(), 512);
+        var entities = new Entity[128];
+        for (var i = 0; i < 128; i++)
+        {
+            entities[i] = world.Create(new Health { Value = 500 + i });
+            population.Bind(entities[i]);
+        }
+
+        for (var i = 1; i < 128; i += 3)
+        {
+            population.Unbind(entities[i]);
+            entities[i].Delete();
+        }
+
+        var clamp = Clamp.Constant(0, 2000);
+        var words = stackalloc ulong[2];
+        words[0] = ulong.MaxValue;
+        words[1] = 0;
+        var applied = new int[256];
+        var fragmented = 0;
+        foreach (var window in population.Chunks<Health>())
+        {
+            if (window.IsContiguous)
+            {
+                continue;
+            }
+
+            fragmented++;
+            window.Apply(population.Board, 0, clamp, applied);
+            window.ApplyEnabled(population.Board, words, 2, 0, 0, clamp, applied);
+            Assert.False(window.IsContiguous);
+        }
+
+        Assert.True(fragmented >= 1);
+        Assert.Equal(fragmented * 2, population.RemapChunks);
+        Assert.Equal(0, population.FastPathChunks);
+    }
+
+    [Fact]
+    public void FragmentedApplyEnabled_OutOfWindowRows_KeepValueAndReportZero()
+    {
+        using var world = new World();
+        using var population = new Population(world, Schema(), 512);
+        var entities = new Entity[128];
+        for (var i = 0; i < 128; i++)
+        {
+            entities[i] = world.Create(new Health { Value = 1000 - i });
+            population.Bind(entities[i]);
+        }
+
+        for (var i = 1; i < 128; i += 3)
+        {
+            population.Unbind(entities[i]);
+            entities[i].Delete();
+        }
+
+        var clamp = Clamp.Constant(0, 2000);
+        var words = stackalloc ulong[1];
+        words[0] = ulong.MaxValue;
+        var applied = new int[256];
+        foreach (var window in population.Chunks<Health>())
+        {
+            Assert.False(window.IsContiguous);
+            window.ApplyEnabled(population.Board, words, 1, 0, -7, clamp, applied);
+        }
+
+        Assert.True(population.RemapChunks >= 1);
+        Assert.Equal(0, population.FastPathChunks);
+        for (var i = 0; i < 128; i++)
+        {
+            if (i % 3 == 1 && i >= 1)
+            {
+                continue;
+            }
+
+            population.TrySlot(entities[i], out var slot);
+            var expected = slot < 64 ? Math.Clamp(1000 - i - 7, 0, 2000) : 1000 - i;
+            Assert.Equal(expected, entities[i].Get<Health>().Value);
+        }
+
+        foreach (var chunk in world.Query<Health, SvSlot>().EnumerateChunks<Health, SvSlot>())
+        {
+            chunk.Deconstruct(out _, out var slots);
+            for (var row = 0; row < slots.Length; row++)
+            {
+                Assert.Equal(slots[row].Slot < 64 ? -7 : 0, applied[row]);
+            }
+        }
+    }
 }
