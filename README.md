@@ -237,24 +237,24 @@ the `determinism` CI matrix runs it on x64, arm64, macOS and Windows.
 
 <!-- bench:begin (auto-generated — CI refreshes this on every push to main; do not edit by hand) -->
 
-Last refreshed 2026-10-22 04:36 UTC · `main@847e3c8` · INTEL(R) XEON(R) PLATINUM 8573C (2 cores) · sv-bench rows=100000 vector256=True vector128=True
+Last refreshed 2026-10-22 04:51 UTC · `main@3cb975c` · INTEL(R) XEON(R) PLATINUM 8573C (2 cores) · sv-bench rows=100000 vector256=True vector128=True
 
 | Scenario | µs/frame | rate | Managed alloc |
 |---|---:|---:|---|
-| intrinsics-uniform | 55.779 | 1792.8 M rows/s | 0 B |
-| intrinsics-varying | 53.804 | 1858.6 M rows/s | 0 B |
-| intrinsics-statclamp | 73.939 | 1352.5 M rows/s | 0 B |
-| intrinsics-statmirror | 52.112 | 1919.0 M rows/s | 0 B |
-| enabled-runwalk | 65.815 | 1519.4 M rows/s | 0 B |
-| stat-recalc | 0.052 | 52 ns/op | 0 B |
-| stat-churn | 0.044 | 44 ns/op | 0 B |
-| events-emit | 714.526 | 140.0 M rows/s | 0 B |
-| events-emit-struct | 143.250 | 698.1 M rows/s | 0 B |
+| intrinsics-uniform | 54.650 | 1829.8 M rows/s | 0 B |
+| intrinsics-varying | 49.197 | 2032.6 M rows/s | 0 B |
+| intrinsics-statclamp | 85.941 | 1163.6 M rows/s | 0 B |
+| intrinsics-statmirror | 54.672 | 1829.1 M rows/s | 0 B |
+| enabled-runwalk | 66.369 | 1506.7 M rows/s | 0 B |
+| stat-recalc | 0.054 | 54 ns/op | 0 B |
+| stat-churn | 0.045 | 45 ns/op | 0 B |
+| events-emit | 730.417 | 136.9 M rows/s | 0 B |
+| events-emit-struct | 163.349 | 612.2 M rows/s | 0 B |
 | input-capture | 0.009 | 9 ns/op | 0 B |
-| fused-tick | 1152.545 | 86.8 M rows/s | 0 B |
-| frame-run | 1156.355 | 86.5 M rows/s | 0 B |
-| tape-digest | 1281.312 | 78.0 M rows/s | 0 B |
-| ff1m | 4214.2 | p99 6125.0 µs · 1048576 rows · Δ=128 | 0 B |
+| fused-tick | 1158.163 | 86.3 M rows/s | 0 B |
+| frame-run | 1141.452 | 87.6 M rows/s | 0 B |
+| tape-digest | 1269.226 | 78.8 M rows/s | 0 B |
+| ff1m | 4806.0 | p99 6600.7 µs · 1048576 rows · Δ=128 | 0 B |
 
 <!-- bench:end -->
 
