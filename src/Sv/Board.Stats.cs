@@ -22,27 +22,29 @@ public sealed unsafe partial class Board
         public long Expiry;
 
         public int Next;
-    }
-
-    private struct Expiry
-    {
-        public long Tick;
-
-        public int Id;
 
         public int Slot;
 
         public int Stat;
     }
 
-    private struct PairState
+    private struct ExpiryEntry
     {
-        public int Set;
+        public long Tick;
+
+        public int Record;
+
+        public int Id;
+    }
+
+    private struct SlotState
+    {
+        public int Block;
 
         public int Head;
     }
 
-    private Expiry* expiries;
+    private ExpiryEntry* expiries;
 
     private int expiryCount;
 
@@ -98,7 +100,11 @@ public sealed unsafe partial class Board
 
     private int pageCount;
 
-    private PairState** metaPages;
+    private SlotState** slotPages;
+
+    private BlockTable? blocks;
+
+    private int* tupleScratch;
 
     private ModRecord* records;
 
@@ -176,7 +182,9 @@ public sealed unsafe partial class Board
             boundLength[i] = -1;
         }
         pageCount = (capacity + PageSlots - 1) >> PageShift;
-        metaPages = (PairState**)NativeMemory.AllocZeroed((nuint)pageCount * (nuint)sizeof(PairState*));
+        slotPages = (SlotState**)NativeMemory.AllocZeroed((nuint)pageCount * (nuint)sizeof(SlotState*));
+        blocks = new BlockTable(statCount);
+        tupleScratch = Alloc<int>(statCount);
         recordCap = 16;
         records = Alloc<ModRecord>(recordCap);
         recordFree = -1;
@@ -187,7 +195,7 @@ public sealed unsafe partial class Board
         scratch = Alloc<StatEntry>(scratchCap);
         scratchIds = Alloc<int>(scratchCap);
         expiryCap = 16;
-        expiries = Alloc<Expiry>(expiryCap);
+        expiries = Alloc<ExpiryEntry>(expiryCap);
     }
 
     void InitSources(Schema schema)
@@ -265,7 +273,9 @@ public sealed unsafe partial class Board
             return;
         }
 
-        FreePages(metaPages);
+        FreePages(slotPages);
+        blocks!.Dispose();
+        NativeMemory.Free(tupleScratch);
         table!.Dispose();
         NativeMemory.Free(statBase);
         NativeMemory.Free(outputColumn);
@@ -311,35 +321,34 @@ public sealed unsafe partial class Board
         NativeMemory.Free(expiries);
     }
 
-    void FreePages(PairState** metas)
+    void FreePages(SlotState** pages)
     {
         for (var page = 0; page < pageCount; page++)
         {
-            if (metas[page] != null)
+            if (pages[page] != null)
             {
-                NativeMemory.Free(metas[page]);
+                NativeMemory.Free(pages[page]);
             }
         }
 
-        NativeMemory.Free(metas);
+        NativeMemory.Free(pages);
     }
 
-    PairState* PairPage(PairState** metas, int slot)
+    SlotState* SlotPage(SlotState** pages, int slot)
     {
         var page = slot >> PageShift;
-        if (metas[page] == null)
+        if (pages[page] == null)
         {
-            var width = PageSlots * statCount;
-            var fresh = Alloc<PairState>(width);
-            for (var i = 0; i < width; i++)
+            var fresh = Alloc<SlotState>(PageSlots);
+            for (var i = 0; i < PageSlots; i++)
             {
-                fresh[i] = new PairState { Set = -1, Head = -1 };
+                fresh[i] = new SlotState { Block = -1, Head = -1 };
             }
 
-            metas[page] = fresh;
+            pages[page] = fresh;
         }
 
-        return metas[page];
+        return pages[page];
     }
 
     int AllocRecord()
@@ -367,33 +376,80 @@ public sealed unsafe partial class Board
     }
 
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
-    ref PairState Pair(int slot, int stat)
+    ref SlotState Slot(int slot)
     {
-        return ref metaPages[slot >> PageShift][(slot & (PageSlots - 1)) * statCount + stat];
+        return ref slotPages[slot >> PageShift][slot & (PageSlots - 1)];
+    }
+
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+    int SetOf(int slot, int stat)
+    {
+        var block = Slot(slot).Block;
+        return block >= 0 ? blocks!.Set(block, stat) : -1;
     }
 
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     internal void EnsureSlotPages(int slot)
     {
-        PairPage(metaPages, slot);
+        SlotPage(slotPages, slot);
     }
 
-    internal long PairBytes
+    internal long SlotStateBytes
     {
         get
         {
-            long bytes = (long)pageCount * sizeof(PairState*) + (long)recordCap * sizeof(ModRecord);
-            var pageWidth = PageSlots * statCount;
+            long bytes = (long)pageCount * sizeof(SlotState*);
             for (var page = 0; page < pageCount; page++)
             {
-                if (metaPages[page] != null)
+                if (slotPages[page] != null)
                 {
-                    bytes += (long)pageWidth * sizeof(PairState);
+                    bytes += (long)PageSlots * sizeof(SlotState);
                 }
             }
 
             return bytes;
         }
+    }
+
+    int InternTuple(int* tuple)
+    {
+        var existing = blocks!.Lookup(tuple);
+        if (existing >= 0)
+        {
+            blocks.AddRefMany(existing, 1);
+            return existing;
+        }
+
+        var block = blocks.Create(tuple);
+        blocks.SetRefCount(block, 1);
+        for (var stat = 0; stat < statCount; stat++)
+        {
+            if (tuple[stat] >= 0)
+            {
+                table!.AddRef(tuple[stat]);
+            }
+        }
+
+        return block;
+    }
+
+    void DropBlockRef(int block)
+    {
+        if (!blocks!.ReleaseRef(block))
+        {
+            return;
+        }
+
+        for (var stat = 0; stat < statCount; stat++)
+        {
+            var set = blocks.Set(block, stat);
+            if (set >= 0)
+            {
+                table!.ReleaseRef(set);
+            }
+        }
+
+        blocks.Free(block);
     }
 
     int StatIndex(StatId stat)
@@ -566,7 +622,7 @@ public sealed unsafe partial class Board
                 {
                     var slot = (word << 6) + System.Numerics.BitOperations.TrailingZeroCount(bits);
                     bits &= bits - 1;
-                    if (Pair(slot, stat).Set >= 0)
+                    if (SetOf(slot, stat) >= 0)
                     {
                         column[slot] = SourceValue(slot, stat);
                     }
@@ -636,15 +692,15 @@ public sealed unsafe partial class Board
     {
         var index = StatIndex(stat);
         Guard.SlotLive(slot, live, Capacity);
-        ref var pair = ref Pair(slot, index);
+        ref var state = ref Slot(slot);
         var id = ++nextInsertionId;
         var record = AllocRecord();
-        records[record] = new ModRecord { Id = id, Kind = modifier.Kind, Value = modifier.Value, Source = source, Expiry = expiresAtTick, Next = pair.Head };
-        pair.Head = record;
+        records[record] = new ModRecord { Id = id, Kind = modifier.Kind, Value = modifier.Value, Source = source, Expiry = expiresAtTick, Next = state.Head, Slot = slot, Stat = index };
+        state.Head = record;
         MarkStatDirty(slot, index);
         if (expiresAtTick != long.MaxValue)
         {
-            PushExpiry(new Expiry { Tick = expiresAtTick, Id = id, Slot = slot, Stat = index });
+            PushExpiry(new ExpiryEntry { Tick = expiresAtTick, Record = record, Id = id });
         }
 
         return new ModifierHandle(id);
@@ -658,44 +714,36 @@ public sealed unsafe partial class Board
     {
         Guard.SlotLive(slot, live, Capacity);
         var removed = 0;
-        if (metaPages[slot >> PageShift] == null)
+        if (slotPages[slot >> PageShift] == null)
         {
             return removed;
         }
 
-        for (var stat = 0; stat < statCount; stat++)
+        ref var state = ref Slot(slot);
+        var previous = -1;
+        for (var at = state.Head; at >= 0;)
         {
-            var before = removed;
-            ref var pair = ref Pair(slot, stat);
-            var previous = -1;
-            for (var at = pair.Head; at >= 0;)
+            if (records[at].Source == source)
             {
-                if (records[at].Source == source)
+                var next = records[at].Next;
+                MarkStatDirty(slot, records[at].Stat);
+                FreeRecord(at);
+                if (previous < 0)
                 {
-                    var next = records[at].Next;
-                    FreeRecord(at);
-                    if (previous < 0)
-                    {
-                        pair.Head = next;
-                    }
-                    else
-                    {
-                        records[previous].Next = next;
-                    }
-
-                    at = next;
-                    removed++;
-                    continue;
+                    state.Head = next;
+                }
+                else
+                {
+                    records[previous].Next = next;
                 }
 
-                previous = at;
-                at = records[at].Next;
+                at = next;
+                removed++;
+                continue;
             }
 
-            if (removed != before)
-            {
-                MarkStatDirty(slot, stat);
-            }
+            previous = at;
+            at = records[at].Next;
         }
 
         return removed;
@@ -713,34 +761,35 @@ public sealed unsafe partial class Board
         {
             var top = expiries[0];
             PopExpiry();
-            if (top.Slot < 0 || (live[top.Slot >> 6] & (1ul << (top.Slot & 63))) == 0)
+            if (top.Record >= recordCount || records[top.Record].Id != top.Id)
             {
                 continue;
             }
 
-            if (metaPages[top.Slot >> PageShift] == null)
+            var slot = records[top.Record].Slot;
+            if (slot < 0 || slot >= Capacity || (live[slot >> 6] & (1ul << (slot & 63))) == 0)
             {
                 continue;
             }
 
-            ref var pair = ref Pair(top.Slot, top.Stat);
+            ref var state = ref Slot(slot);
             var previous = -1;
-            for (var at = pair.Head; at >= 0; at = records[at].Next)
+            for (var at = state.Head; at >= 0; at = records[at].Next)
             {
                 if (records[at].Id == top.Id)
                 {
                     var next = records[at].Next;
+                    MarkStatDirty(slot, records[at].Stat);
                     FreeRecord(at);
                     if (previous < 0)
                     {
-                        pair.Head = next;
+                        state.Head = next;
                     }
                     else
                     {
                         records[previous].Next = next;
                     }
 
-                    MarkStatDirty(top.Slot, top.Stat);
                     removed++;
                     break;
                 }
@@ -749,14 +798,15 @@ public sealed unsafe partial class Board
             }
         }
 
+        ShrinkExpiries();
         return removed;
     }
 
     public int PendingExpiries => expiryCount;
 
-    static bool Before(in Expiry a, in Expiry b) => a.Tick < b.Tick || (a.Tick == b.Tick && a.Id < b.Id);
+    static bool Before(in ExpiryEntry a, in ExpiryEntry b) => a.Tick < b.Tick || (a.Tick == b.Tick && a.Id < b.Id);
 
-    void PushExpiry(Expiry entry)
+    void PushExpiry(ExpiryEntry entry)
     {
         if (expiryCount == expiryCap)
         {
@@ -812,21 +862,36 @@ public sealed unsafe partial class Board
         }
     }
 
+    void ShrinkExpiries()
+    {
+        if (expiryCap > 16 && (long)expiryCount * 4 <= (long)expiryCap * 3)
+        {
+            var target = expiryCount + (expiryCount >> 3);
+            expiryCap = target < 16 ? 16 : target;
+            expiries = Realloc(expiries, expiryCap);
+        }
+    }
+
     public void RemoveModifier(int slot, StatId stat, ModifierHandle handle)
     {
         var index = StatIndex(stat);
         Guard.SlotLive(slot, live, Capacity);
-        ref var pair = ref Pair(slot, index);
+        ref var state = ref Slot(slot);
         var previous = -1;
-        for (var at = pair.Head; at >= 0; at = records[at].Next)
+        for (var at = state.Head; at >= 0; at = records[at].Next)
         {
             if (records[at].Id == handle.Id)
             {
+                if (records[at].Stat != index)
+                {
+                    throw new ArgumentException($"sv: modifier handle {handle.Id} not found");
+                }
+
                 var next = records[at].Next;
                 FreeRecord(at);
                 if (previous < 0)
                 {
-                    pair.Head = next;
+                    state.Head = next;
                 }
                 else
                 {
@@ -899,6 +964,157 @@ public sealed unsafe partial class Board
         }
     }
 
+    void MarkSlotsAcquired(int* slots, int count)
+    {
+        var words = LiveWordCount;
+        var at = 0;
+        while (at < count)
+        {
+            var word = slots[at] >> 6;
+            ulong bits = 0;
+            while (at < count && (slots[at] >> 6) == word)
+            {
+                bits |= 1ul << (slots[at] & 63);
+                at++;
+            }
+
+            for (var stat = 0; stat < statCount; stat++)
+            {
+                var index = stat * words + word;
+                if (acquired[index] == 0)
+                {
+                    acquiredTouched[acquiredTouchedCount++] = index;
+                }
+
+                acquired[index] |= bits;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Spawns <paramref name="count"/> entities copying <paramref name="templateSlot"/>'s resolved
+    /// stat vector. Slots come from the same lowest-free-first order as <see cref="Acquire"/> and
+    /// are written to <paramref name="slots"/>; every spawned slot shares the template's interned
+    /// set tuple (one block refcount add), materialized columns and mirrors are filled with the
+    /// template's values directly, and rows are marked in <see cref="AcquiredWords"/> — no pair
+    /// resolves at the next <see cref="Recalculate"/>. The template's modifiers are folded into
+    /// the shared set, not copied as records: the first re-resolve of a spawned pair (a later
+    /// modifier on that entity) recomputes from the entity's own modifiers alone. A template that
+    /// has never resolved falls back to plain acquire semantics. Throws at slot exhaustion before
+    /// mutating anything.
+    /// </summary>
+    public void Spawn(int templateSlot, int count, int* slots)
+    {
+        if (disposed)
+        {
+            throw new ObjectDisposedException(nameof(Board));
+        }
+
+        if (count < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(count), "sv: spawn count must be >= 0");
+        }
+
+        if (count == 0)
+        {
+            return;
+        }
+
+        if (slots == null)
+        {
+            throw new ArgumentNullException(nameof(slots));
+        }
+
+        Guard.SlotLive(templateSlot, live, Capacity);
+        if (LiveCount + count > Capacity)
+        {
+            throw new InvalidOperationException("sv: slot exhaustion");
+        }
+
+        var template = statCount > 0 ? Slot(templateSlot).Block : -1;
+        if (template < 0)
+        {
+            for (var i = 0; i < count; i++)
+            {
+                slots[i] = Acquire();
+            }
+
+            return;
+        }
+
+        var word = freeHint;
+        var words = LiveWordCount;
+        SlotState* page = null;
+        var pageAt = -1;
+        for (var i = 0; i < count; i++)
+        {
+            while (live[word] == ulong.MaxValue)
+            {
+                word++;
+            }
+
+            var bits = ~live[word];
+            var slot = (word << 6) + System.Numerics.BitOperations.TrailingZeroCount(bits);
+            live[word] = ~bits | (1ul << (slot & 63));
+            slots[i] = slot;
+            if (slot >> PageShift != pageAt)
+            {
+                page = SlotPage(slotPages, slot);
+                pageAt = slot >> PageShift;
+            }
+
+            page[slot & (PageSlots - 1)] = new SlotState { Block = template, Head = -1 };
+        }
+
+        if (live[word] == ulong.MaxValue)
+        {
+            word++;
+        }
+
+        freeHint = word;
+        LiveCount += count;
+        MarkSlotsAcquired(slots, count);
+        blocks!.AddRefMany(template, count);
+        var last = slots[count - 1];
+        for (var stat = 0; stat < statCount; stat++)
+        {
+            var column = outputColumn[stat];
+            var own = owned[stat];
+            var mirror = mirrors[stat];
+            if (column == null && own == null && mirror == null)
+            {
+                continue;
+            }
+
+            var value = table!.Computed(blocks.Set(template, stat));
+            var stride = outputStride[stat];
+            var bounded = Clamp.BoundOf(value);
+            if (column != null)
+            {
+                Guard.BindingFresh(boundGeneration[stat]);
+                Guard.BoundColumnFit(boundLength[stat], stride, last);
+            }
+
+            for (var i = 0; i < count; i++)
+            {
+                var slot = slots[i];
+                if (column != null)
+                {
+                    column[slot * stride] = value;
+                }
+                else if (own != null)
+                {
+                    own[slot] = value;
+                }
+
+                if (mirror != null)
+                {
+                    mirror[slot] = bounded;
+                }
+            }
+        }
+    }
+
     internal void ClearChangedMasks()
     {
         for (var i = 0; i < changedTouchedCount; i++)
@@ -917,22 +1133,20 @@ public sealed unsafe partial class Board
 
     internal void ClearSlotStats(int slot)
     {
-        for (var stat = 0; stat < statCount; stat++)
+        ref var state = ref Slot(slot);
+        for (var at = state.Head; at >= 0;)
         {
-            ref var pair = ref Pair(slot, stat);
-            for (var at = pair.Head; at >= 0;)
-            {
-                var next = records[at].Next;
-                FreeRecord(at);
-                at = next;
-            }
+            var next = records[at].Next;
+            FreeRecord(at);
+            at = next;
+        }
 
-            pair.Head = -1;
-            if (pair.Set >= 0)
-            {
-                table!.ReleaseRef(pair.Set);
-                pair.Set = -1;
-            }
+        state.Head = -1;
+        if (state.Block >= 0)
+        {
+            var block = state.Block;
+            state.Block = -1;
+            DropBlockRef(block);
         }
     }
 
@@ -1060,19 +1274,33 @@ public sealed unsafe partial class Board
 
                 var stat = (w << 5) + System.Numerics.BitOperations.TrailingZeroCount(word);
                 mask[w] = word & (word - 1);
-                ref var current = ref Pair(slot, stat).Set;
+                var block = Slot(slot).Block;
+                var current = block >= 0 ? blocks!.Set(block, stat) : -1;
                 var before = current >= 0 ? table!.Computed(current) : 0f;
                 var count = Gather(slot, stat);
                 var set = table!.Resolve(stat, scratch, count);
                 if (current != set)
                 {
-                    if (current >= 0)
+                    if (block >= 0)
                     {
-                        table.ReleaseRef(current);
+                        blocks!.CopyTuple(block, tupleScratch);
+                    }
+                    else
+                    {
+                        for (var k = 0; k < statCount; k++)
+                        {
+                            tupleScratch[k] = -1;
+                        }
                     }
 
-                    table.AddRef(set);
-                    current = set;
+                    tupleScratch[stat] = set;
+                    var next = InternTuple(tupleScratch);
+                    if (block >= 0)
+                    {
+                        DropBlockRef(block);
+                    }
+
+                    Slot(slot).Block = next;
                     var dependents = dependentsMask + (nint)stat * statMaskWords;
                     for (var k = 0; k < statMaskWords; k++)
                     {
@@ -1111,7 +1339,7 @@ public sealed unsafe partial class Board
                 continue;
             }
 
-            if (Pair(slot, stat).Set < 0)
+            if (SetOf(slot, stat) < 0)
             {
                 continue;
             }
@@ -1124,7 +1352,7 @@ public sealed unsafe partial class Board
     int Gather(int slot, int stat)
     {
         var synthetic = sourceOffset[stat + 1] - sourceOffset[stat];
-        var real = RecordCount(Pair(slot, stat).Head);
+        var real = RecordCount(slot, stat);
         var count = synthetic + real;
         if (count == 0)
         {
@@ -1141,12 +1369,15 @@ public sealed unsafe partial class Board
         return GatherInto(slot, stat, scratch, scratchIds);
     }
 
-    int RecordCount(int head)
+    int RecordCount(int slot, int stat)
     {
         var count = 0;
-        for (var at = head; at >= 0; at = records[at].Next)
+        for (var at = Slot(slot).Head; at >= 0; at = records[at].Next)
         {
-            count++;
+            if (records[at].Stat == stat)
+            {
+                count++;
+            }
         }
 
         return count;
@@ -1163,8 +1394,13 @@ public sealed unsafe partial class Board
             entryIds[k] = int.MinValue + k;
         }
 
-        for (var at = Pair(slot, stat).Head; at >= 0; at = records[at].Next)
+        for (var at = Slot(slot).Head; at >= 0; at = records[at].Next)
         {
+            if (records[at].Stat != stat)
+            {
+                continue;
+            }
+
             entries[count] = new StatEntry(records[at].Kind, records[at].Value);
             entryIds[count] = records[at].Id;
             count++;
@@ -1176,7 +1412,7 @@ public sealed unsafe partial class Board
 
     float SourceValue(int slot, int stat)
     {
-        var set = Pair(slot, stat).Set;
+        var set = SetOf(slot, stat);
         return set >= 0 && table!.Folded(set) ? table.Computed(set) : statBase[stat];
     }
 
@@ -1310,7 +1546,7 @@ public sealed unsafe partial class Board
         var index = StatIndex(stat);
         Guard.SlotLive(slot, live, Capacity);
         var synthetic = sourceOffset[index + 1] - sourceOffset[index];
-        var need = synthetic + RecordCount(Pair(slot, index).Head);
+        var need = synthetic + RecordCount(slot, index);
         if (statScratchCap < need)
         {
             statScratchCap = need * 2;
@@ -1445,21 +1681,21 @@ public sealed unsafe partial class Board
         }
 
         state.Write(expiryCount);
-        state.Write(expiries, (long)expiryCount * sizeof(Expiry));
+        state.Write(expiries, (long)expiryCount * sizeof(ExpiryEntry));
         state.Write(recordCount);
         state.Write(records, (long)recordCount * sizeof(ModRecord));
         state.Write(recordFree);
-        var pageWidth = PageSlots * statCount;
         for (var page = 0; page < pageCount; page++)
         {
-            var metas = metaPages[page];
-            state.Write((byte)(metas == null ? 0 : 1));
-            if (metas != null)
+            var states = slotPages[page];
+            state.Write((byte)(states == null ? 0 : 1));
+            if (states != null)
             {
-                state.Write(metas, (long)pageWidth * sizeof(PairState));
+                state.Write(states, (long)PageSlots * sizeof(SlotState));
             }
         }
 
+        blocks!.Write(state);
         table!.Write(state);
     }
 
@@ -1548,7 +1784,7 @@ public sealed unsafe partial class Board
         }
 
         expiryCount = heap;
-        state.Read(expiries, (long)heap * sizeof(Expiry));
+        state.Read(expiries, (long)heap * sizeof(ExpiryEntry));
         var poolCount = state.Read<int>();
         if (poolCount < 0 || poolCount > (1 << 24))
         {
@@ -1569,32 +1805,32 @@ public sealed unsafe partial class Board
             throw new System.IO.InvalidDataException("sv: corrupt board state");
         }
 
-        var pageWidth = PageSlots * statCount;
         for (var page = 0; page < pageCount; page++)
         {
             if (state.Read<byte>() == 0)
             {
-                if (metaPages[page] != null)
+                if (slotPages[page] != null)
                 {
-                    NativeMemory.Free(metaPages[page]);
-                    metaPages[page] = null;
+                    NativeMemory.Free(slotPages[page]);
+                    slotPages[page] = null;
                 }
             }
             else
             {
-                if (metaPages[page] == null)
+                if (slotPages[page] == null)
                 {
-                    metaPages[page] = Alloc<PairState>(pageWidth);
-                    for (var i = 0; i < pageWidth; i++)
+                    slotPages[page] = Alloc<SlotState>(PageSlots);
+                    for (var i = 0; i < PageSlots; i++)
                     {
-                        metaPages[page][i] = new PairState { Set = -1, Head = -1 };
+                        slotPages[page][i] = new SlotState { Block = -1, Head = -1 };
                     }
                 }
 
-                state.Read(metaPages[page], (long)pageWidth * sizeof(PairState));
+                state.Read(slotPages[page], (long)PageSlots * sizeof(SlotState));
             }
         }
 
+        blocks!.Read(state);
         table!.Read(state);
         for (var i = 0; i < staleCount; i++)
         {
@@ -1612,7 +1848,7 @@ public sealed unsafe partial class Board
                 {
                     var slot = (word << 6) + System.Numerics.BitOperations.TrailingZeroCount(bits);
                     bits &= bits - 1;
-                    if (Pair(slot, stat).Set >= 0)
+                    if (SetOf(slot, stat) >= 0)
                     {
                         owned[stat][slot] = SourceValue(slot, stat);
                     }
@@ -1642,7 +1878,7 @@ public sealed unsafe partial class Board
 
     void RenumberStats(ReadOnlySpan<int> oldToNew)
     {
-        var nextMetas = (PairState**)NativeMemory.AllocZeroed((nuint)pageCount * (nuint)sizeof(PairState*));
+        var nextPages = (SlotState**)NativeMemory.AllocZeroed((nuint)pageCount * (nuint)sizeof(SlotState*));
         for (var slot = 0; slot < Capacity; slot++)
         {
             if ((live[slot >> 6] & (1ul << (slot & 63))) == 0)
@@ -1651,21 +1887,15 @@ public sealed unsafe partial class Board
             }
 
             var next = oldToNew[slot];
-            var to = (next & (PageSlots - 1)) * statCount;
-            var metaPage = PairPage(nextMetas, next);
-            for (var stat = 0; stat < statCount; stat++)
+            SlotPage(nextPages, next)[next & (PageSlots - 1)] = Slot(slot);
+            for (var at = Slot(slot).Head; at >= 0; at = records[at].Next)
             {
-                metaPage[to + stat] = Pair(slot, stat);
+                records[at].Slot = next;
             }
         }
 
-        FreePages(metaPages);
-        metaPages = nextMetas;
-        for (var i = 0; i < expiryCount; i++)
-        {
-            var slot = expiries[i].Slot;
-            expiries[i].Slot = slot >= 0 && (live[slot >> 6] & (1ul << (slot & 63))) != 0 ? oldToNew[slot] : -1;
-        }
+        FreePages(slotPages);
+        slotPages = nextPages;
 
         var tempRows = Alloc<float>(Capacity);
         for (var stat = 0; stat < statCount; stat++)

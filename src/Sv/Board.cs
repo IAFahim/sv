@@ -66,10 +66,10 @@ public sealed unsafe partial class Board : IDisposable
     }
 
     /// <summary>
-    /// Native bytes currently owned by this board: slot bookkeeping, the stats pair pages (one
-    /// page per 4096 touched slots — set id plus modifier-list head per pair), the modifier
-    /// record pool, the set table, dirty masks, scratch and sv-owned output columns. O(pages)
-    /// walk — a
+    /// Native bytes currently owned by this board: slot bookkeeping, the per-slot state pages (one
+    /// page per 4096 touched slots — interned block id plus modifier-list head per slot), the block
+    /// table, the modifier record pool, the set table, dirty masks, scratch and sv-owned output
+    /// columns. O(pages) walk — a
     /// tooling receipt, not a frame-path call. <see cref="Capacity"/> rounds up to a 64 boundary;
     /// <see cref="RequestedCapacity"/> is the pre-rounding value.
     /// </summary>
@@ -88,29 +88,33 @@ public sealed unsafe partial class Board : IDisposable
                 + sizeof(int) * (long)statCount
                 + OwnedColumnBytes
                 + sizeof(int) * (long)statCount * 2
-                + PairBytes
+                + SlotStateBytes
+                + blocks!.MemoryBytes
+                + (long)recordCap * sizeof(ModRecord)
+                + (long)expiryCap * sizeof(ExpiryEntry)
                 + MirrorBytes
                 + 2 * (sizeof(ulong) + sizeof(int)) * (long)statCount * LiveWordCount
                 + sizeof(uint) * (long)Capacity * statMaskWords
                 + sizeof(uint) * (long)statCount * statMaskWords
                 + sizeof(int) * (long)dirtyTouchedCap
                 + (sizeof(StatEntry) + sizeof(int)) * (long)scratchCap
-                + (long)expiryCap * sizeof(Expiry);
+                + sizeof(int) * (long)statCount;
             return bytes + table!.MemoryBytes;
         }
     }
 
     const uint StateMagic = 0x44425653;
 
-    const long SetTableFormatVersion = 8;
+    const long SetTableFormatVersion = 9;
 
     internal long StateShape { get; }
 
     /// <summary>
     /// Saves the board's complete state into <paramref name="state"/> (overwriting it): slot space,
     /// modifier storage and insertion ids, sources and expiries, set identities and membership,
-    /// sv-owned output columns, mirrors, changed masks and the dirty stat masks. External bindings are not
-    /// state — host-owned columns are the host's to save. Warm saves are managed-allocation-free.
+    /// interned blocks, sv-owned output columns, mirrors, changed masks and the dirty stat masks.
+    /// External bindings are not state — host-owned columns are the host's to save. Warm saves are
+    /// managed-allocation-free.
     /// </summary>
     public void SaveState(SvState state)
     {
@@ -169,6 +173,19 @@ public sealed unsafe partial class Board : IDisposable
             throw new ObjectDisposedException(nameof(Board));
         }
 
+        var slot = TakeFreeSlot();
+        if (statCount > 0)
+        {
+            EnsureSlotPages(slot);
+            MarkSlotStatsDirty(slot);
+            MarkSlotAcquired(slot);
+        }
+
+        return slot;
+    }
+
+    int TakeFreeSlot()
+    {
         var word = freeHint;
         while (word < LiveWordCount && live[word] == ulong.MaxValue)
         {
@@ -184,13 +201,6 @@ public sealed unsafe partial class Board : IDisposable
         live[word] |= 1ul << (slot & 63);
         freeHint = live[word] == ulong.MaxValue ? word + 1 : word;
         LiveCount++;
-        if (statCount > 0)
-        {
-            EnsureSlotPages(slot);
-            MarkSlotStatsDirty(slot);
-            MarkSlotAcquired(slot);
-        }
-
         return slot;
     }
 

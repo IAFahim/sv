@@ -55,6 +55,6 @@ public unsafe class MemoryBytesTests
 
         board.Recalculate();
         var full = board.MemoryBytes / (1024.0 * 1024.0);
-        Assert.True(full > 30 && full < 60, $"1M live, modifier-free: 4 B/pair set-id pages for every slot, got {full:0.0} MiB");
+        Assert.True(full > 12 && full < 30, $"1M live, modifier-free: 8 B/slot block+head pages for every slot, got {full:0.0} MiB");
     }
 }

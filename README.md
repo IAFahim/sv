@@ -229,8 +229,9 @@ aggregate, per-writer cache-line-padded locks). Standing `NoAllocationTests` ass
 exact-zero managed bytes for every warm verb; the managed-state audit shows zero
 managed collections outside `Schema` (cold authoring). The native bill is a receipt
 too: `Board.MemoryBytes` reports everything the board owns (a 1M × 3-stat board
-commits ~15 MiB empty — pair storage is paged and allocated on first touch — and
-~78 MiB fully live) and `Board.RequestedCapacity` sits beside the 64-rounded
+commits a few MiB empty — slot storage is paged and allocated on first touch, and
+stat identity is interned blocks — and ~17 MiB fully live) and
+`Board.RequestedCapacity` sits beside the 64-rounded
 `Capacity`, so alignment padding is visible. Determinism is proven across ISAs: a
 baked 64-bit scenario digest is identical on the AVX2, 128-bit and scalar paths, and
 the `determinism` CI matrix runs it on x64, arm64, macOS and Windows.
@@ -322,6 +323,7 @@ Last refreshed 2026-10-22 11:22 UTC · `main@f4ccc8d` · AMD EPYC 9V45 96-Core P
 | 63 | Modifier instance pool (roadmap 2.4, S1): the `PairMods` pages, per-pair 16 B headers and per-list 64 B doubling blocks deleted — one global pool of 32 B records (`Id`, `Kind`, `Value`, `Source`, `Expiry`, `Next`) with a deterministic LIFO free list, linked per pair through a `PairState { Set, Head }` (8 B/pair, board state format v6); renumber moves pair states only — records are pool-global — and the first 16 modifiers on acquired slots allocate nothing — FF-1M board 642 → 386 MiB, snapshot 368 → 336 MiB, rss 734 → 447 MiB, stat-churn 26 → 21 ns/op — [issues/0071](issues/0071-atom-63-modifier-instance-pool.md) | done |
 | 64 | Lazy owned columns (roadmap 2.5): sv-owned stat columns allocate on first `OutputPtr`/`Output` and dense-refill from the set table (only while unbound — a bound column stays the effective one, the owned view stays stale per the atom-48 digest law); broadcasts of unmaterialized stats mark `ChangedWords` against the old set's computed value with zero column bytes; release/renumber/save skip unallocated columns (board state format v7, per-stat column flags) — FF-1M board 386 → 322 MiB, snapshot 336 → 272 MiB, rss 447 → 383 MiB — [issues/0072](issues/0072-atom-64-lazy-owned-columns.md) | done |
 | 65 | Bitmap allocator (roadmap 2.6): the free-slot stack (`capacity × 4 B` int LIFO) deleted — the live bitmap's complement is the free set, `Acquire` hands out the lowest free slot (`TrailingZeroCount` over `~live`) with a `freeHint` word index keeping it amortized O(1); holes always refill lowest-first so the live prefix stays dense and renumber has less to do; the free set leaves the save entirely (board state format v8, `freeHint` recomputed from `live` on load) — FF-1M board 322 → 318 MiB (−4 MiB stack), alloc 0 B — [issues/0073](issues/0073-atom-65-bitmap-allocator.md) | done |
+| 66 | Blocks + template spawn (roadmap 2.7, §4.4): each slot's set tuple is interned as one refcounted **block** (`BlockTable`, set ids only — values stay `Computed(set)`), pair pages become per-slot `SlotState {Block, Head}` (8 B/pair → 8 B/slot); changing one stat re-interns the tuple (O(S), refs-first so shared sets never dip to zero); modifier records gain `Slot`/`Stat` and chain per entity; expiry entries pack to 16 B with exact-fit shrink; `Spawn(template, n, slots)` = n block-id writes + column/mirror fills + one refcount add — no pair resolves, rows surface in `AcquiredWords` (board state format v9) — **spawn1m 3.3 ms** (receipt ≤ 10 ms), FF-1M board 318 → **154 MiB** (receipt ≤ 160), snapshot 272 → 152 MiB, rss 383 → 260 MiB — [issues/0074](issues/0074-atom-66-blocks-template-spawn.md) | done |
 
 Atom 1 scope note: `Clamp.Stat` and the StrictFloat oracle land with atom 2 (the first
 float math); the walkers land with atom 3. Nothing ships half-wired.
