@@ -26,6 +26,8 @@ public sealed unsafe partial class Board : IDisposable
         return live[word];
     }
 
+    private readonly NativeArena arena;
+
     private readonly ulong* live;
 
     private int freeHint;
@@ -37,8 +39,9 @@ public sealed unsafe partial class Board : IDisposable
         Schema = schema;
         Capacity = capacity;
         RequestedCapacity = requestedCapacity;
-        var words = (nuint)((capacity + 63) >> 6);
-        live = (ulong*)NativeMemory.AllocZeroed(words * sizeof(ulong));
+        arena = new NativeArena();
+        var words = (capacity + 63) >> 6;
+        live = arena.AllocZeroed<ulong>(words);
 
         InitStats(schema, capacity);
         StateShape = ComputeStateShape();
@@ -66,42 +69,13 @@ public sealed unsafe partial class Board : IDisposable
     }
 
     /// <summary>
-    /// Native bytes currently owned by this board: slot bookkeeping, the per-slot state pages (one
-    /// page per 4096 touched slots — interned block id plus modifier-list head per slot), the block
-    /// table, the modifier record pool, the set table, dirty masks, scratch and sv-owned output
-    /// columns. O(pages) walk — a
-    /// tooling receipt, not a frame-path call. <see cref="Capacity"/> rounds up to a 64 boundary;
+    /// Native bytes currently owned by this board — the tracked allocator's live total, so it is
+    /// O(1) and exact: slot bookkeeping, per-slot state pages, the block table, the modifier record
+    /// pool, the set table, dirty masks, scratch, mirrors and sv-owned output columns, all counted
+    /// at their real allocation sizes. <see cref="Capacity"/> rounds up to a 64 boundary;
     /// <see cref="RequestedCapacity"/> is the pre-rounding value.
     /// </summary>
-    public long MemoryBytes
-    {
-        get
-        {
-            var bytes = (long)((Capacity + 63) >> 6) * sizeof(ulong);
-            if (statCount == 0)
-            {
-                return bytes;
-            }
-
-            bytes += sizeof(float) * (long)statCount
-                + sizeof(float*) * (long)statCount
-                + sizeof(int) * (long)statCount
-                + OwnedColumnBytes
-                + sizeof(int) * (long)statCount * 2
-                + SlotStateBytes
-                + blocks!.MemoryBytes
-                + (long)recordCap * sizeof(ModRecord)
-                + (long)expiryCap * sizeof(ExpiryEntry)
-                + MirrorBytes
-                + 2 * (sizeof(ulong) + sizeof(int)) * (long)statCount * LiveWordCount
-                + sizeof(uint) * (long)Capacity * statMaskWords
-                + sizeof(uint) * (long)statCount * statMaskWords
-                + sizeof(int) * (long)dirtyTouchedCap
-                + (sizeof(StatEntry) + sizeof(int)) * (long)scratchCap
-                + sizeof(int) * (long)statCount;
-            return bytes + table!.MemoryBytes;
-        }
-    }
+    public long MemoryBytes => arena.Live;
 
     const uint StateMagic = 0x44425653;
 
@@ -475,8 +449,9 @@ public sealed unsafe partial class Board : IDisposable
             return;
         }
 
-        NativeMemory.Free(live);
         FreeStats();
+        arena.Free(live, LiveWordCount);
+        arena.Dispose();
         disposed = true;
     }
 }

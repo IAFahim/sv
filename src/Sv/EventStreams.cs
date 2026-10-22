@@ -38,6 +38,8 @@ public sealed unsafe class EventStreams : IDisposable
 
     private readonly int* arenaCapacity;
 
+    private readonly int* arenaPeak;
+
     private readonly int* writeOffset;
 
     private readonly int* readOffset;
@@ -63,6 +65,7 @@ public sealed unsafe class EventStreams : IDisposable
         this.writerCount = writerCount;
         arenas = (byte**)NativeMemory.Alloc((nuint)writerCount * 2 * (nuint)sizeof(byte*));
         arenaCapacity = (int*)NativeMemory.AllocZeroed((nuint)writerCount * 2 * sizeof(int));
+        arenaPeak = (int*)NativeMemory.AllocZeroed((nuint)writerCount * 2 * sizeof(int));
         readOffset = (int*)NativeMemory.AllocZeroed((nuint)writerCount * sizeof(int));
         readCursorOffset = (int*)NativeMemory.AllocZeroed((nuint)writerCount * sizeof(int));
         locks = (nint*)NativeMemory.AlignedAlloc((nuint)(writerCount * LockStride * sizeof(nint)), 64);
@@ -216,16 +219,55 @@ public sealed unsafe class EventStreams : IDisposable
         public T Make(int row, int value) => make(row, value);
     }
 
+    internal long ArenaBytes
+    {
+        get
+        {
+            long bytes = 0;
+            for (var index = 0; index < writerCount * 2; index++)
+            {
+                bytes += arenaCapacity[index];
+            }
+
+            return bytes;
+        }
+    }
+
     public void Swap()
     {
         for (var w = 0; w < writerCount; w++)
         {
-            readOffset[w] = writeOffset[w * OffsetStride];
+            var used = writeOffset[w * OffsetStride];
+            readOffset[w] = used;
             writeOffset[w * OffsetStride] = 0;
             readCursorOffset[w] = 0;
+            DecayPeak(w * 2 + active, used);
+            DecayPeak(w * 2 + (1 - active), used);
+            ShrinkArena(w * 2 + active);
+            ShrinkArena(w * 2 + (1 - active));
         }
 
         active ^= 1;
+    }
+
+    void DecayPeak(int index, int used)
+    {
+        var decayed = arenaPeak[index] - (arenaPeak[index] >> 4);
+        arenaPeak[index] = used > decayed ? used : decayed;
+    }
+
+    void ShrinkArena(int index)
+    {
+        var capacity = arenaCapacity[index];
+        var peak = arenaPeak[index];
+        if (capacity <= 4096 || (long)peak * 4 > (long)capacity * 3)
+        {
+            return;
+        }
+
+        var target = Round(peak + (peak >> 3));
+        arenas[index] = (byte*)NativeMemory.Realloc(arenas[index], (nuint)target);
+        arenaCapacity[index] = target;
     }
 
     public bool TryReadNext(out ushort typeId, out void* payload, out int size)
@@ -498,6 +540,7 @@ public sealed unsafe class EventStreams : IDisposable
 
         arenas[index] = (byte*)NativeMemory.Realloc(arenas[index], (nuint)capacity);
         arenaCapacity[index] = capacity;
+        arenaPeak[index] = capacity;
     }
 
     public void Dispose()
@@ -515,6 +558,7 @@ public sealed unsafe class EventStreams : IDisposable
 
         NativeMemory.Free(arenas);
         NativeMemory.Free(arenaCapacity);
+        NativeMemory.Free(arenaPeak);
         NativeMemory.Free(readOffset);
         NativeMemory.Free(readCursorOffset);
         NativeMemory.AlignedFree(locks);

@@ -144,58 +144,58 @@ public sealed unsafe partial class Board
             return;
         }
 
-        table = new SetTable();
-        statBase = Alloc<float>(statCount);
+        table = new SetTable(arena);
+        statBase = arena.Alloc<float>(statCount);
         for (var i = 0; i < statCount; i++)
         {
             statBase[i] = schema.Stats[i].Base;
         }
 
-        outputColumn = (float**)NativeMemory.Alloc((nuint)statCount * (nuint)sizeof(float*));
+        outputColumn = (float**)arena.AllocBytes(statCount * sizeof(float*));
         NativeMemory.Clear(outputColumn, (nuint)statCount * (nuint)sizeof(float*));
-        outputStride = Alloc<int>(statCount);
-        owned = (float**)NativeMemory.AllocZeroed((nuint)statCount * (nuint)sizeof(float*));
-        boundGeneration = Alloc<int>(statCount);
+        outputStride = arena.Alloc<int>(statCount);
+        owned = (float**)arena.AllocZeroedBytes(statCount * sizeof(float*));
+        boundGeneration = arena.Alloc<int>(statCount);
         for (var i = 0; i < statCount; i++)
         {
             boundGeneration[i] = -1;
         }
 
-        mirrors = (int**)NativeMemory.AllocZeroed((nuint)statCount * (nuint)sizeof(int*));
+        mirrors = (int**)arena.AllocZeroedBytes(statCount * sizeof(int*));
         statMaskWords = (statCount + 31) >> 5;
-        dependentsMask = (uint*)NativeMemory.AllocZeroed((nuint)statCount * (nuint)statMaskWords * sizeof(uint));
-        allStatsMask = (uint*)NativeMemory.AllocZeroed((nuint)statMaskWords * sizeof(uint));
+        dependentsMask = arena.AllocZeroed<uint>(statCount * statMaskWords);
+        allStatsMask = arena.AllocZeroed<uint>(statMaskWords);
         for (var i = 0; i < statCount; i++)
         {
             allStatsMask[i >> 5] |= 1u << (i & 31);
         }
 
         InitSources(schema);
-        var changedWords = (nuint)statCount * (nuint)((capacity + 63) >> 6);
-        changed = (ulong*)NativeMemory.AllocZeroed(changedWords * sizeof(ulong));
-        changedTouched = (int*)NativeMemory.Alloc(changedWords * sizeof(int));
-        acquired = (ulong*)NativeMemory.AllocZeroed(changedWords * sizeof(ulong));
-        acquiredTouched = (int*)NativeMemory.Alloc(changedWords * sizeof(int));
-        boundLength = Alloc<int>(statCount);
+        var changedWords = statCount * ((capacity + 63) >> 6);
+        changed = arena.AllocZeroed<ulong>(changedWords);
+        changedTouched = arena.Alloc<int>(changedWords);
+        acquired = arena.AllocZeroed<ulong>(changedWords);
+        acquiredTouched = arena.Alloc<int>(changedWords);
+        boundLength = arena.Alloc<int>(statCount);
         for (var i = 0; i < statCount; i++)
         {
             boundLength[i] = -1;
         }
         pageCount = (capacity + PageSlots - 1) >> PageShift;
-        slotPages = (SlotState**)NativeMemory.AllocZeroed((nuint)pageCount * (nuint)sizeof(SlotState*));
-        blocks = new BlockTable(statCount);
-        tupleScratch = Alloc<int>(statCount);
+        slotPages = (SlotState**)arena.AllocZeroedBytes(pageCount * sizeof(SlotState*));
+        blocks = new BlockTable(arena, statCount);
+        tupleScratch = arena.Alloc<int>(statCount);
         recordCap = 16;
-        records = Alloc<ModRecord>(recordCap);
+        records = arena.Alloc<ModRecord>(recordCap);
         recordFree = -1;
-        dirty = (uint*)NativeMemory.AllocZeroed((nuint)capacity * (nuint)statMaskWords * sizeof(uint));
+        dirty = arena.AllocZeroed<uint>(capacity * statMaskWords);
         dirtyTouchedCap = 64;
-        dirtyTouched = Alloc<int>(dirtyTouchedCap);
+        dirtyTouched = arena.Alloc<int>(dirtyTouchedCap);
         scratchCap = 32;
-        scratch = Alloc<StatEntry>(scratchCap);
-        scratchIds = Alloc<int>(scratchCap);
+        scratch = arena.Alloc<StatEntry>(scratchCap);
+        scratchIds = arena.Alloc<int>(scratchCap);
         expiryCap = 16;
-        expiries = Alloc<ExpiryEntry>(expiryCap);
+        expiries = arena.Alloc<ExpiryEntry>(expiryCap);
     }
 
     void InitSources(Schema schema)
@@ -206,11 +206,11 @@ public sealed unsafe partial class Board
             total += schema.Stats[i].Sources.Count;
         }
 
-        sourceOffset = Alloc<int>(statCount + 1);
-        sourceStat = Alloc<int>(Math.Max(total, 1));
-        sourceCoefficient = Alloc<float>(Math.Max(total, 1));
-        dependentOffset = (int*)NativeMemory.AllocZeroed((nuint)(statCount + 1) * sizeof(int));
-        dependentStat = Alloc<int>(Math.Max(total, 1));
+        sourceOffset = arena.Alloc<int>(statCount + 1);
+        sourceStat = arena.Alloc<int>(Math.Max(total, 1));
+        sourceCoefficient = arena.Alloc<float>(Math.Max(total, 1));
+        dependentOffset = arena.AllocZeroed<int>(statCount + 1);
+        dependentStat = arena.Alloc<int>(Math.Max(total, 1));
         var at = 0;
         for (var i = 0; i < statCount; i++)
         {
@@ -230,7 +230,7 @@ public sealed unsafe partial class Board
             dependentOffset[i + 1] += dependentOffset[i];
         }
 
-        var fill = Alloc<int>(statCount);
+        var fill = arena.Alloc<int>(statCount);
         for (var i = 0; i < statCount; i++)
         {
             fill[i] = dependentOffset[i];
@@ -253,17 +253,7 @@ public sealed unsafe partial class Board
             }
         }
 
-        NativeMemory.Free(fill);
-    }
-
-    static T* Alloc<T>(int count) where T : unmanaged
-    {
-        return (T*)NativeMemory.Alloc((nuint)count * (nuint)sizeof(T));
-    }
-
-    static T* Realloc<T>(T* old, int count) where T : unmanaged
-    {
-        return (T*)NativeMemory.Realloc(old, (nuint)count * (nuint)sizeof(T));
+        arena.Free(fill, statCount);
     }
 
     void FreeStats()
@@ -275,50 +265,51 @@ public sealed unsafe partial class Board
 
         FreePages(slotPages);
         blocks!.Dispose();
-        NativeMemory.Free(tupleScratch);
+        arena.Free(tupleScratch, statCount);
         table!.Dispose();
-        NativeMemory.Free(statBase);
-        NativeMemory.Free(outputColumn);
-        NativeMemory.Free(outputStride);
+        arena.Free(statBase, statCount);
+        arena.FreeBytes(outputColumn, statCount * sizeof(float*));
+        arena.Free(outputStride, statCount);
         for (var i = 0; i < statCount; i++)
         {
             if (owned[i] != null)
             {
-                NativeMemory.Free(owned[i]);
+                arena.Free(owned[i], Capacity);
             }
         }
 
-        NativeMemory.Free(owned);
-        NativeMemory.Free(boundGeneration);
-        NativeMemory.Free(boundLength);
+        arena.FreeBytes(owned, statCount * sizeof(float*));
+        arena.Free(boundGeneration, statCount);
+        arena.Free(boundLength, statCount);
         for (var i = 0; i < statCount; i++)
         {
             if (mirrors[i] != null)
             {
-                NativeMemory.Free(mirrors[i]);
+                arena.Free(mirrors[i], Capacity);
             }
         }
 
-        NativeMemory.Free(mirrors);
-        NativeMemory.Free(sourceOffset);
-        NativeMemory.Free(sourceStat);
-        NativeMemory.Free(sourceCoefficient);
-        NativeMemory.Free(dependentOffset);
-        NativeMemory.Free(dependentStat);
-        NativeMemory.Free(changed);
-        NativeMemory.Free(changedTouched);
-        NativeMemory.Free(acquired);
-        NativeMemory.Free(acquiredTouched);
-        NativeMemory.Free(records);
-        NativeMemory.Free(dirty);
-        NativeMemory.Free(dirtyTouched);
-        NativeMemory.Free(dependentsMask);
-        NativeMemory.Free(allStatsMask);
-        NativeMemory.Free(scratch);
-        NativeMemory.Free(scratchIds);
-        NativeMemory.Free(statScratch);
-        NativeMemory.Free(statScratchIds);
-        NativeMemory.Free(expiries);
+        arena.FreeBytes(mirrors, statCount * sizeof(int*));
+        arena.Free(sourceOffset, statCount + 1);
+        arena.Free(sourceStat, Math.Max(sourceOffset[statCount], 1));
+        arena.Free(sourceCoefficient, Math.Max(sourceOffset[statCount], 1));
+        arena.Free(dependentOffset, statCount + 1);
+        arena.Free(dependentStat, Math.Max(sourceOffset[statCount], 1));
+        var maskWords = statCount * ((Capacity + 63) >> 6);
+        arena.Free(changed, maskWords);
+        arena.Free(changedTouched, maskWords);
+        arena.Free(acquired, maskWords);
+        arena.Free(acquiredTouched, maskWords);
+        arena.Free(records, recordCap);
+        arena.Free(dirty, Capacity * statMaskWords);
+        arena.Free(dirtyTouched, dirtyTouchedCap);
+        arena.Free(dependentsMask, statCount * statMaskWords);
+        arena.Free(allStatsMask, statMaskWords);
+        arena.Free(scratch, scratchCap);
+        arena.Free(scratchIds, scratchCap);
+        arena.Free(statScratch, Math.Max(statScratchCap, 1));
+        arena.Free(statScratchIds, Math.Max(statScratchCap, 1));
+        arena.Free(expiries, expiryCap);
     }
 
     void FreePages(SlotState** pages)
@@ -327,11 +318,11 @@ public sealed unsafe partial class Board
         {
             if (pages[page] != null)
             {
-                NativeMemory.Free(pages[page]);
+                arena.Free(pages[page], PageSlots);
             }
         }
 
-        NativeMemory.Free(pages);
+        arena.FreeBytes(pages, pageCount * sizeof(SlotState*));
     }
 
     SlotState* SlotPage(SlotState** pages, int slot)
@@ -339,7 +330,7 @@ public sealed unsafe partial class Board
         var page = slot >> PageShift;
         if (pages[page] == null)
         {
-            var fresh = Alloc<SlotState>(PageSlots);
+            var fresh = arena.Alloc<SlotState>(PageSlots);
             for (var i = 0; i < PageSlots; i++)
             {
                 fresh[i] = new SlotState { Block = -1, Head = -1 };
@@ -362,8 +353,9 @@ public sealed unsafe partial class Board
 
         if (recordCount == recordCap)
         {
+            var previous = recordCap;
             recordCap *= 2;
-            records = Realloc(records, recordCap);
+            records = arena.Realloc(records, previous, recordCap);
         }
 
         return recordCount++;
@@ -392,23 +384,6 @@ public sealed unsafe partial class Board
     internal void EnsureSlotPages(int slot)
     {
         SlotPage(slotPages, slot);
-    }
-
-    internal long SlotStateBytes
-    {
-        get
-        {
-            long bytes = (long)pageCount * sizeof(SlotState*);
-            for (var page = 0; page < pageCount; page++)
-            {
-                if (slotPages[page] != null)
-                {
-                    bytes += (long)PageSlots * sizeof(SlotState);
-                }
-            }
-
-            return bytes;
-        }
     }
 
     int InternTuple(int* tuple)
@@ -582,7 +557,7 @@ public sealed unsafe partial class Board
             return mirrors[index];
         }
 
-        var mirror = (int*)NativeMemory.AllocZeroed((nuint)Capacity * sizeof(int));
+        var mirror = arena.AllocZeroed<int>(Capacity);
         FillMirrorFromColumns(index, mirror);
         mirrors[index] = mirror;
         return mirror;
@@ -612,7 +587,7 @@ public sealed unsafe partial class Board
             return column;
         }
 
-        column = (float*)NativeMemory.AllocZeroed((nuint)Capacity * sizeof(float));
+        column = arena.AllocZeroed<float>(Capacity);
         if (outputColumn[stat] == null)
         {
             for (var word = 0; word < LiveWordCount; word++)
@@ -632,40 +607,6 @@ public sealed unsafe partial class Board
 
         owned[stat] = column;
         return column;
-    }
-
-    internal long OwnedColumnBytes
-    {
-        get
-        {
-            long bytes = (long)statCount * sizeof(float*);
-            for (var i = 0; i < statCount; i++)
-            {
-                if (owned[i] != null)
-                {
-                    bytes += (long)Capacity * sizeof(float);
-                }
-            }
-
-            return bytes;
-        }
-    }
-
-    internal long MirrorBytes
-    {
-        get
-        {
-            long bytes = (long)statCount * sizeof(int*);
-            for (var i = 0; i < statCount; i++)
-            {
-                if (mirrors[i] != null)
-                {
-                    bytes += (long)Capacity * sizeof(int);
-                }
-            }
-
-            return bytes;
-        }
     }
 
     public float* OutputColumn(StatId stat)
@@ -810,8 +751,9 @@ public sealed unsafe partial class Board
     {
         if (expiryCount == expiryCap)
         {
+            var previous = expiryCap;
             expiryCap *= 2;
-            expiries = Realloc(expiries, expiryCap);
+            expiries = arena.Realloc(expiries, previous, expiryCap);
         }
 
         var at = expiryCount++;
@@ -866,9 +808,10 @@ public sealed unsafe partial class Board
     {
         if (expiryCap > 16 && (long)expiryCount * 4 <= (long)expiryCap * 3)
         {
+            var previous = expiryCap;
             var target = expiryCount + (expiryCount >> 3);
             expiryCap = target < 16 ? 16 : target;
-            expiries = Realloc(expiries, expiryCap);
+            expiries = arena.Realloc(expiries, previous, expiryCap);
         }
     }
 
@@ -1174,8 +1117,9 @@ public sealed unsafe partial class Board
     {
         if (dirtyTouchedCount == dirtyTouchedCap)
         {
+            var previous = dirtyTouchedCap;
             dirtyTouchedCap *= 2;
-            dirtyTouched = Realloc(dirtyTouched, dirtyTouchedCap);
+            dirtyTouched = arena.Realloc(dirtyTouched, previous, dirtyTouchedCap);
         }
 
         dirtyTouched[dirtyTouchedCount++] = slot;
@@ -1319,7 +1263,28 @@ public sealed unsafe partial class Board
         }
 
         dirtyTouchedCount = 0;
+        ShrinkHighWater();
+    }
 
+    void ShrinkHighWater()
+    {
+        if (recordCap > 16 && (long)recordCount * 4 <= (long)recordCap * 3)
+        {
+            var previous = recordCap;
+            var target = recordCount + (recordCount >> 3);
+            recordCap = target < 16 ? 16 : target;
+            records = arena.Realloc(records, previous, recordCap);
+        }
+
+        if (dirtyTouchedCap > 64 && (long)dirtyTouchedCount * 4 <= (long)dirtyTouchedCap * 3)
+        {
+            var previous = dirtyTouchedCap;
+            var target = dirtyTouchedCount + (dirtyTouchedCount >> 3);
+            dirtyTouchedCap = target < 64 ? 64 : target;
+            dirtyTouched = arena.Realloc(dirtyTouched, previous, dirtyTouchedCap);
+        }
+
+        ShrinkExpiries();
     }
 
     void RefillColumn(int stat)
@@ -1361,9 +1326,10 @@ public sealed unsafe partial class Board
 
         if (count > scratchCap)
         {
+            var previous = scratchCap;
             scratchCap = count * 2;
-            scratch = Realloc(scratch, scratchCap);
-            scratchIds = Realloc(scratchIds, scratchCap);
+            scratch = arena.Realloc(scratch, previous, scratchCap);
+            scratchIds = arena.Realloc(scratchIds, previous, scratchCap);
         }
 
         return GatherInto(slot, stat, scratch, scratchIds);
@@ -1549,9 +1515,10 @@ public sealed unsafe partial class Board
         var need = synthetic + RecordCount(slot, index);
         if (statScratchCap < need)
         {
+            var previous = statScratchCap;
             statScratchCap = need * 2;
-            statScratch = Realloc(statScratch, statScratchCap);
-            statScratchIds = Realloc(statScratchIds, statScratchCap);
+            statScratch = arena.Realloc(statScratch, previous, statScratchCap);
+            statScratchIds = arena.Realloc(statScratchIds, previous, statScratchCap);
         }
 
         var count = GatherInto(slot, index, statScratch, statScratchIds);
@@ -1584,9 +1551,9 @@ public sealed unsafe partial class Board
         }
 
         var words = (Capacity + 63) >> 6;
-        var newLive = Alloc<ulong>(words);
+        var newLive = arena.Alloc<ulong>(words);
         NativeMemory.Clear(newLive, (nuint)words * sizeof(ulong));
-        var seen = Alloc<int>(Capacity);
+        var seen = arena.Alloc<int>(Capacity);
         for (var i = 0; i < Capacity; i++)
         {
             seen[i] = -1;
@@ -1602,8 +1569,8 @@ public sealed unsafe partial class Board
             var next = oldToNew[slot];
             if (next < 0 || next >= Capacity || seen[next] >= 0)
             {
-                NativeMemory.Free(newLive);
-                NativeMemory.Free(seen);
+                arena.Free(newLive, words);
+                arena.Free(seen, Capacity);
                 throw new ArgumentException("sv: renumber map does not map live slots to distinct targets");
             }
 
@@ -1617,7 +1584,7 @@ public sealed unsafe partial class Board
         }
 
         new ReadOnlySpan<ulong>(newLive, words).CopyTo(new Span<ulong>(live, words));
-        NativeMemory.Free(newLive);
+        arena.Free(newLive, words);
         var hint = 0;
         while (hint < words && live[hint] == ulong.MaxValue)
         {
@@ -1625,7 +1592,7 @@ public sealed unsafe partial class Board
         }
 
         freeHint = hint;
-        NativeMemory.Free(seen);
+        arena.Free(seen, Capacity);
 
         if (statCount > 0)
         {
@@ -1711,8 +1678,9 @@ public sealed unsafe partial class Board
 
         if (pending > dirtyTouchedCap)
         {
+            var previous = dirtyTouchedCap;
             dirtyTouchedCap = pending;
-            dirtyTouched = Realloc(dirtyTouched, dirtyTouchedCap);
+            dirtyTouched = arena.Realloc(dirtyTouched, previous, dirtyTouchedCap);
         }
 
         ClearDirty();
@@ -1735,7 +1703,7 @@ public sealed unsafe partial class Board
         acquiredTouchedCount = state.Read<int>();
         state.Read(acquiredTouched, (long)acquiredTouchedCount * sizeof(int));
         state.Read(acquired, (long)statCount * words * sizeof(ulong));
-        var staleColumns = Alloc<int>(statCount);
+        var staleColumns = arena.Alloc<int>(statCount);
         var staleCount = 0;
         for (var stat = 0; stat < statCount; stat++)
         {
@@ -1743,7 +1711,7 @@ public sealed unsafe partial class Board
             {
                 if (owned[stat] == null)
                 {
-                    owned[stat] = (float*)NativeMemory.AllocZeroed((nuint)Capacity * sizeof(float));
+                    owned[stat] = arena.AllocZeroed<float>(Capacity);
                 }
 
                 state.Read(owned[stat], (long)Capacity * sizeof(float));
@@ -1754,7 +1722,7 @@ public sealed unsafe partial class Board
             }
         }
 
-        var staleMirrors = Alloc<int>(statCount);
+        var staleMirrors = arena.Alloc<int>(statCount);
         var staleMirrorCount = 0;
         for (var stat = 0; stat < statCount; stat++)
         {
@@ -1770,7 +1738,7 @@ public sealed unsafe partial class Board
 
             if (mirrors[stat] == null)
             {
-                mirrors[stat] = (int*)NativeMemory.AllocZeroed((nuint)Capacity * sizeof(int));
+                mirrors[stat] = arena.AllocZeroed<int>(Capacity);
             }
 
             state.Read(mirrors[stat], (long)Capacity * sizeof(int));
@@ -1779,8 +1747,9 @@ public sealed unsafe partial class Board
         var heap = state.Read<int>();
         if (heap > expiryCap)
         {
+            var previous = expiryCap;
             expiryCap = heap;
-            expiries = Realloc(expiries, expiryCap);
+            expiries = arena.Realloc(expiries, previous, expiryCap);
         }
 
         expiryCount = heap;
@@ -1793,8 +1762,9 @@ public sealed unsafe partial class Board
 
         if (poolCount > recordCap)
         {
+            var previous = recordCap;
             recordCap = poolCount;
-            records = Realloc(records, recordCap);
+            records = arena.Realloc(records, previous, recordCap);
         }
 
         recordCount = poolCount;
@@ -1811,7 +1781,7 @@ public sealed unsafe partial class Board
             {
                 if (slotPages[page] != null)
                 {
-                    NativeMemory.Free(slotPages[page]);
+                    arena.Free(slotPages[page], PageSlots);
                     slotPages[page] = null;
                 }
             }
@@ -1819,7 +1789,7 @@ public sealed unsafe partial class Board
             {
                 if (slotPages[page] == null)
                 {
-                    slotPages[page] = Alloc<SlotState>(PageSlots);
+                    slotPages[page] = arena.Alloc<SlotState>(PageSlots);
                     for (var i = 0; i < PageSlots; i++)
                     {
                         slotPages[page][i] = new SlotState { Block = -1, Head = -1 };
@@ -1863,8 +1833,8 @@ public sealed unsafe partial class Board
             FillMirrorFromColumns(stat, mirrors[stat]);
         }
 
-        NativeMemory.Free(staleColumns);
-        NativeMemory.Free(staleMirrors);
+        arena.Free(staleColumns, statCount);
+        arena.Free(staleMirrors, statCount);
         RefillRestoredBindings();
     }
 
@@ -1878,7 +1848,7 @@ public sealed unsafe partial class Board
 
     void RenumberStats(ReadOnlySpan<int> oldToNew)
     {
-        var nextPages = (SlotState**)NativeMemory.AllocZeroed((nuint)pageCount * (nuint)sizeof(SlotState*));
+        var nextPages = (SlotState**)arena.AllocZeroedBytes(pageCount * sizeof(SlotState*));
         for (var slot = 0; slot < Capacity; slot++)
         {
             if ((live[slot >> 6] & (1ul << (slot & 63))) == 0)
@@ -1897,7 +1867,7 @@ public sealed unsafe partial class Board
         FreePages(slotPages);
         slotPages = nextPages;
 
-        var tempRows = Alloc<float>(Capacity);
+        var tempRows = arena.Alloc<float>(Capacity);
         for (var stat = 0; stat < statCount; stat++)
         {
             var column = owned[stat];
@@ -1935,6 +1905,6 @@ public sealed unsafe partial class Board
             new ReadOnlySpan<int>(mirrorRows, Capacity).CopyTo(new Span<int>(mirror, Capacity));
         }
 
-        NativeMemory.Free(tempRows);
+        arena.Free(tempRows, Capacity);
     }
 }

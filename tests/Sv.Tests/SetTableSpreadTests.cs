@@ -13,7 +13,8 @@ public unsafe class SetTableSpreadTests
     [Fact]
     public void ContentHash_FloatOnlyDifferences_SpreadAcrossLowBuckets()
     {
-        using var table = new SetTable();
+        using var memory = new NativeArena();
+        using var table = new SetTable(memory);
         var entries = stackalloc StatEntry[1];
         var buckets = new bool[32];
         for (var i = 1; i <= 200; i++)
@@ -38,7 +39,8 @@ public unsafe class SetTableSpreadTests
     [Fact]
     public void Resolve_ManyDistinctValues_KeepsLoadAtMostHalf()
     {
-        using var table = new SetTable();
+        using var memory = new NativeArena();
+        using var table = new SetTable(memory);
         var entries = stackalloc StatEntry[1];
         var first = -1;
         for (var i = 1; i <= 300; i++)

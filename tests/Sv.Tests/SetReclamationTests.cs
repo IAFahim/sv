@@ -11,7 +11,8 @@ public unsafe class SetReclamationTests
     [Fact]
     public void Table_EmptySet_IsFreed_ReuseIsGatedByGeneration()
     {
-        using var table = new SetTable();
+        using var memory = new NativeArena();
+        using var table = new SetTable(memory);
         var entries = stackalloc StatEntry[1];
         entries[0] = new StatEntry(ModifierKind.Multi, 1.5f);
 
@@ -38,7 +39,8 @@ public unsafe class SetReclamationTests
     [Fact]
     public void Table_Deletion_KeepsNeighborSetsResolvable()
     {
-        using var table = new SetTable();
+        using var memory = new NativeArena();
+        using var table = new SetTable(memory);
         var entries = stackalloc StatEntry[1];
         var ids = new int[8];
         for (var i = 0; i < 8; i++)

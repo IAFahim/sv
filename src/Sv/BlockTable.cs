@@ -8,6 +8,8 @@ internal sealed unsafe class BlockTable : IDisposable
 {
     private readonly int statCount;
 
+    private readonly NativeArena memory;
+
     private int blockCount;
 
     private int blockCapacity;
@@ -28,41 +30,18 @@ internal sealed unsafe class BlockTable : IDisposable
 
     private bool disposed;
 
-    internal long MemoryBytes
+    public BlockTable(NativeArena memory, int statCount)
     {
-        get
-        {
-            return (long)(bucketMask + 1) * sizeof(int)
-                + (long)blockCapacity * ((long)statCount * sizeof(int) + sizeof(ulong) + sizeof(int) * 2);
-        }
-    }
-
-    public BlockTable(int statCount)
-    {
+        this.memory = memory;
         this.statCount = statCount;
         blockCapacity = 16;
         bucketMask = 31;
-        buckets = AllocZeroed<int>(32);
-        blockSets = Alloc<int>(blockCapacity * statCount);
-        blockHash = Alloc<ulong>(blockCapacity);
-        blockRefCount = AllocZeroed<int>(blockCapacity);
-        blockFreeNext = AllocZeroed<int>(blockCapacity);
+        buckets = memory.AllocZeroed<int>(32);
+        blockSets = memory.Alloc<int>(blockCapacity * statCount);
+        blockHash = memory.Alloc<ulong>(blockCapacity);
+        blockRefCount = memory.AllocZeroed<int>(blockCapacity);
+        blockFreeNext = memory.AllocZeroed<int>(blockCapacity);
         blockFreeHead = -1;
-    }
-
-    static T* Alloc<T>(int count) where T : unmanaged
-    {
-        return (T*)NativeMemory.Alloc((nuint)count * (nuint)sizeof(T));
-    }
-
-    static T* AllocZeroed<T>(int count) where T : unmanaged
-    {
-        return (T*)NativeMemory.AllocZeroed((nuint)count * (nuint)sizeof(T));
-    }
-
-    static T* Realloc<T>(T* old, int count) where T : unmanaged
-    {
-        return (T*)NativeMemory.Realloc(old, (nuint)count * (nuint)sizeof(T));
     }
 
     static ulong TupleHash(int* tuple, int statCount)
@@ -166,19 +145,22 @@ internal sealed unsafe class BlockTable : IDisposable
 
     void GrowBlockCapacity()
     {
+        var previous = blockCapacity;
+        var previousSets = blockCapacity * statCount;
         blockCapacity *= 2;
-        blockSets = Realloc(blockSets, blockCapacity * statCount);
-        blockHash = Realloc(blockHash, blockCapacity);
-        blockRefCount = Realloc(blockRefCount, blockCapacity);
-        blockFreeNext = Realloc(blockFreeNext, blockCapacity);
-        NativeMemory.Clear(blockRefCount + blockCapacity / 2, (nuint)(blockCapacity / 2) * (nuint)sizeof(int));
-        NativeMemory.Clear(blockFreeNext + blockCapacity / 2, (nuint)(blockCapacity / 2) * (nuint)sizeof(int));
+        blockSets = memory.Realloc(blockSets, previousSets, blockCapacity * statCount);
+        blockHash = memory.Realloc(blockHash, previous, blockCapacity);
+        blockRefCount = memory.Realloc(blockRefCount, previous, blockCapacity);
+        blockFreeNext = memory.Realloc(blockFreeNext, previous, blockCapacity);
+        NativeMemory.Clear(blockRefCount + previous, (nuint)(blockCapacity - previous) * (nuint)sizeof(int));
+        NativeMemory.Clear(blockFreeNext + previous, (nuint)(blockCapacity - previous) * (nuint)sizeof(int));
     }
 
     void GrowBuckets()
     {
+        var previousBuckets = bucketMask + 1;
         bucketMask = bucketMask * 2 + 1;
-        buckets = Realloc(buckets, bucketMask + 1);
+        buckets = memory.Realloc(buckets, previousBuckets, bucketMask + 1);
         for (var i = 0; i <= bucketMask; i++)
         {
             buckets[i] = 0;
@@ -298,17 +280,20 @@ internal sealed unsafe class BlockTable : IDisposable
 
         if (capacity > blockCapacity)
         {
+            var previous = blockCapacity;
+            var previousSets = blockCapacity * statCount;
             blockCapacity = capacity;
-            blockSets = Realloc(blockSets, blockCapacity * statCount);
-            blockHash = Realloc(blockHash, blockCapacity);
-            blockRefCount = Realloc(blockRefCount, blockCapacity);
-            blockFreeNext = Realloc(blockFreeNext, blockCapacity);
+            blockSets = memory.Realloc(blockSets, previousSets, blockCapacity * statCount);
+            blockHash = memory.Realloc(blockHash, previous, blockCapacity);
+            blockRefCount = memory.Realloc(blockRefCount, previous, blockCapacity);
+            blockFreeNext = memory.Realloc(blockFreeNext, previous, blockCapacity);
         }
 
         if (mask != bucketMask)
         {
+            var previousBuckets = bucketMask + 1;
             bucketMask = mask;
-            buckets = Realloc(buckets, bucketMask + 1);
+            buckets = memory.Realloc(buckets, previousBuckets, bucketMask + 1);
         }
 
         blockCount = count;
@@ -331,11 +316,11 @@ internal sealed unsafe class BlockTable : IDisposable
             return;
         }
 
-        NativeMemory.Free(buckets);
-        NativeMemory.Free(blockSets);
-        NativeMemory.Free(blockHash);
-        NativeMemory.Free(blockRefCount);
-        NativeMemory.Free(blockFreeNext);
+        memory.Free(buckets, bucketMask + 1);
+        memory.Free(blockSets, blockCapacity * statCount);
+        memory.Free(blockHash, blockCapacity);
+        memory.Free(blockRefCount, blockCapacity);
+        memory.Free(blockFreeNext, blockCapacity);
         disposed = true;
     }
 }
