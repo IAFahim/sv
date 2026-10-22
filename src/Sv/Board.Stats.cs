@@ -56,7 +56,7 @@ public sealed unsafe partial class Board
 
     private int* outputStride;
 
-    private float* svColumns;
+    private float** owned;
 
     private int* boundGeneration;
 
@@ -148,7 +148,7 @@ public sealed unsafe partial class Board
         outputColumn = (float**)NativeMemory.Alloc((nuint)statCount * (nuint)sizeof(float*));
         NativeMemory.Clear(outputColumn, (nuint)statCount * (nuint)sizeof(float*));
         outputStride = Alloc<int>(statCount);
-        svColumns = (float*)NativeMemory.AllocZeroed((nuint)statCount * (nuint)capacity * sizeof(float));
+        owned = (float**)NativeMemory.AllocZeroed((nuint)statCount * (nuint)sizeof(float*));
         boundGeneration = Alloc<int>(statCount);
         for (var i = 0; i < statCount; i++)
         {
@@ -270,7 +270,15 @@ public sealed unsafe partial class Board
         NativeMemory.Free(statBase);
         NativeMemory.Free(outputColumn);
         NativeMemory.Free(outputStride);
-        NativeMemory.Free(svColumns);
+        for (var i = 0; i < statCount; i++)
+        {
+            if (owned[i] != null)
+            {
+                NativeMemory.Free(owned[i]);
+            }
+        }
+
+        NativeMemory.Free(owned);
         NativeMemory.Free(boundGeneration);
         NativeMemory.Free(boundLength);
         for (var i = 0; i < statCount; i++)
@@ -492,14 +500,14 @@ public sealed unsafe partial class Board
     internal int OutputStrideAt(int statIndex) => outputStride[statIndex];
 
     /// <summary>
-    /// Sv-owned output column for a stat: allocated at <see cref="Create"/>, fixed capacity, never
-    /// moves, needs no bind. <see cref="Recalculate"/> broadcasts into it while no external column
-    /// is bound.
+    /// Sv-owned output column for a stat: allocates on first read (fixed capacity, never moves
+    /// after), refilled from the set table, needs no bind. <see cref="Recalculate"/> broadcasts
+    /// into it while no external column is bound; a stat nobody reads or binds pays no column.
     /// </summary>
     public float* OutputPtr(StatId stat)
     {
         var index = StatIndex(stat);
-        return svColumns + (nint)index * Capacity;
+        return Materialize(index);
     }
 
     public Span<float> Output(StatId stat) => new(OutputPtr(stat), Capacity);
@@ -528,7 +536,6 @@ public sealed unsafe partial class Board
     {
         var external = outputColumn[index];
         var stride = outputStride[index];
-        var owned = svColumns + (nint)index * Capacity;
         for (var word = 0; word < LiveWordCount; word++)
         {
             var bits = live[word];
@@ -536,8 +543,55 @@ public sealed unsafe partial class Board
             {
                 var slot = (word << 6) + System.Numerics.BitOperations.TrailingZeroCount(bits);
                 bits &= bits - 1;
-                mirror[slot] = Clamp.BoundOf(external == null ? owned[slot] : external[slot * stride]);
+                mirror[slot] = Clamp.BoundOf(external == null ? SourceValue(slot, index) : external[slot * stride]);
             }
+        }
+    }
+
+    float* Materialize(int stat)
+    {
+        var column = owned[stat];
+        if (column != null)
+        {
+            return column;
+        }
+
+        column = (float*)NativeMemory.AllocZeroed((nuint)Capacity * sizeof(float));
+        if (outputColumn[stat] == null)
+        {
+            for (var word = 0; word < LiveWordCount; word++)
+            {
+                var bits = live[word];
+                while (bits != 0)
+                {
+                    var slot = (word << 6) + System.Numerics.BitOperations.TrailingZeroCount(bits);
+                    bits &= bits - 1;
+                    if (Pair(slot, stat).Set >= 0)
+                    {
+                        column[slot] = SourceValue(slot, stat);
+                    }
+                }
+            }
+        }
+
+        owned[stat] = column;
+        return column;
+    }
+
+    internal long OwnedColumnBytes
+    {
+        get
+        {
+            long bytes = (long)statCount * sizeof(float*);
+            for (var i = 0; i < statCount; i++)
+            {
+                if (owned[i] != null)
+                {
+                    bytes += (long)Capacity * sizeof(float);
+                }
+            }
+
+            return bytes;
         }
     }
 
@@ -817,7 +871,12 @@ public sealed unsafe partial class Board
     {
         for (var stat = 0; stat < statCount; stat++)
         {
-            svColumns[(nint)stat * Capacity + slot] = 0f;
+            var column = owned[stat];
+            if (column != null)
+            {
+                column[slot] = 0f;
+            }
+
             var mirror = mirrors[stat];
             if (mirror != null)
             {
@@ -1002,6 +1061,7 @@ public sealed unsafe partial class Board
                 var stat = (w << 5) + System.Numerics.BitOperations.TrailingZeroCount(word);
                 mask[w] = word & (word - 1);
                 ref var current = ref Pair(slot, stat).Set;
+                var before = current >= 0 ? table!.Computed(current) : 0f;
                 var count = Gather(slot, stat);
                 var set = table!.Resolve(stat, scratch, count);
                 if (current != set)
@@ -1026,7 +1086,7 @@ public sealed unsafe partial class Board
                     }
                 }
 
-                BroadcastOne(stat, slot, table.Computed(set));
+                BroadcastOne(stat, slot, table.Computed(set), before);
             }
         }
 
@@ -1120,7 +1180,7 @@ public sealed unsafe partial class Board
         return set >= 0 && table!.Folded(set) ? table.Computed(set) : statBase[stat];
     }
 
-    void BroadcastOne(int stat, int slot, float computed)
+    void BroadcastOne(int stat, int slot, float computed, float before)
     {
         var mirror = mirrors[stat];
         if (mirror != null)
@@ -1131,9 +1191,15 @@ public sealed unsafe partial class Board
         var column = outputColumn[stat];
         if (column == null)
         {
-            ref var owned = ref svColumns[(nint)stat * Capacity + slot];
-            MarkChanged(stat, slot, owned, computed);
-            owned = computed;
+            var own = owned[stat];
+            if (own == null)
+            {
+                MarkChanged(stat, slot, before, computed);
+                return;
+            }
+
+            MarkChanged(stat, slot, own[slot], computed);
+            own[slot] = computed;
             return;
         }
 
@@ -1367,7 +1433,15 @@ public sealed unsafe partial class Board
         state.Write(acquiredTouchedCount);
         state.Write(acquiredTouched, (long)acquiredTouchedCount * sizeof(int));
         state.Write(acquired, (long)statCount * words * sizeof(ulong));
-        state.Write(svColumns, (long)statCount * Capacity * sizeof(float));
+        for (var stat = 0; stat < statCount; stat++)
+        {
+            state.Write((byte)(owned[stat] == null ? 0 : 1));
+            if (owned[stat] != null)
+            {
+                state.Write(owned[stat], (long)Capacity * sizeof(float));
+            }
+        }
+
         for (var stat = 0; stat < statCount; stat++)
         {
             var mirror = mirrors[stat];
@@ -1433,15 +1507,34 @@ public sealed unsafe partial class Board
         acquiredTouchedCount = state.Read<int>();
         state.Read(acquiredTouched, (long)acquiredTouchedCount * sizeof(int));
         state.Read(acquired, (long)statCount * words * sizeof(ulong));
-        state.Read(svColumns, (long)statCount * Capacity * sizeof(float));
+        var staleColumns = Alloc<int>(statCount);
+        var staleCount = 0;
+        for (var stat = 0; stat < statCount; stat++)
+        {
+            if (state.Read<byte>() != 0)
+            {
+                if (owned[stat] == null)
+                {
+                    owned[stat] = (float*)NativeMemory.AllocZeroed((nuint)Capacity * sizeof(float));
+                }
+
+                state.Read(owned[stat], (long)Capacity * sizeof(float));
+            }
+            else if (owned[stat] != null)
+            {
+                staleColumns[staleCount++] = stat;
+            }
+        }
+
+        var staleMirrors = Alloc<int>(statCount);
+        var staleMirrorCount = 0;
         for (var stat = 0; stat < statCount; stat++)
         {
             if (state.Read<byte>() == 0)
             {
-                var mirror = mirrors[stat];
-                if (mirror != null && outputColumn[stat] == null)
+                if (mirrors[stat] != null && outputColumn[stat] == null)
                 {
-                    FillMirrorFromColumns(stat, mirror);
+                    staleMirrors[staleMirrorCount++] = stat;
                 }
 
                 continue;
@@ -1511,6 +1604,39 @@ public sealed unsafe partial class Board
         }
 
         table!.Read(state);
+        for (var i = 0; i < staleCount; i++)
+        {
+            var stat = staleColumns[i];
+            NativeMemory.Clear(owned[stat], (nuint)Capacity * sizeof(float));
+            if (outputColumn[stat] != null)
+            {
+                continue;
+            }
+
+            for (var word = 0; word < LiveWordCount; word++)
+            {
+                var bits = live[word];
+                while (bits != 0)
+                {
+                    var slot = (word << 6) + System.Numerics.BitOperations.TrailingZeroCount(bits);
+                    bits &= bits - 1;
+                    if (Pair(slot, stat).Set >= 0)
+                    {
+                        owned[stat][slot] = SourceValue(slot, stat);
+                    }
+                }
+            }
+        }
+
+        for (var i = 0; i < staleMirrorCount; i++)
+        {
+            var stat = staleMirrors[i];
+            NativeMemory.Clear(mirrors[stat], (nuint)Capacity * sizeof(int));
+            FillMirrorFromColumns(stat, mirrors[stat]);
+        }
+
+        NativeMemory.Free(staleColumns);
+        NativeMemory.Free(staleMirrors);
         RefillRestoredBindings();
     }
 
@@ -1552,7 +1678,12 @@ public sealed unsafe partial class Board
         var tempRows = Alloc<float>(Capacity);
         for (var stat = 0; stat < statCount; stat++)
         {
-            var column = svColumns + (nint)stat * Capacity;
+            var column = owned[stat];
+            if (column == null)
+            {
+                continue;
+            }
+
             NativeMemory.Clear(tempRows, (nuint)Capacity * sizeof(float));
             for (var slot = 0; slot < Capacity; slot++)
             {

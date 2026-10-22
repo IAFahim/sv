@@ -94,7 +94,7 @@ public sealed unsafe partial class Board : IDisposable
             bytes += sizeof(float) * (long)statCount
                 + sizeof(float*) * (long)statCount
                 + sizeof(int) * (long)statCount
-                + sizeof(float) * (long)statCount * Capacity
+                + OwnedColumnBytes
                 + sizeof(int) * (long)statCount * 2
                 + PairBytes
                 + MirrorBytes
@@ -110,7 +110,7 @@ public sealed unsafe partial class Board : IDisposable
 
     const uint StateMagic = 0x44425653;
 
-    const long SetTableFormatVersion = 6;
+    const long SetTableFormatVersion = 7;
 
     internal long StateShape { get; }
 
