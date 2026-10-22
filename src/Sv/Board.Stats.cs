@@ -9,17 +9,19 @@ public sealed unsafe partial class Board
 
     private const int PageSlots = 1 << PageShift;
 
-    private struct PairMods
+    private struct ModRecord
     {
-        public StatEntry* Entries;
+        public int Id;
 
-        public int Count;
+        public ModifierKind Kind;
 
-        public int Cap;
+        public float Value;
 
-        public readonly int* Ids => (int*)(Entries + Cap);
+        public int Source;
 
-        public readonly int* Sources => (int*)(Entries + Cap) + Cap;
+        public long Expiry;
+
+        public int Next;
     }
 
     private struct Expiry
@@ -31,6 +33,13 @@ public sealed unsafe partial class Board
         public int Slot;
 
         public int Stat;
+    }
+
+    private struct PairState
+    {
+        public int Set;
+
+        public int Head;
     }
 
     private Expiry* expiries;
@@ -89,9 +98,15 @@ public sealed unsafe partial class Board
 
     private int pageCount;
 
-    private PairMods** modPages;
+    private PairState** metaPages;
 
-    private int** metaPages;
+    private ModRecord* records;
+
+    private int recordCount;
+
+    private int recordCap;
+
+    private int recordFree;
 
     private uint* dirty;
 
@@ -161,8 +176,10 @@ public sealed unsafe partial class Board
             boundLength[i] = -1;
         }
         pageCount = (capacity + PageSlots - 1) >> PageShift;
-        modPages = (PairMods**)NativeMemory.AllocZeroed((nuint)pageCount * (nuint)sizeof(PairMods*));
-        metaPages = (int**)NativeMemory.AllocZeroed((nuint)pageCount * (nuint)sizeof(int*));
+        metaPages = (PairState**)NativeMemory.AllocZeroed((nuint)pageCount * (nuint)sizeof(PairState*));
+        recordCap = 16;
+        records = Alloc<ModRecord>(recordCap);
+        recordFree = -1;
         dirty = (uint*)NativeMemory.AllocZeroed((nuint)capacity * (nuint)statMaskWords * sizeof(uint));
         dirtyTouchedCap = 64;
         dirtyTouched = Alloc<int>(dirtyTouchedCap);
@@ -248,7 +265,7 @@ public sealed unsafe partial class Board
             return;
         }
 
-        FreePages(modPages, metaPages);
+        FreePages(metaPages);
         table!.Dispose();
         NativeMemory.Free(statBase);
         NativeMemory.Free(outputColumn);
@@ -274,6 +291,7 @@ public sealed unsafe partial class Board
         NativeMemory.Free(changedTouched);
         NativeMemory.Free(acquired);
         NativeMemory.Free(acquiredTouched);
+        NativeMemory.Free(records);
         NativeMemory.Free(dirty);
         NativeMemory.Free(dirtyTouched);
         NativeMemory.Free(dependentsMask);
@@ -285,44 +303,29 @@ public sealed unsafe partial class Board
         NativeMemory.Free(expiries);
     }
 
-    void FreePages(PairMods** mods, int** metas)
+    void FreePages(PairState** metas)
     {
-        var pageWidth = PageSlots * statCount;
         for (var page = 0; page < pageCount; page++)
         {
-            if (mods[page] != null)
-            {
-                for (var i = 0; i < pageWidth; i++)
-                {
-                    if (mods[page][i].Entries != null)
-                    {
-                        NativeMemory.Free(mods[page][i].Entries);
-                    }
-                }
-
-                NativeMemory.Free(mods[page]);
-            }
-
             if (metas[page] != null)
             {
                 NativeMemory.Free(metas[page]);
             }
         }
 
-        NativeMemory.Free(mods);
         NativeMemory.Free(metas);
     }
 
-    int* SetPage(int** metas, int slot)
+    PairState* PairPage(PairState** metas, int slot)
     {
         var page = slot >> PageShift;
         if (metas[page] == null)
         {
             var width = PageSlots * statCount;
-            var fresh = Alloc<int>(width);
+            var fresh = Alloc<PairState>(width);
             for (var i = 0; i < width; i++)
             {
-                fresh[i] = -1;
+                fresh[i] = new PairState { Set = -1, Head = -1 };
             }
 
             metas[page] = fresh;
@@ -331,56 +334,53 @@ public sealed unsafe partial class Board
         return metas[page];
     }
 
-    PairMods* ModPage(PairMods** mods, int slot)
+    int AllocRecord()
     {
-        var page = slot >> PageShift;
-        if (mods[page] == null)
+        if (recordFree >= 0)
         {
-            var bytes = (nuint)(PageSlots * statCount) * (nuint)sizeof(PairMods);
-            mods[page] = (PairMods*)NativeMemory.AllocZeroed(bytes);
+            var reuse = recordFree;
+            recordFree = records[reuse].Next;
+            return reuse;
         }
 
-        return mods[page];
+        if (recordCount == recordCap)
+        {
+            recordCap *= 2;
+            records = Realloc(records, recordCap);
+        }
+
+        return recordCount++;
+    }
+
+    void FreeRecord(int index)
+    {
+        records[index].Next = recordFree;
+        recordFree = index;
     }
 
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
-    ref int SetId(int slot, int stat)
+    ref PairState Pair(int slot, int stat)
     {
         return ref metaPages[slot >> PageShift][(slot & (PageSlots - 1)) * statCount + stat];
     }
 
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
-    PairMods* ModsOrNull(int slot, int stat)
-    {
-        var page = modPages[slot >> PageShift];
-        return page == null ? null : page + (slot & (PageSlots - 1)) * statCount + stat;
-    }
-
     internal void EnsureSlotPages(int slot)
     {
-        SetPage(metaPages, slot);
+        PairPage(metaPages, slot);
     }
 
     internal long PairBytes
     {
         get
         {
-            long bytes = (long)pageCount * (sizeof(PairMods*) + sizeof(int*));
+            long bytes = (long)pageCount * sizeof(PairState*) + (long)recordCap * sizeof(ModRecord);
             var pageWidth = PageSlots * statCount;
             for (var page = 0; page < pageCount; page++)
             {
                 if (metaPages[page] != null)
                 {
-                    bytes += (long)pageWidth * sizeof(int);
-                }
-
-                if (modPages[page] != null)
-                {
-                    bytes += (long)pageWidth * sizeof(PairMods);
-                    for (var i = 0; i < pageWidth; i++)
-                    {
-                        bytes += (long)modPages[page][i].Cap * (sizeof(StatEntry) + sizeof(int) * 2);
-                    }
+                    bytes += (long)pageWidth * sizeof(PairState);
                 }
             }
 
@@ -582,28 +582,11 @@ public sealed unsafe partial class Board
     {
         var index = StatIndex(stat);
         Guard.SlotLive(slot, live, Capacity);
-        ref var mods = ref ModPage(modPages, slot)[(slot & (PageSlots - 1)) * statCount + index];
-        if (mods.Count == mods.Cap)
-        {
-            var cap = mods.Cap == 0 ? 4 : mods.Cap * 2;
-            var block = (StatEntry*)NativeMemory.Alloc((nuint)cap * (nuint)(sizeof(StatEntry) + sizeof(int) * 2));
-            if (mods.Entries != null)
-            {
-                Buffer.MemoryCopy(mods.Entries, block, (long)cap * sizeof(StatEntry), (long)mods.Count * sizeof(StatEntry));
-                Buffer.MemoryCopy(mods.Ids, block + cap, (long)cap * sizeof(int), (long)mods.Count * sizeof(int));
-                Buffer.MemoryCopy(mods.Sources, (int*)(block + cap) + cap, (long)cap * sizeof(int), (long)mods.Count * sizeof(int));
-                NativeMemory.Free(mods.Entries);
-            }
-
-            mods.Entries = block;
-            mods.Cap = cap;
-        }
-
+        ref var pair = ref Pair(slot, index);
         var id = ++nextInsertionId;
-        mods.Entries[mods.Count] = new StatEntry(modifier.Kind, modifier.Value);
-        mods.Ids[mods.Count] = id;
-        mods.Sources[mods.Count] = source;
-        mods.Count++;
+        var record = AllocRecord();
+        records[record] = new ModRecord { Id = id, Kind = modifier.Kind, Value = modifier.Value, Source = source, Expiry = expiresAtTick, Next = pair.Head };
+        pair.Head = record;
         MarkStatDirty(slot, index);
         if (expiresAtTick != long.MaxValue)
         {
@@ -621,26 +604,38 @@ public sealed unsafe partial class Board
     {
         Guard.SlotLive(slot, live, Capacity);
         var removed = 0;
+        if (metaPages[slot >> PageShift] == null)
+        {
+            return removed;
+        }
+
         for (var stat = 0; stat < statCount; stat++)
         {
-            var mods = ModsOrNull(slot, stat);
-            if (mods == null)
-            {
-                continue;
-            }
-
             var before = removed;
-            var i = 0;
-            while (i < mods->Count)
+            ref var pair = ref Pair(slot, stat);
+            var previous = -1;
+            for (var at = pair.Head; at >= 0;)
             {
-                if (mods->Sources[i] == source)
+                if (records[at].Source == source)
                 {
-                    RemoveAt(mods, i);
+                    var next = records[at].Next;
+                    FreeRecord(at);
+                    if (previous < 0)
+                    {
+                        pair.Head = next;
+                    }
+                    else
+                    {
+                        records[previous].Next = next;
+                    }
+
+                    at = next;
                     removed++;
                     continue;
                 }
 
-                i++;
+                previous = at;
+                at = records[at].Next;
             }
 
             if (removed != before)
@@ -669,17 +664,34 @@ public sealed unsafe partial class Board
                 continue;
             }
 
-            var mods = ModsOrNull(top.Slot, top.Stat);
-            var count = mods == null ? 0 : mods->Count;
-            for (var i = 0; i < count; i++)
+            if (metaPages[top.Slot >> PageShift] == null)
             {
-                if (mods->Ids[i] == top.Id)
+                continue;
+            }
+
+            ref var pair = ref Pair(top.Slot, top.Stat);
+            var previous = -1;
+            for (var at = pair.Head; at >= 0; at = records[at].Next)
+            {
+                if (records[at].Id == top.Id)
                 {
-                    RemoveAt(mods, i);
+                    var next = records[at].Next;
+                    FreeRecord(at);
+                    if (previous < 0)
+                    {
+                        pair.Head = next;
+                    }
+                    else
+                    {
+                        records[previous].Next = next;
+                    }
+
                     MarkStatDirty(top.Slot, top.Stat);
                     removed++;
                     break;
                 }
+
+                previous = at;
             }
         }
 
@@ -687,15 +699,6 @@ public sealed unsafe partial class Board
     }
 
     public int PendingExpiries => expiryCount;
-
-    static void RemoveAt(PairMods* mods, int i)
-    {
-        var last = mods->Count - 1;
-        mods->Entries[i] = mods->Entries[last];
-        mods->Ids[i] = mods->Ids[last];
-        mods->Sources[i] = mods->Sources[last];
-        mods->Count = last;
-    }
 
     static bool Before(in Expiry a, in Expiry b) => a.Tick < b.Tick || (a.Tick == b.Tick && a.Id < b.Id);
 
@@ -759,16 +762,28 @@ public sealed unsafe partial class Board
     {
         var index = StatIndex(stat);
         Guard.SlotLive(slot, live, Capacity);
-        var mods = ModsOrNull(slot, index);
-        var count = mods == null ? 0 : mods->Count;
-        for (var i = 0; i < count; i++)
+        ref var pair = ref Pair(slot, index);
+        var previous = -1;
+        for (var at = pair.Head; at >= 0; at = records[at].Next)
         {
-            if (mods->Ids[i] == handle.Id)
+            if (records[at].Id == handle.Id)
             {
-                RemoveAt(mods, i);
+                var next = records[at].Next;
+                FreeRecord(at);
+                if (previous < 0)
+                {
+                    pair.Head = next;
+                }
+                else
+                {
+                    records[previous].Next = next;
+                }
+
                 MarkStatDirty(slot, index);
                 return;
             }
+
+            previous = at;
         }
 
         throw new ArgumentException($"sv: modifier handle {handle.Id} not found");
@@ -845,17 +860,19 @@ public sealed unsafe partial class Board
     {
         for (var stat = 0; stat < statCount; stat++)
         {
-            var mods = ModsOrNull(slot, stat);
-            if (mods != null)
+            ref var pair = ref Pair(slot, stat);
+            for (var at = pair.Head; at >= 0;)
             {
-                mods->Count = 0;
+                var next = records[at].Next;
+                FreeRecord(at);
+                at = next;
             }
 
-            ref var set = ref SetId(slot, stat);
-            if (set >= 0)
+            pair.Head = -1;
+            if (pair.Set >= 0)
             {
-                table!.ReleaseRef(set);
-                set = -1;
+                table!.ReleaseRef(pair.Set);
+                pair.Set = -1;
             }
         }
     }
@@ -984,7 +1001,7 @@ public sealed unsafe partial class Board
 
                 var stat = (w << 5) + System.Numerics.BitOperations.TrailingZeroCount(word);
                 mask[w] = word & (word - 1);
-                ref var current = ref SetId(slot, stat);
+                ref var current = ref Pair(slot, stat).Set;
                 var count = Gather(slot, stat);
                 var set = table!.Resolve(stat, scratch, count);
                 if (current != set)
@@ -1034,7 +1051,7 @@ public sealed unsafe partial class Board
                 continue;
             }
 
-            if (SetId(slot, stat) < 0)
+            if (Pair(slot, stat).Set < 0)
             {
                 continue;
             }
@@ -1047,8 +1064,7 @@ public sealed unsafe partial class Board
     int Gather(int slot, int stat)
     {
         var synthetic = sourceOffset[stat + 1] - sourceOffset[stat];
-        var mods = ModsOrNull(slot, stat);
-        var real = mods == null ? 0 : mods->Count;
+        var real = RecordCount(Pair(slot, stat).Head);
         var count = synthetic + real;
         if (count == 0)
         {
@@ -1065,12 +1081,21 @@ public sealed unsafe partial class Board
         return GatherInto(slot, stat, scratch, scratchIds);
     }
 
+    int RecordCount(int head)
+    {
+        var count = 0;
+        for (var at = head; at >= 0; at = records[at].Next)
+        {
+            count++;
+        }
+
+        return count;
+    }
+
     int GatherInto(int slot, int stat, StatEntry* entries, int* entryIds)
     {
         var synthetic = sourceOffset[stat + 1] - sourceOffset[stat];
-        var mods = ModsOrNull(slot, stat);
-        var real = mods == null ? 0 : mods->Count;
-        var count = synthetic + real;
+        var count = synthetic;
         for (var k = 0; k < synthetic; k++)
         {
             var at = sourceOffset[stat] + k;
@@ -1078,14 +1103,11 @@ public sealed unsafe partial class Board
             entryIds[k] = int.MinValue + k;
         }
 
-        if (real > 0)
+        for (var at = Pair(slot, stat).Head; at >= 0; at = records[at].Next)
         {
-            var ids = mods->Ids;
-            for (var i = 0; i < real; i++)
-            {
-                entries[synthetic + i] = mods->Entries[i];
-                entryIds[synthetic + i] = ids[i];
-            }
+            entries[count] = new StatEntry(records[at].Kind, records[at].Value);
+            entryIds[count] = records[at].Id;
+            count++;
         }
 
         Canonicalize(entries, entryIds, count);
@@ -1094,7 +1116,7 @@ public sealed unsafe partial class Board
 
     float SourceValue(int slot, int stat)
     {
-        var set = SetId(slot, stat);
+        var set = Pair(slot, stat).Set;
         return set >= 0 && table!.Folded(set) ? table.Computed(set) : statBase[stat];
     }
 
@@ -1222,8 +1244,7 @@ public sealed unsafe partial class Board
         var index = StatIndex(stat);
         Guard.SlotLive(slot, live, Capacity);
         var synthetic = sourceOffset[index + 1] - sourceOffset[index];
-        var mods = ModsOrNull(slot, index);
-        var need = synthetic + (mods == null ? 0 : mods->Count);
+        var need = synthetic + RecordCount(Pair(slot, index).Head);
         if (statScratchCap < need)
         {
             statScratchCap = need * 2;
@@ -1238,8 +1259,8 @@ public sealed unsafe partial class Board
     /// <summary>
     /// Compacts the slot space: live slots map through <paramref name="oldToNew"/> (negative entries
     /// are dead slots) to distinct targets in [0, capacity) — gaps are legal (64-alignment padding).
-    /// Rewrites modifier lists and pair metas (set ids are slot-independent — all live pairs
-    /// dirty-marked — run <see cref="Recalculate"/> after), live bits, and sv-owned columns; external
+    /// Rewrites pair states (set ids are slot-independent, modifier records are pool-global — all
+    /// live pairs dirty-marked — run <see cref="Recalculate"/> after), live bits, and sv-owned columns; external
     /// bindings are invalidated per the clause-12 doctrine. Modifier insertion ids ride along, so
     /// stat folds are preserved bit-exactly.
     /// </summary>
@@ -1359,6 +1380,9 @@ public sealed unsafe partial class Board
 
         state.Write(expiryCount);
         state.Write(expiries, (long)expiryCount * sizeof(Expiry));
+        state.Write(recordCount);
+        state.Write(records, (long)recordCount * sizeof(ModRecord));
+        state.Write(recordFree);
         var pageWidth = PageSlots * statCount;
         for (var page = 0; page < pageCount; page++)
         {
@@ -1366,29 +1390,7 @@ public sealed unsafe partial class Board
             state.Write((byte)(metas == null ? 0 : 1));
             if (metas != null)
             {
-                state.Write(metas, (long)pageWidth * sizeof(int));
-            }
-
-            var mods = modPages[page];
-            state.Write((byte)(mods == null ? 0 : 1));
-            if (mods == null)
-            {
-                continue;
-            }
-
-            for (var i = 0; i < pageWidth; i++)
-            {
-                var count = mods[i].Count;
-                state.Write(count);
-                state.Write(mods[i].Cap);
-                if (mods[i].Cap == 0)
-                {
-                    continue;
-                }
-
-                state.Write(mods[i].Entries, (long)count * sizeof(StatEntry));
-                state.Write(mods[i].Ids, (long)count * sizeof(int));
-                state.Write(mods[i].Sources, (long)count * sizeof(int));
+                state.Write(metas, (long)pageWidth * sizeof(PairState));
             }
         }
 
@@ -1462,6 +1464,26 @@ public sealed unsafe partial class Board
 
         expiryCount = heap;
         state.Read(expiries, (long)heap * sizeof(Expiry));
+        var poolCount = state.Read<int>();
+        if (poolCount < 0 || poolCount > (1 << 24))
+        {
+            throw new System.IO.InvalidDataException("sv: corrupt board state");
+        }
+
+        if (poolCount > recordCap)
+        {
+            recordCap = poolCount;
+            records = Realloc(records, recordCap);
+        }
+
+        recordCount = poolCount;
+        state.Read(records, (long)recordCount * sizeof(ModRecord));
+        recordFree = state.Read<int>();
+        if (recordFree < -1 || recordFree >= recordCount)
+        {
+            throw new System.IO.InvalidDataException("sv: corrupt board state");
+        }
+
         var pageWidth = PageSlots * statCount;
         for (var page = 0; page < pageCount; page++)
         {
@@ -1477,67 +1499,14 @@ public sealed unsafe partial class Board
             {
                 if (metaPages[page] == null)
                 {
-                    metaPages[page] = Alloc<int>(pageWidth);
+                    metaPages[page] = Alloc<PairState>(pageWidth);
                     for (var i = 0; i < pageWidth; i++)
                     {
-                        metaPages[page][i] = -1;
+                        metaPages[page][i] = new PairState { Set = -1, Head = -1 };
                     }
                 }
 
-                state.Read(metaPages[page], (long)pageWidth * sizeof(int));
-            }
-
-            var hasMods = state.Read<byte>() != 0;
-            var mods = modPages[page];
-            if (!hasMods)
-            {
-                if (mods != null)
-                {
-                    for (var i = 0; i < pageWidth; i++)
-                    {
-                        if (mods[i].Entries != null)
-                        {
-                            NativeMemory.Free(mods[i].Entries);
-                        }
-                    }
-
-                    NativeMemory.Free(mods);
-                    modPages[page] = null;
-                }
-
-                continue;
-            }
-
-            if (mods == null)
-            {
-                mods = (PairMods*)NativeMemory.AllocZeroed((nuint)pageWidth * (nuint)sizeof(PairMods));
-                modPages[page] = mods;
-            }
-
-            for (var i = 0; i < pageWidth; i++)
-            {
-                var count = state.Read<int>();
-                var cap = state.Read<int>();
-                if (cap != mods[i].Cap)
-                {
-                    if (mods[i].Entries != null)
-                    {
-                        NativeMemory.Free(mods[i].Entries);
-                    }
-
-                    mods[i].Entries = cap == 0 ? null : (StatEntry*)NativeMemory.Alloc((nuint)cap * (nuint)(sizeof(StatEntry) + sizeof(int) * 2));
-                    mods[i].Cap = cap;
-                }
-
-                mods[i].Count = count;
-                if (cap == 0)
-                {
-                    continue;
-                }
-
-                state.Read(mods[i].Entries, (long)count * sizeof(StatEntry));
-                state.Read(mods[i].Ids, (long)count * sizeof(int));
-                state.Read(mods[i].Sources, (long)count * sizeof(int));
+                state.Read(metaPages[page], (long)pageWidth * sizeof(PairState));
             }
         }
 
@@ -1555,8 +1524,7 @@ public sealed unsafe partial class Board
 
     void RenumberStats(ReadOnlySpan<int> oldToNew)
     {
-        var nextMods = (PairMods**)NativeMemory.AllocZeroed((nuint)pageCount * (nuint)sizeof(PairMods*));
-        var nextMetas = (int**)NativeMemory.AllocZeroed((nuint)pageCount * (nuint)sizeof(int*));
+        var nextMetas = (PairState**)NativeMemory.AllocZeroed((nuint)pageCount * (nuint)sizeof(PairState*));
         for (var slot = 0; slot < Capacity; slot++)
         {
             if ((live[slot >> 6] & (1ul << (slot & 63))) == 0)
@@ -1566,21 +1534,14 @@ public sealed unsafe partial class Board
 
             var next = oldToNew[slot];
             var to = (next & (PageSlots - 1)) * statCount;
-            var setPage = SetPage(nextMetas, next);
+            var metaPage = PairPage(nextMetas, next);
             for (var stat = 0; stat < statCount; stat++)
             {
-                setPage[to + stat] = SetId(slot, stat);
-                var mods = ModsOrNull(slot, stat);
-                if (mods != null && mods->Entries != null)
-                {
-                    ModPage(nextMods, next)[to + stat] = *mods;
-                    *mods = default;
-                }
+                metaPage[to + stat] = Pair(slot, stat);
             }
         }
 
-        FreePages(modPages, metaPages);
-        modPages = nextMods;
+        FreePages(metaPages);
         metaPages = nextMetas;
         for (var i = 0; i < expiryCount; i++)
         {

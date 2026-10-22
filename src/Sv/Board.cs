@@ -74,10 +74,10 @@ public sealed unsafe partial class Board : IDisposable
     }
 
     /// <summary>
-    /// Native bytes currently owned by this board: slot bookkeeping, the stats pair pages (metadata
-    /// pages exist once a slot in the 4096-slot page was acquired; modifier pages once a slot in it
-    /// took a modifier), the set table, dirty masks, scratch, sv-owned output columns, and live
-    /// per-pair modifier storage at current capacities. O(touched pages x stats) walk — a
+    /// Native bytes currently owned by this board: slot bookkeeping, the stats pair pages (one
+    /// page per 4096 touched slots — set id plus modifier-list head per pair), the modifier
+    /// record pool, the set table, dirty masks, scratch and sv-owned output columns. O(pages)
+    /// walk — a
     /// tooling receipt, not a frame-path call. <see cref="Capacity"/> rounds up to a 64 boundary;
     /// <see cref="RequestedCapacity"/> is the pre-rounding value.
     /// </summary>
@@ -110,7 +110,7 @@ public sealed unsafe partial class Board : IDisposable
 
     const uint StateMagic = 0x44425653;
 
-    const long SetTableFormatVersion = 5;
+    const long SetTableFormatVersion = 6;
 
     internal long StateShape { get; }
 
