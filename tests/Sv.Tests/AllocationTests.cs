@@ -17,7 +17,9 @@ public class AllocationTests
 
         Assert.NotNull(directory);
         var offenders = new List<string>();
-        foreach (var file in Directory.EnumerateFiles(Path.Combine(directory.FullName, "src"), "*.cs", SearchOption.AllDirectories))
+        var files = Directory.EnumerateFiles(Path.Combine(directory.FullName, "src"), "*.cs", SearchOption.AllDirectories)
+            .Append(Path.Combine(directory.FullName, "README.md"));
+        foreach (var file in files)
         {
             var lineNumber = 0;
             foreach (var line in File.ReadLines(file))

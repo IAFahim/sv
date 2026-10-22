@@ -81,8 +81,8 @@ internal static unsafe class Program
         board.RemoveModifier(slot, speed, haste);
 
         // 4. Intrinsics: host-owned unmanaged int columns, written through chunk ops.
-        var mana = (int*)NativeMemory.AllocZeroed((nuint)board.Capacity * sizeof(int), sizeof(int));
-        var applied = (int*)NativeMemory.Alloc((nuint)board.Capacity * sizeof(int), sizeof(int));
+        var mana = (int*)NativeMemory.AllocZeroed((nuint)board.Capacity * sizeof(int));
+        var applied = (int*)NativeMemory.Alloc((nuint)board.Capacity * sizeof(int));
         mana[slot] = 40;
 
         var clamp = Clamp.StatMax(board, schema.Stat("max_mana"));  // bound = last broadcast
@@ -314,6 +314,7 @@ Last refreshed 2026-10-22 03:58 UTC · `main@35d535f` · AMD EPYC 7763 64-Core P
 | 55 | **Fix** (roadmap 1.2): bijective `Reconcile` (seen-marking first pass — a counterbalanced duplicate+missing no longer rewrites the world before throwing, law L11), idempotent exception-safe `Bind`/validate-first `Unbind` (F6), idempotent `Population.Dispose` (F7) — [issues/0063](issues/0063-atom-55-reconcile-bijection-bind-unbind-dispose.md) | done |
 | 56 | `AcquiredWords(stat)` (roadmap 1.4, F10): acquire marks leave `ChangedWords` (value change only — no more mixing with the previous frame's mask), a base-0 stat's spawn is visible in `AcquiredWords` and never in `ChangedWords` — [issues/0064](issues/0064-atom-56-acquired-words.md) | done |
 | 57 | **Fix** (roadmap 1.7): state integrity — `Schema.ContentHash` (XXH64 over names/bases/sources) kills the state-shape count collisions (F18); the composed game validates its header before any component loads, so a mismatched `LoadState` throws with everything untouched (F17); `XxHash64` moved to Sv — [issues/0065](issues/0065-atom-57-state-integrity.md) | done |
+| 58 | **Fix** (roadmap 1.9): totality — pure canonical `Board.Stat` (dedicated scratch, `CanonicalNaN`), `Modifier` rejects undefined kinds (F21), dead `IntrinsicDef.Min/Max` deleted (F22, sv-local break), README sample alloc fixed + the scan covers Markdown (F26) — [issues/0066](issues/0066-atom-58-totality-fixes.md) | done |
 
 Atom 1 scope note: `Clamp.Stat` and the StrictFloat oracle land with atom 2 (the first
 float math); the walkers land with atom 3. Nothing ships half-wired.

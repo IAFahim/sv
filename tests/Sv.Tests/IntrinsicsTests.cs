@@ -6,7 +6,7 @@ public unsafe class IntrinsicsTests
 {
     static Schema TestSchema() =>
         SchemaBuilder.Create()
-            .Intrinsic("mana", 0, 100)
+            .Intrinsic("mana")
             .Intrinsic("charges")
             .Build();
 

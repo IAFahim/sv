@@ -6,7 +6,7 @@ public unsafe class MaskSpanTests
 {
     static Schema TestSchema() =>
         SchemaBuilder.Create()
-            .Intrinsic("mana", 0, 100)
+            .Intrinsic("mana")
             .Build();
 
     [Theory]

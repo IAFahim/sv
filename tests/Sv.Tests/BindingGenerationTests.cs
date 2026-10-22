@@ -8,7 +8,7 @@ public unsafe class BindingGenerationTests
         SchemaBuilder.Create()
             .Stat("move_speed", 6f)
             .Stat("max_mana", 100f)
-            .Intrinsic("mana", 0, 1000)
+            .Intrinsic("mana")
             .Build();
 
     [Fact]

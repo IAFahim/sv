@@ -5,7 +5,7 @@ public class SlotTests
 {
     static Schema TestSchema() =>
         SchemaBuilder.Create()
-            .Intrinsic("mana", 0, 100)
+            .Intrinsic("mana")
             .Build();
 
     [Fact]
@@ -82,7 +82,7 @@ public class SchemaTests
     public void IntrinsicIds_AreDenseAndLookupByName()
     {
         var schema = SchemaBuilder.Create()
-            .Intrinsic("mana", 0, 100)
+            .Intrinsic("mana")
             .Intrinsic("charges")
             .Build();
 
@@ -98,15 +98,9 @@ public class SchemaTests
     public void DuplicateNames_RejectedAtBuild()
     {
         var builder = SchemaBuilder.Create()
-            .Intrinsic("mana", 0, 100)
+            .Intrinsic("mana")
             .Intrinsic("mana");
         Assert.Throws<InvalidOperationException>(() => builder.Build());
-    }
-
-    [Fact]
-    public void InvertedBounds_RejectedAtDeclaration()
-    {
-        Assert.Throws<ArgumentException>(() => SchemaBuilder.Create().Intrinsic("mana", 10, 5));
     }
 
     [Fact]

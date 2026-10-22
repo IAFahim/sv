@@ -72,6 +72,12 @@ public sealed unsafe partial class Board
 
     private int* dependentStat;
 
+    private StatEntry* statScratch;
+
+    private int* statScratchIds;
+
+    private int statScratchCap;
+
     private ulong* changed;
 
     private int* changedTouched;
@@ -254,6 +260,8 @@ public sealed unsafe partial class Board
         NativeMemory.Free(pairQueue);
         NativeMemory.Free(scratch);
         NativeMemory.Free(scratchIds);
+        NativeMemory.Free(statScratch);
+        NativeMemory.Free(statScratchIds);
         NativeMemory.Free(expiries);
     }
 
@@ -962,11 +970,20 @@ public sealed unsafe partial class Board
             scratchIds = Realloc(scratchIds, scratchCap);
         }
 
+        return GatherInto(slot, stat, scratch, scratchIds);
+    }
+
+    int GatherInto(int slot, int stat, StatEntry* entries, int* entryIds)
+    {
+        var synthetic = sourceOffset[stat + 1] - sourceOffset[stat];
+        var mods = ModsOrNull(slot, stat);
+        var real = mods == null ? 0 : mods->Count;
+        var count = synthetic + real;
         for (var k = 0; k < synthetic; k++)
         {
             var at = sourceOffset[stat] + k;
-            scratch[k] = new StatEntry(ModifierKind.Added, sourceCoefficient[at] * SourceValue(slot, sourceStat[at]));
-            scratchIds[k] = int.MinValue + k;
+            entries[k] = new StatEntry(ModifierKind.Added, sourceCoefficient[at] * SourceValue(slot, sourceStat[at]));
+            entryIds[k] = int.MinValue + k;
         }
 
         if (real > 0)
@@ -974,12 +991,12 @@ public sealed unsafe partial class Board
             var ids = mods->Ids;
             for (var i = 0; i < real; i++)
             {
-                scratch[synthetic + i] = mods->Entries[i];
-                scratchIds[synthetic + i] = ids[i];
+                entries[synthetic + i] = mods->Entries[i];
+                entryIds[synthetic + i] = ids[i];
             }
         }
 
-        Canonicalize(scratch, scratchIds, count);
+        Canonicalize(entries, entryIds, count);
         return count;
     }
 
@@ -1112,8 +1129,18 @@ public sealed unsafe partial class Board
     {
         var index = StatIndex(stat);
         Guard.SlotLive(slot, live, Capacity);
-        var count = Gather(slot, index);
-        return Fold(statBase[index], scratch, count);
+        var synthetic = sourceOffset[index + 1] - sourceOffset[index];
+        var mods = ModsOrNull(slot, index);
+        var need = synthetic + (mods == null ? 0 : mods->Count);
+        if (statScratchCap < need)
+        {
+            statScratchCap = need * 2;
+            statScratch = Realloc(statScratch, statScratchCap);
+            statScratchIds = Realloc(statScratchIds, statScratchCap);
+        }
+
+        var count = GatherInto(slot, index, statScratch, statScratchIds);
+        return CanonicalNaN(Fold(statBase[index], statScratch, count));
     }
 
     /// <summary>

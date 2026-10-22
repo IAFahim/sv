@@ -10,7 +10,7 @@ public unsafe class SaturatingAddTests
 
     static Schema TestSchema() =>
         SchemaBuilder.Create()
-            .Intrinsic("mana", 0, 100)
+            .Intrinsic("mana")
             .Intrinsic("charges")
             .Build();
 

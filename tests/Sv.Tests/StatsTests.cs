@@ -11,7 +11,7 @@ public unsafe class StatsTests
         SchemaBuilder.Create()
             .Stat("move_speed", 6f)
             .Stat("max_mana", 100f)
-            .Intrinsic("mana", 0, 1000)
+            .Intrinsic("mana")
             .Build();
 
     static uint Bits(float f) => BitConverter.SingleToUInt32Bits(f);
@@ -318,5 +318,35 @@ public class SchemaStatTests
     public void NonFiniteBase_Rejected()
     {
         Assert.Throws<ArgumentException>(() => SchemaBuilder.Create().Stat("a", float.NaN));
+    }
+
+    [Fact]
+    public void Stat_IsCanonicalAndPure()
+    {
+        var schema = SchemaBuilder.Create().Stat("power", 0f).Intrinsic("hp").Build();
+        using var board = Board.Create(schema, 64);
+        var power = schema.Stat("power");
+        var slot = board.Acquire();
+        board.AddModifier(slot, power, new Modifier(ModifierKind.Additive, 3.4e38f));
+        board.AddModifier(slot, power, new Modifier(ModifierKind.Additive, 3.4e38f));
+        board.AddModifier(slot, power, new Modifier(ModifierKind.Additive, 3.4e38f));
+        board.AddModifier(slot, power, new Modifier(ModifierKind.Additive, 3.4e38f));
+        board.Recalculate();
+        var canonical = BitConverter.UInt32BitsToSingle(0x7FC00000u);
+        Assert.Equal(BitConverter.SingleToUInt32Bits(canonical), BitConverter.SingleToUInt32Bits(board.Stat(slot, power)));
+        Assert.Equal(BitConverter.SingleToUInt32Bits(board.Output(power)[slot]), BitConverter.SingleToUInt32Bits(board.Stat(slot, power)));
+        board.AddModifier(slot, power, new Modifier(ModifierKind.Added, 1f));
+        board.Recalculate();
+        Assert.Equal(board.Output(power)[slot], board.Stat(slot, power));
+    }
+
+    [Fact]
+    public void Modifier_RejectsUndefinedKinds()
+    {
+        Assert.Throws<ArgumentException>(() => new Modifier((ModifierKind)7, 1f));
+        Assert.Throws<ArgumentException>(() => new Modifier(0, float.NaN));
+        _ = new Modifier(ModifierKind.Added, 1f);
+        _ = new Modifier(ModifierKind.Additive, 1f);
+        _ = new Modifier(ModifierKind.Multi, 1f);
     }
 }

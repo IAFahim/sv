@@ -54,7 +54,7 @@ public sealed record StatDef(string Name, float Base)
     public IReadOnlyList<StatSource> Sources { get; init; } = Array.Empty<StatSource>();
 }
 
-public sealed record IntrinsicDef(string Name, int? Min, int? Max);
+public sealed record IntrinsicDef(string Name);
 
 public sealed unsafe class Schema
 {
@@ -123,17 +123,6 @@ public sealed unsafe class Schema
         {
             bytes.Add(2);
             AddName(def.Name);
-            bytes.Add(def.Min.HasValue ? (byte)1 : (byte)0);
-            if (def.Min.HasValue)
-            {
-                AddI32(def.Min.Value);
-            }
-
-            bytes.Add(def.Max.HasValue ? (byte)1 : (byte)0);
-            if (def.Max.HasValue)
-            {
-                AddI32(def.Max.Value);
-            }
         }
 
         var flat = bytes.ToArray();
@@ -229,19 +218,14 @@ public sealed class SchemaBuilder
         return this;
     }
 
-    public SchemaBuilder Intrinsic(string name, int? min = null, int? max = null)
+    public SchemaBuilder Intrinsic(string name)
     {
         if (string.IsNullOrEmpty(name))
         {
             throw new ArgumentException("sv: intrinsic name must be non-empty", nameof(name));
         }
 
-        if (min.HasValue && max.HasValue && min.Value > max.Value)
-        {
-            throw new ArgumentException($"sv: intrinsic '{name}' has min {min.Value} > max {max.Value}");
-        }
-
-        intrinsics.Add(new IntrinsicDef(name, min, max));
+        intrinsics.Add(new IntrinsicDef(name));
         return this;
     }
 
