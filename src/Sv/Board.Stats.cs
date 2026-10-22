@@ -1382,21 +1382,13 @@ public sealed unsafe partial class Board
 
         new ReadOnlySpan<ulong>(newLive, words).CopyTo(new Span<ulong>(live, words));
         NativeMemory.Free(newLive);
-        var freeCount = 0;
-        for (var slot = 0; slot < Capacity; slot++)
+        var hint = 0;
+        while (hint < words && live[hint] == ulong.MaxValue)
         {
-            if ((live[slot >> 6] & (1ul << (slot & 63))) == 0)
-            {
-                seen[freeCount++] = slot;
-            }
+            hint++;
         }
 
-        freeTop = freeCount;
-        for (var i = 0; i < freeCount; i++)
-        {
-            freeSlots[freeCount - 1 - i] = seen[i];
-        }
-
+        freeHint = hint;
         NativeMemory.Free(seen);
 
         if (statCount > 0)

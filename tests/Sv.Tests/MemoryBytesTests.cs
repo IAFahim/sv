@@ -10,7 +10,7 @@ public unsafe class MemoryBytesTests
         using var board = Board.Create(SchemaBuilder.Create().Intrinsic("mana").Build(), 10);
         Assert.Equal(10, board.RequestedCapacity);
         Assert.Equal(64, board.Capacity);
-        Assert.Equal(64 * sizeof(int) + sizeof(ulong), board.MemoryBytes);
+        Assert.Equal(sizeof(ulong), board.MemoryBytes);
     }
 
     [Fact]

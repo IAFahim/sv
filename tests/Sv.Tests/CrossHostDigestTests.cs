@@ -7,7 +7,7 @@ using Xunit.Abstractions;
 
 public unsafe class CrossHostDigestTests
 {
-    const ulong Expected = 0xF27280C52591D65Aul;
+    const ulong Expected = 0x73D6FCED95A8BA9Dul;
 
     readonly ITestOutputHelper output;
 

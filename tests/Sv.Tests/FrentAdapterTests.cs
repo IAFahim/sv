@@ -46,7 +46,7 @@ public sealed class FrentAdapterTests
         Assert.Equal(0, slot0);
 
         var rebound = adapter.Bind(world.Create(new Mana { Value = -1 }));
-        Assert.Equal(299, rebound);
+        Assert.Equal(1, rebound);
     }
 
     [Fact]

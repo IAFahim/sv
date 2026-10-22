@@ -20,7 +20,7 @@ public class SlotTests
     }
 
     [Fact]
-    public void Release_IsImmediateLifoReuse()
+    public void Release_ThenAcquire_RefillsTheHole()
     {
         using var board = Board.Create(TestSchema(), 4);
         board.Acquire();
