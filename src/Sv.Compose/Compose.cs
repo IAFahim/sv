@@ -20,7 +20,7 @@ public interface ITimelineChain
 
 public interface IKernelChain
 {
-    static abstract void Run<THost>(in THost world, Game game, float dt) where THost : struct, IFrameWorld;
+    static abstract void Run<THost>(ref THost world, Game game, float dt) where THost : struct, IFrameWorld;
 }
 
 public readonly struct Chain : IEventChain, ITimelineChain, IKernelChain
@@ -35,7 +35,7 @@ public readonly struct Chain : IEventChain, ITimelineChain, IKernelChain
     {
     }
 
-    static void IKernelChain.Run<THost>(in THost world, Game game, float dt)
+    static void IKernelChain.Run<THost>(ref THost world, Game game, float dt)
     {
     }
 }
@@ -44,8 +44,8 @@ public readonly struct EventLink<T, TNext> : IEventChain where T : unmanaged whe
 {
     static void IEventChain.Register(Game game)
     {
-        game.AddChannel<T>();
         TNext.Register(game);
+        game.AddChannel<T>();
     }
 }
 
@@ -55,21 +55,22 @@ public readonly struct TimelineLink<TStep, TNext> : ITimelineChain where TStep :
 
     static void ITimelineChain.Run(Game game, int index)
     {
-        var effect = game.Effect(index);
+        TNext.Run(game, index);
+        var self = index + TNext.Count;
+        var effect = game.Effect(self);
         Array.Clear(effect, 0, effect.Length);
         TStep.Apply(game, effect);
         TStep.Transform(game, effect);
         TStep.Advance(game);
-        TNext.Run(game, index + 1);
     }
 }
 
 public readonly struct KernelLink<TStep, TNext> : IKernelChain where TStep : IKernelStep where TNext : struct, IKernelChain
 {
-    static void IKernelChain.Run<THost>(in THost world, Game game, float dt)
+    static void IKernelChain.Run<THost>(ref THost world, Game game, float dt)
     {
-        TStep.Run(world, game, dt);
-        TNext.Run(world, game, dt);
+        TNext.Run(ref world, game, dt);
+        TStep.Run(ref world, game, dt);
     }
 }
 
@@ -107,7 +108,7 @@ public interface ITimelineStep
 
 public interface IKernelStep
 {
-    static abstract void Run<THost>(in THost world, Game game, float dt) where THost : struct, IFrameWorld;
+    static abstract void Run<THost>(ref THost world, Game game, float dt) where THost : struct, IFrameWorld;
 }
 
 public static class TimelineStep<TTrack, TClip> where TClip : unmanaged where TTrack : unmanaged, IBlend<TClip>
@@ -341,7 +342,9 @@ public sealed class GameHost<TEvents, TTimelines, TKernels, THost> : IDisposable
 {
     public Game Game { get; }
 
-    public THost World { get; }
+    THost world;
+
+    public ref THost World => ref world;
 
     public FrameRunner Frame { get; }
 
@@ -350,7 +353,7 @@ public sealed class GameHost<TEvents, TTimelines, TKernels, THost> : IDisposable
     internal GameHost(Game game, THost world)
     {
         Game = game;
-        World = world;
+        this.world = world;
         Frame = new FrameRunner(this);
     }
 
@@ -441,9 +444,14 @@ public sealed class GameHost<TEvents, TTimelines, TKernels, THost> : IDisposable
                         cursor += sizeof(int);
                         var wordCount = *(int*)cursor;
                         cursor += sizeof(int);
-                        if (axesCount != game.Input.Axes || wordCount != game.Input.ButtonWords)
+                        if (axesCount < 0 || wordCount < 0 || axesCount != game.Input.Axes || wordCount != game.Input.ButtonWords)
                         {
                             throw new InvalidDataException($"sv.compose: tape frame {frame} input shape ({axesCount} axes, {wordCount} words) does not match this host");
+                        }
+
+                        if (end - cursor < (long)axesCount * sizeof(uint) + (long)wordCount * sizeof(ulong))
+                        {
+                            throw new InvalidDataException($"sv.compose: tape truncated in frame {frame} inputs");
                         }
 
                         for (var axis = 0; axis < axesCount; axis++)
@@ -532,7 +540,7 @@ public sealed class GameHost<TEvents, TTimelines, TKernels, THost> : IDisposable
         public unsafe void Run(float dt)
         {
             var game = owner.Game;
-            var world = owner.World;
+            ref var world = ref owner.world;
             while (game.Streams.TryReadNext(out var typeId, out var payload, out _))
             {
                 world.DispatchEvent(game, typeId, payload);
@@ -542,7 +550,7 @@ public sealed class GameHost<TEvents, TTimelines, TKernels, THost> : IDisposable
             world.RunIntrinsics(game);
             game.Board.Recalculate();
             TTimelines.Run(game, 0);
-            TKernels.Run(in world, game, dt);
+            TKernels.Run(ref world, game, dt);
             world.RunConditions(game);
             game.Streams.Swap();
             owner.CaptureFrame(dt);

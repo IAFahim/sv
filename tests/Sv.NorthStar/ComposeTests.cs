@@ -124,9 +124,9 @@ public unsafe struct JumpTimeline : ITimelineStep
 
 public struct FallKernel : IKernelStep
 {
-    public static void Run<THost>(in THost world, Game game, float dt) where THost : struct, IFrameWorld
+    public static void Run<THost>(ref THost world, Game game, float dt) where THost : struct, IFrameWorld
     {
-        ref var walk = ref System.Runtime.CompilerServices.Unsafe.As<THost, WalkWorld>(ref System.Runtime.CompilerServices.Unsafe.AsRef(in world));
+        ref var walk = ref System.Runtime.CompilerServices.Unsafe.As<THost, WalkWorld>(ref world);
         var gravityDt = StrictFloat.Multiply(NorthStarHarness.GravityField, dt);
         for (var i = 0; i < WalkWorld.Entities; i++)
         {

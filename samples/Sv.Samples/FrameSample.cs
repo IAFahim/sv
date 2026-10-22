@@ -142,9 +142,9 @@ internal static unsafe class FrameSample
 
     public struct Fall : IKernelStep
     {
-        public static void Run<THost>(in THost world, Game game, float dt) where THost : struct, IFrameWorld
+        public static void Run<THost>(ref THost world, Game game, float dt) where THost : struct, IFrameWorld
         {
-            ref var host = ref Unsafe.As<THost, World>(ref Unsafe.AsRef(in world));
+            ref var host = ref Unsafe.As<THost, World>(ref world);
             var gravityDt = StrictFloat.Multiply(-9.8f, dt);
             for (var i = 0; i < Rows; i++)
             {

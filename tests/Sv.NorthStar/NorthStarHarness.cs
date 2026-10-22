@@ -152,9 +152,9 @@ public unsafe struct NorthStarJump : ITimelineStep
 
 public unsafe struct NorthStarFall : IKernelStep
 {
-    public static void Run<THost>(in THost world, Game game, float dt) where THost : struct, IFrameWorld
+    public static void Run<THost>(ref THost world, Game game, float dt) where THost : struct, IFrameWorld
     {
-        ref var host = ref Unsafe.As<THost, NorthStarWorld>(ref Unsafe.AsRef(in world));
+        ref var host = ref Unsafe.As<THost, NorthStarWorld>(ref world);
         var gravityDt = StrictFloat.Multiply(NorthStarHarness.GravityField, dt);
 #if KERNELS_PRESENT
         for (var i = 0; i < NorthStarHarness.Entities; i++)
