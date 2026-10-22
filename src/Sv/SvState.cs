@@ -95,14 +95,6 @@ public sealed unsafe class SvState : IDisposable
         return value;
     }
 
-    internal void Expect(uint magic, long shape, string what)
-    {
-        if (Read<uint>() != magic || Read<long>() != shape)
-        {
-            throw new InvalidDataException($"sv: state does not hold a {what} of this shape");
-        }
-    }
-
     internal void Header(uint magic, long shape)
     {
         Write(magic);

@@ -472,51 +472,46 @@ public sealed unsafe class EventStreams : IDisposable
     public void SaveState(SvState state)
     {
         state.BeginWrite();
-        WriteState(state);
+        var codec = new SaveCodec(state);
+        VisitState(ref codec);
     }
 
     public void LoadState(SvState state)
     {
         state.BeginRead();
-        ReadState(state);
+        var codec = new LoadCodec(state);
+        VisitState(ref codec);
         state.EndRead();
     }
 
-    internal void WriteState(SvState state)
+    internal void VisitState<TCodec>(ref TCodec codec) where TCodec : struct, IStateCodec
     {
-        state.Header(StateMagic, ((long)writerCount << 32) | (uint)nextTypeId);
-        state.Write(active);
+        codec.Header(StateMagic, ((long)writerCount << 32) | (uint)nextTypeId, "event streams");
+        codec.Value(ref active);
         for (var w = 0; w < writerCount; w++)
         {
             var written = writeOffset[w * OffsetStride];
-            state.Write(written);
-            state.Write(readOffset[w]);
-            state.Write(readCursorOffset[w]);
-            state.Write(arenas[w * 2 + active], written);
-            state.Write(arenas[w * 2 + (1 - active)], readOffset[w]);
-        }
-    }
-
-    internal void ReadState(SvState state)
-    {
-        state.Expect(StateMagic, ((long)writerCount << 32) | (uint)nextTypeId, "event streams");
-        active = state.Read<int>();
-        for (var w = 0; w < writerCount; w++)
-        {
-            var written = state.Read<int>();
-            var published = state.Read<int>();
-            if (written < 0 || published < 0)
+            var published = readOffset[w];
+            var cursor = readCursorOffset[w];
+            codec.Value(ref written);
+            codec.Value(ref published);
+            codec.Value(ref cursor);
+            if (TCodec.Reading)
             {
-                throw new System.IO.InvalidDataException("sv: event stream state carries negative offsets");
+                if (written < 0 || published < 0)
+                {
+                    throw new System.IO.InvalidDataException("sv: event stream state carries negative offsets");
+                }
+
+                readCursorOffset[w] = cursor;
+                EnsureArena(w * 2 + active, written);
+                EnsureArena(w * 2 + (1 - active), published);
+                writeOffset[w * OffsetStride] = written;
+                readOffset[w] = published;
             }
 
-            readCursorOffset[w] = state.Read<int>();
-            EnsureArena(w * 2 + active, written);
-            EnsureArena(w * 2 + (1 - active), published);
-            writeOffset[w * OffsetStride] = written;
-            readOffset[w] = published;
-            state.Read(arenas[w * 2 + active], written);
-            state.Read(arenas[w * 2 + (1 - active)], published);
+            codec.Bytes(arenas[w * 2 + active], written);
+            codec.Bytes(arenas[w * 2 + (1 - active)], published);
         }
     }
 

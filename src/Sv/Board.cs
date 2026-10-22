@@ -93,7 +93,8 @@ public sealed unsafe partial class Board : IDisposable
     public void SaveState(SvState state)
     {
         state.BeginWrite();
-        WriteState(state);
+        var codec = new SaveCodec(state);
+        VisitState(ref codec);
     }
 
     /// <summary>
@@ -107,36 +108,36 @@ public sealed unsafe partial class Board : IDisposable
     public void LoadState(SvState state)
     {
         state.BeginRead();
-        ReadState(state);
+        var codec = new LoadCodec(state);
+        VisitState(ref codec);
         state.EndRead();
     }
 
-    internal void WriteState(SvState state)
+    internal void VisitState<TCodec>(ref TCodec codec) where TCodec : struct, IStateCodec
     {
-        state.Header(StateMagic, StateShape);
-        state.Write(LiveCount);
-        state.Write(live, (long)LiveWordCount * sizeof(ulong));
-        if (statCount > 0)
+        codec.Header(StateMagic, StateShape, "board");
+        var liveCount = LiveCount;
+        codec.Value(ref liveCount);
+        if (TCodec.Reading)
         {
-            WriteStats(state);
-        }
-    }
-
-    internal void ReadState(SvState state)
-    {
-        state.Expect(StateMagic, StateShape, "board");
-        LiveCount = state.Read<int>();
-        state.Read(live, (long)LiveWordCount * sizeof(ulong));
-        var word = 0;
-        while (word < LiveWordCount && live[word] == ulong.MaxValue)
-        {
-            word++;
+            LiveCount = liveCount;
         }
 
-        freeHint = word;
+        codec.Bytes(live, (long)LiveWordCount * sizeof(ulong));
+        if (TCodec.Reading)
+        {
+            var word = 0;
+            while (word < LiveWordCount && live[word] == ulong.MaxValue)
+            {
+                word++;
+            }
+
+            freeHint = word;
+        }
+
         if (statCount > 0)
         {
-            ReadStats(state);
+            VisitStats(ref codec);
         }
     }
 

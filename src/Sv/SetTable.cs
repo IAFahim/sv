@@ -392,94 +392,77 @@ internal sealed unsafe class SetTable : IDisposable
 
     public bool Folded(int set) => setFolded[set] != 0;
 
-    internal void Write(SvState state)
+    internal void VisitState<TCodec>(ref TCodec codec) where TCodec : struct, IStateCodec
     {
-        state.Write(setCount);
-        state.Write(setCapacity);
-        state.Write(bucketMask);
-        state.Write(buckets, (long)(bucketMask + 1) * sizeof(int));
-        state.Write(setStat, (long)setCount * sizeof(int));
-        state.Write(setHash, (long)setCount * sizeof(ulong));
-        state.Write(setComputed, (long)setCount * sizeof(float));
-        state.Write(setContentOffset, (long)setCount * sizeof(int));
-        state.Write(setContentCount, (long)setCount * sizeof(int));
-        state.Write(setContentSpan, (long)setCount * sizeof(int));
-        state.Write(setRefCount, (long)setCount * sizeof(int));
-        state.Write(setFolded, setCount);
-        state.Write(contentUsed);
-        state.Write(contentCapacity);
-        state.Write(contentArena, (long)contentUsed * sizeof(StatEntry));
-        state.Write(contentClassHead, (long)ClassCount * sizeof(int));
-        state.Write(liveSets);
-        state.Write(setFreeHead);
-        state.Write(generation);
-        state.Write(setFreeNext, (long)setCount * sizeof(int));
-        state.Write(setFreedAt, (long)setCount * sizeof(long));
-    }
-
-    internal void Read(SvState state)
-    {
-        var count = state.Read<int>();
-        var capacity = state.Read<int>();
-        var mask = state.Read<int>();
-        if (count < 0 || capacity < count || mask < 0)
+        var count = setCount;
+        var capacity = setCapacity;
+        var mask = bucketMask;
+        codec.Value(ref count);
+        codec.Value(ref capacity);
+        codec.Value(ref mask);
+        if (TCodec.Reading)
         {
-            throw new System.IO.InvalidDataException("sv: corrupt set table state");
-        }
-
-        if (capacity != setCapacity)
-        {
-            var previousCapacity = setCapacity;
-            setStat = memory.Realloc(setStat, previousCapacity, capacity);
-            setHash = memory.Realloc(setHash, previousCapacity, capacity);
-            setComputed = memory.Realloc(setComputed, previousCapacity, capacity);
-            setContentOffset = memory.Realloc(setContentOffset, previousCapacity, capacity);
-            setContentCount = memory.Realloc(setContentCount, previousCapacity, capacity);
-            setContentSpan = memory.Realloc(setContentSpan, previousCapacity, capacity);
-            setRefCount = memory.Realloc(setRefCount, previousCapacity, capacity);
-            setFolded = memory.Realloc(setFolded, previousCapacity, capacity);
-            setFreeNext = memory.Realloc(setFreeNext, previousCapacity, capacity);
-            setFreedAt = memory.Realloc(setFreedAt, previousCapacity, capacity);
-            if (capacity > previousCapacity)
+            if (count < 0 || capacity < count || mask < 0)
             {
-                NativeMemory.Clear(setFreedAt + previousCapacity, (nuint)(capacity - previousCapacity) * (nuint)sizeof(long));
+                throw new System.IO.InvalidDataException("sv: corrupt set table state");
             }
+
+            if (capacity != setCapacity)
+            {
+                var previousCapacity = setCapacity;
+                setStat = memory.Realloc(setStat, previousCapacity, capacity);
+                setHash = memory.Realloc(setHash, previousCapacity, capacity);
+                setComputed = memory.Realloc(setComputed, previousCapacity, capacity);
+                setContentOffset = memory.Realloc(setContentOffset, previousCapacity, capacity);
+                setContentCount = memory.Realloc(setContentCount, previousCapacity, capacity);
+                setContentSpan = memory.Realloc(setContentSpan, previousCapacity, capacity);
+                setRefCount = memory.Realloc(setRefCount, previousCapacity, capacity);
+                setFolded = memory.Realloc(setFolded, previousCapacity, capacity);
+                setFreeNext = memory.Realloc(setFreeNext, previousCapacity, capacity);
+                setFreedAt = memory.Realloc(setFreedAt, previousCapacity, capacity);
+                if (capacity > previousCapacity)
+                {
+                    NativeMemory.Clear(setFreedAt + previousCapacity, (nuint)(capacity - previousCapacity) * (nuint)sizeof(long));
+                }
+            }
+
+            if (mask != bucketMask)
+            {
+                var previousBuckets = bucketMask + 1;
+                buckets = memory.Realloc(buckets, previousBuckets, mask + 1);
+                bucketMask = mask;
+            }
+
+            setCount = count;
+            setCapacity = capacity;
         }
 
-        setCount = count;
-        setCapacity = capacity;
-        if (mask != bucketMask)
-        {
-            var previousBuckets = bucketMask + 1;
-            buckets = memory.Realloc(buckets, previousBuckets, mask + 1);
-            bucketMask = mask;
-        }
-
-        state.Read(buckets, (long)(bucketMask + 1) * sizeof(int));
-        state.Read(setStat, (long)count * sizeof(int));
-        state.Read(setHash, (long)count * sizeof(ulong));
-        state.Read(setComputed, (long)count * sizeof(float));
-        state.Read(setContentOffset, (long)count * sizeof(int));
-        state.Read(setContentCount, (long)count * sizeof(int));
-        state.Read(setContentSpan, (long)count * sizeof(int));
-        state.Read(setRefCount, (long)count * sizeof(int));
-        state.Read(setFolded, count);
-        contentUsed = state.Read<int>();
-        var arenaCapacity = state.Read<int>();
-        if (arenaCapacity != contentCapacity)
+        codec.Bytes(buckets, (long)(bucketMask + 1) * sizeof(int));
+        codec.Bytes(setStat, (long)count * sizeof(int));
+        codec.Bytes(setHash, (long)count * sizeof(ulong));
+        codec.Bytes(setComputed, (long)count * sizeof(float));
+        codec.Bytes(setContentOffset, (long)count * sizeof(int));
+        codec.Bytes(setContentCount, (long)count * sizeof(int));
+        codec.Bytes(setContentSpan, (long)count * sizeof(int));
+        codec.Bytes(setRefCount, (long)count * sizeof(int));
+        codec.Bytes(setFolded, count);
+        codec.Value(ref contentUsed);
+        var arenaCapacity = contentCapacity;
+        codec.Value(ref arenaCapacity);
+        if (TCodec.Reading && arenaCapacity != contentCapacity)
         {
             contentArena = memory.Realloc(contentArena, contentCapacity, arenaCapacity);
             contentCapacity = arenaCapacity;
         }
 
-        state.Read(contentArena, (long)contentUsed * sizeof(StatEntry));
-        state.Read(contentClassHead, (long)ClassCount * sizeof(int));
-        liveSets = state.Read<int>();
-        setFreeHead = state.Read<int>();
-        generation = state.Read<long>();
-        state.Read(setFreeNext, (long)count * sizeof(int));
-        state.Read(setFreedAt, (long)count * sizeof(long));
-        if (liveSets < 0 || liveSets > count || setFreeHead < -1 || setFreeHead >= count)
+        codec.Bytes(contentArena, (long)contentUsed * sizeof(StatEntry));
+        codec.Bytes(contentClassHead, (long)ClassCount * sizeof(int));
+        codec.Value(ref liveSets);
+        codec.Value(ref setFreeHead);
+        codec.Value(ref generation);
+        codec.Bytes(setFreeNext, (long)count * sizeof(int));
+        codec.Bytes(setFreedAt, (long)count * sizeof(long));
+        if (TCodec.Reading && (liveSets < 0 || liveSets > count || setFreeHead < -1 || setFreeHead >= count))
         {
             throw new System.IO.InvalidDataException("sv: corrupt set table state");
         }

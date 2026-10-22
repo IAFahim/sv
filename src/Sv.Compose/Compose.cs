@@ -234,51 +234,39 @@ public sealed unsafe class Game : IDisposable
     public void SaveState(SvState state)
     {
         state.BeginWrite();
-        state.Header(GameMagic, gameShape);
-        Board.WriteState(state);
-        Input.WriteState(state);
-        Streams.WriteState(state);
-        fixed (ushort* ids = TimelineIds)
-        fixed (ushort* clocks = TimelineClocks)
-        {
-            state.Write(ids, (long)TimelineIds.Length * sizeof(ushort));
-            state.Write(clocks, (long)TimelineClocks.Length * sizeof(ushort));
-        }
-
-        state.Write(Applied, (long)Capacity * sizeof(int));
-        foreach (var effect in effects)
-        {
-            fixed (float* column = effect)
-            {
-                state.Write(column, (long)effect.Length * sizeof(float));
-            }
-        }
+        var codec = new SaveCodec(state);
+        VisitState(ref codec);
     }
 
     public void LoadState(SvState state)
     {
         state.BeginRead();
-        state.Expect(GameMagic, gameShape, "game");
-        Board.ReadState(state);
-        Input.ReadState(state);
-        Streams.ReadState(state);
+        var codec = new LoadCodec(state);
+        VisitState(ref codec);
+        state.EndRead();
+    }
+
+    internal void VisitState<TCodec>(ref TCodec codec) where TCodec : struct, IStateCodec
+    {
+        codec.Header(GameMagic, gameShape, "game");
+        Board.VisitState(ref codec);
+        Input.VisitState(ref codec);
+        Streams.VisitState(ref codec);
         fixed (ushort* ids = TimelineIds)
         fixed (ushort* clocks = TimelineClocks)
         {
-            state.Read(ids, (long)TimelineIds.Length * sizeof(ushort));
-            state.Read(clocks, (long)TimelineClocks.Length * sizeof(ushort));
+            codec.Bytes(ids, (long)TimelineIds.Length * sizeof(ushort));
+            codec.Bytes(clocks, (long)TimelineClocks.Length * sizeof(ushort));
         }
 
-        state.Read(Applied, (long)Capacity * sizeof(int));
+        codec.Bytes(Applied, (long)Capacity * sizeof(int));
         foreach (var effect in effects)
         {
             fixed (float* column = effect)
             {
-                state.Read(column, (long)effect.Length * sizeof(float));
+                codec.Bytes(column, (long)effect.Length * sizeof(float));
             }
         }
-
-        state.EndRead();
     }
 
     public void Dispose()

@@ -1639,246 +1639,222 @@ public sealed unsafe partial class Board
         InvalidateBindings();
     }
 
-    void WriteStats(SvState state)
+    void VisitStats<TCodec>(ref TCodec codec) where TCodec : struct, IStateCodec
     {
         var words = LiveWordCount;
-        state.Write(nextInsertionId);
-        state.Write(dirtyTouchedCount);
-        for (var i = 0; i < dirtyTouchedCount; i++)
+        codec.Value(ref nextInsertionId);
+        var pending = dirtyTouchedCount;
+        codec.Value(ref pending);
+        if (TCodec.Reading)
         {
-            var slot = dirtyTouched[i];
-            state.Write(slot);
-            state.Write(dirty + (nint)slot * statMaskWords, statMaskWords * sizeof(uint));
-        }
-
-        state.Write(changedTouchedCounts, (long)statCount * sizeof(int));
-        for (var stat = 0; stat < statCount; stat++)
-        {
-            state.Write(changedTouched + (nint)stat * words, (long)changedTouchedCounts[stat] * sizeof(int));
-        }
-
-        state.Write(changed, (long)statCount * words * sizeof(ulong));
-        state.Write(acquiredTouchedCount);
-        state.Write(acquiredTouched, (long)acquiredTouchedCount * sizeof(int));
-        state.Write(acquired, (long)statCount * words * sizeof(ulong));
-        for (var stat = 0; stat < statCount; stat++)
-        {
-            state.Write((byte)(owned[stat] == null ? 0 : 1));
-            if (owned[stat] != null)
-            {
-                state.Write(owned[stat], (long)Capacity * sizeof(float));
-            }
-        }
-
-        for (var stat = 0; stat < statCount; stat++)
-        {
-            var mirror = mirrors[stat];
-            state.Write((byte)(mirror == null ? 0 : 1));
-            if (mirror != null)
-            {
-                state.Write(mirror, (long)Capacity * sizeof(int));
-            }
-        }
-
-        state.Write(expiryCount);
-        state.Write(expiries, (long)expiryCount * sizeof(ExpiryEntry));
-        state.Write(recordCount);
-        state.Write(records, (long)recordCount * sizeof(ModRecord));
-        state.Write(recordFree);
-        for (var page = 0; page < pageCount; page++)
-        {
-            var states = slotPages[page];
-            state.Write((byte)(states == null ? 0 : 1));
-            if (states != null)
-            {
-                state.Write(states, (long)PageSlots * sizeof(SlotState));
-            }
-        }
-
-        blocks!.Write(state);
-        table!.Write(state);
-    }
-
-    void ReadStats(SvState state)
-    {
-        var words = LiveWordCount;
-        nextInsertionId = state.Read<int>();
-        var pending = state.Read<int>();
-        if (pending < 0 || pending > Capacity)
-        {
-            throw new System.IO.InvalidDataException("sv: corrupt board state");
-        }
-
-        if (pending > dirtyTouchedCap)
-        {
-            var previous = dirtyTouchedCap;
-            dirtyTouchedCap = pending;
-            dirtyTouched = arena.Realloc(dirtyTouched, previous, dirtyTouchedCap);
-        }
-
-        ClearDirty();
-        dirtyTouchedCount = pending;
-        for (var i = 0; i < pending; i++)
-        {
-            var slot = state.Read<int>();
-            if (slot < 0 || slot >= Capacity)
+            if (pending < 0 || pending > Capacity)
             {
                 throw new System.IO.InvalidDataException("sv: corrupt board state");
             }
 
-            dirtyTouched[i] = slot;
-            state.Read(dirty + (nint)slot * statMaskWords, statMaskWords * sizeof(uint));
+            if (pending > dirtyTouchedCap)
+            {
+                var previous = dirtyTouchedCap;
+                dirtyTouchedCap = pending;
+                dirtyTouched = arena.Realloc(dirtyTouched, previous, dirtyTouchedCap);
+            }
+
+            ClearDirty();
+            dirtyTouchedCount = pending;
         }
 
-        state.Read(changedTouchedCounts, (long)statCount * sizeof(int));
+        for (var i = 0; i < pending; i++)
+        {
+            var slot = TCodec.Reading ? 0 : dirtyTouched[i];
+            codec.Value(ref slot);
+            if (TCodec.Reading)
+            {
+                if (slot < 0 || slot >= Capacity)
+                {
+                    throw new System.IO.InvalidDataException("sv: corrupt board state");
+                }
+
+                dirtyTouched[i] = slot;
+            }
+
+            codec.Bytes(dirty + (nint)slot * statMaskWords, statMaskWords * sizeof(uint));
+        }
+
+        codec.Bytes(changedTouchedCounts, (long)statCount * sizeof(int));
         for (var stat = 0; stat < statCount; stat++)
         {
             var touched = changedTouchedCounts[stat];
-            if (touched < 0 || touched > words)
+            if (TCodec.Reading && (touched < 0 || touched > words))
             {
                 throw new System.IO.InvalidDataException("sv: corrupt board state");
             }
 
-            state.Read(changedTouched + (nint)stat * words, (long)touched * sizeof(int));
+            codec.Bytes(changedTouched + (nint)stat * words, (long)touched * sizeof(int));
         }
 
-        state.Read(changed, (long)statCount * words * sizeof(ulong));
-        acquiredTouchedCount = state.Read<int>();
-        state.Read(acquiredTouched, (long)acquiredTouchedCount * sizeof(int));
-        state.Read(acquired, (long)statCount * words * sizeof(ulong));
-        var staleColumns = arena.Alloc<int>(statCount);
+        codec.Bytes(changed, (long)statCount * words * sizeof(ulong));
+        var acquiredCount = acquiredTouchedCount;
+        codec.Value(ref acquiredCount);
+        if (TCodec.Reading)
+        {
+            acquiredTouchedCount = acquiredCount;
+        }
+
+        codec.Bytes(acquiredTouched, (long)acquiredCount * sizeof(int));
+        codec.Bytes(acquired, (long)statCount * words * sizeof(ulong));
+        var staleColumns = TCodec.Reading ? arena.Alloc<int>(statCount) : null;
         var staleCount = 0;
         for (var stat = 0; stat < statCount; stat++)
         {
-            if (state.Read<byte>() != 0)
+            var hasOwned = (byte)(owned[stat] != null ? 1 : 0);
+            codec.Value(ref hasOwned);
+            if (hasOwned != 0)
             {
-                if (owned[stat] == null)
+                if (TCodec.Reading && owned[stat] == null)
                 {
                     owned[stat] = arena.AllocZeroed<float>(Capacity);
                 }
 
-                state.Read(owned[stat], (long)Capacity * sizeof(float));
+                codec.Bytes(owned[stat], (long)Capacity * sizeof(float));
             }
-            else if (owned[stat] != null)
+            else if (TCodec.Reading && owned[stat] != null)
             {
-                staleColumns[staleCount++] = stat;
+                staleColumns![staleCount++] = stat;
             }
         }
 
-        var staleMirrors = arena.Alloc<int>(statCount);
+        var staleMirrors = TCodec.Reading ? arena.Alloc<int>(statCount) : null;
         var staleMirrorCount = 0;
         for (var stat = 0; stat < statCount; stat++)
         {
-            if (state.Read<byte>() == 0)
+            var hasMirror = (byte)(mirrors[stat] != null ? 1 : 0);
+            codec.Value(ref hasMirror);
+            if (hasMirror == 0)
             {
-                if (mirrors[stat] != null && outputColumn[stat] == null)
+                if (TCodec.Reading && mirrors[stat] != null && outputColumn[stat] == null)
                 {
-                    staleMirrors[staleMirrorCount++] = stat;
+                    staleMirrors![staleMirrorCount++] = stat;
                 }
 
                 continue;
             }
 
-            if (mirrors[stat] == null)
+            if (TCodec.Reading && mirrors[stat] == null)
             {
                 mirrors[stat] = arena.AllocZeroed<int>(Capacity);
             }
 
-            state.Read(mirrors[stat], (long)Capacity * sizeof(int));
+            codec.Bytes(mirrors[stat], (long)Capacity * sizeof(int));
         }
 
-        var heap = state.Read<int>();
-        if (heap > expiryCap)
+        var heap = expiryCount;
+        codec.Value(ref heap);
+        if (TCodec.Reading)
         {
-            var previous = expiryCap;
-            expiryCap = heap;
-            expiries = arena.Realloc(expiries, previous, expiryCap);
+            if (heap > expiryCap)
+            {
+                var previous = expiryCap;
+                expiryCap = heap;
+                expiries = arena.Realloc(expiries, previous, expiryCap);
+            }
+
+            expiryCount = heap;
         }
 
-        expiryCount = heap;
-        state.Read(expiries, (long)heap * sizeof(ExpiryEntry));
-        var poolCount = state.Read<int>();
-        if (poolCount < 0 || poolCount > (1 << 24))
+        codec.Bytes(expiries, (long)heap * sizeof(ExpiryEntry));
+        var poolCount = recordCount;
+        codec.Value(ref poolCount);
+        if (TCodec.Reading)
         {
-            throw new System.IO.InvalidDataException("sv: corrupt board state");
+            if (poolCount < 0 || poolCount > (1 << 24))
+            {
+                throw new System.IO.InvalidDataException("sv: corrupt board state");
+            }
+
+            if (poolCount > recordCap)
+            {
+                var previous = recordCap;
+                recordCap = poolCount;
+                records = arena.Realloc(records, previous, recordCap);
+            }
+
+            recordCount = poolCount;
         }
 
-        if (poolCount > recordCap)
-        {
-            var previous = recordCap;
-            recordCap = poolCount;
-            records = arena.Realloc(records, previous, recordCap);
-        }
-
-        recordCount = poolCount;
-        state.Read(records, (long)recordCount * sizeof(ModRecord));
-        recordFree = state.Read<int>();
-        if (recordFree < -1 || recordFree >= recordCount)
+        codec.Bytes(records, (long)poolCount * sizeof(ModRecord));
+        codec.Value(ref recordFree);
+        if (TCodec.Reading && (recordFree < -1 || recordFree >= poolCount))
         {
             throw new System.IO.InvalidDataException("sv: corrupt board state");
         }
 
         for (var page = 0; page < pageCount; page++)
         {
-            if (state.Read<byte>() == 0)
+            var states = slotPages[page];
+            var hasPage = (byte)(states == null ? 0 : 1);
+            codec.Value(ref hasPage);
+            if (hasPage == 0)
             {
-                if (slotPages[page] != null)
+                if (TCodec.Reading && slotPages[page] != null)
                 {
                     arena.Free(slotPages[page], PageSlots);
                     slotPages[page] = null;
                 }
-            }
-            else
-            {
-                if (slotPages[page] == null)
-                {
-                    slotPages[page] = arena.Alloc<SlotState>(PageSlots);
-                    for (var i = 0; i < PageSlots; i++)
-                    {
-                        slotPages[page][i] = new SlotState { Block = -1, Head = -1 };
-                    }
-                }
 
-                state.Read(slotPages[page], (long)PageSlots * sizeof(SlotState));
-            }
-        }
-
-        blocks!.Read(state);
-        table!.Read(state);
-        for (var i = 0; i < staleCount; i++)
-        {
-            var stat = staleColumns[i];
-            NativeMemory.Clear(owned[stat], (nuint)Capacity * sizeof(float));
-            if (outputColumn[stat] != null)
-            {
                 continue;
             }
 
-            for (var word = 0; word < LiveWordCount; word++)
+            if (TCodec.Reading && slotPages[page] == null)
             {
-                var bits = live[word];
-                while (bits != 0)
+                slotPages[page] = arena.Alloc<SlotState>(PageSlots);
+                for (var i = 0; i < PageSlots; i++)
                 {
-                    var slot = (word << 6) + System.Numerics.BitOperations.TrailingZeroCount(bits);
-                    bits &= bits - 1;
-                    if (SetOf(slot, stat) >= 0)
+                    slotPages[page][i] = new SlotState { Block = -1, Head = -1 };
+                }
+            }
+
+            codec.Bytes(slotPages[page], (long)PageSlots * sizeof(SlotState));
+        }
+
+        blocks!.VisitState(ref codec);
+        table!.VisitState(ref codec);
+        if (TCodec.Reading)
+        {
+            for (var i = 0; i < staleCount; i++)
+            {
+                var stat = staleColumns![i];
+                NativeMemory.Clear(owned[stat], (nuint)Capacity * sizeof(float));
+                if (outputColumn[stat] != null)
+                {
+                    continue;
+                }
+
+                for (var word = 0; word < LiveWordCount; word++)
+                {
+                    var bits = live[word];
+                    while (bits != 0)
                     {
-                        owned[stat][slot] = SourceValue(slot, stat);
+                        var slot = (word << 6) + System.Numerics.BitOperations.TrailingZeroCount(bits);
+                        bits &= bits - 1;
+                        if (SetOf(slot, stat) >= 0)
+                        {
+                            owned[stat][slot] = SourceValue(slot, stat);
+                        }
                     }
                 }
             }
-        }
 
-        for (var i = 0; i < staleMirrorCount; i++)
-        {
-            var stat = staleMirrors[i];
-            NativeMemory.Clear(mirrors[stat], (nuint)Capacity * sizeof(int));
-            FillMirrorFromColumns(stat, mirrors[stat]);
-        }
+            for (var i = 0; i < staleMirrorCount; i++)
+            {
+                var stat = staleMirrors![i];
+                NativeMemory.Clear(mirrors[stat], (nuint)Capacity * sizeof(int));
+                FillMirrorFromColumns(stat, mirrors[stat]);
+            }
 
-        arena.Free(staleColumns, statCount);
-        arena.Free(staleMirrors, statCount);
-        RefillRestoredBindings();
+            arena.Free(staleColumns!, statCount);
+            arena.Free(staleMirrors!, statCount);
+            RefillRestoredBindings();
+        }
     }
 
     void RefillRestoredBindings()

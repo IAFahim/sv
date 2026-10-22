@@ -251,44 +251,31 @@ public sealed unsafe class InputState : IDisposable
     public void SaveState(SvState state)
     {
         state.BeginWrite();
-        WriteState(state);
+        var codec = new SaveCodec(state);
+        VisitState(ref codec);
     }
 
     public void LoadState(SvState state)
     {
         state.BeginRead();
-        ReadState(state);
+        var codec = new LoadCodec(state);
+        VisitState(ref codec);
         state.EndRead();
     }
 
-    internal void WriteState(SvState state)
+    internal void VisitState<TCodec>(ref TCodec codec) where TCodec : struct, IStateCodec
     {
-        state.Header(StateMagic, StateShape);
-        state.Write(axisBits, (long)Axes * sizeof(uint));
-        state.Write(buttons, (long)ButtonWords * sizeof(ulong));
-        state.Write(previous, (long)ButtonWords * sizeof(ulong));
-        state.Write(pressed, (long)ButtonWords * sizeof(ulong));
-        state.Write(released, (long)ButtonWords * sizeof(ulong));
-        state.Write(ring, (long)RingTicks * ringStride);
-        state.Write(ringTickIds, (long)RingTicks * sizeof(long));
-        state.Write(ringHead);
-        state.Write(tickCounter);
-        state.Write(replayCursor);
-    }
-
-    internal void ReadState(SvState state)
-    {
-        state.Expect(StateMagic, StateShape, "input state");
-        state.Read(axisBits, (long)Axes * sizeof(uint));
-        state.Read(buttons, (long)ButtonWords * sizeof(ulong));
-        state.Read(previous, (long)ButtonWords * sizeof(ulong));
-        state.Read(pressed, (long)ButtonWords * sizeof(ulong));
-        state.Read(released, (long)ButtonWords * sizeof(ulong));
-        state.Read(ring, (long)RingTicks * ringStride);
-        state.Read(ringTickIds, (long)RingTicks * sizeof(long));
-        ringHead = state.Read<int>();
-        tickCounter = state.Read<long>();
-        replayCursor = state.Read<int>();
+        codec.Header(StateMagic, StateShape, "input state");
+        codec.Bytes(axisBits, (long)Axes * sizeof(uint));
+        codec.Bytes(buttons, (long)ButtonWords * sizeof(ulong));
+        codec.Bytes(previous, (long)ButtonWords * sizeof(ulong));
+        codec.Bytes(pressed, (long)ButtonWords * sizeof(ulong));
+        codec.Bytes(released, (long)ButtonWords * sizeof(ulong));
+        codec.Bytes(ring, (long)RingTicks * ringStride);
+        codec.Bytes(ringTickIds, (long)RingTicks * sizeof(long));
+        codec.Value(ref ringHead);
+        codec.Value(ref tickCounter);
+        codec.Value(ref replayCursor);
     }
 
     public void Dispose()

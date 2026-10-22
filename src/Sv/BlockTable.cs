@@ -255,55 +255,49 @@ internal sealed unsafe class BlockTable : IDisposable
         }
     }
 
-    internal void Write(SvState state)
+    internal void VisitState<TCodec>(ref TCodec codec) where TCodec : struct, IStateCodec
     {
-        state.Write(blockCount);
-        state.Write(blockCapacity);
-        state.Write(bucketMask);
-        state.Write(buckets, (long)(bucketMask + 1) * sizeof(int));
-        state.Write(blockSets, (long)blockCount * statCount * sizeof(int));
-        state.Write(blockHash, (long)blockCount * sizeof(ulong));
-        state.Write(blockRefCount, (long)blockCount * sizeof(int));
-        state.Write(blockFreeHead);
-        state.Write(blockFreeNext, (long)blockCount * sizeof(int));
-    }
-
-    internal void Read(SvState state)
-    {
-        var count = state.Read<int>();
-        var capacity = state.Read<int>();
-        var mask = state.Read<int>();
-        if (count < 0 || count > capacity || capacity > (1 << 24) || (mask & (mask + 1)) != 0)
+        var count = blockCount;
+        var capacity = blockCapacity;
+        var mask = bucketMask;
+        codec.Value(ref count);
+        codec.Value(ref capacity);
+        codec.Value(ref mask);
+        if (TCodec.Reading)
         {
-            throw new System.IO.InvalidDataException("sv: corrupt board state");
+            if (count < 0 || count > capacity || capacity > (1 << 24) || (mask & (mask + 1)) != 0)
+            {
+                throw new System.IO.InvalidDataException("sv: corrupt board state");
+            }
+
+            if (capacity > blockCapacity)
+            {
+                var previous = blockCapacity;
+                var previousSets = blockCapacity * statCount;
+                blockCapacity = capacity;
+                blockSets = memory.Realloc(blockSets, previousSets, blockCapacity * statCount);
+                blockHash = memory.Realloc(blockHash, previous, blockCapacity);
+                blockRefCount = memory.Realloc(blockRefCount, previous, blockCapacity);
+                blockFreeNext = memory.Realloc(blockFreeNext, previous, blockCapacity);
+            }
+
+            if (mask != bucketMask)
+            {
+                var previousBuckets = bucketMask + 1;
+                bucketMask = mask;
+                buckets = memory.Realloc(buckets, previousBuckets, bucketMask + 1);
+            }
+
+            blockCount = count;
         }
 
-        if (capacity > blockCapacity)
-        {
-            var previous = blockCapacity;
-            var previousSets = blockCapacity * statCount;
-            blockCapacity = capacity;
-            blockSets = memory.Realloc(blockSets, previousSets, blockCapacity * statCount);
-            blockHash = memory.Realloc(blockHash, previous, blockCapacity);
-            blockRefCount = memory.Realloc(blockRefCount, previous, blockCapacity);
-            blockFreeNext = memory.Realloc(blockFreeNext, previous, blockCapacity);
-        }
-
-        if (mask != bucketMask)
-        {
-            var previousBuckets = bucketMask + 1;
-            bucketMask = mask;
-            buckets = memory.Realloc(buckets, previousBuckets, bucketMask + 1);
-        }
-
-        blockCount = count;
-        state.Read(buckets, (long)(bucketMask + 1) * sizeof(int));
-        state.Read(blockSets, (long)blockCount * statCount * sizeof(int));
-        state.Read(blockHash, (long)blockCount * sizeof(ulong));
-        state.Read(blockRefCount, (long)blockCount * sizeof(int));
-        blockFreeHead = state.Read<int>();
-        state.Read(blockFreeNext, (long)blockCount * sizeof(int));
-        if (blockFreeHead < -1 || blockFreeHead >= blockCount)
+        codec.Bytes(buckets, (long)(bucketMask + 1) * sizeof(int));
+        codec.Bytes(blockSets, (long)count * statCount * sizeof(int));
+        codec.Bytes(blockHash, (long)count * sizeof(ulong));
+        codec.Bytes(blockRefCount, (long)count * sizeof(int));
+        codec.Value(ref blockFreeHead);
+        codec.Bytes(blockFreeNext, (long)count * sizeof(int));
+        if (TCodec.Reading && (blockFreeHead < -1 || blockFreeHead >= count))
         {
             throw new System.IO.InvalidDataException("sv: corrupt board state");
         }
