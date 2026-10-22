@@ -199,12 +199,11 @@ internal unsafe struct FfWorld : IFrameWorld
 
     static void WalkChanged(Board board, StatId stat)
     {
-        var words = board.ChangedWords(stat);
-        var count = (board.Capacity + 63) >> 6;
+        var indices = board.ChangedWordIndices(stat);
         long changed = 0;
-        for (var w = 0; w < count; w++)
+        for (var i = 0; i < board.ChangedWordCount(stat); i++)
         {
-            var word = words[w];
+            var word = board.ChangedWords(stat)[indices[i]];
             while (word != 0)
             {
                 changed++;

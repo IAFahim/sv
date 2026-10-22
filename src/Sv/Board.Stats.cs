@@ -84,7 +84,7 @@ public sealed unsafe partial class Board
 
     private int* changedTouched;
 
-    private int changedTouchedCount;
+    private int* changedTouchedCounts;
 
     private ulong* acquired;
 
@@ -174,6 +174,7 @@ public sealed unsafe partial class Board
         var changedWords = statCount * ((capacity + 63) >> 6);
         changed = arena.AllocZeroed<ulong>(changedWords);
         changedTouched = arena.Alloc<int>(changedWords);
+        changedTouchedCounts = arena.AllocZeroed<int>(statCount);
         acquired = arena.AllocZeroed<ulong>(changedWords);
         acquiredTouched = arena.Alloc<int>(changedWords);
         boundLength = arena.Alloc<int>(statCount);
@@ -298,6 +299,7 @@ public sealed unsafe partial class Board
         var maskWords = statCount * ((Capacity + 63) >> 6);
         arena.Free(changed, maskWords);
         arena.Free(changedTouched, maskWords);
+        arena.Free(changedTouchedCounts, statCount);
         arena.Free(acquired, maskWords);
         arena.Free(acquiredTouched, maskWords);
         arena.Free(records, recordCap);
@@ -1060,12 +1062,18 @@ public sealed unsafe partial class Board
 
     internal void ClearChangedMasks()
     {
-        for (var i = 0; i < changedTouchedCount; i++)
+        for (var stat = 0; stat < statCount; stat++)
         {
-            changed[changedTouched[i]] = 0;
+            var @base = stat * LiveWordCount;
+            var count = changedTouchedCounts[stat];
+            for (var i = 0; i < count; i++)
+            {
+                changed[@base + changedTouched[@base + i]] = 0;
+            }
+
+            changedTouchedCounts[stat] = 0;
         }
 
-        changedTouchedCount = 0;
         for (var i = 0; i < acquiredTouchedCount; i++)
         {
             acquired[acquiredTouched[i]] = 0;
@@ -1420,13 +1428,15 @@ public sealed unsafe partial class Board
             return;
         }
 
-        var index = stat * LiveWordCount + (slot >> 6);
-        if (changed[index] == 0)
+        var word = slot >> 6;
+        var @base = stat * LiveWordCount;
+        if (changed[@base + word] == 0)
         {
-            changedTouched[changedTouchedCount++] = index;
+            changedTouched[@base + changedTouchedCounts[stat]] = word;
+            changedTouchedCounts[stat]++;
         }
 
-        changed[index] |= 1ul << (slot & 63);
+        changed[@base + word] |= 1ul << (slot & 63);
     }
 
     /// <summary>
@@ -1438,6 +1448,25 @@ public sealed unsafe partial class Board
     public ulong* ChangedWords(StatId stat)
     {
         return changed + (nint)StatIndex(stat) * LiveWordCount;
+    }
+
+    /// <summary>
+    /// Sparse twin of <see cref="ChangedWords(StatId)"/>: the indices of that stat's nonzero changed
+    /// words, <see cref="ChangedWordCount(StatId)"/> of them, each at most once in arrival order.
+    /// A consumer walks O(changed words) instead of <see cref="LiveWordCount"/>; values are the same
+    /// bits the dense mask holds, valid until the next <see cref="Recalculate"/>.
+    /// </summary>
+    public int* ChangedWordIndices(StatId stat)
+    {
+        return changedTouched + (nint)StatIndex(stat) * LiveWordCount;
+    }
+
+    /// <summary>
+    /// Count of <see cref="ChangedWordIndices(StatId)"/> entries for the stat.
+    /// </summary>
+    public int ChangedWordCount(StatId stat)
+    {
+        return changedTouchedCounts[StatIndex(stat)];
     }
 
     /// <summary>
@@ -1622,8 +1651,12 @@ public sealed unsafe partial class Board
             state.Write(dirty + (nint)slot * statMaskWords, statMaskWords * sizeof(uint));
         }
 
-        state.Write(changedTouchedCount);
-        state.Write(changedTouched, (long)changedTouchedCount * sizeof(int));
+        state.Write(changedTouchedCounts, (long)statCount * sizeof(int));
+        for (var stat = 0; stat < statCount; stat++)
+        {
+            state.Write(changedTouched + (nint)stat * words, (long)changedTouchedCounts[stat] * sizeof(int));
+        }
+
         state.Write(changed, (long)statCount * words * sizeof(ulong));
         state.Write(acquiredTouchedCount);
         state.Write(acquiredTouched, (long)acquiredTouchedCount * sizeof(int));
@@ -1697,8 +1730,18 @@ public sealed unsafe partial class Board
             state.Read(dirty + (nint)slot * statMaskWords, statMaskWords * sizeof(uint));
         }
 
-        changedTouchedCount = state.Read<int>();
-        state.Read(changedTouched, (long)changedTouchedCount * sizeof(int));
+        state.Read(changedTouchedCounts, (long)statCount * sizeof(int));
+        for (var stat = 0; stat < statCount; stat++)
+        {
+            var touched = changedTouchedCounts[stat];
+            if (touched < 0 || touched > words)
+            {
+                throw new System.IO.InvalidDataException("sv: corrupt board state");
+            }
+
+            state.Read(changedTouched + (nint)stat * words, (long)touched * sizeof(int));
+        }
+
         state.Read(changed, (long)statCount * words * sizeof(ulong));
         acquiredTouchedCount = state.Read<int>();
         state.Read(acquiredTouched, (long)acquiredTouchedCount * sizeof(int));
