@@ -56,7 +56,7 @@ public sealed record StatDef(string Name, float Base)
 
 public sealed record IntrinsicDef(string Name, int? Min, int? Max);
 
-public sealed class Schema
+public sealed unsafe class Schema
 {
     public IReadOnlyList<StatDef> Stats { get; }
 
@@ -66,10 +66,13 @@ public sealed class Schema
 
     private readonly Dictionary<string, IntrinsicId> intrinsicIds;
 
+    public ulong ContentHash { get; }
+
     internal Schema(StatDef[] stats, IntrinsicDef[] intrinsics)
     {
         Stats = stats;
         Intrinsics = intrinsics;
+        ContentHash = HashContent(stats, intrinsics);
         statIds = new Dictionary<string, StatId>(stats.Length, StringComparer.Ordinal);
         for (var i = 0; i < stats.Length; i++)
         {
@@ -80,6 +83,63 @@ public sealed class Schema
         for (var i = 0; i < intrinsics.Length; i++)
         {
             intrinsicIds.Add(intrinsics[i].Name, new IntrinsicId(i));
+        }
+    }
+
+    static ulong HashContent(StatDef[] stats, IntrinsicDef[] intrinsics)
+    {
+        var bytes = new List<byte>(64 * (stats.Length + intrinsics.Length));
+        void AddU32(uint value)
+        {
+            bytes.Add((byte)value);
+            bytes.Add((byte)(value >> 8));
+            bytes.Add((byte)(value >> 16));
+            bytes.Add((byte)(value >> 24));
+        }
+
+        void AddI32(int value) => AddU32(unchecked((uint)value));
+
+        void AddName(string name)
+        {
+            var utf8 = System.Text.Encoding.UTF8.GetBytes(name);
+            AddI32(utf8.Length);
+            bytes.AddRange(utf8);
+        }
+
+        foreach (var def in stats)
+        {
+            bytes.Add(1);
+            AddName(def.Name);
+            AddU32(BitConverter.SingleToUInt32Bits(def.Base));
+            AddI32(def.Sources.Count);
+            foreach (var source in def.Sources)
+            {
+                AddI32(source.Stat.Index);
+                AddU32(BitConverter.SingleToUInt32Bits(source.Coefficient));
+            }
+        }
+
+        foreach (var def in intrinsics)
+        {
+            bytes.Add(2);
+            AddName(def.Name);
+            bytes.Add(def.Min.HasValue ? (byte)1 : (byte)0);
+            if (def.Min.HasValue)
+            {
+                AddI32(def.Min.Value);
+            }
+
+            bytes.Add(def.Max.HasValue ? (byte)1 : (byte)0);
+            if (def.Max.HasValue)
+            {
+                AddI32(def.Max.Value);
+            }
+        }
+
+        var flat = bytes.ToArray();
+        fixed (byte* pin = flat)
+        {
+            return XxHash64.Hash(pin, flat.Length);
         }
     }
 

@@ -143,11 +143,20 @@ public sealed unsafe class Game : IDisposable
 
     readonly Dictionary<Type, object> channels;
 
+    readonly long gameShape;
+
     bool disposed;
+
+    const uint GameMagic = 0x47414d45;
 
     Game(Schema schema, int capacity, int timelineCount, InputState input)
     {
         Board = Board.Create(schema, capacity);
+        var shapeBytes = stackalloc byte[16];
+        *(long*)shapeBytes = Board.StateShape;
+        *(int*)(shapeBytes + 8) = timelineCount;
+        *(int*)(shapeBytes + 12) = Board.Capacity;
+        gameShape = (long)XxHash64.Hash(shapeBytes, 16);
         Input = input;
         Streams = EventStreams.Create();
         TimelineIds = new ushort[Board.Capacity];
@@ -224,6 +233,7 @@ public sealed unsafe class Game : IDisposable
     public void SaveState(SvState state)
     {
         state.BeginWrite();
+        state.Header(GameMagic, gameShape);
         Board.WriteState(state);
         Input.WriteState(state);
         Streams.WriteState(state);
@@ -247,6 +257,7 @@ public sealed unsafe class Game : IDisposable
     public void LoadState(SvState state)
     {
         state.BeginRead();
+        state.Expect(GameMagic, gameShape, "game");
         Board.ReadState(state);
         Input.ReadState(state);
         Streams.ReadState(state);

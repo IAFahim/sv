@@ -14,5 +14,6 @@
     <InternalsVisibleTo Include="Sv.Bench" />
     <InternalsVisibleTo Include="Sv.Frent" />
     <InternalsVisibleTo Include="Sv.Compose" />
+    <InternalsVisibleTo Include="Sv.NorthStar" />
   </ItemGroup>
 </Project>

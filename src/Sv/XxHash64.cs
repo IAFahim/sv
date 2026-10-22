@@ -2,7 +2,7 @@ using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
-namespace Sv.Compose;
+namespace Sv;
 
 internal static unsafe class XxHash64
 {

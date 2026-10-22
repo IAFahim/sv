@@ -22,6 +22,7 @@
     <ProjectReference Include="..\..\src\Sv\Sv.csproj" />
     <ProjectReference Include="..\..\src\Sv.Frent\Sv.Frent.csproj" />
     <ProjectReference Include="..\Sv.Fuzz\Sv.Fuzz.csproj" ReferenceOutputAssembly="true" />
+    <ProjectReference Include="..\..\src\Sv.Compose\Sv.Compose.csproj" />
   </ItemGroup>
 
   <ItemGroup>

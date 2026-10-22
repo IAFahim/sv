@@ -49,6 +49,18 @@ public sealed unsafe partial class Board : IDisposable
 
         freeTop = capacity;
         InitStats(schema, capacity);
+        StateShape = ComputeStateShape();
+    }
+
+    long ComputeStateShape()
+    {
+        var bytes = stackalloc byte[28];
+        *(long*)bytes = SetTableFormatVersion;
+        *(int*)(bytes + 8) = Capacity;
+        *(int*)(bytes + 12) = statCount;
+        *(int*)(bytes + 16) = Schema.Intrinsics.Count;
+        *(ulong*)(bytes + 20) = Schema.ContentHash;
+        return (long)XxHash64.Hash(bytes, 28);
     }
 
     public static Board Create(Schema schema, int capacity)
@@ -98,7 +110,7 @@ public sealed unsafe partial class Board : IDisposable
 
     const long SetTableFormatVersion = 2;
 
-    long StateShape => ((long)Capacity << 20) ^ ((long)statCount << 8) ^ Schema.Intrinsics.Count ^ SetTableFormatVersion;
+    internal long StateShape { get; }
 
     /// <summary>
     /// Saves the board's complete state into <paramref name="state"/> (overwriting it): slot space,
