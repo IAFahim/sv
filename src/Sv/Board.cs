@@ -108,7 +108,7 @@ public sealed unsafe partial class Board : IDisposable
 
     const uint StateMagic = 0x44425653;
 
-    const long SetTableFormatVersion = 3;
+    const long SetTableFormatVersion = 4;
 
     internal long StateShape { get; }
 
@@ -129,9 +129,8 @@ public sealed unsafe partial class Board : IDisposable
     /// resimulating the same inputs reproduces the same results. Bindings stay as they are;
     /// sv-owned columns and mirrors hold the saved broadcast. A mirror that exists only locally
     /// (the snapshot predates it) is kept — never freed, so cached <see cref="Clamp.StatMirror"/>
-    /// pointers stay valid — refilled from the restored output, and every bound or mirrored stat
-    /// is marked dirty so the next <see cref="Recalculate"/> rebroadcasts the restored values
-    /// into bound columns and mirrors.
+    /// pointers stay valid — refilled from the restored output, and bound columns are densely
+    /// refilled from the restored rows immediately.
     /// </summary>
     public void LoadState(SvState state)
     {

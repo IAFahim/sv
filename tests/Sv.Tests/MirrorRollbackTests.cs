@@ -70,7 +70,7 @@ public unsafe class MirrorRollbackTests
 
             column[slot] = 999f;
             board.LoadState(state);
-            Assert.Equal(999f, column[slot]);
+            Assert.Equal(100f, column[slot]);
 
             board.Recalculate();
 

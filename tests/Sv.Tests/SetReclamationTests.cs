@@ -16,10 +16,10 @@ public unsafe class SetReclamationTests
         entries[0] = new StatEntry(ModifierKind.Multi, 1.5f);
 
         var a = table.Resolve(0, entries, 1);
-        table.AddMember(a, 7);
+        table.AddRef(a);
         Assert.Equal(1, table.LiveSetCount);
 
-        table.RemoveMemberAt(a, 0);
+        table.ReleaseRef(a);
         Assert.Equal(0, table.LiveSetCount);
 
         var b = table.Resolve(0, entries, 1);
@@ -27,8 +27,8 @@ public unsafe class SetReclamationTests
         Assert.Equal(1, table.LiveSetCount);
         Assert.Equal(b, table.Resolve(0, entries, 1));
 
-        table.AddMember(b, 9);
-        table.RemoveMemberAt(b, 0);
+        table.AddRef(b);
+        table.ReleaseRef(b);
         table.Tick();
         var c = table.Resolve(0, entries, 1);
         Assert.Equal(b, c);
@@ -45,13 +45,13 @@ public unsafe class SetReclamationTests
         {
             entries[0] = new StatEntry(ModifierKind.Multi, 1f + i);
             ids[i] = table.Resolve(0, entries, 1);
-            table.AddMember(ids[i], i);
+            table.AddRef(ids[i]);
         }
 
         Assert.Equal(8, table.LiveSetCount);
         for (var i = 1; i < 8; i += 2)
         {
-            table.RemoveMemberAt(ids[i], 0);
+            table.ReleaseRef(ids[i]);
         }
 
         Assert.Equal(4, table.LiveSetCount);
@@ -67,7 +67,7 @@ public unsafe class SetReclamationTests
             entries[0] = new StatEntry(ModifierKind.Multi, 1f + k);
             var revived = table.Resolve(0, entries, 1);
             Assert.Equal(ids[k], revived);
-            table.AddMember(revived, k);
+            table.AddRef(revived);
         }
 
         Assert.Equal(8, table.LiveSetCount);

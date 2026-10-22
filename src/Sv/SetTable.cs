@@ -43,13 +43,7 @@ internal sealed unsafe class SetTable : IDisposable
 
     private int* setContentSpan;
 
-    private int* setMemberCount;
-
-    private int* setMemberCap;
-
-    private int** setMembers;
-
-    private sbyte* setDirty;
+    private int* setRefCount;
 
     private sbyte* setFolded;
 
@@ -71,14 +65,6 @@ internal sealed unsafe class SetTable : IDisposable
 
     private int* contentClassHead;
 
-    private int* dirtyQueue;
-
-    private int dirtyHead;
-
-    private int dirtyTail;
-
-    private int dirtyCapacity;
-
     private bool disposed;
 
     public int LiveSetCount => liveSets;
@@ -88,15 +74,9 @@ internal sealed unsafe class SetTable : IDisposable
         get
         {
             var bytes = (long)(bucketMask + 1) * sizeof(int)
-                + (long)setCapacity * (sizeof(int) * 8 + sizeof(ulong) + sizeof(long) + sizeof(int*) + sizeof(sbyte) * 2)
+                + (long)setCapacity * (sizeof(int) * 7 + sizeof(ulong) + sizeof(long) + sizeof(sbyte))
                 + sizeof(StatEntry) * (long)contentCapacity
-                + sizeof(int) * (long)dirtyCapacity
                 + ClassCount * sizeof(int);
-            for (var set = 0; set < setCount; set++)
-            {
-                bytes += setMemberCap[set] * sizeof(int);
-            }
-
             return bytes;
         }
     }
@@ -112,10 +92,7 @@ internal sealed unsafe class SetTable : IDisposable
         setContentOffset = Alloc<int>(setCapacity);
         setContentCount = Alloc<int>(setCapacity);
         setContentSpan = Alloc<int>(setCapacity);
-        setMemberCount = Alloc<int>(setCapacity);
-        setMemberCap = Alloc<int>(setCapacity);
-        setMembers = (int**)NativeMemory.Alloc((nuint)setCapacity * (nuint)sizeof(int*));
-        setDirty = AllocZeroed<sbyte>(setCapacity);
+        setRefCount = AllocZeroed<int>(setCapacity);
         setFolded = AllocZeroed<sbyte>(setCapacity);
         setFreeNext = AllocZeroed<int>(setCapacity);
         setFreedAt = AllocZeroed<long>(setCapacity);
@@ -127,8 +104,6 @@ internal sealed unsafe class SetTable : IDisposable
             contentClassHead[i] = -1;
         }
 
-        dirtyQueue = Alloc<int>(64);
-        dirtyCapacity = 64;
         setFreeHead = -1;
     }
 
@@ -292,11 +267,8 @@ internal sealed unsafe class SetTable : IDisposable
         }
 
         NativeMemory.Clear(contentArena + offset + count, (nuint)(span - count) * (nuint)sizeof(StatEntry));
-        setMemberCount[index] = 0;
-        setMemberCap[index] = 0;
-        setMembers[index] = null;
+        setRefCount[index] = 0;
         setComputed[index] = 0f;
-        setDirty[index] = 0;
         setFolded[index] = 0;
         setFreedAt[index] = 0;
         setFreeNext[index] = 0;
@@ -313,14 +285,25 @@ internal sealed unsafe class SetTable : IDisposable
         setContentOffset = Realloc(setContentOffset, setCapacity);
         setContentCount = Realloc(setContentCount, setCapacity);
         setContentSpan = Realloc(setContentSpan, setCapacity);
-        setMemberCount = Realloc(setMemberCount, setCapacity);
-        setMemberCap = Realloc(setMemberCap, setCapacity);
-        setMembers = (int**)NativeMemory.Realloc(setMembers, (nuint)setCapacity * (nuint)sizeof(int*));
-        setDirty = Realloc(setDirty, setCapacity);
+        setRefCount = Realloc(setRefCount, setCapacity);
         setFolded = Realloc(setFolded, setCapacity);
         setFreeNext = Realloc(setFreeNext, setCapacity);
         setFreedAt = Realloc(setFreedAt, setCapacity);
         NativeMemory.Clear(setFreedAt + previous, (nuint)(setCapacity - previous) * (nuint)sizeof(long));
+    }
+
+    public void AddRef(int set)
+    {
+        setRefCount[set]++;
+    }
+
+    public void ReleaseRef(int set)
+    {
+        var count = --setRefCount[set];
+        if (count == 0)
+        {
+            FreeSet(set);
+        }
     }
 
     void FreeSet(int set)
@@ -330,12 +313,8 @@ internal sealed unsafe class SetTable : IDisposable
         var node = (int*)(contentArena + setContentOffset[set]);
         *node = contentClassHead[cls];
         contentClassHead[cls] = setContentOffset[set];
-        NativeMemory.Free(setMembers[set]);
-        setMembers[set] = null;
-        setMemberCap[set] = 0;
-        setMemberCount[set] = 0;
+        setRefCount[set] = 0;
         setComputed[set] = 0f;
-        setDirty[set] = 0;
         setFolded[set] = 0;
         DeleteFromBuckets(set);
         setFreedAt[set] = generation;
@@ -403,54 +382,6 @@ internal sealed unsafe class SetTable : IDisposable
         }
     }
 
-    public int AddMember(int set, int slot)
-    {
-        if (setMemberCap[set] == 0)
-        {
-            setMemberCap[set] = 2;
-            setMembers[set] = Alloc<int>(2);
-        }
-
-        var count = setMemberCount[set];
-        if (count == setMemberCap[set])
-        {
-            setMemberCap[set] *= 2;
-            setMembers[set] = Realloc(setMembers[set], setMemberCap[set]);
-        }
-
-        setMembers[set][count] = slot;
-        setMemberCount[set] = count + 1;
-        return count;
-    }
-
-    public int RemoveMemberAt(int set, int position)
-    {
-        var members = setMembers[set];
-        var last = setMemberCount[set] - 1;
-        var moved = position == last ? -1 : members[last];
-        members[position] = members[last];
-        setMemberCount[set] = last;
-        if (last == 0)
-        {
-            FreeSet(set);
-        }
-
-        return moved;
-    }
-
-    public void RenumberMembers(ReadOnlySpan<int> oldToNew)
-    {
-        for (var set = 0; set < setCount; set++)
-        {
-            var members = setMembers[set];
-            var count = setMemberCount[set];
-            for (var i = 0; i < count; i++)
-            {
-                members[i] = oldToNew[members[i]];
-            }
-        }
-    }
-
     internal int MemberTotal(int stat)
     {
         var total = 0;
@@ -458,17 +389,11 @@ internal sealed unsafe class SetTable : IDisposable
         {
             if (setStat[set] == stat)
             {
-                total += setMemberCount[set];
+                total += setRefCount[set];
             }
         }
 
         return total;
-    }
-
-    public int* Members(int set, out int count)
-    {
-        count = setMemberCount[set];
-        return setMembers[set];
     }
 
     public StatEntry* Content(int set, out int count)
@@ -489,61 +414,6 @@ internal sealed unsafe class SetTable : IDisposable
 
     public bool Folded(int set) => setFolded[set] != 0;
 
-    public void MarkStatDirty(int stat)
-    {
-        for (var set = 0; set < setCount; set++)
-        {
-            if (setStat[set] == stat && setMemberCount[set] > 0)
-            {
-                MarkDirty(set);
-            }
-        }
-    }
-
-    public void MarkDirty(int set)
-    {
-        if (setDirty[set] != 0)
-        {
-            return;
-        }
-
-        if (dirtyTail == dirtyCapacity)
-        {
-            dirtyCapacity *= 2;
-            dirtyQueue = Realloc(dirtyQueue, dirtyCapacity);
-        }
-
-        setDirty[set] = 1;
-        dirtyQueue[dirtyTail++] = set;
-    }
-
-    public bool TryDequeueDirty(out int set)
-    {
-        while (dirtyHead < dirtyTail)
-        {
-            set = dirtyQueue[dirtyHead++];
-            if (setFreedAt[set] != 0)
-            {
-                setDirty[set] = 0;
-                continue;
-            }
-
-            if (dirtyHead == dirtyTail)
-            {
-                dirtyTail = 0;
-                dirtyHead = 0;
-            }
-
-            setDirty[set] = 0;
-            return true;
-        }
-
-        dirtyTail = 0;
-        dirtyHead = 0;
-        set = -1;
-        return false;
-    }
-
     internal void Write(SvState state)
     {
         state.Write(setCount);
@@ -556,26 +426,12 @@ internal sealed unsafe class SetTable : IDisposable
         state.Write(setContentOffset, (long)setCount * sizeof(int));
         state.Write(setContentCount, (long)setCount * sizeof(int));
         state.Write(setContentSpan, (long)setCount * sizeof(int));
-        state.Write(setMemberCount, (long)setCount * sizeof(int));
-        state.Write(setMemberCap, (long)setCount * sizeof(int));
-        state.Write(setDirty, setCount);
+        state.Write(setRefCount, (long)setCount * sizeof(int));
         state.Write(setFolded, setCount);
-        for (var set = 0; set < setCount; set++)
-        {
-            if (setMemberCount[set] > 0)
-            {
-                state.Write(setMembers[set], (long)setMemberCount[set] * sizeof(int));
-            }
-        }
-
         state.Write(contentUsed);
         state.Write(contentCapacity);
         state.Write(contentArena, (long)contentUsed * sizeof(StatEntry));
         state.Write(contentClassHead, (long)ClassCount * sizeof(int));
-        state.Write(dirtyHead);
-        state.Write(dirtyTail);
-        state.Write(dirtyCapacity);
-        state.Write(dirtyQueue, (long)dirtyTail * sizeof(int));
         state.Write(liveSets);
         state.Write(setFreeHead);
         state.Write(generation);
@@ -593,15 +449,6 @@ internal sealed unsafe class SetTable : IDisposable
             throw new System.IO.InvalidDataException("sv: corrupt set table state");
         }
 
-        for (var set = count; set < setCount; set++)
-        {
-            if (setMembers[set] != null)
-            {
-                NativeMemory.Free(setMembers[set]);
-                setMembers[set] = null;
-            }
-        }
-
         if (capacity != setCapacity)
         {
             var previousCapacity = setCapacity;
@@ -611,10 +458,7 @@ internal sealed unsafe class SetTable : IDisposable
             setContentOffset = Realloc(setContentOffset, capacity);
             setContentCount = Realloc(setContentCount, capacity);
             setContentSpan = Realloc(setContentSpan, capacity);
-            setMemberCount = Realloc(setMemberCount, capacity);
-            setMemberCap = Realloc(setMemberCap, capacity);
-            setMembers = (int**)NativeMemory.Realloc(setMembers, (nuint)capacity * (nuint)sizeof(int*));
-            setDirty = Realloc(setDirty, capacity);
+            setRefCount = Realloc(setRefCount, capacity);
             setFolded = Realloc(setFolded, capacity);
             setFreeNext = Realloc(setFreeNext, capacity);
             setFreedAt = Realloc(setFreedAt, capacity);
@@ -624,7 +468,6 @@ internal sealed unsafe class SetTable : IDisposable
             }
         }
 
-        var previous = setCount;
         setCount = count;
         setCapacity = capacity;
         if (mask != bucketMask)
@@ -640,44 +483,8 @@ internal sealed unsafe class SetTable : IDisposable
         state.Read(setContentOffset, (long)count * sizeof(int));
         state.Read(setContentCount, (long)count * sizeof(int));
         state.Read(setContentSpan, (long)count * sizeof(int));
-        state.Read(setMemberCount, (long)count * sizeof(int));
-        var restoredCaps = (int*)NativeMemory.Alloc((nuint)Math.Max(count, 1) * sizeof(int));
-        state.Read(restoredCaps, (long)count * sizeof(int));
-        for (var set = 0; set < count; set++)
-        {
-            var cap = restoredCaps[set];
-            if (cap == 0)
-            {
-                if (set < previous && setMembers[set] != null)
-                {
-                    NativeMemory.Free(setMembers[set]);
-                }
-
-                setMembers[set] = null;
-            }
-            else if (set >= previous || setMemberCap[set] == 0)
-            {
-                setMembers[set] = Alloc<int>(cap);
-            }
-            else if (setMemberCap[set] != cap)
-            {
-                setMembers[set] = Realloc(setMembers[set], cap);
-            }
-
-            setMemberCap[set] = cap;
-        }
-
-        NativeMemory.Free(restoredCaps);
-        state.Read(setDirty, count);
+        state.Read(setRefCount, (long)count * sizeof(int));
         state.Read(setFolded, count);
-        for (var set = 0; set < count; set++)
-        {
-            if (setMemberCount[set] > 0)
-            {
-                state.Read(setMembers[set], (long)setMemberCount[set] * sizeof(int));
-            }
-        }
-
         contentUsed = state.Read<int>();
         var arenaCapacity = state.Read<int>();
         if (arenaCapacity != contentCapacity)
@@ -688,16 +495,6 @@ internal sealed unsafe class SetTable : IDisposable
 
         state.Read(contentArena, (long)contentUsed * sizeof(StatEntry));
         state.Read(contentClassHead, (long)ClassCount * sizeof(int));
-        dirtyHead = state.Read<int>();
-        dirtyTail = state.Read<int>();
-        var queueCapacity = state.Read<int>();
-        if (queueCapacity != dirtyCapacity)
-        {
-            dirtyQueue = Realloc(dirtyQueue, queueCapacity);
-            dirtyCapacity = queueCapacity;
-        }
-
-        state.Read(dirtyQueue, (long)dirtyTail * sizeof(int));
         liveSets = state.Read<int>();
         setFreeHead = state.Read<int>();
         generation = state.Read<long>();
@@ -723,24 +520,12 @@ internal sealed unsafe class SetTable : IDisposable
         NativeMemory.Free(setContentOffset);
         NativeMemory.Free(setContentCount);
         NativeMemory.Free(setContentSpan);
-        NativeMemory.Free(setMemberCount);
-        NativeMemory.Free(setDirty);
+        NativeMemory.Free(setRefCount);
         NativeMemory.Free(setFolded);
         NativeMemory.Free(setFreeNext);
         NativeMemory.Free(setFreedAt);
         NativeMemory.Free(contentArena);
         NativeMemory.Free(contentClassHead);
-        NativeMemory.Free(dirtyQueue);
-        for (var set = 0; set < setCount; set++)
-        {
-            if (setMembers[set] != null)
-            {
-                NativeMemory.Free(setMembers[set]);
-            }
-        }
-
-        NativeMemory.Free(setMemberCap);
-        NativeMemory.Free(setMembers);
         disposed = true;
     }
 }

@@ -43,8 +43,6 @@ public sealed unsafe partial class Board
     {
         public int Set;
 
-        public int Pos;
-
         public int Queued;
     }
 
@@ -386,7 +384,7 @@ public sealed unsafe partial class Board
     /// <summary>
     /// Binds an external output column. The pointer is stable from this bind until the next
     /// <see cref="InvalidateBindings"/> or rebind; hosts owning growable storage must rebind at reconcile.
-    /// The next <see cref="Recalculate"/> rebroadcasts every populated set of the stat into the column.
+    /// Rows of resolved pairs are written into the column immediately (dense refill).
     /// A positive <paramref name="columnLength"/> is the column's element count; SV_CHECKED builds throw
     /// when a broadcast would write past it. -1 (the default) keeps length unchecked.
     /// </summary>
@@ -413,7 +411,7 @@ public sealed unsafe partial class Board
         boundLength[index] = columnLength;
         bindingGeneration++;
         boundGeneration[index] = bindingGeneration;
-        table!.MarkStatDirty(index);
+        RefillColumn(index);
     }
 
     /// <summary>
@@ -444,7 +442,7 @@ public sealed unsafe partial class Board
         boundLength[index] = columnLength;
         bindingGeneration++;
         boundGeneration[index] = bindingGeneration;
-        table!.MarkStatDirty(index);
+        RefillColumn(index);
         return new BindingHandle(stat, column, stride, bindingGeneration);
     }
 
@@ -818,12 +816,7 @@ public sealed unsafe partial class Board
             ref var meta = ref Meta(slot, stat);
             if (meta.Set >= 0)
             {
-                var moved = table!.RemoveMemberAt(meta.Set, meta.Pos);
-                if (moved >= 0)
-                {
-                    Meta(moved, stat).Pos = meta.Pos;
-                }
-
+                table!.ReleaseRef(meta.Set);
                 meta.Set = -1;
             }
         }
@@ -875,14 +868,10 @@ public sealed unsafe partial class Board
             {
                 if (meta.Set >= 0)
                 {
-                    var moved = table.RemoveMemberAt(meta.Set, meta.Pos);
-                    if (moved >= 0)
-                    {
-                        Meta(moved, stat).Pos = meta.Pos;
-                    }
+                    table.ReleaseRef(meta.Set);
                 }
 
-                meta.Pos = table.AddMember(set, slot);
+                table.AddRef(set);
                 meta.Set = set;
                 for (var d = dependentOffset[stat]; d < dependentOffset[stat + 1]; d++)
                 {
@@ -893,8 +882,6 @@ public sealed unsafe partial class Board
                 {
                     var content = table.Content(set, out var contentCount);
                     table.SetComputed(set, CanonicalNaN(Fold(statBase[stat], content, contentCount)));
-                    table.MarkDirty(set);
-                    continue;
                 }
             }
 
@@ -903,53 +890,32 @@ public sealed unsafe partial class Board
 
         pairQueueCount = 0;
 
-        while (table!.TryDequeueDirty(out var dirty))
+    }
+
+    void RefillColumn(int stat)
+    {
+        var column = outputColumn[stat];
+        if (column == null)
         {
-            var stat = table.SetStat(dirty);
-            float computed;
-            if (table.Folded(dirty))
-            {
-                computed = table.Computed(dirty);
-            }
-            else
-            {
-                var content = table.Content(dirty, out var contentCount);
-                computed = CanonicalNaN(Fold(statBase[stat], content, contentCount));
-                table.SetComputed(dirty, computed);
-            }
+            return;
+        }
 
-            var column = outputColumn[stat];
-            var members = table.Members(dirty, out var memberCount);
-            var mirror = mirrors[stat];
-            if (mirror != null)
+        Guard.BindingFresh(boundGeneration[stat]);
+        var stride = outputStride[stat];
+        for (var slot = 0; slot < Capacity; slot++)
+        {
+            if ((live[slot >> 6] & (1ul << (slot & 63))) == 0)
             {
-                var bound = Clamp.BoundOf(computed);
-                for (var i = 0; i < memberCount; i++)
-                {
-                    mirror[members[i]] = bound;
-                }
-            }
-
-            if (column == null)
-            {
-                var owned = svColumns + (nint)stat * Capacity;
-                for (var i = 0; i < memberCount; i++)
-                {
-                    MarkChanged(stat, members[i], owned[members[i]], computed);
-                    owned[members[i]] = computed;
-                }
-
                 continue;
             }
 
-            Guard.BindingFresh(boundGeneration[stat]);
-            var stride = outputStride[stat];
-            for (var i = 0; i < memberCount; i++)
+            if (Meta(slot, stat).Set < 0)
             {
-                Guard.BoundColumnFit(boundLength[stat], stride, members[i]);
-                MarkChanged(stat, members[i], column[members[i] * stride], computed);
-                column[members[i] * stride] = computed;
+                continue;
             }
+
+            Guard.BoundColumnFit(boundLength[stat], stride, slot);
+            column[slot * stride] = SourceValue(slot, stat);
         }
     }
 
@@ -1147,10 +1113,10 @@ public sealed unsafe partial class Board
     /// <summary>
     /// Compacts the slot space: live slots map through <paramref name="oldToNew"/> (negative entries
     /// are dead slots) to distinct targets in [0, capacity) — gaps are legal (64-alignment padding).
-    /// Rewrites set members, modifier lists, the dirty queue (all live pairs re-enqueued — run
-    /// <see cref="Recalculate"/> after), live bits, and sv-owned columns; external bindings are
-    /// invalidated per the clause-12 doctrine. Modifier insertion ids ride along, so stat folds are
-    /// preserved bit-exactly.
+    /// Rewrites modifier lists and pair metas (set ids are slot-independent — all live pairs
+    /// re-enqueued — run <see cref="Recalculate"/> after), live bits, and sv-owned columns; external
+    /// bindings are invalidated per the clause-12 doctrine. Modifier insertion ids ride along, so
+    /// stat folds are preserved bit-exactly.
     /// </summary>
     public void RenumberSlots(ReadOnlySpan<int> oldToNew, int count)
     {
@@ -1424,17 +1390,14 @@ public sealed unsafe partial class Board
         }
 
         table!.Read(state);
-        MarkRestoredBindingsDirty();
+        RefillRestoredBindings();
     }
 
-    void MarkRestoredBindingsDirty()
+    void RefillRestoredBindings()
     {
         for (var stat = 0; stat < statCount; stat++)
         {
-            if (outputColumn[stat] != null || mirrors[stat] != null)
-            {
-                table!.MarkStatDirty(stat);
-            }
+            RefillColumn(stat);
         }
     }
 
@@ -1455,7 +1418,7 @@ public sealed unsafe partial class Board
             for (var stat = 0; stat < statCount; stat++)
             {
                 ref var meta = ref Meta(slot, stat);
-                metaPage[to + stat] = new PairMeta { Set = meta.Set, Pos = meta.Pos };
+                metaPage[to + stat] = new PairMeta { Set = meta.Set };
                 var mods = ModsOrNull(slot, stat);
                 if (mods != null && mods->Entries != null)
                 {
@@ -1474,7 +1437,6 @@ public sealed unsafe partial class Board
             expiries[i].Slot = slot >= 0 && (live[slot >> 6] & (1ul << (slot & 63))) != 0 ? oldToNew[slot] : -1;
         }
 
-        table!.RenumberMembers(oldToNew);
         var tempRows = Alloc<float>(Capacity);
         for (var stat = 0; stat < statCount; stat++)
         {
