@@ -80,6 +80,37 @@ public readonly struct ClampShift
             : Canonical(ticks * Shift, Floor, (int)(Ceiling + travel));
     }
 
+    /// <summary>
+    /// The earliest tick n in [1, <paramref name="horizon"/>] with
+    /// <c>rising.Repeat(n).Apply(value) &gt;= threshold</c>, or <paramref name="horizon"/> + 1 when no
+    /// tick in range reaches it. Requires <c>rising.Shift &gt;= 0</c> (the predicate is monotone in n
+    /// only for maps that rise or stay constant) and <paramref name="horizon"/> &lt; <see cref="long.MaxValue"/>.
+    /// </summary>
+    public static long FirstTickAtLeast(ClampShift rising, int value, int threshold, long horizon)
+    {
+        if (rising.Shift < 0)
+        {
+            throw new ArgumentException("sv: map does not rise");
+        }
+
+        var low = 1L;
+        var high = horizon + 1;
+        while (low < high)
+        {
+            var middle = low + ((high - low) >> 1);
+            if (rising.Repeat(middle).Apply(value) >= threshold)
+            {
+                high = middle;
+            }
+            else
+            {
+                low = middle + 1;
+            }
+        }
+
+        return low;
+    }
+
     static ClampShift Canonical(long shift, int floor, int ceiling)
     {
         var low = ClampShifted(int.MinValue, shift, floor, ceiling);

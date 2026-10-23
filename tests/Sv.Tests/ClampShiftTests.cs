@@ -197,4 +197,79 @@ public class ClampShiftTests
             Assert.Equal(eager, chain.Apply(value));
         }
     }
+
+    [Fact]
+    public void FirstTickAtLeast_MatchesBruteForce_Random()
+    {
+        var rng = new Random(20261023);
+        for (var trial = 0; trial < 20_000; trial++)
+        {
+            var delta = rng.Next(1, 101);
+            int floor;
+            int ceiling;
+            do
+            {
+                floor = rng.Next(-1_000, 1_001);
+                ceiling = rng.Next(-1_000, 1_001);
+            }
+            while (floor > ceiling);
+
+            var rule = ClampShift.Step(delta, floor, ceiling);
+            var value = rng.Next(floor - 2_000, ceiling + 2_001);
+            var threshold = rng.Next(floor - 1_000, ceiling + 1_001);
+            var horizon = (long)rng.Next(1, 200);
+            var expected = horizon + 1;
+            var eager = value;
+            for (var n = 1L; n <= horizon; n++)
+            {
+                eager = rule.Apply(eager);
+                if (eager >= threshold)
+                {
+                    expected = n;
+                    break;
+                }
+            }
+
+            Assert.Equal(expected, ClampShift.FirstTickAtLeast(rule, value, threshold, horizon));
+        }
+    }
+
+    [Fact]
+    public void FirstTickAtLeast_IsExactAroundTheHit()
+    {
+        var rng = new Random(20261024);
+        for (var trial = 0; trial < 2_000; trial++)
+        {
+            var rule = ClampShift.Step(rng.Next(1, 9), -500, 500);
+            var value = rng.Next(-600, 601);
+            var threshold = rng.Next(-500, 501);
+            var n = ClampShift.FirstTickAtLeast(rule, value, threshold, 4_000);
+            Assert.True(n >= 1 && n <= 4_001);
+            if (n <= 4_000)
+            {
+                Assert.True(rule.Repeat(n).Apply(value) >= threshold);
+                if (value < threshold)
+                {
+                    Assert.True(rule.Repeat(n - 1).Apply(value) < threshold);
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public void FirstTickAtLeast_UnreachableAndExactEdges()
+    {
+        Assert.Equal(101, ClampShift.FirstTickAtLeast(ClampShift.Step(3, 0, 10), 0, 11, 100));
+        Assert.Equal(1, ClampShift.FirstTickAtLeast(ClampShift.Step(3, 0, 10), 10, 10, 100));
+        Assert.Equal(4, ClampShift.FirstTickAtLeast(ClampShift.Step(3, 0, 10), 0, 10, 100));
+        Assert.Equal(3, ClampShift.FirstTickAtLeast(ClampShift.Step(3, 0, 10), 1, 10, 100));
+        Assert.Equal(1, ClampShift.FirstTickAtLeast(ClampShift.Step(0, 0, 10), 4, 4, 100));
+        Assert.Equal(101, ClampShift.FirstTickAtLeast(ClampShift.Step(0, 0, 10), 4, 5, 100));
+    }
+
+    [Fact]
+    public void FirstTickAtLeast_RejectsNonRisingMaps()
+    {
+        Assert.Throws<ArgumentException>(() => ClampShift.FirstTickAtLeast(ClampShift.Step(-3, 0, 10), 0, 5, 100));
+    }
 }
