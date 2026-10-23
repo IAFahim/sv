@@ -121,6 +121,146 @@ public unsafe class RenumberTests
     }
 
     [Fact]
+    public void RenumberSlots_PendingDirty_MatchesTwinThatNeverRenumbered()
+    {
+        using var a = Board.Create(Schema(), 64);
+        var speed = a.Schema.Stat("move_speed");
+        var mana = a.Schema.Stat("max_mana");
+        for (var i = 0; i < 8; i++)
+        {
+            a.Acquire();
+        }
+
+        for (var i = 0; i < 8; i++)
+        {
+            a.AddModifier(i, speed, new Modifier(ModifierKind.Added, (i % 3) * 2f));
+            a.AddModifier(i, mana, new Modifier(ModifierKind.Additive, 1 + (i % 4)));
+        }
+
+        a.Recalculate();
+        a.Release(1);
+        a.Release(6);
+        a.AddModifier(0, speed, new Modifier(ModifierKind.Added, 11f));
+        a.AddModifier(3, mana, new Modifier(ModifierKind.Additive, 5));
+        a.AddModifier(5, speed, new Modifier(ModifierKind.Multi, 2f));
+
+        var survivors = new int[6];
+        var next = 0;
+        for (var slot = 0; slot < 8; slot++)
+        {
+            if (slot == 1 || slot == 6)
+            {
+                continue;
+            }
+
+            survivors[next++] = slot;
+        }
+
+        var map = new int[a.Capacity];
+        Array.Fill(map, -1);
+        for (var i = 0; i < survivors.Length; i++)
+        {
+            map[survivors[i]] = i;
+        }
+
+        a.RenumberSlots(map, a.LiveCount);
+
+        using var b = Board.Create(a.Schema, 64);
+        for (var i = 0; i < 6; i++)
+        {
+            b.Acquire();
+        }
+
+        for (var i = 0; i < survivors.Length; i++)
+        {
+            var entity = survivors[i];
+            b.AddModifier(i, speed, new Modifier(ModifierKind.Added, (entity % 3) * 2f));
+            b.AddModifier(i, mana, new Modifier(ModifierKind.Additive, 1 + (entity % 4)));
+        }
+
+        b.Recalculate();
+        b.AddModifier(0, speed, new Modifier(ModifierKind.Added, 11f));
+        b.AddModifier(Array.IndexOf(survivors, 3), mana, new Modifier(ModifierKind.Additive, 5));
+        b.AddModifier(Array.IndexOf(survivors, 5), speed, new Modifier(ModifierKind.Multi, 2f));
+        b.Recalculate();
+        a.Recalculate();
+
+        for (var i = 0; i < survivors.Length; i++)
+        {
+            Assert.Equal(BitConverter.SingleToUInt32Bits(b.Stat(i, speed)), BitConverter.SingleToUInt32Bits(a.Stat(i, speed)));
+            Assert.Equal(BitConverter.SingleToUInt32Bits(b.Stat(i, mana)), BitConverter.SingleToUInt32Bits(a.Stat(i, mana)));
+            Assert.Equal(BitConverter.SingleToUInt32Bits(b.OutputPtr(speed)[i]), BitConverter.SingleToUInt32Bits(a.OutputPtr(speed)[i]));
+        }
+    }
+
+    [Fact]
+    public void RenumberSlots_IdentityMap_PreservesPendingDirty()
+    {
+        using var board = Board.Create(Schema(), 64);
+        var speed = board.Schema.Stat("move_speed");
+        var slot = board.Acquire();
+        board.Recalculate();
+        var digest = board.Digest;
+        board.AddModifier(slot, speed, new Modifier(ModifierKind.Added, 7f));
+        var map = new int[board.Capacity];
+        Array.Fill(map, -1);
+        map[slot] = slot;
+        board.RenumberSlots(map, 1);
+        Assert.Equal(digest, board.Digest);
+        board.Recalculate();
+        Assert.Equal(13f, board.Stat(slot, speed));
+        Assert.NotEqual(digest, board.Digest);
+    }
+
+    [Fact]
+    public void RenumberSlots_RoundTrip_RestoresValuesAndDigest()
+    {
+        using var board = Board.Create(Schema(), 128);
+        var speed = board.Schema.Stat("move_speed");
+        var mana = board.Schema.Stat("max_mana");
+        var rng = new Random(20261023);
+        for (var i = 0; i < 32; i++)
+        {
+            board.Acquire();
+        }
+
+        for (var i = 0; i < 32; i++)
+        {
+            board.AddModifier(i, speed, new Modifier(ModifierKind.Added, rng.Next(-9, 9)));
+            board.AddModifier(i, mana, new Modifier(ModifierKind.Additive, rng.Next(1, 6)));
+        }
+
+        board.Recalculate();
+        var expectedSpeed = new uint[32];
+        var expectedMana = new uint[32];
+        for (var slot = 0; slot < 32; slot++)
+        {
+            expectedSpeed[slot] = BitConverter.SingleToUInt32Bits(board.Stat(slot, speed));
+            expectedMana[slot] = BitConverter.SingleToUInt32Bits(board.Stat(slot, mana));
+        }
+
+        var digest = board.Digest;
+        var flip = new int[board.Capacity];
+        Array.Fill(flip, -1);
+        for (var i = 0; i < 32; i++)
+        {
+            flip[i] = 31 - i;
+        }
+
+        board.RenumberSlots(flip, board.LiveCount);
+        board.RenumberSlots(flip, board.LiveCount);
+        board.Recalculate();
+
+        for (var slot = 0; slot < 32; slot++)
+        {
+            Assert.Equal(expectedSpeed[slot], BitConverter.SingleToUInt32Bits(board.Stat(slot, speed)));
+            Assert.Equal(expectedMana[slot], BitConverter.SingleToUInt32Bits(board.Stat(slot, mana)));
+        }
+
+        Assert.Equal(digest, board.Digest);
+    }
+
+    [Fact]
     public void RenumberSlots_RejectsBadMaps()
     {
         using var board = Board.Create(Schema(), 64);

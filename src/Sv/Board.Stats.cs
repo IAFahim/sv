@@ -1652,10 +1652,11 @@ public sealed unsafe partial class Board
     /// <summary>
     /// Compacts the slot space: live slots map through <paramref name="oldToNew"/> (negative entries
     /// are dead slots) to distinct targets in [0, capacity) — gaps are legal (64-alignment padding).
-    /// Rewrites pair states (set ids are slot-independent, modifier records are pool-global — all
-    /// live pairs dirty-marked — run <see cref="Recalculate"/> after), live bits, and sv-owned columns; external
-    /// bindings are invalidated per the clause-12 doctrine. Modifier insertion ids ride along, so
-    /// stat folds are preserved bit-exactly.
+    /// Rewrites pair states and sv-owned columns; external bindings are invalidated per the
+    /// clause-12 doctrine. Pending dirty state is remapped through <paramref name="oldToNew"/> —
+    /// clean pairs stay clean (set ids are slot-independent, modifier records are pool-global) —
+    /// so the next <see cref="Recalculate"/> resolves only the pairs that were already dirty.
+    /// Modifier insertion ids ride along, so stat folds are preserved bit-exactly.
     /// </summary>
     public void RenumberSlots(ReadOnlySpan<int> oldToNew, int count)
     {
@@ -1706,7 +1707,8 @@ public sealed unsafe partial class Board
 
         if (statCount > 0)
         {
-            RenumberStats(oldToNew);
+            RenumberStats(oldToNew, newLive);
+            RemapDirty(oldToNew);
         }
 
         new ReadOnlySpan<ulong>(newLive, words).CopyTo(new Span<ulong>(live, words));
@@ -1723,14 +1725,6 @@ public sealed unsafe partial class Board
         if (statCount > 0)
         {
             ClearChangedMasks();
-            ClearDirty();
-            for (var slot = 0; slot < Capacity; slot++)
-            {
-                if ((live[slot >> 6] & (1ul << (slot & 63))) != 0)
-                {
-                    MarkSlotStatsDirty(slot);
-                }
-            }
         }
 
         InvalidateBindings();
@@ -1950,9 +1944,46 @@ public sealed unsafe partial class Board
         }
     }
 
-    void RenumberStats(ReadOnlySpan<int> oldToNew)
+    void RemapDirty(ReadOnlySpan<int> oldToNew)
     {
-        var nextPages = (SlotState**)arena.AllocZeroedBytes(pageCount * sizeof(SlotState*));
+        var total = dirtyTouchedCount;
+        if (total == 0)
+        {
+            return;
+        }
+
+        var masks = arena.Alloc<uint>(total * statMaskWords);
+        for (var i = 0; i < total; i++)
+        {
+            var source = dirty + (nint)dirtyTouched[i] * statMaskWords;
+            new ReadOnlySpan<uint>(source, statMaskWords).CopyTo(new Span<uint>(masks + (nint)i * statMaskWords, statMaskWords));
+            NativeMemory.Clear(source, (nuint)statMaskWords * sizeof(uint));
+        }
+
+        var count = 0;
+        for (var i = 0; i < total; i++)
+        {
+            var slot = dirtyTouched[i];
+            if ((live[slot >> 6] & (1ul << (slot & 63))) == 0)
+            {
+                continue;
+            }
+
+            var next = oldToNew[slot];
+            dirtyTouched[count++] = next;
+            new ReadOnlySpan<uint>(masks + (nint)i * statMaskWords, statMaskWords).CopyTo(new Span<uint>(dirty + (nint)next * statMaskWords, statMaskWords));
+        }
+
+        dirtyTouchedCount = count;
+        arena.Free(masks, total * statMaskWords);
+    }
+
+    void RenumberStats(ReadOnlySpan<int> oldToNew, ulong* newLive)
+    {
+        EnsureDigestCurrent();
+        var movedCap = LiveCount * 2;
+        var moved = LiveCount > 0 ? arena.Alloc<int>(movedCap) : null;
+        var movedCount = 0;
         for (var slot = 0; slot < Capacity; slot++)
         {
             if ((live[slot >> 6] & (1ul << (slot & 63))) == 0)
@@ -1961,15 +1992,140 @@ public sealed unsafe partial class Board
             }
 
             var next = oldToNew[slot];
+            if (next != slot)
+            {
+                moved![movedCount * 2] = slot;
+                moved[movedCount * 2 + 1] = next;
+                movedCount++;
+            }
+        }
+
+        if (movedCount == 0)
+        {
+            if (moved != null)
+            {
+                arena.Free(moved, movedCap);
+            }
+
+            return;
+        }
+
+        var touchedWords = pageCount + 63 >> 6;
+        var touched = arena.AllocZeroed<ulong>(touchedWords);
+        for (var i = 0; i < movedCount; i++)
+        {
+            touched[moved![i * 2] >> PageShift >> 6] |= 1ul << ((moved[i * 2] >> PageShift) & 63);
+            touched[moved[i * 2 + 1] >> PageShift >> 6] |= 1ul << ((moved[i * 2 + 1] >> PageShift) & 63);
+        }
+
+        var nextPages = (SlotState**)arena.AllocZeroedBytes(pageCount * sizeof(SlotState*));
+        for (var page = 0; page < pageCount; page++)
+        {
+            var old = slotPages[page];
+            if (old == null)
+            {
+                continue;
+            }
+
+            var bit = 1ul << (page & 63);
+            if ((touched[page >> 6] & bit) == 0)
+            {
+                nextPages[page] = old;
+            }
+            else
+            {
+                var copy = arena.Alloc<SlotState>(PageSlots);
+                new ReadOnlySpan<SlotState>(old, PageSlots).CopyTo(new Span<SlotState>(copy, PageSlots));
+                nextPages[page] = copy;
+            }
+        }
+
+        for (var i = 0; i < movedCount; i++)
+        {
+            var slot = moved![i * 2];
+            var next = moved[i * 2 + 1];
+            var block = Slot(slot).Block;
             SlotPage(nextPages, next)[next & (PageSlots - 1)] = Slot(slot);
             for (var at = Slot(slot).Head; at >= 0; at = records[at].Next)
             {
                 records[at].Slot = next;
             }
+
+            if (block < 0)
+            {
+                continue;
+            }
+
+            for (var stat = 0; stat < statCount; stat++)
+            {
+                var set = blocks!.Set(block, stat);
+                if (set < 0)
+                {
+                    continue;
+                }
+
+                var bits = BitConverter.SingleToUInt32Bits(table!.Computed(set));
+                var oldKey = DigestKey(stat, slot, bits);
+                var newKey = DigestKey(stat, next, bits);
+                digest += newKey - oldKey;
+                pageDigests[(nint)stat * PageCount + (slot >> 8)] -= oldKey;
+                pageDigests[(nint)stat * PageCount + (next >> 8)] += newKey;
+            }
         }
 
-        FreePages(slotPages);
+        var clearWords = LiveWordCount;
+        var clearTail = Capacity & 63;
+        for (var word = 0; word < clearWords; word++)
+        {
+            var bits = ~newLive[word];
+            if (word == clearWords - 1 && clearTail != 0)
+            {
+                bits &= (1ul << clearTail) - 1;
+            }
+
+            while (bits != 0)
+            {
+                var deadSlot = (word << 6) + System.Numerics.BitOperations.TrailingZeroCount(bits);
+                bits &= bits - 1;
+                if (nextPages[deadSlot >> PageShift] != null)
+                {
+                    nextPages[deadSlot >> PageShift][deadSlot & (PageSlots - 1)] = new SlotState { Block = -1, Head = -1 };
+                }
+            }
+        }
+
+        for (var page = 0; page < pageCount; page++)
+        {
+            if (slotPages[page] != null && slotPages[page] != nextPages[page])
+            {
+                arena.Free(slotPages[page], PageSlots);
+            }
+        }
+
+        arena.FreeBytes(slotPages, pageCount * sizeof(SlotState*));
         slotPages = nextPages;
+        arena.Free(touched, touchedWords);
+
+        var deadCount = Capacity - LiveCount;
+        var dead = deadCount > 0 ? arena.Alloc<int>(deadCount) : null;
+        var found = 0;
+        var maskWords = LiveWordCount;
+        var tail = Capacity & 63;
+        for (var word = 0; word < maskWords; word++)
+        {
+            var bits = ~newLive[word];
+            if (word == maskWords - 1 && tail != 0)
+            {
+                bits &= (1ul << tail) - 1;
+            }
+
+            while (bits != 0)
+            {
+                var slot = (word << 6) + System.Numerics.BitOperations.TrailingZeroCount(bits);
+                bits &= bits - 1;
+                dead![found++] = slot;
+            }
+        }
 
         var tempRows = arena.Alloc<float>(Capacity);
         for (var stat = 0; stat < statCount; stat++)
@@ -1980,13 +2136,15 @@ public sealed unsafe partial class Board
                 continue;
             }
 
-            NativeMemory.Clear(tempRows, (nuint)Capacity * sizeof(float));
-            for (var slot = 0; slot < Capacity; slot++)
+            NativeMemory.Copy(column, tempRows, (nuint)Capacity * sizeof(float));
+            for (var j = 0; j < movedCount; j++)
             {
-                if ((live[slot >> 6] & (1ul << (slot & 63))) != 0)
-                {
-                    tempRows[oldToNew[slot]] = column[slot];
-                }
+                tempRows[moved![j * 2 + 1]] = column[moved[j * 2]];
+            }
+
+            for (var j = 0; j < found; j++)
+            {
+                tempRows[dead![j]] = 0f;
             }
 
             new ReadOnlySpan<float>(tempRows, Capacity).CopyTo(new Span<float>(column, Capacity));
@@ -1997,19 +2155,26 @@ public sealed unsafe partial class Board
             }
 
             var mirrorRows = (int*)tempRows;
-            NativeMemory.Clear(mirrorRows, (nuint)Capacity * sizeof(int));
-            for (var slot = 0; slot < Capacity; slot++)
+            NativeMemory.Copy(mirror, mirrorRows, (nuint)Capacity * sizeof(int));
+            for (var j = 0; j < movedCount; j++)
             {
-                if ((live[slot >> 6] & (1ul << (slot & 63))) != 0)
-                {
-                    mirrorRows[oldToNew[slot]] = mirror[slot];
-                }
+                mirrorRows[moved![j * 2 + 1]] = mirror[moved[j * 2]];
+            }
+
+            for (var j = 0; j < found; j++)
+            {
+                mirrorRows[dead![j]] = 0;
             }
 
             new ReadOnlySpan<int>(mirrorRows, Capacity).CopyTo(new Span<int>(mirror, Capacity));
         }
 
         arena.Free(tempRows, Capacity);
-        RecomputeDigest();
+        if (dead != null)
+        {
+            arena.Free(dead, deadCount);
+        }
+
+        arena.Free(moved!, movedCap);
     }
 }
