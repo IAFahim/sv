@@ -286,7 +286,7 @@ public sealed unsafe partial class Board
         {
             if (owned[i] != null)
             {
-                arena.Free(owned[i], Capacity);
+                arena.FreeAligned(owned[i], Capacity);
             }
         }
 
@@ -297,7 +297,7 @@ public sealed unsafe partial class Board
         {
             if (mirrors[i] != null)
             {
-                arena.Free(mirrors[i], Capacity);
+                arena.FreeAligned(mirrors[i], Capacity);
             }
         }
 
@@ -709,7 +709,7 @@ public sealed unsafe partial class Board
             return mirrors[index];
         }
 
-        var mirror = arena.AllocZeroed<int>(Capacity);
+        var mirror = arena.AllocAlignedZeroed<int>(Capacity);
         undo?.QuarantineFresh(mirror, Capacity * sizeof(int));
         FillMirrorFromColumns(index, mirror);
         undo?.Note(mirrors + index, sizeof(int*));
@@ -741,7 +741,7 @@ public sealed unsafe partial class Board
             return column;
         }
 
-        column = arena.AllocZeroed<float>(Capacity);
+        column = arena.AllocAlignedZeroed<float>(Capacity);
         undo?.QuarantineFresh(column, Capacity * sizeof(float));
         if (outputColumn[stat] == null)
         {
@@ -1951,7 +1951,7 @@ public sealed unsafe partial class Board
             {
                 if (TCodec.Reading && owned[stat] == null)
                 {
-                    owned[stat] = arena.AllocZeroed<float>(Capacity);
+                    owned[stat] = arena.AllocAlignedZeroed<float>(Capacity);
                 }
 
                 codec.Bytes(owned[stat], (long)Capacity * sizeof(float));
@@ -1980,7 +1980,7 @@ public sealed unsafe partial class Board
 
             if (TCodec.Reading && mirrors[stat] == null)
             {
-                mirrors[stat] = arena.AllocZeroed<int>(Capacity);
+                mirrors[stat] = arena.AllocAlignedZeroed<int>(Capacity);
             }
 
             codec.Bytes(mirrors[stat], (long)Capacity * sizeof(int));

@@ -35,6 +35,39 @@ internal sealed unsafe class NativeArena : IDisposable
         return (T*)NativeMemory.AllocZeroed((nuint)count * (nuint)sizeof(T));
     }
 
+    public T* AllocAlignedZeroed<T>(int count) where T : unmanaged
+    {
+        var bytes = (nuint)count * (nuint)sizeof(T);
+        live += (long)bytes;
+        var alignment = bytes >= (nuint)2 * 1024 * 1024 ? (nuint)2 * 1024 * 1024 : 64;
+        var block = (T*)NativeMemory.AlignedAlloc(bytes, alignment);
+        NativeMemory.Clear(block, bytes);
+        AdviseHugePages(block, bytes);
+        return block;
+    }
+
+    public void FreeAligned<T>(T* old, int count) where T : unmanaged
+    {
+        if (old == null)
+        {
+            return;
+        }
+
+        live -= (long)count * sizeof(T);
+        NativeMemory.AlignedFree(old);
+    }
+
+    [DllImport("libc", SetLastError = true)]
+    static extern int madvise(void* address, nuint length, int advice);
+
+    static void AdviseHugePages(void* block, nuint bytes)
+    {
+        if (OperatingSystem.IsLinux() && bytes >= (nuint)2 * 1024 * 1024)
+        {
+            _ = madvise(block, bytes, 14);
+        }
+    }
+
     public T* Realloc<T>(T* old, int oldCount, int newCount) where T : unmanaged
     {
         live += (long)(newCount - oldCount) * sizeof(T);
