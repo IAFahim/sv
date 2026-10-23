@@ -86,6 +86,8 @@ public sealed unsafe partial class Board
 
     private bool digestPagesDirty;
 
+    private bool digestRecomputing;
+
     private ulong* pageDigests;
 
     private int* changedTouched;
@@ -340,12 +342,13 @@ public sealed unsafe partial class Board
         if (pages[page] == null)
         {
             var fresh = arena.Alloc<SlotState>(PageSlots);
+            undo?.Note(pages + page, sizeof(SlotState*));
+            pages[page] = fresh;
+            undo?.QuarantineFresh(fresh, PageSlots * sizeof(SlotState));
             for (var i = 0; i < PageSlots; i++)
             {
                 fresh[i] = new SlotState { Block = -1, Head = -1 };
             }
-
-            pages[page] = fresh;
         }
 
         return pages[page];
@@ -364,7 +367,7 @@ public sealed unsafe partial class Board
         {
             var previous = recordCap;
             recordCap *= 2;
-            records = arena.Realloc(records, previous, recordCap);
+            records = UndoGrow(UndoArrayId.Records, records, previous, recordCap);
         }
 
         return recordCount++;
@@ -372,6 +375,7 @@ public sealed unsafe partial class Board
 
     void FreeRecord(int index)
     {
+        undo?.Note(&records[index].Next, sizeof(int));
         records[index].Next = recordFree;
         recordFree = index;
     }
@@ -380,6 +384,12 @@ public sealed unsafe partial class Board
     ref SlotState Slot(int slot)
     {
         return ref slotPages[slot >> PageShift][slot & (PageSlots - 1)];
+    }
+
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+    SlotState* SlotPtr(int slot)
+    {
+        return slotPages[slot >> PageShift] + (slot & (PageSlots - 1));
     }
 
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
@@ -425,7 +435,13 @@ public sealed unsafe partial class Board
     {
         var key = DigestKey(stat, slot, BitConverter.SingleToUInt32Bits(table!.Computed(set)));
         digest += key;
-        pageDigests[(nint)stat * PageCount + (slot >> 8)] += key;
+        var cell = pageDigests + (nint)stat * PageCount + (slot >> 8);
+        if (!digestRecomputing)
+        {
+            undo?.Note(cell, sizeof(ulong));
+        }
+
+        *cell += key;
     }
 
     void DigestMove(int slot, int stat, int oldSet, int newSet)
@@ -444,12 +460,24 @@ public sealed unsafe partial class Board
 
         var delta = newKey - oldKey;
         digest += delta;
-        pageDigests[(nint)stat * PageCount + (slot >> 8)] += delta;
+        var cell = pageDigests + (nint)stat * PageCount + (slot >> 8);
+        if (!digestRecomputing)
+        {
+            undo?.Note(cell, sizeof(ulong));
+        }
+
+        *cell += delta;
     }
 
     internal ulong RecomputeDigest()
     {
         digestPagesDirty = false;
+        if (undo != null && undoFrames != null)
+        {
+            undoFrames[(nint)(undo.Top % undoFrames.Length)].PageDigestsRewritten = 1;
+            digestRecomputing = true;
+        }
+
         NativeMemory.Clear(pageDigests, (nuint)(statCount * PageCount) * sizeof(ulong));
         digest = 0;
         for (var word = 0; word < LiveWordCount; word++)
@@ -476,6 +504,7 @@ public sealed unsafe partial class Board
             }
         }
 
+        digestRecomputing = false;
         return digest;
     }
 
@@ -566,6 +595,7 @@ public sealed unsafe partial class Board
     /// </summary>
     public void BindOutput(StatId stat, float* column, int stride = 1, int columnLength = -1)
     {
+        InvalidateUndo();
         var index = StatIndex(stat);
         if (column == null)
         {
@@ -597,6 +627,7 @@ public sealed unsafe partial class Board
     /// </summary>
     public BindingHandle BindExternal(StatId stat, float* column, int stride = 1, int columnLength = -1)
     {
+        InvalidateUndo();
         var index = StatIndex(stat);
         if (column == null)
         {
@@ -629,6 +660,7 @@ public sealed unsafe partial class Board
     /// </summary>
     public void InvalidateBindings()
     {
+        InvalidateUndo();
         bindingGeneration++;
         for (var stat = 0; stat < statCount; stat++)
         {
@@ -673,7 +705,9 @@ public sealed unsafe partial class Board
         }
 
         var mirror = arena.AllocZeroed<int>(Capacity);
+        undo?.QuarantineFresh(mirror, Capacity * sizeof(int));
         FillMirrorFromColumns(index, mirror);
+        undo?.Note(mirrors + index, sizeof(int*));
         mirrors[index] = mirror;
         return mirror;
     }
@@ -703,6 +737,7 @@ public sealed unsafe partial class Board
         }
 
         column = arena.AllocZeroed<float>(Capacity);
+        undo?.QuarantineFresh(column, Capacity * sizeof(float));
         if (outputColumn[stat] == null)
         {
             for (var word = 0; word < LiveWordCount; word++)
@@ -720,6 +755,7 @@ public sealed unsafe partial class Board
             }
         }
 
+        undo?.Note(owned + stat, sizeof(float*));
         owned[stat] = column;
         return column;
     }
@@ -751,7 +787,9 @@ public sealed unsafe partial class Board
         ref var state = ref Slot(slot);
         var id = ++nextInsertionId;
         var record = AllocRecord();
+        undo?.Note(records + record, sizeof(ModRecord));
         records[record] = new ModRecord { Id = id, Kind = modifier.Kind, Value = modifier.Value, Source = source, Expiry = expiresAtTick, Next = state.Head, Slot = slot, Stat = index };
+        undo?.Note(&SlotPtr(slot)->Head, sizeof(int));
         state.Head = record;
         MarkStatDirty(slot, index);
         if (expiresAtTick != long.MaxValue)
@@ -786,10 +824,12 @@ public sealed unsafe partial class Board
                 FreeRecord(at);
                 if (previous < 0)
                 {
+                    undo?.Note(&SlotPtr(slot)->Head, sizeof(int));
                     state.Head = next;
                 }
                 else
                 {
+                    undo?.Note(&records[previous].Next, sizeof(int));
                     records[previous].Next = next;
                 }
 
@@ -839,10 +879,12 @@ public sealed unsafe partial class Board
                     FreeRecord(at);
                     if (previous < 0)
                     {
+                        undo?.Note(&SlotPtr(slot)->Head, sizeof(int));
                         state.Head = next;
                     }
                     else
                     {
+                        undo?.Note(&records[previous].Next, sizeof(int));
                         records[previous].Next = next;
                     }
 
@@ -868,7 +910,7 @@ public sealed unsafe partial class Board
         {
             var previous = expiryCap;
             expiryCap *= 2;
-            expiries = arena.Realloc(expiries, previous, expiryCap);
+            expiries = UndoGrow(UndoArrayId.Expiries, expiries, previous, expiryCap);
         }
 
         var at = expiryCount++;
@@ -880,10 +922,12 @@ public sealed unsafe partial class Board
                 break;
             }
 
+            undo?.Note(expiries + at, sizeof(ExpiryEntry));
             expiries[at] = expiries[parent];
             at = parent;
         }
 
+        undo?.Note(expiries + at, sizeof(ExpiryEntry));
         expiries[at] = entry;
     }
 
@@ -909,12 +953,14 @@ public sealed unsafe partial class Board
                 break;
             }
 
+            undo?.Note(expiries + at, sizeof(ExpiryEntry));
             expiries[at] = expiries[child];
             at = child;
         }
 
         if (expiryCount > 0)
         {
+            undo?.Note(expiries + at, sizeof(ExpiryEntry));
             expiries[at] = last;
         }
     }
@@ -926,7 +972,7 @@ public sealed unsafe partial class Board
             var previous = expiryCap;
             var target = expiryCount + (expiryCount >> 3);
             expiryCap = target < 16 ? 16 : target;
-            expiries = arena.Realloc(expiries, previous, expiryCap);
+            expiries = UndoGrow(UndoArrayId.Expiries, expiries, previous, expiryCap);
         }
     }
 
@@ -949,10 +995,12 @@ public sealed unsafe partial class Board
                 FreeRecord(at);
                 if (previous < 0)
                 {
+                    undo?.Note(&SlotPtr(slot)->Head, sizeof(int));
                     state.Head = next;
                 }
                 else
                 {
+                    undo?.Note(&records[previous].Next, sizeof(int));
                     records[previous].Next = next;
                 }
 
@@ -979,6 +1027,7 @@ public sealed unsafe partial class Board
             }
         }
 
+        undo?.Note(mask, statMaskWords * sizeof(uint));
         for (var w = 0; w < statMaskWords; w++)
         {
             mask[w] = allStatsMask[w];
@@ -997,12 +1046,14 @@ public sealed unsafe partial class Board
             var column = owned[stat];
             if (column != null)
             {
+                undo?.Note(column + slot, sizeof(float));
                 column[slot] = 0f;
             }
 
             var mirror = mirrors[stat];
             if (mirror != null)
             {
+                undo?.Note(mirror + slot, sizeof(int));
                 mirror[slot] = 0;
             }
         }
@@ -1015,14 +1066,16 @@ public sealed unsafe partial class Board
             var index = stat * LiveWordCount + (slot >> 6);
             if (acquired[index] == 0)
             {
+                undo?.Note(acquiredTouched + acquiredTouchedCount, sizeof(int));
                 acquiredTouched[acquiredTouchedCount++] = index;
             }
 
+            undo?.Note(acquired + index, sizeof(ulong));
             acquired[index] |= 1ul << (slot & 63);
         }
     }
 
-    void MarkSlotsAcquired(int* slots, int count)
+    internal void MarkSlotsAcquired(int* slots, int count)
     {
         var words = LiveWordCount;
         var at = 0;
@@ -1041,9 +1094,11 @@ public sealed unsafe partial class Board
                 var index = stat * words + word;
                 if (acquired[index] == 0)
                 {
+                    undo?.Note(acquiredTouched + acquiredTouchedCount, sizeof(int));
                     acquiredTouched[acquiredTouchedCount++] = index;
                 }
 
+                undo?.Note(acquired + index, sizeof(ulong));
                 acquired[index] |= bits;
             }
         }
@@ -1113,14 +1168,22 @@ public sealed unsafe partial class Board
 
             var bits = ~live[word];
             var slot = (word << 6) + System.Numerics.BitOperations.TrailingZeroCount(bits);
+            undo?.Note(live + word, sizeof(ulong));
             live[word] = ~bits | (1ul << (slot & 63));
             slots[i] = slot;
             if (slot >> PageShift != pageAt)
             {
-                page = SlotPage(slotPages, slot);
                 pageAt = slot >> PageShift;
+                var freshPage = slotPages[pageAt] == null;
+                page = SlotPage(slotPages, slot);
+                if (freshPage)
+                {
+                    page[slot & (PageSlots - 1)] = new SlotState { Block = template, Head = -1 };
+                    continue;
+                }
             }
 
+            undo?.Note(page + (slot & (PageSlots - 1)), sizeof(SlotState));
             page[slot & (PageSlots - 1)] = new SlotState { Block = template, Head = -1 };
         }
 
@@ -1178,15 +1241,18 @@ public sealed unsafe partial class Board
                 var slot = slots[i];
                 if (column != null)
                 {
-                    column[slot * stride] = value;
+                    undo?.Note(column + (nint)slot * stride, sizeof(float));
+                    column[(nint)slot * stride] = value;
                 }
                 else if (own != null)
                 {
+                    undo?.Note(own + slot, sizeof(float));
                     own[slot] = value;
                 }
 
                 if (mirror != null)
                 {
+                    undo?.Note(mirror + slot, sizeof(int));
                     mirror[slot] = bounded;
                 }
             }
@@ -1201,14 +1267,18 @@ public sealed unsafe partial class Board
             var count = changedTouchedCounts[stat];
             for (var i = 0; i < count; i++)
             {
-                changed[@base + changedTouched[@base + i]] = 0;
+                var word = @base + changedTouched[@base + i];
+                undo?.Note(changed + word, sizeof(ulong));
+                changed[word] = 0;
             }
 
+            undo?.Note(changedTouchedCounts + stat, sizeof(int));
             changedTouchedCounts[stat] = 0;
         }
 
         for (var i = 0; i < acquiredTouchedCount; i++)
         {
+            undo?.Note(acquired + acquiredTouched[i], sizeof(ulong));
             acquired[acquiredTouched[i]] = 0;
         }
 
@@ -1225,6 +1295,7 @@ public sealed unsafe partial class Board
             at = next;
         }
 
+        undo?.Note(&SlotPtr(slot)->Head, sizeof(int));
         state.Head = -1;
         if (state.Block >= 0)
         {
@@ -1234,6 +1305,7 @@ public sealed unsafe partial class Board
                 DigestMove(slot, stat, blocks!.Set(block, stat), -1);
             }
 
+            undo?.Note(&SlotPtr(slot)->Block, sizeof(int));
             state.Block = -1;
             DropBlockRef(block);
         }
@@ -1252,6 +1324,7 @@ public sealed unsafe partial class Board
             }
         }
 
+        undo?.Note(mask + (stat >> 5), sizeof(uint));
         mask[stat >> 5] |= 1u << (stat & 31);
         if (empty)
         {
@@ -1265,9 +1338,10 @@ public sealed unsafe partial class Board
         {
             var previous = dirtyTouchedCap;
             dirtyTouchedCap *= 2;
-            dirtyTouched = arena.Realloc(dirtyTouched, previous, dirtyTouchedCap);
+            dirtyTouched = UndoGrow(UndoArrayId.DirtyTouched, dirtyTouched, previous, dirtyTouchedCap);
         }
 
+        undo?.Note(dirtyTouched + dirtyTouchedCount, sizeof(int));
         dirtyTouched[dirtyTouchedCount++] = slot;
     }
 
@@ -1276,6 +1350,7 @@ public sealed unsafe partial class Board
         for (var i = 0; i < dirtyTouchedCount; i++)
         {
             var mask = dirty + (nint)dirtyTouched[i] * statMaskWords;
+            undo?.Note(mask, statMaskWords * sizeof(uint));
             for (var w = 0; w < statMaskWords; w++)
             {
                 mask[w] = 0;
@@ -1337,6 +1412,7 @@ public sealed unsafe partial class Board
 
         ClearChangedMasks();
         table!.Tick();
+        undo?.NoteRange(dirtyTouched, dirtyTouchedCount);
         SortTouched(dirtyTouched, dirtyTouchedCount);
         for (var i = 0; i < dirtyTouchedCount; i++)
         {
@@ -1344,6 +1420,7 @@ public sealed unsafe partial class Board
             var mask = dirty + (nint)slot * statMaskWords;
             if ((live[slot >> 6] & (1ul << (slot & 63))) == 0)
             {
+                undo?.Note(mask, statMaskWords * sizeof(uint));
                 for (var k = 0; k < statMaskWords; k++)
                 {
                     mask[k] = 0;
@@ -1363,6 +1440,7 @@ public sealed unsafe partial class Board
                 }
 
                 var stat = (w << 5) + System.Numerics.BitOperations.TrailingZeroCount(word);
+                undo?.Note(mask + w, sizeof(uint));
                 mask[w] = word & (word - 1);
                 var block = Slot(slot).Block;
                 var current = block >= 0 ? blocks!.Set(block, stat) : -1;
@@ -1401,8 +1479,10 @@ public sealed unsafe partial class Board
                         DropBlockRef(block);
                     }
 
+                    undo?.Note(&SlotPtr(slot)->Block, sizeof(int));
                     Slot(slot).Block = next;
                     var dependents = dependentsMask + (nint)stat * statMaskWords;
+                    undo?.Note(mask, statMaskWords * sizeof(uint));
                     for (var k = 0; k < statMaskWords; k++)
                     {
                         mask[k] |= dependents[k];
@@ -1424,7 +1504,7 @@ public sealed unsafe partial class Board
             var previous = recordCap;
             var target = recordCount + (recordCount >> 3);
             recordCap = target < 16 ? 16 : target;
-            records = arena.Realloc(records, previous, recordCap);
+            records = UndoGrow(UndoArrayId.Records, records, previous, recordCap);
         }
 
         if (dirtyTouchedCap > 64 && (long)dirtyTouchedCount * 4 <= (long)dirtyTouchedCap * 3)
@@ -1432,7 +1512,7 @@ public sealed unsafe partial class Board
             var previous = dirtyTouchedCap;
             var target = dirtyTouchedCount + (dirtyTouchedCount >> 3);
             dirtyTouchedCap = target < 64 ? 64 : target;
-            dirtyTouched = arena.Realloc(dirtyTouched, previous, dirtyTouchedCap);
+            dirtyTouched = UndoGrow(UndoArrayId.DirtyTouched, dirtyTouched, previous, dirtyTouchedCap);
         }
 
         ShrinkExpiries();
@@ -1538,6 +1618,7 @@ public sealed unsafe partial class Board
         var mirror = mirrors[stat];
         if (mirror != null)
         {
+            undo?.Note(mirror + slot, sizeof(int));
             mirror[slot] = Clamp.BoundOf(computed);
         }
 
@@ -1552,6 +1633,7 @@ public sealed unsafe partial class Board
             }
 
             MarkChanged(stat, slot, own[slot], computed);
+            undo?.Note(own + slot, sizeof(float));
             own[slot] = computed;
             return;
         }
@@ -1559,8 +1641,9 @@ public sealed unsafe partial class Board
         Guard.BindingFresh(boundGeneration[stat]);
         var stride = outputStride[stat];
         Guard.BoundColumnFit(boundLength[stat], stride, slot);
-        MarkChanged(stat, slot, column[slot * stride], computed);
-        column[slot * stride] = computed;
+        MarkChanged(stat, slot, column[(nint)slot * stride], computed);
+        undo?.Note(column + (nint)slot * stride, sizeof(float));
+        column[(nint)slot * stride] = computed;
     }
 
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
@@ -1575,10 +1658,13 @@ public sealed unsafe partial class Board
         var @base = stat * LiveWordCount;
         if (changed[@base + word] == 0)
         {
+            undo?.Note(changedTouched + @base + changedTouchedCounts[stat], sizeof(int));
             changedTouched[@base + changedTouchedCounts[stat]] = word;
+            undo?.Note(changedTouchedCounts + stat, sizeof(int));
             changedTouchedCounts[stat]++;
         }
 
+        undo?.Note(changed + @base + word, sizeof(ulong));
         changed[@base + word] |= 1ul << (slot & 63);
     }
 
@@ -1707,6 +1793,7 @@ public sealed unsafe partial class Board
     /// </summary>
     public void RenumberSlots(ReadOnlySpan<int> oldToNew, int count)
     {
+        InvalidateUndo();
         if (count < 0 || count > Capacity)
         {
             throw new ArgumentOutOfRangeException(nameof(count), $"sv: renumber count must be in [0, {Capacity}]");

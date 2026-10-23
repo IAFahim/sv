@@ -21,7 +21,9 @@ internal sealed unsafe class SetTable : IDisposable
 {
     private const int ClassCount = 32;
 
-    private const long ReclaimHorizon = 0;
+    internal long ReclaimHorizon;
+
+    internal UndoLog? Undo;
 
     private readonly NativeArena memory;
 
@@ -162,6 +164,7 @@ internal sealed unsafe class SetTable : IDisposable
                 }
 
                 var set = CreateSet(stat, canonical, count, hash);
+                Undo?.Note(buckets + slot, sizeof(int));
                 buckets[slot] = set + 1;
                 return set;
             }
@@ -212,7 +215,10 @@ internal sealed unsafe class SetTable : IDisposable
             liveSets++;
         }
 
+        var undo = Undo;
+        undo?.Note(setStat + index, sizeof(int));
         setStat[index] = stat;
+        undo?.Note(setHash + index, sizeof(ulong));
         setHash[index] = hash;
         var span = ClassSize(count);
         int offset;
@@ -220,6 +226,7 @@ internal sealed unsafe class SetTable : IDisposable
         if (contentClassHead[cls] >= 0)
         {
             offset = contentClassHead[cls];
+            undo?.Note(contentClassHead + cls, sizeof(int));
             contentClassHead[cls] = *(int*)(contentArena + offset);
         }
         else
@@ -228,54 +235,76 @@ internal sealed unsafe class SetTable : IDisposable
             {
                 var previousContent = contentCapacity;
                 contentCapacity *= 2;
-                contentArena = memory.Realloc(contentArena, previousContent, contentCapacity);
+                contentArena = GrowContent(contentArena, previousContent, contentCapacity);
             }
 
             offset = contentUsed;
             contentUsed += span;
         }
 
+        undo?.Note(setContentOffset + index, sizeof(int));
         setContentOffset[index] = offset;
+        undo?.Note(setContentSpan + index, sizeof(int));
         setContentSpan[index] = span;
+        undo?.Note(setContentCount + index, sizeof(int));
         setContentCount[index] = count;
+        undo?.NoteRange(contentArena + offset, count);
         for (var i = 0; i < count; i++)
         {
             contentArena[offset + i] = canonical[i];
         }
 
+        undo?.Note(contentArena + offset + count, (span - count) * sizeof(StatEntry));
         NativeMemory.Clear(contentArena + offset + count, (nuint)(span - count) * (nuint)sizeof(StatEntry));
+        undo?.Note(setRefCount + index, sizeof(int));
         setRefCount[index] = 0;
+        undo?.Note(setComputed + index, sizeof(float));
         setComputed[index] = 0f;
+        undo?.Note(setFolded + index, sizeof(sbyte));
         setFolded[index] = 0;
+        undo?.Note(setFreedAt + index, sizeof(long));
         setFreedAt[index] = 0;
+        undo?.Note(setFreeNext + index, sizeof(int));
         setFreeNext[index] = 0;
         return index;
+    }
+
+    StatEntry* GrowContent(StatEntry* old, int oldCount, int newCount)
+    {
+        return Undo == null ? memory.Realloc(old, oldCount, newCount) : Undo.ReallocTracked(memory, UndoArrayId.ContentArena, old, oldCount, newCount);
     }
 
     void GrowSetCapacity()
     {
         var previous = setCapacity;
         setCapacity *= 2;
-        setStat = memory.Realloc(setStat, previous, setCapacity);
-        setHash = memory.Realloc(setHash, previous, setCapacity);
-        setComputed = memory.Realloc(setComputed, previous, setCapacity);
-        setContentOffset = memory.Realloc(setContentOffset, previous, setCapacity);
-        setContentCount = memory.Realloc(setContentCount, previous, setCapacity);
-        setContentSpan = memory.Realloc(setContentSpan, previous, setCapacity);
-        setRefCount = memory.Realloc(setRefCount, previous, setCapacity);
-        setFolded = memory.Realloc(setFolded, previous, setCapacity);
-        setFreeNext = memory.Realloc(setFreeNext, previous, setCapacity);
-        setFreedAt = memory.Realloc(setFreedAt, previous, setCapacity);
+        setStat = GrowArray(UndoArrayId.SetStat, setStat, previous, setCapacity);
+        setHash = GrowArray(UndoArrayId.SetHash, setHash, previous, setCapacity);
+        setComputed = GrowArray(UndoArrayId.SetComputed, setComputed, previous, setCapacity);
+        setContentOffset = GrowArray(UndoArrayId.SetContentOffset, setContentOffset, previous, setCapacity);
+        setContentCount = GrowArray(UndoArrayId.SetContentCount, setContentCount, previous, setCapacity);
+        setContentSpan = GrowArray(UndoArrayId.SetContentSpan, setContentSpan, previous, setCapacity);
+        setRefCount = GrowArray(UndoArrayId.SetRefCount, setRefCount, previous, setCapacity);
+        setFolded = GrowArray(UndoArrayId.SetFolded, setFolded, previous, setCapacity);
+        setFreeNext = GrowArray(UndoArrayId.SetFreeNext, setFreeNext, previous, setCapacity);
+        setFreedAt = GrowArray(UndoArrayId.SetFreedAt, setFreedAt, previous, setCapacity);
         NativeMemory.Clear(setFreedAt + previous, (nuint)(setCapacity - previous) * (nuint)sizeof(long));
+    }
+
+    T* GrowArray<T>(UndoArrayId id, T* old, int oldCount, int newCount) where T : unmanaged
+    {
+        return Undo == null ? memory.Realloc(old, oldCount, newCount) : Undo.ReallocTracked(memory, id, old, oldCount, newCount);
     }
 
     public void AddRef(int set)
     {
+        Undo?.Note(setRefCount + set, sizeof(int));
         setRefCount[set]++;
     }
 
     public void ReleaseRef(int set)
     {
+        Undo?.Note(setRefCount + set, sizeof(int));
         var count = --setRefCount[set];
         if (count == 0)
         {
@@ -285,16 +314,24 @@ internal sealed unsafe class SetTable : IDisposable
 
     void FreeSet(int set)
     {
+        var undo = Undo;
         var span = setContentSpan[set];
         var cls = BitOperations.TrailingZeroCount(span);
         var node = (int*)(contentArena + setContentOffset[set]);
+        undo?.Note(node, sizeof(int));
         *node = contentClassHead[cls];
+        undo?.Note(contentClassHead + cls, sizeof(int));
         contentClassHead[cls] = setContentOffset[set];
+        undo?.Note(setRefCount + set, sizeof(int));
         setRefCount[set] = 0;
+        undo?.Note(setComputed + set, sizeof(float));
         setComputed[set] = 0f;
+        undo?.Note(setFolded + set, sizeof(sbyte));
         setFolded[set] = 0;
         DeleteFromBuckets(set);
+        undo?.Note(setFreedAt + set, sizeof(long));
         setFreedAt[set] = generation;
+        undo?.Note(setFreeNext + set, sizeof(int));
         setFreeNext[set] = setFreeHead;
         setFreeHead = set;
         liveSets--;
@@ -302,6 +339,7 @@ internal sealed unsafe class SetTable : IDisposable
 
     void DeleteFromBuckets(int set)
     {
+        var undo = Undo;
         var hole = (int)(setHash[set] & (ulong)bucketMask);
         while (buckets[hole] != set + 1)
         {
@@ -324,10 +362,12 @@ internal sealed unsafe class SetTable : IDisposable
 
             if (buckets[j] == 0)
             {
+                undo?.Note(buckets + hole, sizeof(int));
                 buckets[hole] = 0;
                 return;
             }
 
+            undo?.Note(buckets + hole, sizeof(int));
             buckets[hole] = buckets[j];
             hole = j;
         }
@@ -337,7 +377,7 @@ internal sealed unsafe class SetTable : IDisposable
     {
         var previousBuckets = bucketMask + 1;
         bucketMask = bucketMask * 2 + 1;
-        buckets = memory.Realloc(buckets, previousBuckets, bucketMask + 1);
+        buckets = GrowArray(UndoArrayId.SetBuckets, buckets, previousBuckets, bucketMask + 1);
         for (var i = 0; i <= bucketMask; i++)
         {
             buckets[i] = 0;
@@ -386,7 +426,9 @@ internal sealed unsafe class SetTable : IDisposable
 
     public void SetComputed(int set, float value)
     {
+        Undo?.Note(setComputed + set, sizeof(float));
         setComputed[set] = value;
+        Undo?.Note(setFolded + set, sizeof(sbyte));
         setFolded[set] = 1;
     }
 
@@ -466,6 +508,74 @@ internal sealed unsafe class SetTable : IDisposable
         {
             throw new System.IO.InvalidDataException("sv: corrupt set table state");
         }
+    }
+
+    internal void CaptureUndo(ref Board.SetUndoFrame frame)
+    {
+        frame.SetCount = setCount;
+        frame.SetCapacity = setCapacity;
+        frame.BucketMask = bucketMask;
+        frame.SetFreeHead = setFreeHead;
+        frame.LiveSets = liveSets;
+        frame.ContentUsed = contentUsed;
+        frame.ContentCapacity = contentCapacity;
+        frame.Generation = generation;
+        frame.Buckets = buckets;
+        frame.SetStat = setStat;
+        frame.SetHash = setHash;
+        frame.SetComputed = setComputed;
+        frame.SetContentOffset = setContentOffset;
+        frame.SetContentCount = setContentCount;
+        frame.SetContentSpan = setContentSpan;
+        frame.SetRefCount = setRefCount;
+        frame.SetFolded = setFolded;
+        frame.SetFreeNext = setFreeNext;
+        frame.SetFreedAt = setFreedAt;
+        frame.ContentArena = contentArena;
+    }
+
+    internal void RestoreUndo(ref Board.SetUndoFrame frame)
+    {
+        setCount = frame.SetCount;
+        setCapacity = frame.SetCapacity;
+        bucketMask = frame.BucketMask;
+        setFreeHead = frame.SetFreeHead;
+        liveSets = frame.LiveSets;
+        contentUsed = frame.ContentUsed;
+        contentCapacity = frame.ContentCapacity;
+        generation = frame.Generation;
+        buckets = (int*)frame.Buckets;
+        setStat = (int*)frame.SetStat;
+        setHash = (ulong*)frame.SetHash;
+        setComputed = (float*)frame.SetComputed;
+        setContentOffset = (int*)frame.SetContentOffset;
+        setContentCount = (int*)frame.SetContentCount;
+        setContentSpan = (int*)frame.SetContentSpan;
+        setRefCount = (int*)frame.SetRefCount;
+        setFolded = (sbyte*)frame.SetFolded;
+        setFreeNext = (int*)frame.SetFreeNext;
+        setFreedAt = (long*)frame.SetFreedAt;
+        contentArena = (StatEntry*)frame.ContentArena;
+    }
+
+    internal void* UndoPointerOf(UndoArrayId id)
+    {
+        return id switch
+        {
+            UndoArrayId.SetBuckets => buckets,
+            UndoArrayId.SetStat => setStat,
+            UndoArrayId.SetHash => setHash,
+            UndoArrayId.SetComputed => setComputed,
+            UndoArrayId.SetContentOffset => setContentOffset,
+            UndoArrayId.SetContentCount => setContentCount,
+            UndoArrayId.SetContentSpan => setContentSpan,
+            UndoArrayId.SetRefCount => setRefCount,
+            UndoArrayId.SetFolded => setFolded,
+            UndoArrayId.SetFreeNext => setFreeNext,
+            UndoArrayId.SetFreedAt => setFreedAt,
+            UndoArrayId.ContentArena => contentArena,
+            _ => null,
+        };
     }
 
     public void Dispose()

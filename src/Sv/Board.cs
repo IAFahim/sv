@@ -115,6 +115,11 @@ public sealed unsafe partial class Board : IDisposable
 
     internal void VisitState<TCodec>(ref TCodec codec) where TCodec : struct, IStateCodec
     {
+        if (TCodec.Reading)
+        {
+            InvalidateUndo();
+        }
+
         codec.Header(StateMagic, StateShape, "board");
         var liveCount = LiveCount;
         codec.Value(ref liveCount);
@@ -173,6 +178,7 @@ public sealed unsafe partial class Board : IDisposable
         }
 
         var slot = (word << 6) + BitOperations.TrailingZeroCount(~live[word]);
+        undo?.Note(live + word, sizeof(ulong));
         live[word] |= 1ul << (slot & 63);
         freeHint = live[word] == ulong.MaxValue ? word + 1 : word;
         LiveCount++;
@@ -191,6 +197,7 @@ public sealed unsafe partial class Board : IDisposable
             throw new ArgumentException($"sv: release of non-live slot {slot}");
         }
 
+        undo?.Note(live + (slot >> 6), sizeof(ulong));
         live[slot >> 6] &= ~(1ul << (slot & 63));
         if ((slot >> 6) < freeHint)
         {
@@ -450,6 +457,7 @@ public sealed unsafe partial class Board : IDisposable
             return;
         }
 
+        EndUndoWindow();
         FreeStats();
         arena.Free(live, LiveWordCount);
         arena.Dispose();

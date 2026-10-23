@@ -8,6 +8,8 @@ internal sealed unsafe class BlockTable : IDisposable
 {
     private readonly int statCount;
 
+    internal UndoLog? Undo;
+
     private readonly NativeArena memory;
 
     private int blockCount;
@@ -107,6 +109,7 @@ internal sealed unsafe class BlockTable : IDisposable
             GrowBlockCapacity();
         }
 
+        var undo = Undo;
         int index;
         if (blockFreeHead >= 0)
         {
@@ -119,14 +122,18 @@ internal sealed unsafe class BlockTable : IDisposable
         }
 
         var hash = TupleHash(tuple, statCount);
+        undo?.Note(blockHash + index, sizeof(ulong));
         blockHash[index] = hash;
         var sets = blockSets + (nint)index * statCount;
+        undo?.NoteRange(sets, statCount);
         for (var i = 0; i < statCount; i++)
         {
             sets[i] = tuple[i];
         }
 
+        undo?.Note(blockRefCount + index, sizeof(int));
         blockRefCount[index] = 0;
+        undo?.Note(blockFreeNext + index, sizeof(int));
         blockFreeNext[index] = 0;
         if ((blockCount + 1) * 2 > bucketMask + 1)
         {
@@ -139,6 +146,7 @@ internal sealed unsafe class BlockTable : IDisposable
             slot = (slot + 1) & bucketMask;
         }
 
+        undo?.Note(buckets + slot, sizeof(int));
         buckets[slot] = index + 1;
         return index;
     }
@@ -148,19 +156,24 @@ internal sealed unsafe class BlockTable : IDisposable
         var previous = blockCapacity;
         var previousSets = blockCapacity * statCount;
         blockCapacity *= 2;
-        blockSets = memory.Realloc(blockSets, previousSets, blockCapacity * statCount);
-        blockHash = memory.Realloc(blockHash, previous, blockCapacity);
-        blockRefCount = memory.Realloc(blockRefCount, previous, blockCapacity);
-        blockFreeNext = memory.Realloc(blockFreeNext, previous, blockCapacity);
+        blockSets = GrowArray(UndoArrayId.BlockSets, blockSets, previousSets, blockCapacity * statCount);
+        blockHash = GrowArray(UndoArrayId.BlockHash, blockHash, previous, blockCapacity);
+        blockRefCount = GrowArray(UndoArrayId.BlockRefCount, blockRefCount, previous, blockCapacity);
+        blockFreeNext = GrowArray(UndoArrayId.BlockFreeNext, blockFreeNext, previous, blockCapacity);
         NativeMemory.Clear(blockRefCount + previous, (nuint)(blockCapacity - previous) * (nuint)sizeof(int));
         NativeMemory.Clear(blockFreeNext + previous, (nuint)(blockCapacity - previous) * (nuint)sizeof(int));
+    }
+
+    T* GrowArray<T>(UndoArrayId id, T* old, int oldCount, int newCount) where T : unmanaged
+    {
+        return Undo == null ? memory.Realloc(old, oldCount, newCount) : Undo.ReallocTracked(memory, id, old, oldCount, newCount);
     }
 
     void GrowBuckets()
     {
         var previousBuckets = bucketMask + 1;
         bucketMask = bucketMask * 2 + 1;
-        buckets = memory.Realloc(buckets, previousBuckets, bucketMask + 1);
+        buckets = GrowArray(UndoArrayId.BlockBuckets, buckets, previousBuckets, bucketMask + 1);
         for (var i = 0; i <= bucketMask; i++)
         {
             buckets[i] = 0;
@@ -201,29 +214,36 @@ internal sealed unsafe class BlockTable : IDisposable
 
     public void SetRefCount(int block, int count)
     {
+        Undo?.Note(blockRefCount + block, sizeof(int));
         blockRefCount[block] = count;
     }
 
     public void AddRefMany(int block, int count)
     {
+        Undo?.Note(blockRefCount + block, sizeof(int));
         blockRefCount[block] += count;
     }
 
     public bool ReleaseRef(int block)
     {
+        Undo?.Note(blockRefCount + block, sizeof(int));
         return --blockRefCount[block] == 0;
     }
 
     public void Free(int block)
     {
+        var undo = Undo;
         DeleteFromBuckets(block);
+        undo?.Note(blockRefCount + block, sizeof(int));
         blockRefCount[block] = 0;
+        undo?.Note(blockFreeNext + block, sizeof(int));
         blockFreeNext[block] = blockFreeHead;
         blockFreeHead = block;
     }
 
     void DeleteFromBuckets(int block)
     {
+        var undo = Undo;
         var hole = (int)(blockHash[block] & (ulong)bucketMask);
         while (buckets[hole] != block + 1)
         {
@@ -246,10 +266,12 @@ internal sealed unsafe class BlockTable : IDisposable
 
             if (buckets[j] == 0)
             {
+                undo?.Note(buckets + hole, sizeof(int));
                 buckets[hole] = 0;
                 return;
             }
 
+            undo?.Note(buckets + hole, sizeof(int));
             buckets[hole] = buckets[j];
             hole = j;
         }
@@ -301,6 +323,45 @@ internal sealed unsafe class BlockTable : IDisposable
         {
             throw new System.IO.InvalidDataException("sv: corrupt board state");
         }
+    }
+
+    internal void CaptureUndo(ref Board.BlockUndoFrame frame)
+    {
+        frame.BlockCount = blockCount;
+        frame.BlockCapacity = blockCapacity;
+        frame.BucketMask = bucketMask;
+        frame.BlockFreeHead = blockFreeHead;
+        frame.Buckets = buckets;
+        frame.BlockSets = blockSets;
+        frame.BlockHash = blockHash;
+        frame.BlockRefCount = blockRefCount;
+        frame.BlockFreeNext = blockFreeNext;
+    }
+
+    internal void RestoreUndo(ref Board.BlockUndoFrame frame)
+    {
+        blockCount = frame.BlockCount;
+        blockCapacity = frame.BlockCapacity;
+        bucketMask = frame.BucketMask;
+        blockFreeHead = frame.BlockFreeHead;
+        buckets = (int*)frame.Buckets;
+        blockSets = (int*)frame.BlockSets;
+        blockHash = (ulong*)frame.BlockHash;
+        blockRefCount = (int*)frame.BlockRefCount;
+        blockFreeNext = (int*)frame.BlockFreeNext;
+    }
+
+    internal void* UndoPointerOf(UndoArrayId id)
+    {
+        return id switch
+        {
+            UndoArrayId.BlockBuckets => buckets,
+            UndoArrayId.BlockSets => blockSets,
+            UndoArrayId.BlockHash => blockHash,
+            UndoArrayId.BlockRefCount => blockRefCount,
+            UndoArrayId.BlockFreeNext => blockFreeNext,
+            _ => null,
+        };
     }
 
     public void Dispose()
