@@ -366,6 +366,7 @@ public sealed unsafe partial class Board
                         Next = slotState.Head,
                         Slot = slot,
                         Stat = shipped.Stat,
+                        Wheel = -1
                     };
                     slotState.Head = record;
                     if (shipped.Expiry != long.MaxValue)

@@ -176,6 +176,42 @@ public unsafe class WheelTests
     }
 
     [Fact]
+    public void KeyframeRefolds_RecycledRecordsStayOffTheWheel()
+    {
+        using var source = Board.Create(Schema(), 64);
+        var speed = source.Schema.Stat("speed");
+        var slot = source.Acquire();
+        source.Recalculate();
+        using var baseline = new SvState();
+        source.SaveState(baseline);
+        using var receiver = Board.Create(source.Schema, 64);
+        receiver.LoadState(baseline);
+        using var keyframe = new SvState();
+
+        source.AddModifier(slot, speed, new Modifier(ModifierKind.Added, 1f), 0, 9000);
+        source.Recalculate();
+        source.SaveKeyframe(keyframe);
+        receiver.LoadKeyframe(keyframe);
+        Assert.Equal(1, receiver.PendingExpiries);
+        Assert.Equal(source.Digest, receiver.Digest);
+
+        source.AddModifier(slot, speed, new Modifier(ModifierKind.Added, 4f));
+        source.Recalculate();
+        source.SaveKeyframe(keyframe);
+        receiver.LoadKeyframe(keyframe);
+        Assert.Equal(1, receiver.PendingExpiries);
+        Assert.Equal(source.Digest, receiver.Digest);
+
+        source.AddModifier(slot, speed, new Modifier(ModifierKind.Added, 8f));
+        source.Recalculate();
+        source.SaveKeyframe(keyframe);
+        receiver.LoadKeyframe(keyframe);
+        Assert.Equal(1, receiver.PendingExpiries);
+        Assert.Equal(source.Digest, receiver.Digest);
+        Assert.Equal(23f, receiver.Output(speed)[slot]);
+    }
+
+    [Fact]
     public void SameProgram_Twice_ProducesIdenticalSaves()
     {
         var first = RunChurn(1234);
