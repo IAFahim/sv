@@ -6,9 +6,57 @@ namespace Sv;
 /// The chunk verbs as static kernels: the caller supplies the capacity the guards validate
 /// against, so a context that holds only pointers, masks and an unmanaged <see cref="Clamp"/>
 /// runs the whole surface — no <see cref="Board"/> instance, nothing managed on the path.
+/// <see cref="Run(Column{int}, Window, Delta, Bounds, Column{int})"/> is the one verb over the
+/// vocabulary; the clause-5 <c>Run*</c> names survive as aliases.
 /// </summary>
 public static unsafe class Kernel
 {
+    /// <summary>
+    /// The one kernel verb: adds <paramref name="delta"/> to every row of <paramref name="window"/> inside
+    /// <paramref name="value"/>, clamps with <paramref name="bounds"/>, and writes the applied delta to
+    /// <paramref name="applied"/> (indexed by absolute slot — masked windows write their full span,
+    /// disabled rows get zero; an empty applied column skips the report).
+    /// </summary>
+    public static void Run(Column<int> value, Window window, Delta delta, Bounds bounds, Column<int> applied = default)
+    {
+        var clamp = bounds.Clamp;
+        var appliedPtr = applied.Pointer;
+        if (window.Words == null)
+        {
+            Guard.ChunkRange(window.Start, window.Count, value.Length);
+            if (appliedPtr != null && applied.Length < (long)window.Start + window.Count)
+            {
+                throw new ArgumentException($"sv: applied column of {applied.Length} rows does not cover the window's {(long)window.Start + window.Count}");
+            }
+
+            if (delta.PerRow == null)
+            {
+                IntrinsicsChunk(value.Pointer, delta.Uniform, clamp, window.Start, window.Count, value.Length, appliedPtr);
+            }
+            else
+            {
+                IntrinsicsChunk(value.Pointer, delta.PerRow, clamp, window.Start, window.Count, value.Length, appliedPtr);
+            }
+
+            return;
+        }
+
+        Guard.EnabledRange(window.Start, window.WordCount, value.Length);
+        if (appliedPtr != null && applied.Length < (long)window.Start + (long)window.WordCount * 64)
+        {
+            throw new ArgumentException($"sv: applied column of {applied.Length} rows does not cover the window's {(long)window.Start + (long)window.WordCount * 64}");
+        }
+
+        if (delta.PerRow == null)
+        {
+            EnabledChunk(value.Pointer, delta.Uniform, clamp, window.Words, window.WordCount, window.Start, value.Length, appliedPtr);
+        }
+        else
+        {
+            EnabledChunk(value.Pointer, delta.PerRow, clamp, window.Words, window.WordCount, window.Start, value.Length, appliedPtr);
+        }
+    }
+
     public static void IntrinsicsChunk(int* value, int delta, in Clamp clamp, int start, int count, int capacity, int* applied = null)
     {
         if (value == null)
