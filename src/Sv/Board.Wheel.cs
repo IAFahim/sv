@@ -618,6 +618,7 @@ public sealed unsafe partial class Board
 
             for (var at = Slot(slot).Head; at >= 0; at = records[at].Next)
             {
+                records[at].Wheel = -1;
                 if (records[at].Expiry != long.MaxValue)
                 {
                     count++;

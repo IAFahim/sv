@@ -696,7 +696,7 @@ public sealed unsafe partial class Board
         }
 
         var mirror = arena.AllocAlignedZeroed<int>(Capacity);
-        undo?.QuarantineFresh(mirror, Capacity * sizeof(int));
+        undo?.QuarantineFreshAligned(mirror, Capacity * sizeof(int));
         FillMirrorFromColumns(index, mirror);
         undo?.Note(mirrors + index, sizeof(int*));
         mirrors[index] = mirror;
@@ -728,7 +728,7 @@ public sealed unsafe partial class Board
         }
 
         column = arena.AllocAlignedZeroed<float>(Capacity);
-        undo?.QuarantineFresh(column, Capacity * sizeof(float));
+        undo?.QuarantineFreshAligned(column, Capacity * sizeof(float));
         if (outputColumn[stat] == null)
         {
             for (var word = 0; word < LiveWordCount; word++)

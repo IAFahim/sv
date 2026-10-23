@@ -98,4 +98,36 @@ public unsafe class BulkTests
 
         Assert.True(GC.GetAllocatedBytesForCurrentThread() - before == 0, "warm Bulk.Run allocated managed bytes");
     }
+
+    [Fact]
+    public void FaultInASlice_ThrowsOnTheCaller_AndLeavesThePoolUsable()
+    {
+        var schema = SchemaBuilder.Create().Stat("power", 10f).Build();
+        using var board = Board.Create(schema, 8192);
+        var power = schema.Stat("power");
+        var bound = stackalloc float[8192];
+        board.BindOutput(power, bound, 1, 8192);
+        var bounds = Bounds.Stats(board, null, power);
+        board.InvalidateBindings();
+        const int n = 8192;
+        var rows = stackalloc int[n];
+        var seq = stackalloc int[n];
+        for (var i = 0; i < n; i++)
+        {
+            rows[i] = i;
+            seq[i] = i;
+        }
+
+#if SV_CHECKED
+        Assert.Throws<InvalidOperationException>(() => Bulk.Run(new Column<int>(rows, n), Window.Range(0, n), default, bounds));
+#endif
+        board.BindOutput(power, bound, 1, 8192);
+        var fresh = Bounds.Stats(board, null, power);
+        Bulk.Run(new Column<int>(rows, n), Window.Range(0, n), default, fresh);
+        Kernel.Run(new Column<int>(seq, n), Window.Range(0, n), default, Bounds.Stats(board, null, power));
+        for (var i = 0; i < n; i++)
+        {
+            Assert.Equal(seq[i], rows[i]);
+        }
+    }
 }

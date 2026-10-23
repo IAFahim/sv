@@ -33,6 +33,8 @@ internal unsafe struct UndoQuarantine
 
     public bool Fresh;
 
+    public bool Aligned;
+
     public void* Pointer;
 
     public int Bytes;
@@ -179,6 +181,11 @@ internal sealed unsafe class UndoLog : IDisposable
         AppendQuarantine(new UndoQuarantine { Id = 0, Fresh = true, Pointer = pointer, Bytes = bytes, Frame = top });
     }
 
+    public void QuarantineFreshAligned(void* pointer, int bytes)
+    {
+        AppendQuarantine(new UndoQuarantine { Id = 0, Fresh = true, Aligned = true, Pointer = pointer, Bytes = bytes, Frame = top });
+    }
+
     void AppendQuarantine(UndoQuarantine entry)
     {
         if (quarantineCount == quarantine.Length)
@@ -210,7 +217,15 @@ internal sealed unsafe class UndoLog : IDisposable
                 continue;
             }
 
-            memory.FreeBytes(quarantine[i].Pointer, quarantine[i].Bytes);
+            if (quarantine[i].Aligned)
+            {
+                memory.FreeBytesAligned(quarantine[i].Pointer, quarantine[i].Bytes);
+            }
+            else
+            {
+                memory.FreeBytes(quarantine[i].Pointer, quarantine[i].Bytes);
+            }
+
             quarantine[i] = quarantine[--quarantineCount];
             i--;
         }

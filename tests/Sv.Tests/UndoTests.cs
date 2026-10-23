@@ -210,9 +210,33 @@ public unsafe class UndoTests
         Assert.Equal(1, board.UndoFrames);
         board.BindOutput(board.Schema.Stat("power"), column);
         Assert.Equal(0, board.UndoFrames);
-
         board.BeginUndoWindow(4);
         board.LoadState(saved);
         Assert.Equal(0, board.UndoFrames);
+    }
+
+    [Fact]
+    public void Rollback_DropsFreshlyMaterializedColumns()
+    {
+        using var board = Board.Create(Schema(), 64);
+        var power = board.Schema.Stat("power");
+        for (var i = 0; i < 5; i++)
+        {
+            board.Acquire();
+        }
+
+        board.AddModifier(2, power, new Modifier(ModifierKind.Added, 1f));
+        board.Recalculate();
+        var expected = board.Stat(2, power);
+        board.BeginUndoWindow(8);
+        board.BeginUndoFrame();
+        var before = board.MemoryBytes;
+        var column = board.OutputPtr(power);
+        Assert.Equal(before + 64 * sizeof(float), board.MemoryBytes);
+        Assert.Equal(expected, column[2]);
+        board.Rollback(1);
+        Assert.Equal(before, board.MemoryBytes);
+        Assert.Equal(expected, board.OutputPtr(power)[2]);
+        board.EndUndoWindow();
     }
 }

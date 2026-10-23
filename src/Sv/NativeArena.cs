@@ -96,6 +96,17 @@ internal sealed unsafe class NativeArena : IDisposable
         NativeMemory.Free(old);
     }
 
+    public void FreeBytesAligned(void* old, int bytes)
+    {
+        if (old == null)
+        {
+            return;
+        }
+
+        live -= bytes;
+        NativeMemory.AlignedFree(old);
+    }
+
     public void Dispose()
     {
         if (disposed)

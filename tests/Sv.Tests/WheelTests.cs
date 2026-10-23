@@ -176,6 +176,34 @@ public unsafe class WheelTests
     }
 
     [Fact]
+    public void SaveLoad_RoundTripsChainedAndUnchainedRecords()
+    {
+        using var board = Board.Create(Schema(), 64);
+        var speed = board.Schema.Stat("speed");
+        var a = board.Acquire();
+        var b = board.Acquire();
+        board.Recalculate();
+        board.AddModifier(a, speed, new Modifier(ModifierKind.Added, 1f), 0, 500);
+        var forever = board.AddModifier(b, speed, new Modifier(ModifierKind.Added, 2f));
+        board.Recalculate();
+        Assert.Equal(1, board.PendingExpiries);
+        using var state = new SvState();
+        board.SaveState(state);
+        using var loaded = Board.Create(board.Schema, 64);
+        loaded.LoadState(state);
+        Assert.Equal(1, loaded.PendingExpiries);
+        loaded.RemoveModifier(b, speed, forever);
+        Assert.Equal(1, loaded.PendingExpiries);
+        loaded.Recalculate();
+        Assert.Equal(10f, loaded.Output(speed)[b]);
+        Assert.Equal(11f, loaded.Output(speed)[a]);
+        Assert.Equal(1, loaded.ExpireModifiers(500));
+        Assert.Equal(0, loaded.PendingExpiries);
+        loaded.Recalculate();
+        Assert.Equal(10f, loaded.Output(speed)[a]);
+    }
+
+    [Fact]
     public void KeyframeRefolds_RecycledRecordsStayOffTheWheel()
     {
         using var source = Board.Create(Schema(), 64);

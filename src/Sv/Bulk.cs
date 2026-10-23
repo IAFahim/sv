@@ -8,7 +8,9 @@ namespace Sv;
 /// validated, partitioned into fixed contiguous slices, and executed by a persistent pool of
 /// ProcessorCount − 1 spin-parked workers plus the calling thread. Slices are disjoint and pure, so the
 /// result equals the sequential run regardless of scheduling (partition invariance). Reentrant calls
-/// throw; the pool is created once and stays for the process.
+/// throw; the pool is created once and stays for the process. A slice that throws (nothing on the
+/// validated path can, by construction) completes the round and the first failure is rethrown on the
+/// caller, so a fault surfaces deterministically instead of leaving a partially applied window.
 /// </summary>
 public static unsafe class Bulk
 {
@@ -49,9 +51,19 @@ public static unsafe class Bulk
             {
                 workers.Execute(0);
             }
+            catch (Exception ex)
+            {
+                Interlocked.CompareExchange(ref workers.failure, ex, null);
+            }
             finally
             {
                 workers.Arrive();
+            }
+
+            var fault = Interlocked.Exchange(ref workers.failure, null);
+            if (fault != null)
+            {
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(fault).Throw();
             }
         }
         finally
@@ -92,6 +104,8 @@ public static unsafe class Bulk
 
         long lastRound;
 
+        internal Exception? failure;
+
         Column<int> value;
 
         Window window;
@@ -128,8 +142,9 @@ public static unsafe class Bulk
                 {
                     Execute(index);
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
+                    Interlocked.CompareExchange(ref failure, ex, null);
                 }
 
                 Arrive();
