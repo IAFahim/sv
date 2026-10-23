@@ -63,6 +63,8 @@ public sealed unsafe class EventStreams : IDisposable
 
     internal UndoLog? Undo;
 
+    int[]? undoActiveHalves;
+
     readonly List<ArenaReplace> arenaReplaces = new();
 
     readonly struct ArenaReplace
@@ -298,14 +300,6 @@ public sealed unsafe class EventStreams : IDisposable
             {
                 ShrinkArena(w * 2 + active);
                 ShrinkArena(w * 2 + (1 - active));
-            }
-        }
-
-        if (undo != null)
-        {
-            fixed (int* activePtr = &active)
-            {
-                undo.Note(activePtr, sizeof(int));
             }
         }
 
@@ -610,7 +604,9 @@ public sealed unsafe class EventStreams : IDisposable
     {
         EndUndoWindow();
         Undo = new UndoLog(frames);
+        undoActiveHalves = new int[frames];
         Undo.OpenFrame();
+        CaptureUndoScalars();
     }
 
     internal void BeginUndoFrame()
@@ -623,6 +619,7 @@ public sealed unsafe class EventStreams : IDisposable
 
         var previousBottom = undo.Bottom;
         undo.OpenFrame();
+        CaptureUndoScalars();
         if (undo.Bottom > previousBottom)
         {
             for (var i = arenaReplaces.Count - 1; i >= 0; i--)
@@ -636,10 +633,16 @@ public sealed unsafe class EventStreams : IDisposable
         }
     }
 
+    void CaptureUndoScalars()
+    {
+        undoActiveHalves![Undo!.Top % Undo.Window] = active;
+    }
+
     internal void EndUndoWindow()
     {
         Undo?.Dispose();
         Undo = null;
+        undoActiveHalves = null;
         for (var i = arenaReplaces.Count - 1; i >= 0; i--)
         {
             NativeMemory.Free((void*)arenaReplaces[i].Old);
@@ -658,6 +661,7 @@ public sealed unsafe class EventStreams : IDisposable
 
         undo.UndoFrames(undo.Top, target);
         undo.TruncateTo(target);
+        active = undoActiveHalves![target % undo.Window];
         for (var i = arenaReplaces.Count - 1; i >= 0; i--)
         {
             var replace = arenaReplaces[i];

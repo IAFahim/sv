@@ -37,6 +37,12 @@ public sealed unsafe class InputState : IDisposable
 
     internal UndoLog? Undo;
 
+    int[]? undoRingHeads;
+
+    long[]? undoTickCounters;
+
+    int[]? undoReplayCursors;
+
     InputState(int axes, int buttonWords, int ringTicks)
     {
         Axes = axes;
@@ -114,12 +120,6 @@ public sealed unsafe class InputState : IDisposable
             undo.NoteRange(pressed, ButtonWords);
             undo.NoteRange(released, ButtonWords);
             undo.Note(ringTickIds + ringHead, sizeof(long));
-            fixed (int* ringHeadPtr = &ringHead)
-            fixed (long* tickCounterPtr = &tickCounter)
-            {
-                undo.Note(ringHeadPtr, sizeof(int));
-                undo.Note(tickCounterPtr, sizeof(long));
-            }
         }
 
         for (var i = 0; i < Axes; i++)
@@ -177,10 +177,6 @@ public sealed unsafe class InputState : IDisposable
         {
             undo.NoteRange(buttons, ButtonWords);
             undo.NoteRange(previous, ButtonWords);
-            fixed (int* replayCursorPtr = &replayCursor)
-            {
-                undo.Note(replayCursorPtr, sizeof(int));
-            }
         }
 
         if (prior >= 0 && ringTickIds[priorSlot] == prior)
@@ -211,15 +207,6 @@ public sealed unsafe class InputState : IDisposable
         var id = ringTickIds[replayCursor];
         if (id < 0)
         {
-            var undoCursor = Undo;
-            if (undoCursor != null)
-            {
-                fixed (int* replayCursorPtr = &replayCursor)
-                {
-                    undoCursor.Note(replayCursorPtr, sizeof(int));
-                }
-            }
-
             replayCursor = -1;
             return false;
         }
@@ -234,10 +221,6 @@ public sealed unsafe class InputState : IDisposable
             undo.NoteRange(previous, ButtonWords);
             undo.NoteRange(pressed, ButtonWords);
             undo.NoteRange(released, ButtonWords);
-            fixed (int* replayCursorPtr = &replayCursor)
-            {
-                undo.Note(replayCursorPtr, sizeof(int));
-            }
         }
 
         for (var i = 0; i < Axes; i++)
@@ -342,18 +325,40 @@ public sealed unsafe class InputState : IDisposable
     {
         EndUndoWindow();
         Undo = new UndoLog(frames);
+        undoRingHeads = new int[frames];
+        undoTickCounters = new long[frames];
+        undoReplayCursors = new int[frames];
         Undo.OpenFrame();
+        CaptureUndoScalars();
     }
 
     internal void BeginUndoFrame()
     {
-        Undo?.OpenFrame();
+        var undo = Undo;
+        if (undo == null)
+        {
+            return;
+        }
+
+        undo.OpenFrame();
+        CaptureUndoScalars();
+    }
+
+    void CaptureUndoScalars()
+    {
+        var undo = Undo!;
+        undoRingHeads![undo.Top % undo.Window] = ringHead;
+        undoTickCounters![undo.Top % undo.Window] = tickCounter;
+        undoReplayCursors![undo.Top % undo.Window] = replayCursor;
     }
 
     internal void EndUndoWindow()
     {
         Undo?.Dispose();
         Undo = null;
+        undoRingHeads = null;
+        undoTickCounters = null;
+        undoReplayCursors = null;
     }
 
     internal void RollbackTo(int target)
@@ -366,6 +371,9 @@ public sealed unsafe class InputState : IDisposable
 
         undo.UndoFrames(undo.Top, target);
         undo.TruncateTo(target);
+        ringHead = undoRingHeads![target % undo.Window];
+        tickCounter = undoTickCounters![target % undo.Window];
+        replayCursor = undoReplayCursors![target % undo.Window];
     }
 
     public void Dispose()
