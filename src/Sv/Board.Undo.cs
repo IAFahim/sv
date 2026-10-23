@@ -84,11 +84,19 @@ public sealed unsafe partial class Board
 
         public void* Records;
 
-        public int ExpiryCount;
+        public int WheelEntryCount;
 
-        public int ExpiryCap;
+        public int WheelEntryCap;
 
-        public void* Expiries;
+        public int WheelEntryFree;
+
+        public int WheelEntryLive;
+
+        public long WheelTick;
+
+        public int WheelOverdue;
+
+        public void* WheelEntries;
 
         public int DirtyTouchedCount;
 
@@ -267,9 +275,13 @@ public sealed unsafe partial class Board
         frame.RecordCap = recordCap;
         frame.RecordFree = recordFree;
         frame.Records = records;
-        frame.ExpiryCount = expiryCount;
-        frame.ExpiryCap = expiryCap;
-        frame.Expiries = expiries;
+        frame.WheelEntryCount = wheelEntryCount;
+        frame.WheelEntryCap = wheelEntryCap;
+        frame.WheelEntryFree = wheelEntryFree;
+        frame.WheelEntryLive = wheelEntryLive;
+        frame.WheelTick = wheelTick;
+        frame.WheelOverdue = wheelOverdue;
+        frame.WheelEntries = wheelEntries;
         frame.DirtyTouchedCount = dirtyTouchedCount;
         frame.DirtyTouchedCap = dirtyTouchedCap;
         frame.DirtyTouched = dirtyTouched;
@@ -290,9 +302,13 @@ public sealed unsafe partial class Board
         recordCap = frame.RecordCap;
         recordFree = frame.RecordFree;
         records = (ModRecord*)frame.Records;
-        expiryCount = frame.ExpiryCount;
-        expiryCap = frame.ExpiryCap;
-        expiries = (ExpiryEntry*)frame.Expiries;
+        wheelEntryCount = frame.WheelEntryCount;
+        wheelEntryCap = frame.WheelEntryCap;
+        wheelEntryFree = frame.WheelEntryFree;
+        wheelEntryLive = frame.WheelEntryLive;
+        wheelTick = frame.WheelTick;
+        wheelOverdue = frame.WheelOverdue;
+        wheelEntries = (WheelEntry*)frame.WheelEntries;
         dirtyTouchedCount = frame.DirtyTouchedCount;
         dirtyTouchedCap = frame.DirtyTouchedCap;
         dirtyTouched = (int*)frame.DirtyTouched;
@@ -341,9 +357,9 @@ public sealed unsafe partial class Board
             return records;
         }
 
-        if (id == UndoArrayId.Expiries)
+        if (id == UndoArrayId.WheelEntries)
         {
-            return expiries;
+            return wheelEntries;
         }
 
         if (id == UndoArrayId.DirtyTouched)
@@ -367,9 +383,9 @@ public sealed unsafe partial class Board
             return frame.Records;
         }
 
-        if (id == UndoArrayId.Expiries)
+        if (id == UndoArrayId.WheelEntries)
         {
-            return frame.Expiries;
+            return frame.WheelEntries;
         }
 
         if (id == UndoArrayId.DirtyTouched)

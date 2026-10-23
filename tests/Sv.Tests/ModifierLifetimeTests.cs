@@ -54,7 +54,7 @@ public unsafe class ModifierLifetimeTests
         board.AddModifier(b, speed, new Modifier(ModifierKind.Multi, 1f), 9, 5);
         board.AddModifier(b, speed, new Modifier(ModifierKind.Added, 4f), 0);
         board.RemoveModifier(a, speed, early);
-        Assert.Equal(3, board.PendingExpiries);
+        Assert.Equal(2, board.PendingExpiries);
         Assert.Equal(0, board.ExpireModifiers(4));
         Assert.Equal(2, board.PendingExpiries);
         board.Recalculate();

@@ -140,6 +140,17 @@ public sealed unsafe class Game : IDisposable
 
     public int* Applied { get; }
 
+    long tick;
+
+    long[]? tickRing;
+
+    /// <summary>
+    /// The one clock: the frame index, advanced at the input edge of every
+    /// <see cref="GameHost{TEvents,TTimelines,TKernels,THost}.Frame"/> run. Expiry, the input ring
+    /// and timeline clocks all derive from it; rollback restores it with the undo window.
+    /// </summary>
+    public long Tick => tick;
+
     readonly float[][] effects;
 
     readonly Dictionary<Type, object> channels;
@@ -196,6 +207,8 @@ public sealed unsafe class Game : IDisposable
         Board.BeginUndoWindow(frames + 1);
         Input.BeginUndoWindow(frames + 1);
         Streams.BeginUndoWindow(frames + 1);
+        tickRing = new long[frames + 1];
+        tickRing[0] = tick;
     }
 
     /// <summary>
@@ -206,6 +219,7 @@ public sealed unsafe class Game : IDisposable
         Board.EndUndoWindow();
         Input.EndUndoWindow();
         Streams.EndUndoWindow();
+        tickRing = null;
     }
 
     /// <summary>
@@ -236,9 +250,11 @@ public sealed unsafe class Game : IDisposable
         Board.RollbackTo(target);
         Input.RollbackTo(target);
         Streams.RollbackTo(target);
+        tick = tickRing![target % tickRing.Length];
         Board.BeginUndoFrame();
         Input.BeginUndoFrame();
         Streams.BeginUndoFrame();
+        tickRing[Board.UndoTop % tickRing.Length] = tick;
     }
 
     internal void MarkUndoFrame()
@@ -251,6 +267,12 @@ public sealed unsafe class Game : IDisposable
         Board.BeginUndoFrame();
         Input.BeginUndoFrame();
         Streams.BeginUndoFrame();
+        tickRing![Board.UndoTop % tickRing.Length] = tick;
+    }
+
+    internal void AdvanceTick()
+    {
+        tick++;
     }
 
     /// <summary>
@@ -605,6 +627,7 @@ public sealed class GameHost<TEvents, TTimelines, TKernels, THost> : IDisposable
         {
             var game = owner.Game;
             ref var world = ref owner.world;
+            game.AdvanceTick();
             while (game.Streams.TryReadNext(out var typeId, out var payload, out _))
             {
                 world.DispatchEvent(game, typeId, payload);
@@ -612,6 +635,7 @@ public sealed class GameHost<TEvents, TTimelines, TKernels, THost> : IDisposable
 
             world.Reconcile(game);
             world.RunIntrinsics(game);
+            game.Board.ExpireModifiers(game.Tick);
             game.Board.Recalculate();
             TTimelines.Run(game, 0);
             TKernels.Run(ref world, game, dt);

@@ -6,7 +6,7 @@ namespace Sv;
 internal enum UndoArrayId
 {
     Records,
-    Expiries,
+    WheelEntries,
     DirtyTouched,
     SetBuckets,
     SetStat,

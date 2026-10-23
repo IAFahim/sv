@@ -341,6 +341,7 @@ public sealed unsafe partial class Board
                 for (var at = slotState.Head; at >= 0;)
                 {
                     var next = records[at].Next;
+                    WheelUnlink(at);
                     FreeRecord(at);
                     at = next;
                 }
@@ -369,7 +370,7 @@ public sealed unsafe partial class Board
                     slotState.Head = record;
                     if (shipped.Expiry != long.MaxValue)
                     {
-                        PushExpiry(new ExpiryEntry { Tick = shipped.Expiry, Record = record, Id = shipped.Id });
+                        WheelInsert(record, shipped.Id, shipped.Expiry);
                     }
                 }
 

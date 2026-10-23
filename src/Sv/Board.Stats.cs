@@ -26,15 +26,8 @@ public sealed unsafe partial class Board
         public int Slot;
 
         public int Stat;
-    }
 
-    private struct ExpiryEntry
-    {
-        public long Tick;
-
-        public int Record;
-
-        public int Id;
+        public int Wheel;
     }
 
     private struct SlotState
@@ -43,12 +36,6 @@ public sealed unsafe partial class Board
 
         public int Head;
     }
-
-    private ExpiryEntry* expiries;
-
-    private int expiryCount;
-
-    private int expiryCap;
 
     private int statCount;
 
@@ -206,8 +193,7 @@ public sealed unsafe partial class Board
         scratchCap = 32;
         scratch = arena.Alloc<StatEntry>(scratchCap);
         scratchIds = arena.Alloc<int>(scratchCap);
-        expiryCap = 16;
-        expiries = arena.Alloc<ExpiryEntry>(expiryCap);
+        InitWheel();
     }
 
     void InitSources(Schema schema)
@@ -323,7 +309,7 @@ public sealed unsafe partial class Board
         arena.Free(scratchIds, scratchCap);
         arena.Free(statScratch, Math.Max(statScratchCap, 1));
         arena.Free(statScratchIds, Math.Max(statScratchCap, 1));
-        arena.Free(expiries, expiryCap);
+        FreeWheel();
     }
 
     void FreePages(SlotState** pages)
@@ -793,13 +779,13 @@ public sealed unsafe partial class Board
         var id = ++nextInsertionId;
         var record = AllocRecord();
         undo?.Note(records + record, sizeof(ModRecord));
-        records[record] = new ModRecord { Id = id, Kind = modifier.Kind, Value = modifier.Value, Source = source, Expiry = expiresAtTick, Next = state.Head, Slot = slot, Stat = index };
+        records[record] = new ModRecord { Id = id, Kind = modifier.Kind, Value = modifier.Value, Source = source, Expiry = expiresAtTick, Next = state.Head, Slot = slot, Stat = index, Wheel = -1 };
         undo?.Note(&SlotPtr(slot)->Head, sizeof(int));
         state.Head = record;
         MarkStatDirty(slot, index);
         if (expiresAtTick != long.MaxValue)
         {
-            PushExpiry(new ExpiryEntry { Tick = expiresAtTick, Record = record, Id = id });
+            WheelInsert(record, id, expiresAtTick);
         }
 
         return new ModifierHandle(id);
@@ -826,6 +812,7 @@ public sealed unsafe partial class Board
             {
                 var next = records[at].Next;
                 MarkStatDirty(slot, records[at].Stat);
+                WheelUnlink(at);
                 FreeRecord(at);
                 if (previous < 0)
                 {
@@ -850,137 +837,6 @@ public sealed unsafe partial class Board
         return removed;
     }
 
-    /// <summary>
-    /// Removes every modifier whose expiry tick is <= <paramref name="tick"/>, in (tick, insertion id)
-    /// order. Modifiers already removed (by handle, source or slot release) are skipped. Returns how
-    /// many were removed.
-    /// </summary>
-    public int ExpireModifiers(long tick)
-    {
-        var removed = 0;
-        while (expiryCount > 0 && expiries[0].Tick <= tick)
-        {
-            var top = expiries[0];
-            PopExpiry();
-            if (top.Record >= recordCount || records[top.Record].Id != top.Id)
-            {
-                continue;
-            }
-
-            var slot = records[top.Record].Slot;
-            if (slot < 0 || slot >= Capacity || (live[slot >> 6] & (1ul << (slot & 63))) == 0)
-            {
-                continue;
-            }
-
-            ref var state = ref Slot(slot);
-            var previous = -1;
-            for (var at = state.Head; at >= 0; at = records[at].Next)
-            {
-                if (records[at].Id == top.Id)
-                {
-                    var next = records[at].Next;
-                    MarkStatDirty(slot, records[at].Stat);
-                    FreeRecord(at);
-                    if (previous < 0)
-                    {
-                        undo?.Note(&SlotPtr(slot)->Head, sizeof(int));
-                        state.Head = next;
-                    }
-                    else
-                    {
-                        undo?.Note(&records[previous].Next, sizeof(int));
-                        records[previous].Next = next;
-                    }
-
-                    removed++;
-                    break;
-                }
-
-                previous = at;
-            }
-        }
-
-        ShrinkExpiries();
-        return removed;
-    }
-
-    public int PendingExpiries => expiryCount;
-
-    static bool Before(in ExpiryEntry a, in ExpiryEntry b) => a.Tick < b.Tick || (a.Tick == b.Tick && a.Id < b.Id);
-
-    void PushExpiry(ExpiryEntry entry)
-    {
-        if (expiryCount == expiryCap)
-        {
-            var previous = expiryCap;
-            expiryCap *= 2;
-            expiries = UndoGrow(UndoArrayId.Expiries, expiries, previous, expiryCap);
-        }
-
-        var at = expiryCount++;
-        while (at > 0)
-        {
-            var parent = (at - 1) >> 1;
-            if (!Before(entry, expiries[parent]))
-            {
-                break;
-            }
-
-            undo?.Note(expiries + at, sizeof(ExpiryEntry));
-            expiries[at] = expiries[parent];
-            at = parent;
-        }
-
-        undo?.Note(expiries + at, sizeof(ExpiryEntry));
-        expiries[at] = entry;
-    }
-
-    void PopExpiry()
-    {
-        var last = expiries[--expiryCount];
-        var at = 0;
-        while (true)
-        {
-            var child = at * 2 + 1;
-            if (child >= expiryCount)
-            {
-                break;
-            }
-
-            if (child + 1 < expiryCount && Before(expiries[child + 1], expiries[child]))
-            {
-                child++;
-            }
-
-            if (!Before(expiries[child], last))
-            {
-                break;
-            }
-
-            undo?.Note(expiries + at, sizeof(ExpiryEntry));
-            expiries[at] = expiries[child];
-            at = child;
-        }
-
-        if (expiryCount > 0)
-        {
-            undo?.Note(expiries + at, sizeof(ExpiryEntry));
-            expiries[at] = last;
-        }
-    }
-
-    void ShrinkExpiries()
-    {
-        if (expiryCap > 16 && (long)expiryCount * 4 <= (long)expiryCap * 3)
-        {
-            var previous = expiryCap;
-            var target = expiryCount + (expiryCount >> 3);
-            expiryCap = target < 16 ? 16 : target;
-            expiries = UndoGrow(UndoArrayId.Expiries, expiries, previous, expiryCap);
-        }
-    }
-
     public void RemoveModifier(int slot, StatId stat, ModifierHandle handle)
     {
         var index = StatIndex(stat);
@@ -997,6 +853,7 @@ public sealed unsafe partial class Board
                 }
 
                 var next = records[at].Next;
+                WheelUnlink(at);
                 FreeRecord(at);
                 if (previous < 0)
                 {
@@ -1298,6 +1155,7 @@ public sealed unsafe partial class Board
         for (var at = state.Head; at >= 0;)
         {
             var next = records[at].Next;
+            WheelUnlink(at);
             FreeRecord(at);
             at = next;
         }
@@ -1523,7 +1381,7 @@ public sealed unsafe partial class Board
             dirtyTouched = UndoGrow(UndoArrayId.DirtyTouched, dirtyTouched, previous, dirtyTouchedCap);
         }
 
-        ShrinkExpiries();
+        ShrinkWheel();
     }
 
     void RefillColumn(int stat)
@@ -1986,21 +1844,6 @@ public sealed unsafe partial class Board
             codec.Bytes(mirrors[stat], (long)Capacity * sizeof(int));
         }
 
-        var heap = expiryCount;
-        codec.Value(ref heap);
-        if (TCodec.Reading)
-        {
-            if (heap > expiryCap)
-            {
-                var previous = expiryCap;
-                expiryCap = heap;
-                expiries = arena.Realloc(expiries, previous, expiryCap);
-            }
-
-            expiryCount = heap;
-        }
-
-        codec.Bytes(expiries, (long)heap * sizeof(ExpiryEntry));
         var poolCount = recordCount;
         codec.Value(ref poolCount);
         if (TCodec.Reading)
@@ -2093,6 +1936,8 @@ public sealed unsafe partial class Board
             arena.Free(staleColumns!, statCount);
             arena.Free(staleMirrors!, statCount);
             RefillRestoredBindings();
+            wheelTick = 0;
+            RebuildWheel();
             RecomputeDigest();
         }
     }
