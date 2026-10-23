@@ -678,6 +678,8 @@ public sealed unsafe partial class Board
 
     internal int BoundGenerationAt(int statIndex) => boundGeneration[statIndex];
 
+    internal int* BoundGenerationPtrAt(int statIndex) => boundGeneration + statIndex;
+
     internal int OutputStrideAt(int statIndex) => outputStride[statIndex];
 
     /// <summary>

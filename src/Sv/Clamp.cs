@@ -26,17 +26,15 @@ public readonly unsafe struct Clamp
 
     public float* MaxStatColumn { get; }
 
-    readonly Board? board;
+    readonly int* minGenerationSlot;
 
-    readonly int minStatIndex;
-
-    readonly int maxStatIndex;
+    readonly int* maxGenerationSlot;
 
     readonly int minGeneration;
 
     readonly int maxGeneration;
 
-    Clamp(ClampKind kind, int min, int max, int* minColumn, int* maxColumn, float* minStat = null, float* maxStat = null, Board? board = null, int minStatIndex = -1, int maxStatIndex = -1, int minGeneration = -1, int maxGeneration = -1)
+    Clamp(ClampKind kind, int min, int max, int* minColumn, int* maxColumn, float* minStat = null, float* maxStat = null, int* minGenerationSlot = null, int* maxGenerationSlot = null, int minGeneration = -1, int maxGeneration = -1)
     {
         Kind = kind;
         Min = min;
@@ -45,9 +43,8 @@ public readonly unsafe struct Clamp
         MaxColumn = maxColumn;
         MinStatColumn = minStat;
         MaxStatColumn = maxStat;
-        this.board = board;
-        this.minStatIndex = minStatIndex;
-        this.maxStatIndex = maxStatIndex;
+        this.minGenerationSlot = minGenerationSlot;
+        this.maxGenerationSlot = maxGenerationSlot;
         this.minGeneration = minGeneration;
         this.maxGeneration = maxGeneration;
     }
@@ -74,21 +71,21 @@ public readonly unsafe struct Clamp
 
     public static Clamp Stat(Board board, StatId minStat, StatId maxStat)
     {
-        var min = ResolveColumn(board, minStat, out var minGeneration);
-        var max = ResolveColumn(board, maxStat, out var maxGeneration);
-        return new Clamp(ClampKind.StatBounds, 0, 0, null, null, min, max, board, minStat.Index, maxStat.Index, minGeneration, maxGeneration);
+        var min = ResolveColumn(board, minStat, out var minSlot, out var minGeneration);
+        var max = ResolveColumn(board, maxStat, out var maxSlot, out var maxGeneration);
+        return new Clamp(ClampKind.StatBounds, 0, 0, null, null, min, max, minSlot, maxSlot, minGeneration, maxGeneration);
     }
 
     public static Clamp StatMax(Board board, StatId maxStat)
     {
-        var max = ResolveColumn(board, maxStat, out var maxGeneration);
-        return new Clamp(ClampKind.StatBounds, 0, 0, null, null, null, max, board, -1, maxStat.Index, -1, maxGeneration);
+        var max = ResolveColumn(board, maxStat, out var maxSlot, out var maxGeneration);
+        return new Clamp(ClampKind.StatBounds, 0, 0, null, null, null, max, null, maxSlot, -1, maxGeneration);
     }
 
     public static Clamp StatMin(Board board, StatId minStat)
     {
-        var min = ResolveColumn(board, minStat, out var minGeneration);
-        return new Clamp(ClampKind.StatBounds, 0, 0, null, null, min, null, board, minStat.Index, -1, minGeneration, -1);
+        var min = ResolveColumn(board, minStat, out var minSlot, out var minGeneration);
+        return new Clamp(ClampKind.StatBounds, 0, 0, null, null, min, null, minSlot, null, minGeneration, -1);
     }
 
     /// <summary>
@@ -111,7 +108,7 @@ public readonly unsafe struct Clamp
         return Columns(board.MirrorBounds(minStat), null);
     }
 
-    static float* ResolveColumn(Board board, StatId stat, out int generation)
+    static float* ResolveColumn(Board board, StatId stat, out int* generationSlot, out int generation)
     {
         var external = board.OutputColumn(stat);
         if (external != null)
@@ -121,11 +118,13 @@ public readonly unsafe struct Clamp
                 throw new ArgumentException($"sv: Clamp.Stat reads its bound column contiguously; stat {stat.Index} is bound with stride {board.OutputStrideAt(stat.Index)}");
             }
 
-            generation = board.BoundGenerationAt(stat.Index);
+            generationSlot = board.BoundGenerationPtrAt(stat.Index);
+            generation = *generationSlot;
             Guard.BindingFresh(generation);
             return external;
         }
 
+        generationSlot = null;
         generation = -1;
         return board.OutputPtr(stat);
     }
@@ -133,17 +132,17 @@ public readonly unsafe struct Clamp
     [System.Diagnostics.Conditional("SV_CHECKED")]
     internal void CheckStatBounds()
     {
-        if (Kind != ClampKind.StatBounds || board == null)
+        if (Kind != ClampKind.StatBounds)
         {
             return;
         }
 
-        if (minGeneration >= 0 && board.BoundGenerationAt(minStatIndex) != minGeneration)
+        if (minGeneration >= 0 && *minGenerationSlot != minGeneration)
         {
             throw new InvalidOperationException("sv: stale binding — storage moved; rebind");
         }
 
-        if (maxGeneration >= 0 && board.BoundGenerationAt(maxStatIndex) != maxGeneration)
+        if (maxGeneration >= 0 && *maxGenerationSlot != maxGeneration)
         {
             throw new InvalidOperationException("sv: stale binding — storage moved; rebind");
         }
