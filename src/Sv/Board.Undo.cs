@@ -119,6 +119,8 @@ public sealed unsafe partial class Board
     /// </summary>
     public int UndoFrames => undo?.Frames ?? 0;
 
+    internal int UndoTop => undo?.Top ?? -1;
+
     /// <summary>
     /// Opens an undo window retaining the last <paramref name="frames"/> frame marks and returns
     /// the board to O(Δ) rollback: every mutation after the window opens logs its prior bytes, set
@@ -216,7 +218,17 @@ public sealed unsafe partial class Board
             throw new ArgumentOutOfRangeException(nameof(frames), $"sv: rollback depth must be in [1, {log.Frames}]");
         }
 
-        var target = log.Top - frames + 1;
+        RollbackTo(log.Top - frames + 1);
+    }
+
+    internal void RollbackTo(int target)
+    {
+        var log = undo!;
+        if (target < log.Bottom || target > log.Top)
+        {
+            throw new ArgumentOutOfRangeException(nameof(target), $"sv: rollback target must be in [{log.Bottom}, {log.Top}]");
+        }
+
         var suspectPages = false;
         for (var ordinal = log.Top; ordinal >= target && !suspectPages; ordinal--)
         {

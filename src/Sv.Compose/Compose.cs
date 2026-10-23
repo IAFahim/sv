@@ -185,6 +185,75 @@ public sealed unsafe class Game : IDisposable
     }
 
     /// <summary>
+    /// Opens an undo window of <paramref name="frames"/> completed frames across the whole
+    /// composed state — board, input ring and event streams. Each <see cref="Compose.GameHost{TEvents,TTimelines,TKernels,THost}.Frame"/>
+    /// run marks one frame boundary; <see cref="Rollback"/> restores any boundary still inside
+    /// the window bit-exactly. Timeline columns and host columns are not covered — they are the
+    /// host's to snapshot, exactly as with <see cref="SaveState(SvState)"/>.
+    /// </summary>
+    public void BeginUndoWindow(int frames)
+    {
+        Board.BeginUndoWindow(frames + 1);
+        Input.BeginUndoWindow(frames + 1);
+        Streams.BeginUndoWindow(frames + 1);
+    }
+
+    /// <summary>
+    /// Closes the undo window; the current composed state becomes permanent.
+    /// </summary>
+    public void EndUndoWindow()
+    {
+        Board.EndUndoWindow();
+        Input.EndUndoWindow();
+        Streams.EndUndoWindow();
+    }
+
+    /// <summary>
+    /// Completed frames currently retained by the open undo window (0 when no window is open).
+    /// </summary>
+    public int UndoFrames => Math.Max(0, Board.UndoFrames - 1);
+
+    /// <summary>
+    /// Rolls the composed state back <paramref name="frames"/> completed frames, bit-exactly:
+    /// board writes replay backwards, the input ring and edges restore, and event stream
+    /// cursors, halves and arena bytes return to their mark state, so re-driving the same
+    /// inputs reproduces the same frames. Equivalent to loading a snapshot saved at that
+    /// boundary, without the copy.
+    /// </summary>
+    public void Rollback(int frames)
+    {
+        if (Board.UndoFrames == 0)
+        {
+            throw new InvalidOperationException("sv.compose: no undo window is open");
+        }
+
+        if (frames < 1 || frames > UndoFrames)
+        {
+            throw new ArgumentOutOfRangeException(nameof(frames), $"sv.compose: rollback depth must be in [1, {UndoFrames}]");
+        }
+
+        var target = Board.UndoTop - frames;
+        Board.RollbackTo(target);
+        Input.RollbackTo(target);
+        Streams.RollbackTo(target);
+        Board.BeginUndoFrame();
+        Input.BeginUndoFrame();
+        Streams.BeginUndoFrame();
+    }
+
+    internal void MarkUndoFrame()
+    {
+        if (Board.UndoFrames == 0)
+        {
+            return;
+        }
+
+        Board.BeginUndoFrame();
+        Input.BeginUndoFrame();
+        Streams.BeginUndoFrame();
+    }
+
+    /// <summary>
     /// Applies a reconcile permutation to every slot-indexed column the game owns: timeline ids,
     /// clocks, the applied column and every timeline effect column. Dead slots read zero
     /// afterwards. Pass the permutation returned by <c>Population.Reconcile</c> alongside
@@ -193,6 +262,7 @@ public sealed unsafe class Game : IDisposable
     /// </summary>
     public unsafe void Renumber(ReadOnlySpan<int> oldToNew)
     {
+        EndUndoWindow();
         if (oldToNew.Length != Capacity)
         {
             throw new ArgumentException($"sv.compose: renumber map must cover capacity ({Capacity} entries)");
@@ -276,6 +346,7 @@ public sealed unsafe class Game : IDisposable
             return;
         }
 
+        EndUndoWindow();
         Board.Dispose();
         Streams.Dispose();
         NativeMemory.Free(Applied);
@@ -336,6 +407,11 @@ public sealed class GameHost<TEvents, TTimelines, TKernels, THost> : IDisposable
 
     public FrameRunner Frame { get; }
 
+    /// <summary>
+    /// Completed frames retained by the game's open undo window (0 when no window is open).
+    /// </summary>
+    public int UndoFrames => Game.UndoFrames;
+
     TapeWriter? tape;
 
     internal GameHost(Game game, THost world)
@@ -350,6 +426,36 @@ public sealed class GameHost<TEvents, TTimelines, TKernels, THost> : IDisposable
         tape?.Dispose();
         tape = null;
         Game.Dispose();
+    }
+
+    /// <summary>
+    /// Opens an undo window of <paramref name="frames"/> completed frames over the whole
+    /// composed state — board, input ring and event streams. Each subsequent frame run marks
+    /// one boundary; <see cref="Rollback"/> restores any boundary still inside the window.
+    /// </summary>
+    public void BeginUndoWindow(int frames)
+    {
+        Game.BeginUndoWindow(frames);
+    }
+
+    /// <summary>
+    /// Closes the undo window; the current composed state becomes permanent.
+    /// </summary>
+    public void EndUndoWindow()
+    {
+        Game.EndUndoWindow();
+    }
+
+    /// <summary>
+    /// Rolls the composed game back <paramref name="frames"/> completed frames, bit-exactly:
+    /// board writes replay backwards, the input ring and edges restore, and event stream
+    /// cursors, halves and arena bytes return to their mark state. Re-driving the same inputs
+    /// (for example with <see cref="InputState.BeginReplay"/> or the captured axes and buttons)
+    /// reproduces the same frames. Timeline columns and host columns are the host's to save.
+    /// </summary>
+    public void Rollback(int frames)
+    {
+        Game.Rollback(frames);
     }
 
     /// <summary>
@@ -511,6 +617,7 @@ public sealed class GameHost<TEvents, TTimelines, TKernels, THost> : IDisposable
             TKernels.Run(ref world, game, dt);
             world.RunConditions(game);
             game.Streams.Swap();
+            game.MarkUndoFrame();
             owner.CaptureFrame(dt);
         }
 

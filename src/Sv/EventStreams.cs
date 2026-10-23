@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading;
 
@@ -59,6 +60,32 @@ public sealed unsafe class EventStreams : IDisposable
     private int nextTypeId;
 
     private bool disposed;
+
+    internal UndoLog? Undo;
+
+    readonly List<ArenaReplace> arenaReplaces = new();
+
+    readonly struct ArenaReplace
+    {
+        public readonly int Index;
+
+        public readonly IntPtr Old;
+
+        public readonly int OldCapacity;
+
+        public readonly IntPtr New;
+
+        public readonly int Frame;
+
+        public ArenaReplace(int index, IntPtr old, int oldCapacity, IntPtr @new, int frame)
+        {
+            Index = index;
+            Old = old;
+            OldCapacity = oldCapacity;
+            New = @new;
+            Frame = frame;
+        }
+    }
 
     EventStreams(int writerCount, int bytesPerWriter)
     {
@@ -149,11 +176,24 @@ public sealed unsafe class EventStreams : IDisposable
                     capacity *= 2;
                 }
 
-                arenas[index] = (byte*)NativeMemory.Realloc(arenas[index], (nuint)capacity);
+                if (Undo != null)
+                {
+                    var previous = arenas[index];
+                    var fresh = (byte*)NativeMemory.Alloc((nuint)capacity);
+                    Buffer.MemoryCopy(previous, fresh, capacity, arenaCapacity[index]);
+                    arenaReplaces.Add(new ArenaReplace(index, (IntPtr)previous, arenaCapacity[index], (IntPtr)fresh, Undo.Top));
+                    arenas[index] = fresh;
+                }
+                else
+                {
+                    arenas[index] = (byte*)NativeMemory.Realloc(arenas[index], (nuint)capacity);
+                }
+
                 arenaCapacity[index] = capacity;
             }
 
             var dst = arenas[index] + at;
+            Undo?.Note(dst, need);
             for (var i = 0; i < count; i++)
             {
                 *(ushort*)dst = id;
@@ -163,6 +203,7 @@ public sealed unsafe class EventStreams : IDisposable
                 dst += stride;
             }
 
+            Undo?.Note(writeOffset + writer * OffsetStride, sizeof(int));
             writeOffset[writer * OffsetStride] = at + need;
         }
         finally
@@ -233,18 +274,39 @@ public sealed unsafe class EventStreams : IDisposable
         }
     }
 
-    public void Swap()
+    public unsafe void Swap()
     {
+        var undo = Undo;
         for (var w = 0; w < writerCount; w++)
         {
             var used = writeOffset[w * OffsetStride];
+            if (undo != null)
+            {
+                undo.Note(readOffset + w, sizeof(int));
+                undo.Note(writeOffset + w * OffsetStride, sizeof(int));
+                undo.Note(readCursorOffset + w, sizeof(int));
+                undo.Note(arenaPeak + (w * 2 + active), sizeof(int));
+                undo.Note(arenaPeak + (w * 2 + (1 - active)), sizeof(int));
+            }
+
             readOffset[w] = used;
             writeOffset[w * OffsetStride] = 0;
             readCursorOffset[w] = 0;
             DecayPeak(w * 2 + active, used);
             DecayPeak(w * 2 + (1 - active), used);
-            ShrinkArena(w * 2 + active);
-            ShrinkArena(w * 2 + (1 - active));
+            if (undo == null)
+            {
+                ShrinkArena(w * 2 + active);
+                ShrinkArena(w * 2 + (1 - active));
+            }
+        }
+
+        if (undo != null)
+        {
+            fixed (int* activePtr = &active)
+            {
+                undo.Note(activePtr, sizeof(int));
+            }
         }
 
         active ^= 1;
@@ -283,6 +345,7 @@ public sealed unsafe class EventStreams : IDisposable
                 typeId = *(ushort*)src;
                 size = *(int*)(src + 4);
                 payload = src + HeaderBytes;
+                Undo?.Note(readCursorOffset + writer, sizeof(int));
                 readCursorOffset[writer] = offset + HeaderBytes + Round(size);
                 return true;
             }
@@ -486,6 +549,11 @@ public sealed unsafe class EventStreams : IDisposable
 
     internal void VisitState<TCodec>(ref TCodec codec) where TCodec : struct, IStateCodec
     {
+        if (TCodec.Reading)
+        {
+            EndUndoWindow();
+        }
+
         codec.Header(StateMagic, ((long)writerCount << 32) | (uint)nextTypeId, "event streams");
         codec.Value(ref active);
         for (var w = 0; w < writerCount; w++)
@@ -538,6 +606,73 @@ public sealed unsafe class EventStreams : IDisposable
         arenaPeak[index] = capacity;
     }
 
+    internal void BeginUndoWindow(int frames)
+    {
+        EndUndoWindow();
+        Undo = new UndoLog(frames);
+        Undo.OpenFrame();
+    }
+
+    internal void BeginUndoFrame()
+    {
+        var undo = Undo;
+        if (undo == null)
+        {
+            return;
+        }
+
+        var previousBottom = undo.Bottom;
+        undo.OpenFrame();
+        if (undo.Bottom > previousBottom)
+        {
+            for (var i = arenaReplaces.Count - 1; i >= 0; i--)
+            {
+                if (arenaReplaces[i].Frame < undo.Bottom)
+                {
+                    NativeMemory.Free((void*)arenaReplaces[i].Old);
+                    arenaReplaces.RemoveAt(i);
+                }
+            }
+        }
+    }
+
+    internal void EndUndoWindow()
+    {
+        Undo?.Dispose();
+        Undo = null;
+        for (var i = arenaReplaces.Count - 1; i >= 0; i--)
+        {
+            NativeMemory.Free((void*)arenaReplaces[i].Old);
+        }
+
+        arenaReplaces.Clear();
+    }
+
+    internal void RollbackTo(int target)
+    {
+        var undo = Undo;
+        if (undo == null)
+        {
+            throw new InvalidOperationException("sv: no undo window is open");
+        }
+
+        undo.UndoFrames(undo.Top, target);
+        undo.TruncateTo(target);
+        for (var i = arenaReplaces.Count - 1; i >= 0; i--)
+        {
+            var replace = arenaReplaces[i];
+            if (replace.Frame < target)
+            {
+                continue;
+            }
+
+            NativeMemory.Free((void*)replace.New);
+            arenas[replace.Index] = (byte*)replace.Old;
+            arenaCapacity[replace.Index] = replace.OldCapacity;
+            arenaReplaces.RemoveAt(i);
+        }
+    }
+
     public void Dispose()
     {
         if (disposed)
@@ -545,6 +680,7 @@ public sealed unsafe class EventStreams : IDisposable
             return;
         }
 
+        EndUndoWindow();
         for (var w = 0; w < writerCount; w++)
         {
             NativeMemory.Free(arenas[w * 2]);

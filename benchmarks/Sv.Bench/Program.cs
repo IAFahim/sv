@@ -80,6 +80,7 @@ internal static class Program
         failures += Run("tape-record", scenario, ms, () => TapeRecordBench.New(sink));
         failures += Ff1m.Run(scenario, ms);
         failures += Spawn1m.Run(scenario, ms);
+        failures += Run("rollback-resim", scenario, ms, RollbackBench.New);
         if (!Markdown)
         {
             Console.WriteLine(failures == 0 ? "all scenarios ok" : $"{failures} scenario(s) failed");

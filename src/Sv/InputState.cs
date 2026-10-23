@@ -35,6 +35,8 @@ public sealed unsafe class InputState : IDisposable
 
     private bool disposed;
 
+    internal UndoLog? Undo;
+
     InputState(int axes, int buttonWords, int ringTicks)
     {
         Axes = axes;
@@ -87,7 +89,7 @@ public sealed unsafe class InputState : IDisposable
         }
     }
 
-    public void Capture(uint* axesBits, ulong* buttonWords)
+    public unsafe void Capture(uint* axesBits, ulong* buttonWords)
     {
         if (axesBits == null)
         {
@@ -101,6 +103,25 @@ public sealed unsafe class InputState : IDisposable
 
         var ax = (uint*)RingToAxes(ringHead);
         var bt = RingToButtons(ringHead);
+        var undo = Undo;
+        if (undo != null)
+        {
+            undo.NoteRange(axisBits, Axes);
+            undo.Note(ax, ringStride);
+            undo.Note(bt, ButtonWords * sizeof(ulong));
+            undo.NoteRange(buttons, ButtonWords);
+            undo.NoteRange(previous, ButtonWords);
+            undo.NoteRange(pressed, ButtonWords);
+            undo.NoteRange(released, ButtonWords);
+            undo.Note(ringTickIds + ringHead, sizeof(long));
+            fixed (int* ringHeadPtr = &ringHead)
+            fixed (long* tickCounterPtr = &tickCounter)
+            {
+                undo.Note(ringHeadPtr, sizeof(int));
+                undo.Note(tickCounterPtr, sizeof(long));
+            }
+        }
+
         for (var i = 0; i < Axes; i++)
         {
             var bits = axesBits[i];
@@ -136,7 +157,7 @@ public sealed unsafe class InputState : IDisposable
     /// freshly pressed; when no prior tick exists or it was evicted, both button words are zeroed
     /// and every held button reports as pressed on the first replayed tick.
     /// </summary>
-    public void BeginReplay(long fromTick)
+    public unsafe void BeginReplay(long fromTick)
     {
         if (fromTick < 0 || fromTick >= tickCounter)
         {
@@ -151,6 +172,17 @@ public sealed unsafe class InputState : IDisposable
         var slot = (int)(fromTick % RingTicks);
         var prior = fromTick - 1;
         var priorSlot = (int)(prior % RingTicks);
+        var undo = Undo;
+        if (undo != null)
+        {
+            undo.NoteRange(buttons, ButtonWords);
+            undo.NoteRange(previous, ButtonWords);
+            fixed (int* replayCursorPtr = &replayCursor)
+            {
+                undo.Note(replayCursorPtr, sizeof(int));
+            }
+        }
+
         if (prior >= 0 && ringTickIds[priorSlot] == prior)
         {
             var priorButtons = RingToButtons(priorSlot);
@@ -169,7 +201,7 @@ public sealed unsafe class InputState : IDisposable
         replayCursor = slot;
     }
 
-    public bool ReplayStep()
+    public unsafe bool ReplayStep()
     {
         if (replayCursor < 0)
         {
@@ -179,12 +211,35 @@ public sealed unsafe class InputState : IDisposable
         var id = ringTickIds[replayCursor];
         if (id < 0)
         {
+            var undoCursor = Undo;
+            if (undoCursor != null)
+            {
+                fixed (int* replayCursorPtr = &replayCursor)
+                {
+                    undoCursor.Note(replayCursorPtr, sizeof(int));
+                }
+            }
+
             replayCursor = -1;
             return false;
         }
 
         var ax = RingToAxes(replayCursor);
         var bt = RingToButtons(replayCursor);
+        var undo = Undo;
+        if (undo != null)
+        {
+            undo.NoteRange(axisBits, Axes);
+            undo.NoteRange(buttons, ButtonWords);
+            undo.NoteRange(previous, ButtonWords);
+            undo.NoteRange(pressed, ButtonWords);
+            undo.NoteRange(released, ButtonWords);
+            fixed (int* replayCursorPtr = &replayCursor)
+            {
+                undo.Note(replayCursorPtr, sizeof(int));
+            }
+        }
+
         for (var i = 0; i < Axes; i++)
         {
             axisBits[i] = ax[i];
@@ -265,6 +320,11 @@ public sealed unsafe class InputState : IDisposable
 
     internal void VisitState<TCodec>(ref TCodec codec) where TCodec : struct, IStateCodec
     {
+        if (TCodec.Reading)
+        {
+            EndUndoWindow();
+        }
+
         codec.Header(StateMagic, StateShape, "input state");
         codec.Bytes(axisBits, (long)Axes * sizeof(uint));
         codec.Bytes(buttons, (long)ButtonWords * sizeof(ulong));
@@ -278,6 +338,36 @@ public sealed unsafe class InputState : IDisposable
         codec.Value(ref replayCursor);
     }
 
+    internal void BeginUndoWindow(int frames)
+    {
+        EndUndoWindow();
+        Undo = new UndoLog(frames);
+        Undo.OpenFrame();
+    }
+
+    internal void BeginUndoFrame()
+    {
+        Undo?.OpenFrame();
+    }
+
+    internal void EndUndoWindow()
+    {
+        Undo?.Dispose();
+        Undo = null;
+    }
+
+    internal void RollbackTo(int target)
+    {
+        var undo = Undo;
+        if (undo == null)
+        {
+            throw new InvalidOperationException("sv: no undo window is open");
+        }
+
+        undo.UndoFrames(undo.Top, target);
+        undo.TruncateTo(target);
+    }
+
     public void Dispose()
     {
         if (disposed)
@@ -285,6 +375,7 @@ public sealed unsafe class InputState : IDisposable
             return;
         }
 
+        EndUndoWindow();
         NativeMemory.Free(axisBits);
         NativeMemory.Free(buttons);
         NativeMemory.Free(previous);
