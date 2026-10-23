@@ -219,56 +219,22 @@ public sealed unsafe partial class Board : IDisposable
 
     public void RunIntrinsicsChunk(int* value, int delta, in Clamp clamp, int start, int count, int* applied = null)
     {
-        if (value == null)
-        {
-            throw new ArgumentNullException(nameof(value));
-        }
-
-        Guard.ChunkRange(start, count, Capacity);
-        Simd.Chunk(value, null, delta, clamp, start, count, applied);
+        Kernel.IntrinsicsChunk(value, delta, clamp, start, count, Capacity, applied);
     }
 
     public void RunIntrinsicsChunk(int* value, int* delta, in Clamp clamp, int start, int count, int* applied = null)
     {
-        if (value == null)
-        {
-            throw new ArgumentNullException(nameof(value));
-        }
-
-        if (delta == null)
-        {
-            throw new ArgumentNullException(nameof(delta));
-        }
-
-        Guard.ChunkRange(start, count, Capacity);
-        Simd.Chunk(value, delta, 0, clamp, start, count, applied);
+        Kernel.IntrinsicsChunk(value, delta, clamp, start, count, Capacity, applied);
     }
 
     public void RunEnabledChunk(int* value, int delta, in Clamp clamp, ulong enabled, int offset, int* applied = null)
     {
-        if (value == null)
-        {
-            throw new ArgumentNullException(nameof(value));
-        }
-
-        Guard.EnabledRange(offset, Capacity);
-        Simd.EnabledWord(value, null, delta, clamp, enabled, offset, applied);
+        Kernel.EnabledChunk(value, delta, clamp, enabled, offset, Capacity, applied);
     }
 
     public void RunEnabledChunk(int* value, int* delta, in Clamp clamp, ulong enabled, int offset, int* applied = null)
     {
-        if (value == null)
-        {
-            throw new ArgumentNullException(nameof(value));
-        }
-
-        if (delta == null)
-        {
-            throw new ArgumentNullException(nameof(delta));
-        }
-
-        Guard.EnabledRange(offset, Capacity);
-        Simd.EnabledWord(value, delta, 0, clamp, enabled, offset, applied);
+        Kernel.EnabledChunk(value, delta, clamp, enabled, offset, Capacity, applied);
     }
 
     /// <param name="value">Stat column indexed by absolute slot; written for every enabled row in the window.</param>
@@ -280,21 +246,7 @@ public sealed unsafe partial class Board : IDisposable
     /// <param name="applied">Delta column indexed by absolute slot; must be sized for the full window from <paramref name="offset"/> — the entire window is written, disabled rows get zero.</param>
     public void RunEnabledChunk(int* value, int delta, in Clamp clamp, ulong* words, int wordCount, int offset, int* applied = null)
     {
-        if (value == null)
-        {
-            throw new ArgumentNullException(nameof(value));
-        }
-
-        if (words == null)
-        {
-            throw new ArgumentNullException(nameof(words));
-        }
-
-        Guard.EnabledRange(offset, wordCount, Capacity);
-        for (var w = 0; w < wordCount; w++)
-        {
-            Simd.EnabledWord(value, null, delta, clamp, words[w], offset + w * 64, applied);
-        }
+        Kernel.EnabledChunk(value, delta, clamp, words, wordCount, offset, Capacity, applied);
     }
 
     /// <param name="value">Stat column indexed by absolute slot; written for every enabled row in the window.</param>
@@ -306,26 +258,7 @@ public sealed unsafe partial class Board : IDisposable
     /// <param name="applied">Delta column indexed by absolute slot; must be sized for the full window from <paramref name="offset"/> — the entire window is written, disabled rows get zero.</param>
     public void RunEnabledChunk(int* value, int* delta, in Clamp clamp, ulong* words, int wordCount, int offset, int* applied = null)
     {
-        if (value == null)
-        {
-            throw new ArgumentNullException(nameof(value));
-        }
-
-        if (delta == null)
-        {
-            throw new ArgumentNullException(nameof(delta));
-        }
-
-        if (words == null)
-        {
-            throw new ArgumentNullException(nameof(words));
-        }
-
-        Guard.EnabledRange(offset, wordCount, Capacity);
-        for (var w = 0; w < wordCount; w++)
-        {
-            Simd.EnabledWord(value, delta, 0, clamp, words[w], offset + w * 64, applied);
-        }
+        Kernel.EnabledChunk(value, delta, clamp, words, wordCount, offset, Capacity, applied);
     }
 
     /// <param name="value">Stat column indexed by absolute slot; written for every enabled row in the window.</param>
