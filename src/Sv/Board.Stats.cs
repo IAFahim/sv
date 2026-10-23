@@ -201,6 +201,8 @@ public sealed unsafe partial class Board
         dirty = arena.AllocZeroed<uint>(capacity * statMaskWords);
         dirtyTouchedCap = 64;
         dirtyTouched = arena.Alloc<int>(dirtyTouchedCap);
+        keyframeScratchCap = 32;
+        keyframeScratch = arena.Alloc<KeyframeRecord>(keyframeScratchCap);
         scratchCap = 32;
         scratch = arena.Alloc<StatEntry>(scratchCap);
         scratchIds = arena.Alloc<int>(scratchCap);
@@ -314,6 +316,7 @@ public sealed unsafe partial class Board
         arena.Free(records, recordCap);
         arena.Free(dirty, Capacity * statMaskWords);
         arena.Free(dirtyTouched, dirtyTouchedCap);
+        arena.Free(keyframeScratch, keyframeScratchCap);
         arena.Free(dependentsMask, statCount * statMaskWords);
         arena.Free(allStatsMask, statMaskWords);
         arena.Free(scratch, scratchCap);
@@ -1016,6 +1019,7 @@ public sealed unsafe partial class Board
 
     internal void MarkSlotStatsDirty(int slot)
     {
+        MarkKeyframeDirty(slot);
         var mask = dirty + (nint)slot * statMaskWords;
         var empty = true;
         for (var w = 0; w < statMaskWords; w++)
@@ -1171,6 +1175,7 @@ public sealed unsafe partial class Board
             undo?.Note(live + word, sizeof(ulong));
             live[word] = ~bits | (1ul << (slot & 63));
             slots[i] = slot;
+            MarkKeyframeDirty(slot);
             if (slot >> PageShift != pageAt)
             {
                 pageAt = slot >> PageShift;
@@ -1313,6 +1318,7 @@ public sealed unsafe partial class Board
 
     void MarkStatDirty(int slot, int stat)
     {
+        MarkKeyframeDirty(slot);
         var mask = dirty + (nint)slot * statMaskWords;
         var empty = true;
         for (var w = 0; w < statMaskWords; w++)
@@ -1794,6 +1800,7 @@ public sealed unsafe partial class Board
     public void RenumberSlots(ReadOnlySpan<int> oldToNew, int count)
     {
         InvalidateUndo();
+        MarkAllKeyframesDirty();
         if (count < 0 || count > Capacity)
         {
             throw new ArgumentOutOfRangeException(nameof(count), $"sv: renumber count must be in [0, {Capacity}]");

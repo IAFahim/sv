@@ -244,6 +244,7 @@ public sealed unsafe partial class Board
 
         log.DropFreshFrom(target, arena);
         log.TruncateTo(target);
+        MarkAllKeyframesDirty();
         SweepUndo();
     }
 

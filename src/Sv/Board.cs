@@ -118,6 +118,7 @@ public sealed unsafe partial class Board : IDisposable
         if (TCodec.Reading)
         {
             InvalidateUndo();
+            RebaseKeyframes();
         }
 
         codec.Header(StateMagic, StateShape, "board");
@@ -182,6 +183,7 @@ public sealed unsafe partial class Board : IDisposable
         live[word] |= 1ul << (slot & 63);
         freeHint = live[word] == ulong.MaxValue ? word + 1 : word;
         LiveCount++;
+        MarkKeyframeDirty(slot);
         return slot;
     }
 
@@ -203,6 +205,8 @@ public sealed unsafe partial class Board : IDisposable
         {
             freeHint = slot >> 6;
         }
+
+        MarkKeyframeDirty(slot);
 
         if (statCount > 0)
         {
@@ -460,6 +464,11 @@ public sealed unsafe partial class Board : IDisposable
         EndUndoWindow();
         FreeStats();
         arena.Free(live, LiveWordCount);
+        if (keyframePages != null)
+        {
+            arena.Free(keyframePages, keyframePageWords);
+        }
+
         arena.Dispose();
         disposed = true;
     }
