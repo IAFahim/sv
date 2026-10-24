@@ -160,6 +160,8 @@ public sealed class EagerModel
 
     readonly float[] bases;
 
+    readonly int[][] sourceAnchors;
+
     readonly (int Stat, float Coefficient)[][] sources;
 
     readonly int[][] dependents;
@@ -183,6 +185,13 @@ public sealed class EagerModel
         statCount = bases.Length;
         this.bases = bases;
         this.sources = sources;
+        sourceAnchors = new int[statCount][];
+        for (var i = 0; i < statCount; i++)
+        {
+            sourceAnchors[i] = new int[sources[i].Length];
+            Array.Fill(sourceAnchors[i], -1);
+        }
+
         dependents = new int[statCount][];
         for (var stat = 0; stat < statCount; stat++)
         {
@@ -203,6 +212,11 @@ public sealed class EagerModel
     }
 
     public int Capacity { get; private set; }
+
+    public void BindSourceAnchor(int stat, int ordinal, int anchorSlot)
+    {
+        sourceAnchors[stat][ordinal] = anchorSlot;
+    }
 
     public void Grow(int capacity)
     {
@@ -227,6 +241,33 @@ public sealed class EagerModel
 
     public void Release(int slot)
     {
+        var cleared = new List<int>();
+        for (var stat = 0; stat < statCount; stat++)
+        {
+            for (var k = 0; k < sourceAnchors[stat].Length; k++)
+            {
+                if (sourceAnchors[stat][k] == slot)
+                {
+                    sourceAnchors[stat][k] = -1;
+                    cleared.Add(sources[stat][k].Stat);
+                }
+            }
+        }
+
+        foreach (var source in cleared)
+        {
+            foreach (var dependent in dependents[source])
+            {
+                for (var at = 0; at < Capacity; at++)
+                {
+                    if (live[at])
+                    {
+                        dirty[at * statCount + dependent] = true;
+                    }
+                }
+            }
+        }
+
         live[slot] = false;
         for (var stat = 0; stat < statCount; stat++)
         {
@@ -334,51 +375,98 @@ public sealed class EagerModel
             }
         }
 
-        while (queue.Count > 0)
+        for (var stat = 0; stat < statCount; stat++)
         {
-            var (slot, stat) = queue.Dequeue();
-            queued.Remove(slot * statCount + stat);
-            if (!live[slot])
+            for (var k = 0; k < sourceAnchors[stat].Length; k++)
             {
-                continue;
-            }
-
-            var pair = slot * statCount + stat;
-            var canonical = new List<(byte Kind, float Value, long Id)>();
-            for (var k = 0; k < sources[stat].Length; k++)
-            {
-                var (source, coefficient) = sources[stat][k];
-                var sourcePair = slot * statCount + source;
-                var sourceValue = resolved[sourcePair] ? lastValue[sourcePair] : bases[source];
-                canonical.Add((0, coefficient * sourceValue, EagerOracle.SyntheticIdBase + k));
-            }
-
-            foreach (var entry in content[pair])
-            {
-                canonical.Add((entry.Kind, entry.Value, entry.Id));
-            }
-
-            canonical.Sort(static (a, b) => a.Kind != b.Kind ? a.Kind.CompareTo(b.Kind) : BitConverter.SingleToUInt32Bits(a.Value).CompareTo(BitConverter.SingleToUInt32Bits(b.Value)));
-
-            var key = ContentKey(canonical);
-            var value = EagerOracle.CanonicalNaN(EagerOracle.Fold(bases[stat], canonical));
-            var setChanged = prevKey[pair] != key;
-            lastValue[pair] = value;
-            prevKey[pair] = key;
-            resolved[pair] = true;
-            if (setChanged)
-            {
-                foreach (var dependent in dependents[stat])
+                var anchor = sourceAnchors[stat][k];
+                if (anchor < 0 || !live[anchor])
                 {
-                    var dependentPair = slot * statCount + dependent;
-                    if (!queued.Contains(dependentPair))
+                    continue;
+                }
+
+                var source = sources[stat][k].Stat;
+                var anchorPair = anchor * statCount + source;
+                if (!queued.Contains(anchorPair))
+                {
+                    continue;
+                }
+
+                queue = new Queue<(int Slot, int Stat)>(queue.Where(item => item.Slot * statCount + item.Stat != anchorPair));
+                queued.Remove(anchorPair);
+                if (ResolveOne(anchor, source, queue, queued))
+                {
+                    foreach (var dependent in dependents[source])
                     {
-                        queue.Enqueue((slot, dependent));
-                        queued.Add(dependentPair);
+                        for (var slot = 0; slot < Capacity; slot++)
+                        {
+                            if (live[slot])
+                            {
+                                var dependentPair = slot * statCount + dependent;
+                                if (!queued.Contains(dependentPair))
+                                {
+                                    queue.Enqueue((slot, dependent));
+                                    queued.Add(dependentPair);
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
+
+        while (queue.Count > 0)
+        {
+            var (slot, stat) = queue.Dequeue();
+            queued.Remove(slot * statCount + stat);
+            if (live[slot])
+            {
+                ResolveOne(slot, stat, queue, queued);
+            }
+        }
+    }
+
+    bool ResolveOne(int slot, int stat, Queue<(int Slot, int Stat)> queue, HashSet<int> queued)
+    {
+        var pair = slot * statCount + stat;
+        var before = resolved[pair] ? lastValue[pair] : 0f;
+        var canonical = new List<(byte Kind, float Value, long Id)>();
+        for (var k = 0; k < sources[stat].Length; k++)
+        {
+            var (source, coefficient) = sources[stat][k];
+            var anchor = sourceAnchors[stat][k];
+            var sourcePair = (anchor >= 0 && live[anchor] ? anchor : slot) * statCount + source;
+            var sourceValue = resolved[sourcePair] ? lastValue[sourcePair] : bases[source];
+            canonical.Add((0, coefficient * sourceValue, EagerOracle.SyntheticIdBase + k));
+        }
+
+        foreach (var entry in content[pair])
+        {
+            canonical.Add((entry.Kind, entry.Value, entry.Id));
+        }
+
+        canonical.Sort(static (a, b) => a.Kind != b.Kind ? a.Kind.CompareTo(b.Kind) : BitConverter.SingleToUInt32Bits(a.Value).CompareTo(BitConverter.SingleToUInt32Bits(b.Value)));
+
+        var key = ContentKey(canonical);
+        var value = EagerOracle.CanonicalNaN(EagerOracle.Fold(bases[stat], canonical));
+        var setChanged = prevKey[pair] != key;
+        lastValue[pair] = value;
+        prevKey[pair] = key;
+        resolved[pair] = true;
+        if (setChanged)
+        {
+            foreach (var dependent in dependents[stat])
+            {
+                var dependentPair = slot * statCount + dependent;
+                if (!queued.Contains(dependentPair))
+                {
+                    queue.Enqueue((slot, dependent));
+                    queued.Add(dependentPair);
+                }
+            }
+        }
+
+        return before != value;
     }
 
     static string ContentKey(List<(byte Kind, float Value, long Id)> canonical)

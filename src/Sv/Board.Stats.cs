@@ -121,6 +121,8 @@ public sealed unsafe partial class Board
 
     private uint* dependentsMask;
 
+    private int* sourceAnchor;
+
     private uint* allStatsMask;
 
     internal long nextInsertionId;
@@ -220,6 +222,12 @@ public sealed unsafe partial class Board
         }
 
         sourceOffset[statCount] = at;
+        var sourceTotal = Math.Max(at, 1);
+        sourceAnchor = arena.Alloc<int>(sourceTotal);
+        for (var i = 0; i < sourceTotal; i++)
+        {
+            sourceAnchor[i] = -1;
+        }
         for (var i = 0; i < statCount; i++)
         {
             dependentOffset[i + 1] += dependentOffset[i];
@@ -288,6 +296,7 @@ public sealed unsafe partial class Board
         arena.FreeBytes(mirrors, statCount * sizeof(int*));
         arena.Free(sourceOffset, statCount + 1);
         arena.Free(sourceStat, Math.Max(sourceOffset[statCount], 1));
+        arena.Free(sourceAnchor, Math.Max(sourceOffset[statCount], 1));
         arena.Free(sourceCoefficient, Math.Max(sourceOffset[statCount], 1));
         arena.Free(dependentOffset, statCount + 1);
         arena.Free(dependentStat, Math.Max(sourceOffset[statCount], 1));
@@ -579,6 +588,54 @@ public sealed unsafe partial class Board
     /// A positive <paramref name="columnLength"/> is the column's element count; SV_CHECKED builds throw
     /// when a broadcast would write past it. -1 (the default) keeps length unchecked.
     /// </summary>
+    /// <summary>
+    /// Points one declared source of <paramref name="stat"/> (by declaration ordinal) at
+    /// <paramref name="anchorSlot"/>'s value of that source stat — the indirect-stat form of a
+    /// population-wide buff: one modifier add on the anchor reaches every slot's fold, and identical
+    /// outcomes intern to one set. Anchors ride the binding doctrine: they are not state —
+    /// renumbering, loading or invalidating bindings clears them (rebind after), and releasing the
+    /// anchor slot reverts the source to per-slot reads.
+    /// </summary>
+    public void BindSourceAnchor(StatId stat, int ordinal, int anchorSlot)
+    {
+        InvalidateUndo();
+        var index = StatIndex(stat);
+        var begin = sourceOffset[index];
+        var total = sourceOffset[index + 1] - begin;
+        if (ordinal < 0 || ordinal >= total)
+        {
+            throw new ArgumentOutOfRangeException(nameof(ordinal), $"sv: stat has {total} declared sources");
+        }
+
+        if (anchorSlot < 0 || anchorSlot >= Capacity || (live[anchorSlot >> 6] & (1ul << (anchorSlot & 63))) == 0)
+        {
+            throw new ArgumentException($"sv: anchor slot {anchorSlot} is not live");
+        }
+
+        sourceAnchor[begin + ordinal] = anchorSlot;
+    }
+
+    internal int SourceAnchorOf(StatId stat, int ordinal)
+    {
+        var index = StatIndex(stat);
+        return sourceAnchor[sourceOffset[index] + ordinal];
+    }
+
+    /// <summary>Reverts a source bound by <see cref="BindSourceAnchor"/> to per-slot reads.</summary>
+    public void ClearSourceAnchor(StatId stat, int ordinal)
+    {
+        InvalidateUndo();
+        var index = StatIndex(stat);
+        var begin = sourceOffset[index];
+        var total = sourceOffset[index + 1] - begin;
+        if (ordinal < 0 || ordinal >= total)
+        {
+            throw new ArgumentOutOfRangeException(nameof(ordinal), $"sv: stat has {total} declared sources");
+        }
+
+        sourceAnchor[begin + ordinal] = -1;
+    }
+
     public void BindOutput(StatId stat, float* column, int stride = 1, int columnLength = -1)
     {
         InvalidateUndo();
@@ -665,6 +722,20 @@ public sealed unsafe partial class Board
             {
                 outputColumn[stat] = null;
                 boundGeneration[stat] = -1;
+            }
+        }
+
+        if (statCount > 0)
+        {
+            var sourceTotal = Math.Max(sourceOffset[statCount], 1);
+            for (var i = 0; i < sourceTotal; i++)
+            {
+                if (sourceAnchor[i] >= 0)
+                {
+                    MarkDependentsEverywhere(sourceStat[i]);
+                }
+
+                sourceAnchor[i] = -1;
             }
         }
     }
@@ -1190,6 +1261,16 @@ public sealed unsafe partial class Board
 
     internal void ClearSlotStats(int slot)
     {
+        var sourceTotal = Math.Max(sourceOffset[statCount], 1);
+        for (var i = 0; i < sourceTotal; i++)
+        {
+            if (sourceAnchor[i] == slot)
+            {
+                sourceAnchor[i] = -1;
+                MarkDependentsEverywhere(sourceStat[i]);
+            }
+        }
+
         ref var state = ref Slot(slot);
         for (var at = state.Head; at >= 0;)
         {
@@ -1318,6 +1399,7 @@ public sealed unsafe partial class Board
         ClearChangedMasks();
         table!.Tick();
         undo?.NoteRange(dirtyTouched, dirtyTouchedCount);
+        ResolveAnchors();
         SortTouched(dirtyTouched, dirtyTouchedCount);
         for (var i = 0; i < dirtyTouchedCount; i++)
         {
@@ -1347,59 +1429,123 @@ public sealed unsafe partial class Board
                 var stat = (w << 5) + System.Numerics.BitOperations.TrailingZeroCount(word);
                 undo?.Note(mask + w, sizeof(uint));
                 mask[w] = word & (word - 1);
-                var block = Slot(slot).Block;
-                var current = block >= 0 ? blocks!.Set(block, stat) : -1;
-                var before = current >= 0 ? table!.Computed(current) : 0f;
-                var count = Gather(slot, stat);
-                var set = table!.Resolve(stat, scratch, count);
-                if (!table.Folded(set))
-                {
-                    var freshContent = table.Content(set, out var freshCount);
-                    table.SetComputed(set, CanonicalNaN(Fold(statBase[stat], freshContent, freshCount)));
-                }
-
-                if (current != set)
-                {
-                    if (block >= 0)
-                    {
-                        blocks!.CopyTuple(block, tupleScratch);
-                    }
-                    else
-                    {
-                        for (var k = 0; k < statCount; k++)
-                        {
-                            tupleScratch[k] = -1;
-                        }
-                    }
-
-                    tupleScratch[stat] = set;
-                    var next = InternTuple(tupleScratch);
-                    for (var k = 0; k < statCount; k++)
-                    {
-                        DigestMove(slot, k, k == stat ? current : tupleScratch[k], blocks!.Set(next, k));
-                    }
-
-                    if (block >= 0)
-                    {
-                        DropBlockRef(block);
-                    }
-
-                    undo?.Note(&SlotPtr(slot)->Block, sizeof(int));
-                    Slot(slot).Block = next;
-                    var dependents = dependentsMask + (nint)stat * statMaskWords;
-                    undo?.Note(mask, statMaskWords * sizeof(uint));
-                    for (var k = 0; k < statMaskWords; k++)
-                    {
-                        mask[k] |= dependents[k];
-                    }
-                }
-
-                BroadcastOne(stat, slot, table.Computed(set), before);
+                ResolvePair(slot, stat);
             }
         }
 
         dirtyTouchedCount = 0;
         ShrinkHighWater();
+    }
+
+    void ResolveAnchors()
+    {
+        for (var stat = 0; stat < statCount; stat++)
+        {
+            for (var at = sourceOffset[stat]; at < sourceOffset[stat + 1]; at++)
+            {
+                var anchor = sourceAnchor[at];
+                if (anchor < 0 || (live[anchor >> 6] & (1ul << (anchor & 63))) == 0)
+                {
+                    continue;
+                }
+
+                var source = sourceStat[at];
+                var mask = dirty + (nint)anchor * statMaskWords;
+                if ((mask[source >> 5] & (1u << (source & 31))) == 0)
+                {
+                    continue;
+                }
+
+                undo?.Note(mask + (source >> 5), sizeof(uint));
+                mask[source >> 5] &= ~(1u << (source & 31));
+                if (!ResolvePair(anchor, source))
+                {
+                    continue;
+                }
+
+
+
+                MarkDependentsEverywhere(source);
+            }
+        }
+    }
+
+    void MarkDependentsEverywhere(int source)
+    {
+        var dependents = dependentsMask + (nint)source * statMaskWords;
+        for (var slot = 0; slot < Capacity; slot++)
+        {
+            if ((live[slot >> 6] & (1ul << (slot & 63))) == 0)
+            {
+                continue;
+            }
+
+            for (var w = 0; w < statMaskWords; w++)
+            {
+                var word = dependents[w];
+                while (word != 0)
+                {
+                    var dependent = (w << 5) + System.Numerics.BitOperations.TrailingZeroCount(word);
+                    word &= word - 1;
+                    MarkStatDirty(slot, dependent);
+                }
+            }
+        }
+    }
+
+    bool ResolvePair(int slot, int stat)
+    {
+        var block = Slot(slot).Block;
+        var current = block >= 0 ? blocks!.Set(block, stat) : -1;
+        var before = current >= 0 ? table!.Computed(current) : 0f;
+        var count = Gather(slot, stat);
+        var set = table!.Resolve(stat, scratch, count);
+        if (!table.Folded(set))
+        {
+            var freshContent = table.Content(set, out var freshCount);
+            table.SetComputed(set, CanonicalNaN(Fold(statBase[stat], freshContent, freshCount)));
+        }
+
+        if (current != set)
+        {
+            if (block >= 0)
+            {
+                blocks!.CopyTuple(block, tupleScratch);
+            }
+            else
+            {
+                for (var k = 0; k < statCount; k++)
+                {
+                    tupleScratch[k] = -1;
+                }
+            }
+
+            tupleScratch[stat] = set;
+            var next = InternTuple(tupleScratch);
+            for (var k = 0; k < statCount; k++)
+            {
+                DigestMove(slot, k, k == stat ? current : tupleScratch[k], blocks!.Set(next, k));
+            }
+
+            if (block >= 0)
+            {
+                DropBlockRef(block);
+            }
+
+            undo?.Note(&SlotPtr(slot)->Block, sizeof(int));
+            Slot(slot).Block = next;
+            var dependents = dependentsMask + (nint)stat * statMaskWords;
+            var mask = dirty + (nint)slot * statMaskWords;
+            undo?.Note(mask, statMaskWords * sizeof(uint));
+            for (var k = 0; k < statMaskWords; k++)
+            {
+                mask[k] |= dependents[k];
+            }
+        }
+
+        var computed = table.Computed(set);
+        BroadcastOne(stat, slot, computed, before);
+        return before != computed;
     }
 
     void ShrinkHighWater()
@@ -1492,7 +1638,8 @@ public sealed unsafe partial class Board
         for (var k = 0; k < synthetic; k++)
         {
             var at = sourceOffset[stat] + k;
-            entries[k] = new StatEntry(ModifierKind.Added, sourceCoefficient[at] * SourceValue(slot, sourceStat[at]));
+            var anchor = sourceAnchor[at];
+            entries[k] = new StatEntry(ModifierKind.Added, sourceCoefficient[at] * SourceValue(anchor >= 0 ? anchor : slot, sourceStat[at]));
             entryIds[k] = long.MinValue + k;
         }
 
