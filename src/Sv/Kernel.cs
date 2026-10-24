@@ -84,7 +84,9 @@ public static unsafe class Kernel
         Simd.Chunk(value, delta, 0, clamp, start, count, applied);
     }
 
-    public static void EnabledChunk(int* value, int delta, in Clamp clamp, ulong enabled, int offset, int capacity, int* applied = null)
+    /// <param name="applied">Delta column indexed by absolute slot; written for all 64 rows of the word — disabled rows get zero.</param>
+    /// <param name="validBits">Rows of the word the columns are sized for; set mask bits past them are rejected. Full 64 keeps the word-complete contract.</param>
+    public static void EnabledChunk(int* value, int delta, in Clamp clamp, ulong enabled, int offset, int capacity, int* applied = null, int validBits = 64)
     {
         if (value == null)
         {
@@ -92,10 +94,13 @@ public static unsafe class Kernel
         }
 
         Guard.EnabledRange(offset, capacity);
-        Simd.EnabledWord(value, null, delta, clamp, enabled, offset, applied);
+        Guard.EnabledTail(enabled, validBits);
+        Simd.EnabledWord(value, null, delta, clamp, enabled, offset, applied, validBits);
     }
 
-    public static void EnabledChunk(int* value, int* delta, in Clamp clamp, ulong enabled, int offset, int capacity, int* applied = null)
+    /// <param name="applied">Delta column indexed by absolute slot; written for all 64 rows of the word — disabled rows get zero.</param>
+    /// <param name="validBits">Rows of the word the columns are sized for; set mask bits past them are rejected. Full 64 keeps the word-complete contract.</param>
+    public static void EnabledChunk(int* value, int* delta, in Clamp clamp, ulong enabled, int offset, int capacity, int* applied = null, int validBits = 64)
     {
         if (value == null)
         {
@@ -108,7 +113,8 @@ public static unsafe class Kernel
         }
 
         Guard.EnabledRange(offset, capacity);
-        Simd.EnabledWord(value, delta, 0, clamp, enabled, offset, applied);
+        Guard.EnabledTail(enabled, validBits);
+        Simd.EnabledWord(value, delta, 0, clamp, enabled, offset, applied, validBits);
     }
 
     /// <param name="value">Stat column indexed by absolute slot; written for every enabled row in the window.</param>
@@ -134,7 +140,7 @@ public static unsafe class Kernel
         Guard.EnabledRange(offset, wordCount, capacity);
         for (var w = 0; w < wordCount; w++)
         {
-            Simd.EnabledWord(value, null, delta, clamp, words[w], offset + w * 64, applied);
+            Simd.EnabledWord(value, null, delta, clamp, words[w], offset + w * 64, applied, 64);
         }
     }
 
@@ -166,7 +172,7 @@ public static unsafe class Kernel
         Guard.EnabledRange(offset, wordCount, capacity);
         for (var w = 0; w < wordCount; w++)
         {
-            Simd.EnabledWord(value, delta, 0, clamp, words[w], offset + w * 64, applied);
+            Simd.EnabledWord(value, delta, 0, clamp, words[w], offset + w * 64, applied, 64);
         }
     }
 }

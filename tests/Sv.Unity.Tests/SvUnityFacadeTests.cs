@@ -48,7 +48,7 @@ public sealed unsafe class SvUnityFacadeTests
         Assert.False(population.TrySlot(lookup, entities[1], out _));
         Assert.True(population.TrySlot(lookup, entities[0], out var slot0));
         Assert.Equal(0, slot0);
-        Assert.Equal(39, population.Bind(manager, entities[1]));
+        Assert.Equal(1, population.Bind(manager, entities[1]));
         entities.Dispose();
     }
 

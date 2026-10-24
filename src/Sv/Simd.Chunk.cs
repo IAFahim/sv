@@ -18,13 +18,16 @@ internal static unsafe partial class Simd
     {
     }
 
+    internal struct Masked128
+    {
+    }
+
     internal interface IBound
     {
         Vector128<int> Apply(Vector128<int> v, int slot);
 
         Vector256<int> Apply(Vector256<int> v, int slot);
 
-        Vector256<int> ApplyMasked(Vector256<int> v, int slot, Vector256<int> mask);
     }
 
     internal interface IDelta
@@ -33,7 +36,6 @@ internal static unsafe partial class Simd
 
         Vector256<int> Load256(int slot);
 
-        Vector256<int> LoadMasked256(int slot, Vector256<int> mask);
 
         int Load(int slot);
     }
@@ -55,8 +57,6 @@ internal static unsafe partial class Simd
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector256<int> Apply(Vector256<int> v, int slot) => v;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Vector256<int> ApplyMasked(Vector256<int> v, int slot, Vector256<int> mask) => v;
     }
 
     internal readonly struct ConstantBound : IBound
@@ -77,8 +77,6 @@ internal static unsafe partial class Simd
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector256<int> Apply(Vector256<int> v, int slot) => ClampBoth(v, Vector256.Create(min), Vector256.Create(max));
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Vector256<int> ApplyMasked(Vector256<int> v, int slot, Vector256<int> mask) => ClampBoth(v, Vector256.Create(min), Vector256.Create(max));
     }
 
     internal readonly struct ColumnsBound : IBound
@@ -99,8 +97,6 @@ internal static unsafe partial class Simd
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector256<int> Apply(Vector256<int> v, int slot) => ClampBoth(v, Vector256.Load(min + slot), Vector256.Load(max + slot));
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Vector256<int> ApplyMasked(Vector256<int> v, int slot, Vector256<int> mask) => ClampBoth(v, Avx2.MaskLoad(min + slot, mask), Avx2.MaskLoad(max + slot, mask));
     }
 
     internal readonly struct ColumnMinBound : IBound
@@ -118,8 +114,6 @@ internal static unsafe partial class Simd
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector256<int> Apply(Vector256<int> v, int slot) => MinOnly(v, Vector256.Load(min + slot));
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Vector256<int> ApplyMasked(Vector256<int> v, int slot, Vector256<int> mask) => MinOnly(v, Avx2.MaskLoad(min + slot, mask));
     }
 
     internal readonly struct ColumnMaxBound : IBound
@@ -137,8 +131,6 @@ internal static unsafe partial class Simd
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector256<int> Apply(Vector256<int> v, int slot) => MaxOnly(v, Vector256.Load(max + slot));
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Vector256<int> ApplyMasked(Vector256<int> v, int slot, Vector256<int> mask) => MaxOnly(v, Avx2.MaskLoad(max + slot, mask));
     }
 
     internal readonly struct StatsBound : IBound
@@ -159,8 +151,6 @@ internal static unsafe partial class Simd
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector256<int> Apply(Vector256<int> v, int slot) => ClampBoth(v, BoundsOf(Vector256.Load(min + slot)), BoundsOf(Vector256.Load(max + slot)));
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Vector256<int> ApplyMasked(Vector256<int> v, int slot, Vector256<int> mask) => ClampBoth(v, BoundsOf(Avx.MaskLoad(min + slot, mask.AsSingle())), BoundsOf(Avx.MaskLoad(max + slot, mask.AsSingle())));
     }
 
     internal readonly struct StatMinBound : IBound
@@ -178,8 +168,6 @@ internal static unsafe partial class Simd
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector256<int> Apply(Vector256<int> v, int slot) => MinOnly(v, BoundsOf(Vector256.Load(min + slot)));
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Vector256<int> ApplyMasked(Vector256<int> v, int slot, Vector256<int> mask) => MinOnly(v, BoundsOf(Avx.MaskLoad(min + slot, mask.AsSingle())));
     }
 
     internal readonly struct StatMaxBound : IBound
@@ -197,8 +185,6 @@ internal static unsafe partial class Simd
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector256<int> Apply(Vector256<int> v, int slot) => MaxOnly(v, BoundsOf(Vector256.Load(max + slot)));
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Vector256<int> ApplyMasked(Vector256<int> v, int slot, Vector256<int> mask) => MaxOnly(v, BoundsOf(Avx.MaskLoad(max + slot, mask.AsSingle())));
     }
 
     internal readonly struct UniformDelta : IDelta
@@ -215,9 +201,6 @@ internal static unsafe partial class Simd
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector256<int> Load256(int slot) => Vector256.Create(value);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-public Vector256<int> LoadMasked256(int slot, Vector256<int> mask) => Vector256.Create(value);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Load(int slot) => value;
@@ -237,9 +220,6 @@ public Vector256<int> LoadMasked256(int slot, Vector256<int> mask) => Vector256.
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector256<int> Load256(int slot) => Vector256.Load(delta + slot);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-public Vector256<int> LoadMasked256(int slot, Vector256<int> mask) => Avx2.MaskLoad(delta + slot, mask);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Load(int slot) => delta[slot];
@@ -363,7 +343,13 @@ public Vector256<int> LoadMasked256(int slot, Vector256<int> mask) => Avx2.MaskL
     {
         if (typeof(TW) == typeof(Masked256))
         {
-            MaskedWord(value, delta, bound, applied, start, word);
+            MaskedWord256(value, delta, bound, applied, clamp, start, word, count);
+            return;
+        }
+
+        if (typeof(TW) == typeof(Masked128))
+        {
+            MaskedWord128(value, delta, bound, applied, clamp, start, word, count);
             return;
         }
 
@@ -401,24 +387,33 @@ public Vector256<int> LoadMasked256(int slot, Vector256<int> mask) => Avx2.MaskL
         }
     }
 
-    internal static void EnabledWord(int* value, int* delta, int deltaValue, in Clamp clamp, ulong word, int offset, int* applied)
+    internal static int ValidBits(int length, int start) => System.Math.Clamp(length - start, 0, 64);
+
+    internal static void EnabledWord(int* value, int* delta, int deltaValue, in Clamp clamp, ulong word, int offset, int* applied, int validBits)
     {
         clamp.CheckStatBounds();
+        var count = System.Math.Min(validBits, 64);
         if (word == ulong.MaxValue && Vector256.IsHardwareAccelerated)
         {
-            Dispatch<Width256>(value, delta, deltaValue, clamp, offset, 64, applied);
+            Dispatch<Width256>(value, delta, deltaValue, clamp, offset, count, applied);
             return;
         }
 
         if (word == ulong.MaxValue && Vector128.IsHardwareAccelerated)
         {
-            Dispatch<Width128>(value, delta, deltaValue, clamp, offset, 64, applied);
+            Dispatch<Width128>(value, delta, deltaValue, clamp, offset, count, applied);
             return;
         }
 
-        if (Avx2.IsSupported)
+        if (Vector256.IsHardwareAccelerated)
         {
-            Dispatch<Masked256>(value, delta, deltaValue, clamp, offset, 64, applied, word);
+            Dispatch<Masked256>(value, delta, deltaValue, clamp, offset, count, applied, word);
+            return;
+        }
+
+        if (Vector128.IsHardwareAccelerated)
+        {
+            Dispatch<Masked128>(value, delta, deltaValue, clamp, offset, count, applied, word);
             return;
         }
 
@@ -456,13 +451,14 @@ public Vector256<int> LoadMasked256(int slot, Vector256<int> mask) => Avx2.MaskL
         }
     }
 
-    static void MaskedWord<TB, TD, TA>(int* value, TD delta, TB bound, TA applied, int offset, ulong word)
+    static void MaskedWord256<TB, TD, TA>(int* value, TD delta, TB bound, TA applied, in Clamp clamp, int offset, ulong word, int validBits)
         where TB : struct, IBound
         where TD : struct, IDelta
         where TA : struct, IApplied
     {
         var laneBits = Vector256.Create(1, 2, 4, 8, 16, 32, 64, 128);
-        for (var group = 0; group < 8; group++)
+        var group = 0;
+        for (; group * 8 + 8 <= validBits; group++)
         {
             var slot = offset + group * 8;
             var lanes = (int)(word >> (group * 8)) & 0xFF;
@@ -472,20 +468,68 @@ public Vector256<int> LoadMasked256(int slot, Vector256<int> mask) => Avx2.MaskL
                 continue;
             }
 
-            if (lanes == 0xFF)
+            var before = Vector256.Load(value + slot);
+            var full = bound.Apply(SaturatingAdd(before, delta.Load256(slot)), slot);
+            var mask = ~Vector256.Equals(Vector256.Create(lanes) & laneBits, Vector256<int>.Zero);
+            var after = Vector256.ConditionalSelect(mask, full, before);
+            Vector256.Store(after, value + slot);
+            applied.Store(SaturatingSubtract(after, before) & mask, slot);
+        }
+
+        for (var bit = group * 8; bit < 64; bit++)
+        {
+            var slot = offset + bit;
+            if ((word & (1ul << bit)) == 0)
             {
-                var full = Vector256.Load(value + slot);
-                var fullAfter = bound.Apply(SaturatingAdd(full, delta.Load256(slot)), slot);
-                Vector256.Store(fullAfter, value + slot);
-                applied.Store(SaturatingSubtract(fullAfter, full), slot);
+                applied.Store(0, slot);
                 continue;
             }
 
-            var mask = ~Vector256.Equals(Vector256.Create(lanes) & laneBits, Vector256<int>.Zero);
-            var before = Avx2.MaskLoad(value + slot, mask);
-            var after = bound.ApplyMasked(SaturatingAdd(before, delta.LoadMasked256(slot, mask)), slot, mask);
-            Avx2.MaskStore(value + slot, mask, after);
+            var before = value[slot];
+            var after = clamp.Apply(SaturatingAdd(before, delta.Load(slot)), slot);
+            value[slot] = after;
+            applied.Store(SaturatingSubtract(after, before), slot);
+        }
+    }
+
+    static void MaskedWord128<TB, TD, TA>(int* value, TD delta, TB bound, TA applied, in Clamp clamp, int offset, ulong word, int validBits)
+        where TB : struct, IBound
+        where TD : struct, IDelta
+        where TA : struct, IApplied
+    {
+        var laneBits = Vector128.Create(1, 2, 4, 8);
+        var group = 0;
+        for (; group * 4 + 4 <= validBits; group++)
+        {
+            var slot = offset + group * 4;
+            var lanes = (int)(word >> (group * 4)) & 0xF;
+            if (lanes == 0)
+            {
+                applied.Store(Vector128<int>.Zero, slot);
+                continue;
+            }
+
+            var before = Vector128.Load(value + slot);
+            var full = bound.Apply(SaturatingAdd(before, delta.Load128(slot)), slot);
+            var mask = ~Vector128.Equals(Vector128.Create(lanes) & laneBits, Vector128<int>.Zero);
+            var after = Vector128.ConditionalSelect(mask, full, before);
+            Vector128.Store(after, value + slot);
             applied.Store(SaturatingSubtract(after, before) & mask, slot);
+        }
+
+        for (var bit = group * 4; bit < 64; bit++)
+        {
+            var slot = offset + bit;
+            if ((word & (1ul << bit)) == 0)
+            {
+                applied.Store(0, slot);
+                continue;
+            }
+
+            var before = value[slot];
+            var after = clamp.Apply(SaturatingAdd(before, delta.Load(slot)), slot);
+            value[slot] = after;
+            applied.Store(SaturatingSubtract(after, before), slot);
         }
     }
 

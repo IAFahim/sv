@@ -78,7 +78,7 @@ public unsafe class EnabledWordTests
 
                             var uniform = random.Next(-30, 30);
                             Simd.EnabledWordScalar(valueA, varying ? delta : null, uniform, clamp, word, offset, withApplied ? appliedA : null);
-                            Simd.EnabledWord(valueB, varying ? delta : null, uniform, clamp, word, offset, withApplied ? appliedB : null);
+                            Simd.EnabledWord(valueB, varying ? delta : null, uniform, clamp, word, offset, withApplied ? appliedB : null, 64);
                             for (var i = 0; i < Rows; i++)
                             {
                                 Assert.True(valueA[i] == valueB[i], $"value row {i} kind={clamp.Kind} word={word:X} offset={offset}");
@@ -86,6 +86,55 @@ public unsafe class EnabledWordTests
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public void EnabledWord_ShortColumnMatchesScalar()
+    {
+        const int rows = 13;
+        var random = new Random(20261024);
+        var bound = stackalloc int[rows];
+        var delta = stackalloc int[rows];
+        for (var i = 0; i < rows; i++)
+        {
+            bound[i] = random.Next(-20, 0);
+            delta[i] = random.Next(-40, 40);
+        }
+
+        var words = new ulong[] { 0x1F2Bul, 0ul, 1ul << 12, 0b101_0101_0101ul, (1ul << rows) - 1 };
+        var clamps = new Clamp[] { default, Clamp.Constant(-30, 30), Clamp.Columns(bound, null) };
+        var valueA = stackalloc int[rows];
+        var valueB = stackalloc int[rows];
+        var appliedA = stackalloc int[64];
+        var appliedB = stackalloc int[64];
+        foreach (var clamp in clamps)
+        {
+            foreach (var word in words)
+            {
+                for (var i = 0; i < rows; i++)
+                {
+                    valueA[i] = valueB[i] = random.Next(-60, 60);
+                }
+
+                for (var i = 0; i < 64; i++)
+                {
+                    appliedA[i] = appliedB[i] = -7;
+                }
+
+                var uniform = random.Next(-40, 40);
+                Simd.EnabledWordScalar(valueA, delta, uniform, clamp, word, 0, appliedA);
+                Simd.EnabledWord(valueB, delta, uniform, clamp, word, 0, appliedB, rows);
+                for (var i = 0; i < rows; i++)
+                {
+                    Assert.True(valueA[i] == valueB[i], $"value row {i} kind={clamp.Kind} word={word:X}");
+                }
+
+                for (var i = 0; i < 64; i++)
+                {
+                    Assert.True(appliedA[i] == appliedB[i], $"applied row {i} kind={clamp.Kind} word={word:X}");
                 }
             }
         }
@@ -119,11 +168,11 @@ public unsafe class EnabledWordTests
             value[1] = 6;
             value[2] = 7;
             using var board = Board.Create(SchemaBuilder.Create().Intrinsic("mana").Build(), 64);
-            board.RunEnabledChunk(value, 1, Clamp.Constant(0, 6), 0b111ul, 0);
+            board.RunEnabledChunk(value, 1, Clamp.Constant(0, 6), 0b111ul, 0, null, 3);
             Assert.Equal(6, value[0]);
             Assert.Equal(6, value[1]);
             Assert.Equal(6, value[2]);
-            Simd.EnabledWord(value, value, 0, Clamp.Columns(value, null), 0b101ul, 0, null);
+            Simd.EnabledWord(value, value, 0, Clamp.Columns(value, null), 0b101ul, 0, null, 3);
             Assert.Equal(12, value[0]);
             Assert.Equal(12, value[2]);
         }

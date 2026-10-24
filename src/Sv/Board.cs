@@ -227,14 +227,14 @@ public sealed unsafe partial class Board : IDisposable
         Kernel.IntrinsicsChunk(value, delta, clamp, start, count, Capacity, applied);
     }
 
-    public void RunEnabledChunk(int* value, int delta, in Clamp clamp, ulong enabled, int offset, int* applied = null)
+    public void RunEnabledChunk(int* value, int delta, in Clamp clamp, ulong enabled, int offset, int* applied = null, int validBits = 64)
     {
-        Kernel.EnabledChunk(value, delta, clamp, enabled, offset, Capacity, applied);
+        Kernel.EnabledChunk(value, delta, clamp, enabled, offset, Capacity, applied, validBits);
     }
 
-    public void RunEnabledChunk(int* value, int* delta, in Clamp clamp, ulong enabled, int offset, int* applied = null)
+    public void RunEnabledChunk(int* value, int* delta, in Clamp clamp, ulong enabled, int offset, int* applied = null, int validBits = 64)
     {
-        Kernel.EnabledChunk(value, delta, clamp, enabled, offset, Capacity, applied);
+        Kernel.EnabledChunk(value, delta, clamp, enabled, offset, Capacity, applied, validBits);
     }
 
     /// <param name="value">Stat column indexed by absolute slot; written for every enabled row in the window.</param>
@@ -284,7 +284,7 @@ public sealed unsafe partial class Board : IDisposable
         {
             for (var w = 0; w < wordCount; w++)
             {
-                Simd.EnabledWord(v, null, delta, clamp, words[w], offset + w * 64, a);
+                Simd.EnabledWord(v, null, delta, clamp, words[w], offset + w * 64, a, Simd.ValidBits(value.Length, offset + w * 64));
             }
         }
     }
@@ -314,7 +314,7 @@ public sealed unsafe partial class Board : IDisposable
         {
             for (var w = 0; w < wordCount; w++)
             {
-                Simd.EnabledWord(v, d, 0, clamp, words[w], offset + w * 64, a);
+                Simd.EnabledWord(v, d, 0, clamp, words[w], offset + w * 64, a, Simd.ValidBits(Math.Min(value.Length, delta.Length), offset + w * 64));
             }
         }
     }
@@ -368,7 +368,7 @@ public sealed unsafe partial class Board : IDisposable
         fixed (int* v = value)
         fixed (int* a = applied)
         {
-            Simd.EnabledWord(v, null, delta, clamp, enabled, offset, a);
+            Simd.EnabledWord(v, null, delta, clamp, enabled, offset, a, Simd.ValidBits(value.Length, offset));
         }
     }
 
@@ -383,7 +383,7 @@ public sealed unsafe partial class Board : IDisposable
         fixed (int* d = delta)
         fixed (int* a = applied)
         {
-            Simd.EnabledWord(v, d, 0, clamp, enabled, offset, a);
+            Simd.EnabledWord(v, d, 0, clamp, enabled, offset, a, Simd.ValidBits(Math.Min(value.Length, delta.Length), offset));
         }
     }
 
