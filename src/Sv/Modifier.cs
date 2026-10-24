@@ -7,6 +7,7 @@ public enum ModifierKind : byte
     Added = 0,
     Additive = 1,
     Multi = 2,
+    Cap = 3,
 }
 
 public readonly struct Modifier
@@ -17,7 +18,7 @@ public readonly struct Modifier
 
     public Modifier(ModifierKind kind, float value)
     {
-        if (kind != ModifierKind.Added && kind != ModifierKind.Additive && kind != ModifierKind.Multi)
+        if (kind != ModifierKind.Added && kind != ModifierKind.Additive && kind != ModifierKind.Multi && kind != ModifierKind.Cap)
         {
             throw new ArgumentException($"sv: {kind} is not a modifier kind");
         }

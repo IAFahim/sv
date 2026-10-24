@@ -125,6 +125,14 @@ public static class EagerOracle
             }
         }
 
+        for (var i = 0; i < canonical.Count; i++)
+        {
+            if (canonical[i].Kind == 3)
+            {
+                value = value > canonical[i].Value ? canonical[i].Value : value;
+            }
+        }
+
         return value;
     }
 

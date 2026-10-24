@@ -1815,6 +1815,14 @@ public sealed unsafe partial class Board
             }
         }
 
+        for (var i = 0; i < count; i++)
+        {
+            if (entries[i].Kind == ModifierKind.Cap)
+            {
+                value = value > entries[i].Value ? entries[i].Value : value;
+            }
+        }
+
         return value;
     }
 
