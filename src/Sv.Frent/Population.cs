@@ -233,7 +233,7 @@ public readonly unsafe ref struct ChunkWindow<TColumn> where TColumn : unmanaged
                 values[i] = after;
                 if (!applied.IsEmpty)
                 {
-                    applied[i] = after - before;
+                    applied[i] = Simd.SaturatingSubtract(after, before);
                 }
             }
         }
@@ -301,7 +301,7 @@ public readonly unsafe ref struct ChunkWindow<TColumn> where TColumn : unmanaged
                 values[i] = after;
                 if (!applied.IsEmpty)
                 {
-                    applied[i] = after - before;
+                    applied[i] = Simd.SaturatingSubtract(after, before);
                 }
             }
         }

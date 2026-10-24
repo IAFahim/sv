@@ -6,11 +6,13 @@ namespace Sv.Tests;
 // The frozen eager oracle (roadmap issues/0058, atom 0.3) — an independent, managed
 // model of today's frame semantics, written from the contract and the receipts, not
 // by calling production: the clause-3 canonical fold with derived synthetic entries
-// and set-change propagation, and the atom-50 saturating intrinsics step with
-// today's floor-first clamp order. Phase 4's drift monoid must stay bit-equal to
-// FrameStep (law L7); every phase-2 memory atom must keep the program tests green
-// (law L1). This file is the reference — it changes only alongside a bus-backed
-// contract bump (e.g. clause 10 crossed bounds), never to chase production.
+// and set-change propagation, and the atom-50 saturating intrinsics step with the
+// owner-decided total clamp (decision 0044: crossed bounds are ceiling-wins,
+// bus relay 0052) and the saturating applied difference. Phase 4's drift monoid
+// must stay bit-equal to FrameStep (law L7); every phase-2 memory atom must keep
+// the program tests green (law L1). This file is the reference — it changes only
+// alongside a bus-backed contract bump (e.g. this atom-90 clause-10/18 update),
+// never to chase production.
 
 public static class EagerOracle
 {
@@ -38,6 +40,11 @@ public static class EagerOracle
 
     public static int ClampTotal(long value, int lo, int hi)
     {
+        if (lo > hi)
+        {
+            lo = hi;
+        }
+
         if (value < lo)
         {
             return lo;
@@ -49,6 +56,12 @@ public static class EagerOracle
         }
 
         return (int)value;
+    }
+
+    public static int SaturatingSubtract(int after, int before)
+    {
+        var diff = after - before;
+        return ((after ^ before) & (after ^ diff)) < 0 ? (after < 0 ? int.MinValue : int.MaxValue) : diff;
     }
 
     /// <summary>
@@ -78,7 +91,7 @@ public static class EagerOracle
             value[slot] = after;
             if (applied != null)
             {
-                applied[slot] = after - before;
+                applied[slot] = SaturatingSubtract(after, before);
             }
         }
     }

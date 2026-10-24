@@ -157,45 +157,27 @@ public readonly unsafe struct Clamp
             case ClampKind.Constant:
                 return value < Min ? Min : value > Max ? Max : value;
             case ClampKind.Columns:
-                if (MinColumn != null)
                 {
-                    var lo = MinColumn[slot];
-                    if (value < lo)
+                    var lo = MinColumn != null ? MinColumn[slot] : int.MinValue;
+                    var hi = MaxColumn != null ? MaxColumn[slot] : int.MaxValue;
+                    if (lo > hi)
                     {
-                        return lo;
+                        lo = hi;
                     }
-                }
 
-                if (MaxColumn != null)
-                {
-                    var hi = MaxColumn[slot];
-                    if (value > hi)
-                    {
-                        return hi;
-                    }
+                    return value < lo ? lo : value > hi ? hi : value;
                 }
-
-                return value;
             case ClampKind.StatBounds:
-                if (MinStatColumn != null)
                 {
-                    var lo = BoundOf(MinStatColumn[slot]);
-                    if (value < lo)
+                    var lo = MinStatColumn != null ? BoundOf(MinStatColumn[slot]) : int.MinValue;
+                    var hi = MaxStatColumn != null ? BoundOf(MaxStatColumn[slot]) : int.MaxValue;
+                    if (lo > hi)
                     {
-                        return lo;
+                        lo = hi;
                     }
-                }
 
-                if (MaxStatColumn != null)
-                {
-                    var hi = BoundOf(MaxStatColumn[slot]);
-                    if (value > hi)
-                    {
-                        return hi;
-                    }
+                    return value < lo ? lo : value > hi ? hi : value;
                 }
-
-                return value;
             default:
                 return value;
         }

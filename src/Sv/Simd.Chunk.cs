@@ -376,7 +376,7 @@ public Vector256<int> LoadMasked256(int slot, Vector256<int> mask) => Avx2.MaskL
                 var before = Vector256.Load(value + slot);
                 var after = bound.Apply(SaturatingAdd(before, delta.Load256(slot)), slot);
                 Vector256.Store(after, value + slot);
-                applied.Store(after - before, slot);
+                applied.Store(SaturatingSubtract(after, before), slot);
             }
         }
         else
@@ -387,7 +387,7 @@ public Vector256<int> LoadMasked256(int slot, Vector256<int> mask) => Avx2.MaskL
                 var before = Vector128.Load(value + slot);
                 var after = bound.Apply(SaturatingAdd(before, delta.Load128(slot)), slot);
                 Vector128.Store(after, value + slot);
-                applied.Store(after - before, slot);
+                applied.Store(SaturatingSubtract(after, before), slot);
             }
         }
 
@@ -397,7 +397,7 @@ public Vector256<int> LoadMasked256(int slot, Vector256<int> mask) => Avx2.MaskL
             var before = value[slot];
             var after = clamp.Apply(SaturatingAdd(before, delta.Load(slot)), slot);
             value[slot] = after;
-            applied.Store(after - before, slot);
+            applied.Store(SaturatingSubtract(after, before), slot);
         }
     }
 
@@ -438,7 +438,7 @@ public Vector256<int> LoadMasked256(int slot, Vector256<int> mask) => Avx2.MaskL
             value[slot] = after;
             if (applied != null)
             {
-                applied[slot] = after - before;
+                applied[slot] = SaturatingSubtract(after, before);
             }
         }
 
@@ -477,7 +477,7 @@ public Vector256<int> LoadMasked256(int slot, Vector256<int> mask) => Avx2.MaskL
                 var full = Vector256.Load(value + slot);
                 var fullAfter = bound.Apply(SaturatingAdd(full, delta.Load256(slot)), slot);
                 Vector256.Store(fullAfter, value + slot);
-                applied.Store(fullAfter - full, slot);
+                applied.Store(SaturatingSubtract(fullAfter, full), slot);
                 continue;
             }
 
@@ -485,7 +485,7 @@ public Vector256<int> LoadMasked256(int slot, Vector256<int> mask) => Avx2.MaskL
             var before = Avx2.MaskLoad(value + slot, mask);
             var after = bound.ApplyMasked(SaturatingAdd(before, delta.LoadMasked256(slot, mask)), slot, mask);
             Avx2.MaskStore(value + slot, mask, after);
-            applied.Store((after - before) & mask, slot);
+            applied.Store(SaturatingSubtract(after, before) & mask, slot);
         }
     }
 
@@ -503,5 +503,21 @@ public Vector256<int> LoadMasked256(int slot, Vector256<int> mask) => Avx2.MaskL
         var overflow = Vector256.LessThan((a ^ sum) & (b ^ sum), Vector256<int>.Zero);
         var saturated = Vector256.ConditionalSelect(Vector256.LessThan(b, Vector256<int>.Zero), Vector256.Create(int.MinValue), Vector256.Create(int.MaxValue));
         return Vector256.ConditionalSelect(overflow, saturated, sum);
+    }
+
+    static Vector128<int> SaturatingSubtract(Vector128<int> after, Vector128<int> before)
+    {
+        var diff = after - before;
+        var overflow = Vector128.LessThan((after ^ before) & (after ^ diff), Vector128<int>.Zero);
+        var saturated = Vector128.ConditionalSelect(Vector128.LessThan(after, Vector128<int>.Zero), Vector128.Create(int.MinValue), Vector128.Create(int.MaxValue));
+        return Vector128.ConditionalSelect(overflow, saturated, diff);
+    }
+
+    static Vector256<int> SaturatingSubtract(Vector256<int> after, Vector256<int> before)
+    {
+        var diff = after - before;
+        var overflow = Vector256.LessThan((after ^ before) & (after ^ diff), Vector256<int>.Zero);
+        var saturated = Vector256.ConditionalSelect(Vector256.LessThan(after, Vector256<int>.Zero), Vector256.Create(int.MinValue), Vector256.Create(int.MaxValue));
+        return Vector256.ConditionalSelect(overflow, saturated, diff);
     }
 }

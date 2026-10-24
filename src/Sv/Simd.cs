@@ -14,6 +14,12 @@ internal static unsafe partial class Simd
         return ((a ^ sum) & (b ^ sum)) < 0 ? (b < 0 ? int.MinValue : int.MaxValue) : sum;
     }
 
+    internal static int SaturatingSubtract(int after, int before)
+    {
+        var diff = after - before;
+        return ((after ^ before) & (after ^ diff)) < 0 ? (after < 0 ? int.MinValue : int.MaxValue) : diff;
+    }
+
     internal static void Chunk(int* value, int* delta, int deltaValue, in Clamp clamp, int start, int count, int* applied)
     {
         clamp.CheckStatBounds();
@@ -43,7 +49,7 @@ internal static unsafe partial class Simd
             value[slot] = after;
             if (applied != null)
             {
-                applied[slot] = after - before;
+                applied[slot] = SaturatingSubtract(after, before);
             }
         }
     }
@@ -76,8 +82,9 @@ internal static unsafe partial class Simd
 
     static Vector128<int> ClampBoth(Vector128<int> v, Vector128<int> lo, Vector128<int> hi)
     {
+        var floor = Vector128.Min(lo, hi);
         var above = Vector128.ConditionalSelect(Vector128.GreaterThan(v, hi), hi, v);
-        return Vector128.ConditionalSelect(Vector128.LessThan(v, lo), lo, above);
+        return Vector128.ConditionalSelect(Vector128.LessThan(v, floor), floor, above);
     }
 
     static Vector128<int> MinOnly(Vector128<int> v, Vector128<int> lo)
@@ -92,8 +99,9 @@ internal static unsafe partial class Simd
 
     static Vector256<int> ClampBoth(Vector256<int> v, Vector256<int> lo, Vector256<int> hi)
     {
+        var floor = Vector256.Min(lo, hi);
         var above = Vector256.ConditionalSelect(Vector256.GreaterThan(v, hi), hi, v);
-        return Vector256.ConditionalSelect(Vector256.LessThan(v, lo), lo, above);
+        return Vector256.ConditionalSelect(Vector256.LessThan(v, floor), floor, above);
     }
 
     static Vector256<int> MinOnly(Vector256<int> v, Vector256<int> lo)

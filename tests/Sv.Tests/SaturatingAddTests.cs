@@ -17,6 +17,12 @@ public unsafe class SaturatingAddTests
     static int Expected(int before, int delta, int min, int max) =>
         (int)Math.Clamp((long)before + delta, min, max);
 
+    static int SatSubtract(int after, int before)
+    {
+        var diff = after - before;
+        return ((after ^ before) & (after ^ diff)) < 0 ? (after < 0 ? int.MinValue : int.MaxValue) : diff;
+    }
+
     static void FillLattice(int* value, int count, int offset = 0)
     {
         for (var i = 0; i < count; i++)
@@ -41,7 +47,7 @@ public unsafe class SaturatingAddTests
                 {
                     var before = Lattice[i];
                     var expected = Expected(before, deltaValue, bounds[0], bounds[1]);
-                    Assert.True(value[i] == expected && applied[i] == expected - before,
+                    Assert.True(value[i] == expected && applied[i] == SatSubtract(expected, before),
                         $"{before} + {deltaValue} in [{bounds[0]}, {bounds[1]}]: value {value[i]} applied {applied[i]} expected {expected}");
                 }
             }
@@ -65,7 +71,7 @@ public unsafe class SaturatingAddTests
                 var before = Lattice[i];
                 var d = Lattice[(i + 1) % Lattice.Length];
                 var expected = Expected(before, d, bounds[0], bounds[1]);
-                Assert.True(value[i] == expected && applied[i] == expected - before,
+                Assert.True(value[i] == expected && applied[i] == SatSubtract(expected, before),
                     $"{before} + {d} in [{bounds[0]}, {bounds[1]}]: value {value[i]} applied {applied[i]} expected {expected}");
             }
         }
@@ -94,7 +100,7 @@ public unsafe class SaturatingAddTests
                     if ((PartialWord & (1ul << i)) != 0)
                     {
                         var expected = Expected(before, deltaValue, bounds[0], bounds[1]);
-                        Assert.True(value[i] == expected && applied[i] == expected - before,
+                        Assert.True(value[i] == expected && applied[i] == SatSubtract(expected, before),
                             $"slot {i} {before} + {deltaValue} in [{bounds[0]}, {bounds[1]}]: value {value[i]} applied {applied[i]} expected {expected}");
                     }
                     else
@@ -124,7 +130,7 @@ public unsafe class SaturatingAddTests
                 {
                     var before = Lattice[i % Lattice.Length];
                     var expected = Expected(before, deltaValue, bounds[0], bounds[1]);
-                    Assert.True(value[i] == expected && applied[i] == expected - before,
+                    Assert.True(value[i] == expected && applied[i] == SatSubtract(expected, before),
                         $"slot {i} {before} + {deltaValue} in [{bounds[0]}, {bounds[1]}]: value {value[i]} applied {applied[i]} expected {expected}");
                 }
             }
@@ -149,7 +155,7 @@ public unsafe class SaturatingAddTests
                 var before = Lattice[i % Lattice.Length];
                 var d = Lattice[(i + 3) % Lattice.Length];
                 var expected = Expected(before, d, bounds[0], bounds[1]);
-                Assert.True(value[i] == expected && applied[i] == expected - before,
+                Assert.True(value[i] == expected && applied[i] == SatSubtract(expected, before),
                     $"slot {i} {before} + {d} in [{bounds[0]}, {bounds[1]}]: value {value[i]} applied {applied[i]} expected {expected}");
             }
         }
@@ -172,7 +178,7 @@ public unsafe class SaturatingAddTests
                 {
                     var before = Lattice[i % Lattice.Length];
                     var expected = Expected(before, deltaValue, bounds[0], bounds[1]);
-                    Assert.True(value[i] == expected && applied[i] == expected - before,
+                    Assert.True(value[i] == expected && applied[i] == SatSubtract(expected, before),
                         $"slot {i} {before} + {deltaValue} in [{bounds[0]}, {bounds[1]}]: value {value[i]} applied {applied[i]} expected {expected}");
                 }
             }
@@ -198,7 +204,7 @@ public unsafe class SaturatingAddTests
                     if ((PartialWord & (1ul << i)) != 0)
                     {
                         var expected = Expected(before, deltaValue, bounds[0], bounds[1]);
-                        Assert.True(value[i] == expected && applied[i] == expected - before,
+                        Assert.True(value[i] == expected && applied[i] == SatSubtract(expected, before),
                             $"slot {i} {before} + {deltaValue} in [{bounds[0]}, {bounds[1]}]: value {value[i]} applied {applied[i]} expected {expected}");
                     }
                     else
