@@ -57,6 +57,20 @@ public sealed unsafe partial class Board
 
     private float* sourceCoefficient;
 
+    private int* sourceCurve;
+
+    private float* curveData;
+
+    private float* curveMin;
+
+    private float* curveStep;
+
+    private float* curveCeiling;
+
+    private int* curveLength;
+
+    private int curveTotal;
+
     private int* dependentOffset;
 
     private int* dependentStat;
@@ -206,9 +220,32 @@ public sealed unsafe partial class Board
         sourceOffset = arena.Alloc<int>(statCount + 1);
         sourceStat = arena.Alloc<int>(Math.Max(total, 1));
         sourceCoefficient = arena.Alloc<float>(Math.Max(total, 1));
+        sourceCurve = arena.Alloc<int>(Math.Max(total, 1));
         dependentOffset = arena.AllocZeroed<int>(statCount + 1);
         dependentStat = arena.Alloc<int>(Math.Max(total, 1));
+        curveTotal = 0;
+        for (var i = 0; i < statCount; i++)
+        {
+            foreach (var source in schema.Stats[i].Sources)
+            {
+                if (source.Curve != null)
+                {
+                    curveTotal += source.Curve.Length;
+                }
+            }
+        }
+
+        if (curveTotal > 0)
+        {
+            curveData = arena.Alloc<float>(curveTotal);
+            curveMin = arena.Alloc<float>(Math.Max(total, 1));
+            curveStep = arena.Alloc<float>(Math.Max(total, 1));
+            curveCeiling = arena.Alloc<float>(Math.Max(total, 1));
+            curveLength = arena.Alloc<int>(Math.Max(total, 1));
+        }
+
         var at = 0;
+        var dataAt = 0;
         for (var i = 0; i < statCount; i++)
         {
             sourceOffset[i] = at;
@@ -216,6 +253,22 @@ public sealed unsafe partial class Board
             {
                 sourceStat[at] = source.Stat.Index;
                 sourceCoefficient[at] = source.Coefficient;
+                sourceCurve[at] = -1;
+                if (source.Curve is { } curve)
+                {
+                    sourceCurve[at] = dataAt;
+                    curveMin[at] = source.CurveMin;
+                    curveStep[at] = source.CurveStep;
+                    curveLength[at] = curve.Length;
+                    curveCeiling[at] = source.CurveMin + (curve.Length - 1) * source.CurveStep;
+                    for (var k = 0; k < curve.Length; k++)
+                    {
+                        curveData[dataAt + k] = curve[k];
+                    }
+
+                    dataAt += curve.Length;
+                }
+
                 dependentOffset[source.Stat.Index + 1]++;
                 at++;
             }
@@ -298,6 +351,15 @@ public sealed unsafe partial class Board
         arena.Free(sourceStat, Math.Max(sourceOffset[statCount], 1));
         arena.Free(sourceAnchor, Math.Max(sourceOffset[statCount], 1));
         arena.Free(sourceCoefficient, Math.Max(sourceOffset[statCount], 1));
+        arena.Free(sourceCurve, Math.Max(sourceOffset[statCount], 1));
+        if (curveTotal > 0)
+        {
+            arena.Free(curveData, curveTotal);
+            arena.Free(curveMin, Math.Max(sourceOffset[statCount], 1));
+            arena.Free(curveStep, Math.Max(sourceOffset[statCount], 1));
+            arena.Free(curveCeiling, Math.Max(sourceOffset[statCount], 1));
+            arena.Free(curveLength, Math.Max(sourceOffset[statCount], 1));
+        }
         arena.Free(dependentOffset, statCount + 1);
         arena.Free(dependentStat, Math.Max(sourceOffset[statCount], 1));
         var maskWords = statCount * ((Capacity + 63) >> 6);
@@ -1631,6 +1693,21 @@ public sealed unsafe partial class Board
         return count;
     }
 
+    int CurveBucket(int at, float value)
+    {
+        if (value <= curveMin[at])
+        {
+            return 0;
+        }
+
+        if (value >= curveCeiling[at])
+        {
+            return curveLength[at] - 1;
+        }
+
+        return (int)((value - curveMin[at]) / curveStep[at]);
+    }
+
     int GatherInto(int slot, int stat, StatEntry* entries, long* entryIds)
     {
         var synthetic = sourceOffset[stat + 1] - sourceOffset[stat];
@@ -1639,7 +1716,9 @@ public sealed unsafe partial class Board
         {
             var at = sourceOffset[stat] + k;
             var anchor = sourceAnchor[at];
-            entries[k] = new StatEntry(ModifierKind.Added, sourceCoefficient[at] * SourceValue(anchor >= 0 ? anchor : slot, sourceStat[at]));
+            var sourceValue = SourceValue(anchor >= 0 ? anchor : slot, sourceStat[at]);
+            var dataAt = sourceCurve[at];
+            entries[k] = new StatEntry(ModifierKind.Added, dataAt < 0 ? sourceCoefficient[at] * sourceValue : curveData[dataAt + CurveBucket(at, sourceValue)]);
             entryIds[k] = long.MinValue + k;
         }
 

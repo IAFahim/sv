@@ -47,7 +47,14 @@ public readonly struct StatId : IEquatable<StatId>
     public override string ToString() => $"Stat({Index})";
 }
 
-public readonly record struct StatSource(StatId Stat, float Coefficient);
+public readonly record struct StatSource(StatId Stat, float Coefficient)
+{
+    public float[]? Curve { get; init; }
+
+    public float CurveMin { get; init; }
+
+    public float CurveStep { get; init; }
+}
 
 public sealed record StatDef(string Name, float Base)
 {
@@ -116,6 +123,16 @@ public sealed unsafe class Schema
             {
                 AddI32(source.Stat.Index);
                 AddU32(BitConverter.SingleToUInt32Bits(source.Coefficient));
+                if (source.Curve is { } curve)
+                {
+                    AddI32(curve.Length);
+                    AddU32(BitConverter.SingleToUInt32Bits(source.CurveMin));
+                    AddU32(BitConverter.SingleToUInt32Bits(source.CurveStep));
+                    foreach (var entry in curve)
+                    {
+                        AddU32(BitConverter.SingleToUInt32Bits(entry));
+                    }
+                }
             }
         }
 
@@ -214,6 +231,52 @@ public sealed class SchemaBuilder
             resolved[i] = new StatSource(new StatId(index), sources[i].Coefficient);
         }
 
+        stats[stats.Count - 1] = stats[stats.Count - 1] with { Sources = resolved };
+        return this;
+    }
+
+    /// <summary>
+    /// Declares a single-source derived stat whose contribution is a pre-folded curve: the table
+    /// entry at the bucket holding the source value, in place of coefficient * value. The source
+    /// value is quantized as <c>index = clamp((int)((value - min) / step))</c> — values below
+    /// <paramref name="min"/> read entry 0, values past the last bucket read the last entry, NaN
+    /// reads entry 0. One table load per set resolution; identical source values intern to one set.
+    /// </summary>
+    public SchemaBuilder Curve(string name, float @base, string source, float[] curve, float min, float step)
+    {
+        Stat(name, @base);
+        if (curve == null || curve.Length == 0)
+        {
+            stats.RemoveAt(stats.Count - 1);
+            throw new ArgumentException($"sv: curve stat '{name}' needs a non-empty table");
+        }
+
+        if (!float.IsFinite(min) || !float.IsFinite(step) || step <= 0f)
+        {
+            stats.RemoveAt(stats.Count - 1);
+            throw new ArgumentException($"sv: curve stat '{name}' needs a finite min and a positive step");
+        }
+
+        for (var i = 0; i < curve.Length; i++)
+        {
+            if (!float.IsFinite(curve[i]))
+            {
+                stats.RemoveAt(stats.Count - 1);
+                throw new ArgumentException($"sv: curve stat '{name}' entry {i} must be finite");
+            }
+        }
+
+        var index = stats.FindIndex(0, stats.Count - 1, def => def.Name == source);
+        if (index < 0)
+        {
+            stats.RemoveAt(stats.Count - 1);
+            throw new ArgumentException($"sv: curve stat '{name}' source '{source}' must be declared before it");
+        }
+
+        var resolved = new StatSource[1]
+        {
+            new StatSource(new StatId(index), 0f) { Curve = curve, CurveMin = min, CurveStep = step },
+        };
         stats[stats.Count - 1] = stats[stats.Count - 1] with { Sources = resolved };
         return this;
     }

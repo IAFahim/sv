@@ -188,11 +188,14 @@ public sealed class EagerModel
 
     public long NextId = 1;
 
-    public EagerModel(float[] bases, (int stat, float coefficient)[][] sources)
+    readonly (float[] table, float min, float step)[][] curves;
+
+    public EagerModel(float[] bases, (int stat, float coefficient)[][] sources, (float[] table, float min, float step)[][]? curves = null)
     {
         statCount = bases.Length;
         this.bases = bases;
         this.sources = sources;
+        this.curves = curves ?? new (float[] table, float min, float step)[statCount][];
         sourceAnchors = new int[statCount][];
         for (var i = 0; i < statCount; i++)
         {
@@ -445,7 +448,22 @@ public sealed class EagerModel
             var anchor = sourceAnchors[stat][k];
             var sourcePair = (anchor >= 0 && live[anchor] ? anchor : slot) * statCount + source;
             var sourceValue = resolved[sourcePair] ? lastValue[sourcePair] : bases[source];
-            canonical.Add((0, coefficient * sourceValue, EagerOracle.SyntheticIdBase + k));
+            float contribution;
+            var curve = curves.Length == statCount && k < curves[stat]?.Length ? curves[stat]?[k] : null;
+            if (curve != null)
+            {
+                var table = curve.Value.table;
+                var index = sourceValue <= curve.Value.min ? 0
+                    : sourceValue >= curve.Value.min + (table.Length - 1) * curve.Value.step ? table.Length - 1
+                    : (int)((sourceValue - curve.Value.min) / curve.Value.step);
+                contribution = table[index];
+            }
+            else
+            {
+                contribution = coefficient * sourceValue;
+            }
+
+            canonical.Add((0, contribution, EagerOracle.SyntheticIdBase + k));
         }
 
         foreach (var entry in content[pair])
