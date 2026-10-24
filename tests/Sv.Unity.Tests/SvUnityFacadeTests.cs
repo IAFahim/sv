@@ -169,7 +169,7 @@ public sealed unsafe class SvUnityFacadeTests
     }
 
     [Fact]
-    public void EnabledMask_MisalignedChunk_BatchPath_MatchesOracle()
+    public void EnabledMask_MisalignedChunk_DirectPath_MatchesOracle()
     {
         using var world = new Unity.Entities.World("sv");
         var manager = world.EntityManager;
@@ -207,6 +207,37 @@ public sealed unsafe class SvUnityFacadeTests
         chunks.Dispose();
         first.Dispose();
         second.Dispose();
+    }
+
+    [Fact]
+    public void EnabledMask_PartialChunk_TailBounded_MatchesOracle()
+    {
+        using var world = new Unity.Entities.World("sv");
+        var manager = world.EntityManager;
+        using var population = new UnityPopulation(Schema(), 256);
+        var archetype = manager.CreateArchetype(typeof(Health));
+        var entities = manager.CreateEntity(archetype, 70, Allocator.Temp);
+        for (var i = 0; i < entities.Length; i++)
+        {
+            manager.SetComponentData(entities[i], new Health { Value = 500 });
+            population.Bind(manager, entities[i]);
+        }
+
+        var sv = new SvChunk(population.Board, manager.GetComponentTypeHandle<SvSlot>());
+        var healthHandle = manager.GetComponentTypeHandle<Health>();
+        var chunks = manager.GetAllChunks();
+        var applied = new Span<int>(new int[128]);
+        var health = healthHandle;
+        sv.RunIntrinsics(ref health, chunks[0], true, new v128(ulong.MaxValue, 0b010101ul), 7, Clamp.Constant(0, 1000), applied);
+        for (var i = 0; i < 70; i++)
+        {
+            var on = i < 64 || (i & 1) == 0;
+            Assert.Equal(on ? 507 : 500, manager.GetComponentData<Health>(entities[i]).Value);
+            Assert.Equal(on ? 7 : 0, applied[i]);
+        }
+
+        chunks.Dispose();
+        entities.Dispose();
     }
 
     [Fact]

@@ -124,9 +124,9 @@ public static unsafe class ChunkSeam
             throw new ArgumentException("sv.frent: chunk is not slot-contiguous; use the Population window driver");
         }
 
-        if ((offsetSlot & 63) != 0 || offsetSlot < start || offsetSlot >= start + count)
+        if (offsetSlot < start || offsetSlot >= start + count)
         {
-            throw new ArgumentException("sv.frent: enabled window must start 64-aligned inside the chunk");
+            throw new ArgumentException("sv.frent: enabled window must start inside the chunk");
         }
 
         if (!applied.IsEmpty && applied.Length < offsetSlot - start + 64)
@@ -141,7 +141,7 @@ public static unsafe class ChunkSeam
             fixed (int* appliedPin = applied)
             {
                 var appliedView = applied.IsEmpty ? null : appliedPin - start;
-                board.RunEnabledChunk(value, delta, clamp, enabled, offsetSlot, appliedView);
+                board.RunEnabledChunk(value, delta, clamp, enabled, offsetSlot, appliedView, start + count - offsetSlot);
             }
         }
     }
@@ -167,9 +167,9 @@ public static unsafe class ChunkSeam
             throw new ArgumentException("sv.frent: chunk is not slot-contiguous; use the Population window driver");
         }
 
-        if ((offsetSlot & 63) != 0 || offsetSlot < start || offsetSlot >= start + count)
+        if (offsetSlot < start || offsetSlot >= start + count)
         {
-            throw new ArgumentException("sv.frent: enabled window must start 64-aligned inside the chunk");
+            throw new ArgumentException("sv.frent: enabled window must start inside the chunk");
         }
 
         var exactWords = (start + count - offsetSlot + 63) >> 6;
@@ -190,7 +190,12 @@ public static unsafe class ChunkSeam
             fixed (int* appliedPin = applied)
             {
                 var appliedView = applied.IsEmpty ? null : appliedPin - start;
-                board.RunEnabledChunk(value, delta, clamp, words, wordCount, offsetSlot, appliedView);
+                if (wordCount > 1)
+                {
+                    board.RunEnabledChunk(value, delta, clamp, words, wordCount - 1, offsetSlot, appliedView);
+                }
+
+                board.RunEnabledChunk(value, delta, clamp, words[wordCount - 1], offsetSlot + (wordCount - 1) * 64, appliedView, start + count - offsetSlot - (wordCount - 1) * 64);
             }
         }
     }

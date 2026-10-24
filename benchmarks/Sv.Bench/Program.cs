@@ -355,7 +355,7 @@ internal sealed unsafe class EnabledRunwalkBench : BenchBase
         }
 
         var clamp = Clamp.Constant(0, 900_000);
-        for (var offset = 0; offset < Rows; offset += 64)
+        for (var offset = 0; offset + 64 <= Rows; offset += 64)
         {
             ulong mask = 0x5555_5555_5555_5555;
             while (mask != 0)
@@ -367,7 +367,7 @@ internal sealed unsafe class EnabledRunwalkBench : BenchBase
         }
 
         ulong full = 0x5555_5555_5555_5555;
-        for (var offset = 0; offset < Rows; offset += 64)
+        for (var offset = 0; offset + 64 <= Rows; offset += 64)
         {
             board.RunEnabledChunk(value, 7, clamp, full, offset, applied);
         }
@@ -391,7 +391,7 @@ internal sealed unsafe class EnabledRunwalkBench : BenchBase
         long checksum = 0;
         for (var it = 0; it < iterations; it++)
         {
-            for (var offset = 0; offset < Rows; offset += 64)
+            for (var offset = 0; offset + 64 <= Rows; offset += 64)
             {
                 board.RunEnabledChunk(value, 7, clamp, mask, offset, applied);
             }

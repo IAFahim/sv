@@ -8,9 +8,10 @@ namespace Sv.Unity
     /// <summary>
     /// Entity↔slot population over a Unity world: bind/unbind at structural-change boundaries
     /// (main thread here; command-buffer variants mirror the same arithmetic), plus the
-    /// drain-step reconcile (issue 0013 semantics): per-chunk ascending reassign, each chunk
-    /// block 64-aligned so enabled windows address chunk storage directly, sv board renumbered
-    /// once; the returned permutation applies to host-owned slot columns via Sv.Columns.Permute.
+    /// drain-step reconcile (issue 0013 semantics): per-chunk ascending reassign with each
+    /// chunk block packed contiguously — enabled windows work at any slot offset — the sv
+    /// board renumbered once; the returned permutation applies to host-owned slot columns
+    /// via Sv.Columns.Permute.
     /// </summary>
     public sealed unsafe class UnityPopulation : IDisposable
     {
@@ -71,11 +72,10 @@ namespace Sv.Unity
                 var slotHandle = handle;
                 var slots = chunk.GetComponentDataPtrRW(ref slotHandle);
                 var chunkEntities = chunk.GetNativeArray(ref entityType);
-                next = (next + 63) & ~63;
                 if (next + chunk.Count > Board.Capacity)
                 {
                     map.Dispose();
-                    throw new InvalidOperationException("sv.unity: reconcile exceeds board capacity (64-alignment padding)");
+                    throw new InvalidOperationException("sv.unity: reconcile exceeds board capacity");
                 }
 
                 for (var row = 0; row < chunk.Count; row++)

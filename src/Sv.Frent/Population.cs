@@ -7,8 +7,9 @@ namespace Sv.Frent;
 /// <summary>
 /// Fused chunk driver over a Frent world: owns the query, bind/unbind, and slot compaction.
 /// Windows transparently take the contiguous fast path or the in-place row walk; after
-/// <see cref="Reconcile"/> every archetype is contiguous and 64-aligned again, so the fast path
-/// is restored until the next structural change.
+/// <see cref="Reconcile"/> every archetype is contiguous again (at any slot offset — the
+/// enabled windows carry their own tail bound), so the fast path is restored until the next
+/// structural change.
 /// </summary>
 public sealed unsafe class Population : IDisposable
 {
@@ -49,9 +50,10 @@ public sealed unsafe class Population : IDisposable
     }
 
     /// <summary>
-    /// Compacts the slot space: reassigns SvSlot ids ascending per archetype (each archetype block
-    /// 64-aligned so enabled windows work), renumbers the board once, and returns the permutation
-    /// for host-owned slot columns (<see cref="Sv.Columns.Permute{T}(T*, ReadOnlySpan{int}, int)"/>).
+    /// Compacts the slot space: reassigns SvSlot ids ascending per archetype (packed
+    /// contiguously — enabled windows work at any offset), renumbers the board once, and
+    /// returns the permutation for host-owned slot columns
+    /// (<see cref="Sv.Columns.Permute{T}(T*, ReadOnlySpan{int}, int)"/>).
     /// Call at the drain step — the structural-change boundary. Every live board slot must be
     /// bound to an entity in this world; validation runs before any rewrite, so a failed reconcile
     /// leaves world and board exactly as they were.
@@ -69,10 +71,9 @@ public sealed unsafe class Population : IDisposable
         foreach (var chunk in World.Query<SvSlot>().EnumerateChunks<SvSlot>())
         {
             chunk.Deconstruct(out var slots);
-            next = (next + 63) & ~63;
             if (next + slots.Length > capacity)
             {
-                throw new InvalidOperationException("sv.frent: reconcile exceeds board capacity (64-alignment padding)");
+                throw new InvalidOperationException("sv.frent: reconcile exceeds board capacity");
             }
 
             next += slots.Length;
@@ -98,7 +99,6 @@ public sealed unsafe class Population : IDisposable
         foreach (var chunk in World.Query<SvSlot>().EnumerateChunks<SvSlot>())
         {
             chunk.Deconstruct(out var slots);
-            next = (next + 63) & ~63;
             for (var i = 0; i < slots.Length; i++)
             {
                 var oldSlot = slots[i].Slot;
@@ -252,9 +252,9 @@ public readonly unsafe ref struct ChunkWindow<TColumn> where TColumn : unmanaged
             if (rangeCount != 0)
             {
                 population.FastPathChunks++;
-                if ((offset & 63) != 0 || offset < rangeStart || offset >= rangeStart + rangeCount)
+                if (offset < rangeStart || offset >= rangeStart + rangeCount)
                 {
-                    throw new ArgumentException("sv.frent: enabled window must start 64-aligned inside the chunk");
+                    throw new ArgumentException("sv.frent: enabled window must start inside the chunk");
                 }
 
                 var exactWords = (rangeStart + rangeCount - offset + 63) >> 6;

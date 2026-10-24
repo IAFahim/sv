@@ -209,6 +209,63 @@ public sealed unsafe class PopulationTests
     }
 
     [Fact]
+    public void EnabledWindow_UnalignedOffset_FastPath()
+    {
+        using var world = new World();
+        using var population = new Population(world, Schema(), 512);
+        var entities = new Entity[135];
+        for (var i = 0; i < 135; i++)
+        {
+            entities[i] = world.Create(new Health { Value = 500 });
+            population.Bind(entities[i]);
+        }
+
+        population.Reconcile();
+        var clamp = Clamp.Constant(0, 1000);
+        var applied = new int[512];
+        var words = stackalloc ulong[3];
+        words[0] = ulong.MaxValue;
+        words[1] = 0x0F0F_0F0F_0F0F_0F0Ful;
+        words[2] = 0b11;
+        foreach (var window in population.Chunks<Health>())
+        {
+            window.ApplyEnabled(population.Board, words, 3, 5, 3, clamp, applied);
+        }
+
+        Assert.Equal(1, population.FastPathChunks);
+        Assert.Equal(0, population.RemapChunks);
+        for (var i = 0; i < 135; i++)
+        {
+            int expect;
+            int expectApplied;
+            if (i < 5)
+            {
+                expect = 500;
+                expectApplied = 0;
+            }
+            else if (i < 69)
+            {
+                expect = 503;
+                expectApplied = 3;
+            }
+            else if (i < 133)
+            {
+                var on = ((i - 69) & 7) < 4;
+                expect = on ? 503 : 500;
+                expectApplied = on ? 3 : 0;
+            }
+            else
+            {
+                expect = 503;
+                expectApplied = 3;
+            }
+
+            Assert.Equal(expect, entities[i].Get<Health>().Value);
+            Assert.Equal(expectApplied, applied[i]);
+        }
+    }
+
+    [Fact]
     public void RemapChunk_OverflowHeal_SaturatesInsteadOfWrapping()
     {
         using var world = new World();
@@ -286,7 +343,7 @@ public sealed unsafe class PopulationTests
     }
 
     [Fact]
-    public void Reconcile_RenumbersPerArchetype_WithAlignment()
+    public void Reconcile_RenumbersPerArchetype_Packed()
     {
         using var world = new World();
         using var population = new Population(world, Schema(), 512);
@@ -297,8 +354,8 @@ public sealed unsafe class PopulationTests
             population.Bind(tagged[i]);
         }
 
-        var plain = new Entity[20];
-        for (var i = 0; i < 20; i++)
+        var plain = new Entity[40];
+        for (var i = 0; i < 40; i++)
         {
             plain[i] = world.Create(new Health { Value = 1000 + i });
             population.Bind(plain[i]);
@@ -316,8 +373,8 @@ public sealed unsafe class PopulationTests
             Assert.True(population.TrySlot(tagged[i], out taggedSlots[i]));
         }
 
-        var plainSlots = new int[20];
-        for (var i = 0; i < 20; i++)
+        var plainSlots = new int[40];
+        for (var i = 0; i < 40; i++)
         {
             Assert.True(population.TrySlot(plain[i], out plainSlots[i]));
         }
@@ -327,17 +384,20 @@ public sealed unsafe class PopulationTests
         for (var i = 0; i < 40; i++)
         {
             Assert.Equal(taggedSlots[0] + i, taggedSlots[i]);
-        }
-
-        for (var i = 0; i < 20; i++)
-        {
             Assert.Equal(plainSlots[0] + i, plainSlots[i]);
         }
 
         var bases = new[] { taggedSlots[0], plainSlots[0] };
         Array.Sort(bases);
         Assert.Equal(0, bases[0]);
-        Assert.Equal(64, bases[1]);
+        Assert.Equal(40, bases[1]);
+        for (var i = 0; i < 512; i++)
+        {
+            if (perm[i] >= 0)
+            {
+                Assert.True(perm[i] < 80, "packed renumber never leaves a hole below the top of the last block");
+            }
+        }
     }
 
     [Fact]
