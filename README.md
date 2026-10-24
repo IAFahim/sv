@@ -236,6 +236,12 @@ stat identity is interned blocks — and ~17 MiB fully live) and
 baked 64-bit scenario digest is identical on the AVX2, 128-bit and scalar paths, and
 the `determinism` CI matrix runs it on x64, arm64, macOS and Windows.
 
+The table below is refreshed by CI on a 2-core cloud runner (the banner names the
+machine) — it is regression tracking only. Authoritative receipts are the issue
+files in `issues/`, measured on the bus host (i9-14900K, 24C/32T); per owner
+decision 0048 the performance gate is cold-core p50 on that box, with warm
+reported alongside.
+
 <!-- bench:begin (auto-generated — CI refreshes this on every push to main; do not edit by hand) -->
 
 Last refreshed 2026-10-22 11:22 UTC · `main@f4ccc8d` · AMD EPYC 9V45 96-Core Processor (2 cores) · sv-bench rows=100000 vector256=True vector128=True
