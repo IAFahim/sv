@@ -150,6 +150,65 @@ public sealed unsafe class PopulationTests
     }
 
     [Fact]
+    public void EnabledWindow_PartialTailWord_StaysInsideTheChunk()
+    {
+        using var world = new World();
+        using var population = new Population(world, Schema(), 512);
+        var entities = new Entity[70];
+        for (var i = 0; i < 70; i++)
+        {
+            entities[i] = world.Create(new Health { Value = 400 });
+            population.Bind(entities[i]);
+        }
+
+        population.Reconcile();
+        var clamp = Clamp.Constant(0, 1000);
+        var applied = new int[512];
+        var words = stackalloc ulong[2];
+        words[0] = ulong.MaxValue;
+        words[1] = 0b11_1111;
+        foreach (var window in population.Chunks<Health>())
+        {
+            window.ApplyEnabled(population.Board, words, 2, 0, 5, clamp, applied);
+        }
+
+        Assert.Equal(1, population.FastPathChunks);
+        Assert.Equal(0, population.RemapChunks);
+        for (var i = 0; i < 70; i++)
+        {
+            Assert.Equal(405, entities[i].Get<Health>().Value);
+            Assert.Equal(5, applied[i]);
+        }
+
+        words[0] = 0;
+        foreach (var window in population.Chunks<Health>())
+        {
+            window.ApplyEnabled(population.Board, words, 2, 0, 1, clamp, applied);
+        }
+
+        for (var i = 0; i < 64; i++)
+        {
+            Assert.Equal(405, entities[i].Get<Health>().Value);
+            Assert.Equal(0, applied[i]);
+        }
+
+        for (var i = 64; i < 70; i++)
+        {
+            Assert.Equal(406, entities[i].Get<Health>().Value);
+            Assert.Equal(1, applied[i]);
+        }
+
+        words[1] = 0b111_1111;
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+        {
+            foreach (var window in population.Chunks<Health>())
+            {
+                window.ApplyEnabled(population.Board, words, 2, 0, 1, clamp, applied);
+            }
+        });
+    }
+
+    [Fact]
     public void RemapChunk_OverflowHeal_SaturatesInsteadOfWrapping()
     {
         using var world = new World();

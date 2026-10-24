@@ -273,7 +273,12 @@ public readonly unsafe ref struct ChunkWindow<TColumn> where TColumn : unmanaged
                 fixed (int* appliedPin = applied)
                 {
                     var appliedView = applied.IsEmpty ? null : appliedPin - rangeStart;
-                    board.RunEnabledChunk(value, delta, clamp, words, wordCount, offset, appliedView);
+                    if (wordCount > 1)
+                    {
+                        board.RunEnabledChunk(value, delta, clamp, words, wordCount - 1, offset, appliedView);
+                    }
+
+                    board.RunEnabledChunk(value, delta, clamp, words[wordCount - 1], offset + (wordCount - 1) * 64, appliedView, rangeStart + rangeCount - offset - (wordCount - 1) * 64);
                 }
 
                 return;

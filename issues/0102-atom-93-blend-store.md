@@ -84,3 +84,22 @@ in place above it.
 ## Provenance
 
 `main@9941db9` + this atom. Bus checked before and after (inbox empty).
+
+## Follow-up (same atom, `main@7e0addc` + 1)
+
+The first cut threaded `validBits` through the single-word and Span surfaces
+but left the **raw multiword** path at 64 per word — and the Frent
+`ApplyEnabled` fast path relied on exactly that path for chunks whose row
+count is not a word multiple: the tail word spans past the chunk's column
+(Frent columns are not word-padded), and the blend full-width touches lanes
+the old masked loads never did. `ApplyEnabled` now composes full words
+(multiword call) + the bounded tail word (single-word call with the chunk's
+tail row count as `validBits`); the raw multiword overloads keep their
+word-complete contract. New receipt:
+`EnabledWindow_PartialTailWord_StaysInsideTheChunk` — a 70-row chunk (one
+full word + a 6-row tail), both passes, applied zeros verified, and an
+out-of-tail mask bit rejected. 409/409 (checked too); enabled-runwalk
+unchanged (2357 M rows/s). The Unity two-word path is capacity-padded by
+Unity's chunk allocation, so it was never exposed; the seam atom (3.3)
+rewrites it regardless.
+
