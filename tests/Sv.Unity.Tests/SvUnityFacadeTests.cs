@@ -66,7 +66,8 @@ public sealed unsafe class SvUnityFacadeTests
             population.Bind(manager, entities[i]);
         }
 
-        var sv = new SvChunk(population.Board, manager.GetComponentTypeHandle<SvSlot>());
+        population.Reconcile(manager);
+        var sv = new SvChunk(population.Board, manager.GetComponentTypeHandle<SvSlot>(), manager.GetComponentTypeHandle<SvRange>());
         var healthHandle = manager.GetComponentTypeHandle<Health>();
         var chunks = manager.GetAllChunks();
         var applied = new Span<int>(new int[128]);
@@ -111,7 +112,8 @@ public sealed unsafe class SvUnityFacadeTests
                 population.Bind(manager, entities[i]);
             }
 
-            var sv = new SvChunk(population.Board, manager.GetComponentTypeHandle<SvSlot>());
+            population.Reconcile(manager);
+            var sv = new SvChunk(population.Board, manager.GetComponentTypeHandle<SvSlot>(), manager.GetComponentTypeHandle<SvRange>());
             var healthHandle = manager.GetComponentTypeHandle<Health>();
             var chunks = manager.GetAllChunks();
             var health = healthHandle;
@@ -151,7 +153,8 @@ public sealed unsafe class SvUnityFacadeTests
             population.Bind(manager, entities[i]);
         }
 
-        var sv = new SvChunk(population.Board, manager.GetComponentTypeHandle<SvSlot>());
+        population.Reconcile(manager);
+        var sv = new SvChunk(population.Board, manager.GetComponentTypeHandle<SvSlot>(), manager.GetComponentTypeHandle<SvRange>());
         var healthHandle = manager.GetComponentTypeHandle<Health>();
         var chunks = manager.GetAllChunks();
         var applied = new Span<int>(new int[128]);
@@ -189,7 +192,8 @@ public sealed unsafe class SvUnityFacadeTests
             Assert.Equal(70 + i, population.Bind(manager, second[i]));
         }
 
-        var sv = new SvChunk(population.Board, manager.GetComponentTypeHandle<SvSlot>());
+        population.Reconcile(manager);
+        var sv = new SvChunk(population.Board, manager.GetComponentTypeHandle<SvSlot>(), manager.GetComponentTypeHandle<SvRange>());
         var staminaHandle = manager.GetComponentTypeHandle<Stamina>();
         var chunks = manager.GetAllChunks();
         Assert.Equal(2, chunks.Length);
@@ -223,7 +227,8 @@ public sealed unsafe class SvUnityFacadeTests
             population.Bind(manager, entities[i]);
         }
 
-        var sv = new SvChunk(population.Board, manager.GetComponentTypeHandle<SvSlot>());
+        population.Reconcile(manager);
+        var sv = new SvChunk(population.Board, manager.GetComponentTypeHandle<SvSlot>(), manager.GetComponentTypeHandle<SvRange>());
         var healthHandle = manager.GetComponentTypeHandle<Health>();
         var chunks = manager.GetAllChunks();
         var applied = new Span<int>(new int[128]);
@@ -260,7 +265,7 @@ public sealed unsafe class SvUnityFacadeTests
         }
 
         Assert.Equal(67, population.Board.LiveCount);
-        var sv = new SvChunk(population.Board, manager.GetComponentTypeHandle<SvSlot>());
+        var sv = new SvChunk(population.Board, manager.GetComponentTypeHandle<SvSlot>(), manager.GetComponentTypeHandle<SvRange>());
         var healthHandle = manager.GetComponentTypeHandle<Health>();
         var chunks = manager.GetAllChunks();
         var health = healthHandle;
@@ -268,6 +273,8 @@ public sealed unsafe class SvUnityFacadeTests
 
         using var map = population.Reconcile(manager);
         Assert.Equal(67, population.Board.LiveCount);
+        chunks.Dispose();
+        chunks = manager.GetAllChunks();
         health = healthHandle;
         sv.RunIntrinsics(ref health, chunks[0], false, default, -2, Clamp.Constant(0, 500), Span<int>.Empty);
         for (var i = 0; i < 100; i++)

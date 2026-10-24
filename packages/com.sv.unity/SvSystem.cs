@@ -12,10 +12,15 @@ namespace Sv.Unity
     }
 
     /// <summary>
-    /// The svSystemBase pattern: handles and lookups Update(ref state) every frame; structural
-    /// changes play back at the sync point, reconcile runs at the drain step (clause 7 order),
-    /// then the chunk job drives sv intrinsics through SvChunk. Hosts copy this shape; the
-    /// board/clamp/delta arrive from the owning context.
+    /// The v2 frame order (clause 7) as one Burst ISystem. Hosts drain their event channels and
+    /// play back structural command buffers before calling Update (the drain seam — sv's events
+    /// are host-side). OnUpdate then runs: reconcile at the structural boundary when
+    /// <see cref="StructuralChange"/> is set (each chunk's SvRange written, board renumbered), the
+    /// chunk job driving intrinsics through the enabled masks, ExpireModifiers at
+    /// <see cref="Tick"/> with due crossings collected into <see cref="DueCrossings"/>
+    /// (<see cref="DueCrossingCount"/> of them, (tick, id) order), and Recalculate. The board,
+    /// clamp, delta, tick, crossing buffer and structural flag arrive from the owning context;
+    /// hosts copy this shape.
     /// </summary>
     [BurstCompile]
     public partial struct SvIntrinsicsSystem : ISystem
@@ -28,9 +33,21 @@ namespace Sv.Unity
 
         public int Delta;
 
+        public long Tick;
+
+        public bool StructuralChange;
+
+        public NativeArray<long> DueCrossings;
+
+        public int DueCrossingCount;
+
+        public int ExpiredLastFrame;
+
         EntityQuery query;
 
         ComponentTypeHandle<SvSlot> slotHandle;
+
+        ComponentTypeHandle<SvRange> rangeHandle;
 
         ComponentTypeHandle<SvMana> manaHandle;
 
@@ -40,6 +57,7 @@ namespace Sv.Unity
         public void OnCreate(ref SystemState state)
         {
             slotHandle = state.GetComponentTypeHandle<SvSlot>();
+            rangeHandle = state.GetComponentTypeHandle<SvRange>();
             manaHandle = state.GetComponentTypeHandle<SvMana>();
             manaLookup = state.GetComponentLookup<SvMana>();
             query = new EntityQueryBuilder(Allocator.Temp)
@@ -53,9 +71,16 @@ namespace Sv.Unity
         public unsafe void OnUpdate(ref SystemState state)
         {
             slotHandle.Update(ref state);
+            rangeHandle.Update(ref state);
             manaHandle.Update(ref state);
             manaLookup.Update(ref state);
-            var sv = new SvChunk(Board, slotHandle);
+            if (StructuralChange)
+            {
+                using var permutation = Population.Reconcile(state.EntityManager);
+                StructuralChange = false;
+            }
+
+            var sv = new SvChunk(Board, slotHandle, rangeHandle);
             state.Dependency = new IntrinsicsJob
             {
                 Sv = sv,
@@ -63,6 +88,9 @@ namespace Sv.Unity
                 Delta = Delta,
                 Clamp = Clamp,
             }.ScheduleParallel(query, state.Dependency);
+            ExpiredLastFrame = Board.ExpireModifiers(Tick);
+            DueCrossingCount = Board.TakeDueCrossings(DueCrossings.AsSpan());
+            Board.Recalculate();
         }
 
         [BurstCompile]

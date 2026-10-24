@@ -40,7 +40,7 @@ namespace Unity.Entities
         }
     }
 
-    public sealed record FakeChunk(int Count, ImmutableDictionary<Type, IntPtr> Columns, v128? EnabledMask, Entity[]? Entities = null);
+    public sealed record FakeChunk(int Count, ImmutableDictionary<Type, IntPtr> Columns, v128? EnabledMask, Entity[]? Entities = null, ImmutableDictionary<Type, IntPtr>? ChunkColumns = null);
 
     public sealed class FakeSystem
     {
@@ -114,7 +114,7 @@ namespace Unity.Entities
 
     public static class WorldExtensions
     {
-        public static SystemHandle CreateSystem<T>(this World self) where T : unmanaged, ISystem
+        public static SystemHandle CreateSystem<T>(this World self) where T : struct, ISystem
         {
             var world = self.Unmanaged.World;
             var entry = new FakeSystem(new T(), new SystemState(world));
@@ -153,7 +153,7 @@ namespace Unity.Entities
 
         internal FakeWorld World => world;
 
-        public ref T GetUnsafeSystemRef<T>(SystemHandle id) where T : unmanaged, ISystem => ref Unsafe.Unbox<T>(world.Systems[id.Index].System);
+        public ref T GetUnsafeSystemRef<T>(SystemHandle id) where T : struct, ISystem => ref Unsafe.Unbox<T>(world.Systems[id.Index].System);
     }
 
     public struct Entity : IEquatable<Entity>, IComparable<Entity>
@@ -252,7 +252,7 @@ namespace Unity.Entities
                 if (!world.Chunks[index].Columns.ContainsKey(typeof(T)))
                 {
                     var chunk = world.Chunks[index];
-                    world.Chunks[index] = new FakeChunk(chunk.Count, chunk.Columns.Add(typeof(T), owner.Allocate(typeof(T), FakeWorld.ChunkCapacity)), chunk.EnabledMask, chunk.Entities);
+                    world.Chunks[index] = new FakeChunk(chunk.Count, chunk.Columns.Add(typeof(T), owner.Allocate(typeof(T), FakeWorld.ChunkCapacity)), chunk.EnabledMask, chunk.Entities, chunk.ChunkColumns);
                 }
             }
 
@@ -283,14 +283,14 @@ namespace Unity.Entities
                 var entities = chunk.Entities!;
                 var movedEntity = entities[last];
                 world.Locations[movedEntity.Index] = (chunkIndex, row);
-                var swapped = (Entity[])entities.Clone();
-                swapped[row] = movedEntity;
-                world.Chunks[chunkIndex] = new FakeChunk(chunk.Count - 1, chunk.Columns, chunk.EnabledMask, swapped);
-            }
-            else
-            {
-                world.Chunks[chunkIndex] = new FakeChunk(chunk.Count - 1, chunk.Columns, chunk.EnabledMask, chunk.Entities);
-            }
+            var swapped = (Entity[])entities.Clone();
+            swapped[row] = movedEntity;
+            world.Chunks[chunkIndex] = new FakeChunk(chunk.Count - 1, chunk.Columns, chunk.EnabledMask, swapped, chunk.ChunkColumns);
+        }
+        else
+        {
+            world.Chunks[chunkIndex] = new FakeChunk(chunk.Count - 1, chunk.Columns, chunk.EnabledMask, chunk.Entities, chunk.ChunkColumns);
+        }
 
             foreach (var type in chunk.Columns.Keys)
             {
@@ -303,6 +303,27 @@ namespace Unity.Entities
 
         internal static int SizeOf(Type type) =>
             (int)typeof(Unsafe).GetMethod(nameof(Unsafe.SizeOf))!.MakeGenericMethod(type).Invoke(null, null)!;
+
+        public unsafe void AddChunkComponentData<T>(EntityQuery entityQuery, T componentData = default)
+            where T : unmanaged, IComponentData
+        {
+            var owner = world;
+            for (var index = 0; index < world.Chunks.Count; index++)
+            {
+                var chunk = world.Chunks[index];
+                if (!entityQuery.Matches(chunk) || chunk.ChunkColumns?.ContainsKey(typeof(T)) == true)
+                {
+                    continue;
+                }
+
+                var pointer = owner.Allocate(typeof(T), 1);
+                *((T*)pointer) = componentData;
+                world.Chunks[index] = new FakeChunk(chunk.Count, chunk.Columns, chunk.EnabledMask, chunk.Entities, (chunk.ChunkColumns ?? ImmutableDictionary<Type, IntPtr>.Empty).Add(typeof(T), pointer));
+            }
+        }
+
+        public EntityQuery CreateEntityQuery(params ComponentType[] components) =>
+            new(world, components.Select(component => (component.Type, false)).ToImmutableArray());
 
         public ComponentTypeHandle<T> GetComponentTypeHandle<T>(bool isReadOnly = false)
             where T : unmanaged, IComponentData =>
@@ -320,7 +341,7 @@ namespace Unity.Entities
             for (var index = 0; index < world.Chunks.Count; index++)
             {
                 var chunk = world.Chunks[index];
-                chunks[index] = new ArchetypeChunk(chunk.Count, chunk.Columns, chunk.Entities);
+                chunks[index] = new ArchetypeChunk(chunk.Count, chunk.Columns, chunk.Entities, chunk.ChunkColumns);
             }
 
             return new NativeArray<ArchetypeChunk>(chunks, Allocator.Temp);
@@ -400,6 +421,8 @@ namespace Unity.Entities
 
         public WorldUnmanaged WorldUnmanaged => new(world);
 
+        public EntityManager EntityManager => new(world);
+
         public JobHandle Dependency { get; set; }
 
         public ImmutableArray<EntityQuery> RequiredQueries { get; private set; }
@@ -437,19 +460,47 @@ namespace Unity.Entities
     public readonly unsafe struct ArchetypeChunk
     {
         private readonly ImmutableDictionary<Type, IntPtr> columns;
+        private readonly ImmutableDictionary<Type, IntPtr>? chunkColumns;
         private readonly Entity[]? entities;
 
-        public ArchetypeChunk(int count, ImmutableDictionary<Type, IntPtr> columns, Entity[]? entities = null)
+        public ArchetypeChunk(int count, ImmutableDictionary<Type, IntPtr> columns, Entity[]? entities = null, ImmutableDictionary<Type, IntPtr>? chunkColumns = null)
         {
             Count = count;
             this.columns = columns;
             this.entities = entities;
+            this.chunkColumns = chunkColumns;
         }
 
         public int Count { get; }
 
         public NativeArray<Entity> GetNativeArray(ref EntityTypeHandle typeHandle) =>
             new(entities ?? Array.Empty<Entity>(), Allocator.Temp);
+
+        public bool HasChunkComponent<T>(ComponentTypeHandle<T> chunkComponentTypeHandle)
+            where T : unmanaged, IComponentData =>
+            chunkColumns != null && chunkColumns.ContainsKey(typeof(T));
+
+        public T GetChunkComponentData<T>(ref ComponentTypeHandle<T> chunkComponentTypeHandle)
+            where T : unmanaged, IComponentData =>
+            chunkColumns != null && chunkColumns.TryGetValue(typeof(T), out var pointer)
+                ? *(T*)pointer
+                : throw new ArgumentException($"Chunk does not contain a {typeof(T)} chunk component");
+
+        public void SetChunkComponentData<T>(ref ComponentTypeHandle<T> chunkComponentTypeHandle, T value)
+            where T : unmanaged, IComponentData
+        {
+            if (chunkComponentTypeHandle.IsReadOnly)
+            {
+                throw new InvalidOperationException("Provided ComponentTypeHandle is read-only; can't set chunk component data");
+            }
+
+            if (chunkColumns == null || !chunkColumns.TryGetValue(typeof(T), out var pointer))
+            {
+                throw new ArgumentException($"Chunk does not contain a {typeof(T)} chunk component");
+            }
+
+            *(T*)pointer = value;
+        }
 
         public T* GetComponentDataPtrRW<T>(ref ComponentTypeHandle<T> typeHandle)
             where T : unmanaged, IComponentData =>
@@ -535,7 +586,7 @@ namespace Unity.Entities
             var matching = query.World.Chunks.Where(query.Matches).ToArray();
             foreach (var (chunk, index) in matching.Select((chunk, index) => (chunk, index)))
             {
-                jobData.Execute(new ArchetypeChunk(chunk.Count, chunk.Columns, chunk.Entities), index, chunk.EnabledMask.HasValue, chunk.EnabledMask ?? default);
+                jobData.Execute(new ArchetypeChunk(chunk.Count, chunk.Columns, chunk.Entities, chunk.ChunkColumns), index, chunk.EnabledMask.HasValue, chunk.EnabledMask ?? default);
             }
 
             return dependsOn;
@@ -736,6 +787,8 @@ namespace Unity.Collections
         }
 
         public T[] ToArray() => (T[])items.Clone();
+
+        public Span<T> AsSpan() => items.AsSpan();
 
         public void Dispose()
         {

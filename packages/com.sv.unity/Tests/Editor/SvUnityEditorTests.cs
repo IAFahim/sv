@@ -35,10 +35,12 @@ namespace Sv.Unity.Tests.Editor
                 population.Bind(manager, entities[i]);
             }
 
+            population.Reconcile(manager);
             var slotHandle = manager.GetComponentTypeHandle<SvSlot>();
+            var rangeHandle = manager.GetComponentTypeHandle<SvRange>();
             var healthHandle = manager.GetComponentTypeHandle<Health>();
             var chunks = manager.GetAllChunks(Allocator.Temp);
-            var sv = new SvChunk(population.Board, slotHandle);
+            var sv = new SvChunk(population.Board, slotHandle, rangeHandle);
             var clamp = Clamp.Constant(0, 400);
             var applied = new NativeArray<int>(128, Allocator.Temp);
             for (var c = 0; c < chunks.Length; c++)
@@ -69,12 +71,15 @@ namespace Sv.Unity.Tests.Editor
             for (var i = 0; i < entities.Length; i++)
             {
                 dense[i] = 200 + i;
+                population.Bind(manager, entities[i]);
             }
 
+            population.Reconcile(manager);
             var slotHandle = manager.GetComponentTypeHandle<SvSlot>();
+            var rangeHandle = manager.GetComponentTypeHandle<SvRange>();
             var healthHandle = manager.GetComponentTypeHandle<Health>();
             var chunks = manager.GetAllChunks(Allocator.Temp);
-            var sv = new SvChunk(population.Board, slotHandle);
+            var sv = new SvChunk(population.Board, slotHandle, rangeHandle);
             var clamp = Clamp.Constant(0, 1000);
 
             for (var pass = 0; pass < 2; pass++)

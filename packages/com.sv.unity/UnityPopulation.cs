@@ -11,7 +11,9 @@ namespace Sv.Unity
     /// drain-step reconcile (issue 0013 semantics): per-chunk ascending reassign with each
     /// chunk block packed contiguously — enabled windows work at any slot offset — the sv
     /// board renumbered once; the returned permutation applies to host-owned slot columns
-    /// via Sv.Columns.Permute.
+    /// via Sv.Columns.Permute. Every chunk that carries SvSlot rows gets its SvRange chunk
+    /// component written (the rows must be the chunk's row prefix), so SvChunk resolves each
+    /// chunk's slot window in O(1) afterwards.
     /// </summary>
     public sealed unsafe class UnityPopulation : IDisposable
     {
@@ -50,6 +52,8 @@ namespace Sv.Unity
 
         public NativeArray<int> Reconcile(EntityManager manager)
         {
+            manager.AddChunkComponentData(manager.CreateEntityQuery(typeof(SvSlot)), new SvRange());
+            var rangeHandle = manager.GetComponentTypeHandle<SvRange>();
             var map = new NativeArray<int>(Board.Capacity, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
             var mapPtr = (int*)map.GetUnsafePtr();
             for (var i = 0; i < Board.Capacity; i++)
@@ -78,6 +82,8 @@ namespace Sv.Unity
                     throw new InvalidOperationException("sv.unity: reconcile exceeds board capacity");
                 }
 
+                var chunkStart = -1;
+                var bound = 0;
                 for (var row = 0; row < chunk.Count; row++)
                 {
                     if (!manager.HasComponent<SvSlot>(chunkEntities[row]))
@@ -85,11 +91,25 @@ namespace Sv.Unity
                         continue;
                     }
 
+                    if (row != bound)
+                    {
+                        map.Dispose();
+                        throw new InvalidOperationException("sv.unity: SvSlot rows must be the chunk's row prefix; rebind before reconcile");
+                    }
+
+                    if (chunkStart < 0)
+                    {
+                        chunkStart = next;
+                    }
+
                     var oldSlot = slots[row].Slot;
                     slots[row] = new SvSlot { Slot = next };
                     mapPtr[oldSlot] = next;
                     next++;
+                    bound++;
                 }
+
+                chunk.SetChunkComponentData(ref rangeHandle, new SvRange { Start = chunkStart < 0 ? 0 : chunkStart, Count = bound });
             }
 
             Board.RenumberSlots(new ReadOnlySpan<int>(mapPtr, Board.Capacity), Board.LiveCount);
