@@ -1,0 +1,1728 @@
+[UnityConnectServicesConfig] Local config successfully read: "/usr/share/unity3d/config/services-config.json"
+[UnityConnectServicesConfig] Service configuration:
+    "servicesConfigBaseUrl": "",
+    "disableServicesWindow": false,
+    "disableUserLogin": false,
+    "entitlementCacheTimeoutInSeconds": 60,
+    "clientConnectTimeoutSec": 60,
+    "clientHandshakeTimeoutSec": 30,
+    "clientResolveEntitlementsTimeoutSec": 30,
+    "clientUpdateLicenseTimeoutSec": 30,
+    "licensingServiceBaseUrl": "",
+    "enableProxyAutoconfig": "false"
+
+Unity Editor version:    6000.7.0b5 (5747dc44953f)
+Branch:                  6000.7/staging
+Build type:              Release
+Batch mode:              YES
+System name:             Linux
+Distro version:          #1 SMP PREEMPT_DYNAMIC Mon, 14 Sep 2026 19:55:01 +0000
+Kernel version:          7.2.5-3-omarchy
+Architecture:            x86_64
+Window Protocol:         Wayland (XWayland)
+Available memory:        31840 MB
+Date:                    2026-10-24T18:37:51Z
+VBCSCompilerPreWarmer: watching VBCSCompiler (PID 709021)
+VBCSCompilerPreWarmer: pre-warm launched (dotnet PID 709022)
+VBCSCompiler prewarm took 2.85 ms
+Initialize udev device monitor.
+[Licensing::Module] Trying to connect to existing licensing client channel...
+[Licensing::IpcConnector] Channel LicenseClient-i doesn't exist
+[Licensing::Module] Successfully launched the LicensingClient (PId: 709026)
+
+COMMAND LINE ARGUMENTS:
+/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Unity
+-batchmode
+-nographics
+-quit
+-projectPath
+/home/i/GitHub/sv-w103/tests/Sv.Editor/unity
+-executeMethod
+Sv.Editor.SvEditorBatch.Run
+-logFile
+/home/i/GitHub/sv-w103/tests/Sv.Editor/receipt/unity-probe.log
+Successfully changed project path to: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity
+/home/i/GitHub/sv-w103/tests/Sv.Editor/unity
+[UnityMemory] Configuration Parameters - Can be set up in boot.config
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-nav-mesh-worker=65536"
+    "memorysetup-temp-allocator-size-audio-worker=65536"
+    "memorysetup-temp-allocator-size-cloud-worker=32768"
+    "memorysetup-entities-archetype-allocator-budget=16777216"
+    "memorysetup-entities-query-allocator-budget=16777216"
+    "memorysetup-temp-allocator-size-preload-manager=33554432"
+    "memorysetup-remapper-allocator-initial-capacity=32768"
+    "memorysetup-temp-allocator-size-gfx=262144"
+    "memorysetup-allocator-temp-initial-block-size-main=262144"
+    "memorysetup-allocator-temp-initial-block-size-worker=262144"
+    "memorysetup-temp-allocator-size-background-worker=32768"
+    "memorysetup-temp-allocator-size-job-worker=262144"
+    "memorysetup-bucket-allocator-granularity=16"
+    "memorysetup-bucket-allocator-bucket-count=8"
+    "memorysetup-bucket-allocator-block-size=33554432"
+    "memorysetup-bucket-allocator-block-count=8"
+    "memorysetup-main-allocator-block-size=16777216"
+    "memorysetup-thread-allocator-block-size=16777216"
+    "memorysetup-main-allocator-mimalloc-enabled=1"
+    "memorysetup-gfx-main-allocator-block-size=16777216"
+    "memorysetup-gfx-thread-allocator-block-size=16777216"
+    "memorysetup-cache-allocator-block-size=4194304"
+    "memorysetup-typetree-allocator-block-size=2097152"
+    "memorysetup-profiler-bucket-allocator-granularity=16"
+    "memorysetup-profiler-bucket-allocator-bucket-count=8"
+    "memorysetup-profiler-bucket-allocator-block-size=33554432"
+    "memorysetup-profiler-bucket-allocator-block-count=8"
+    "memorysetup-profiler-allocator-block-size=16777216"
+    "memorysetup-profiler-editor-allocator-block-size=1048576"
+    "memorysetup-temp-allocator-size-main=16777216"
+    "memorysetup-job-temp-allocator-block-size=2097152"
+    "memorysetup-job-temp-allocator-block-size-background=1048576"
+    "memorysetup-job-temp-allocator-reduction-small-platforms=262144"
+Logging is directed to a specific file, skipping project log.
+Player connection [136508240386816]  Target information:
+
+Player connection [136508240386816]  * "[IP] 192.168.31.92 [Port] 55504 [Flags] 2 [Guid] 1623108006 [EditorId] 1623108006 [Version] 1048832 [Id] LinuxEditor(16,192.168.31.92) [Debug] 1 [PackageName] LinuxEditor [ProjectName] Editor" 
+
+Player connection [136508240386816]  * "[IP] 172.18.0.1 [Port] 55504 [Flags] 2 [Guid] 1623108006 [EditorId] 1623108006 [Version] 1048832 [Id] LinuxEditor(16,192.168.31.92) [Debug] 1 [PackageName] LinuxEditor [ProjectName] Editor" 
+
+Player connection [136508240386816]  * "[IP] 172.17.0.1 [Port] 55504 [Flags] 2 [Guid] 1623108006 [EditorId] 1623108006 [Version] 1048832 [Id] LinuxEditor(16,192.168.31.92) [Debug] 1 [PackageName] LinuxEditor [ProjectName] Editor" 
+
+Player connection [136508240386816] Host joined multi-casting on [225.0.0.222:54997]...
+Player connection [136508240386816] Host joined alternative multi-casting on [225.0.0.222:34997]...
+Input System module state changed to: Initialized.
+[Physics::Module] Initialized fallback backend.
+[Physics::Module] Id: 0xdecafbad
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-i" at "2026-10-24T18:37:51.781865Z"
+[SignatureVerifier] Application signature verification not supported on this platform.
+[Licensing::Client] Handshaking with LicensingClient:
+  Version:                 1.19.0-rc.1+a1d64c6
+  Session Id:              cb741e416df94373a424847684bcf323
+  Correlation Id:          98c944d404b3509dd6ac2d5a97edf837
+  External correlation Id: 9044685308506387478
+  Machine Id:              3QFrjbePZf73KIZg6Vg0uKW2M4A=
+[Licensing::Module] Successfully connected to LicensingClient on channel: "LicenseClient-i" (connect: 0.02s, validation: 0.00s, handshake: 0.00s)
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-i-notifications" at "2026-10-24T18:37:51.785144Z"
+[Licensing::Module] Connected to LicensingClient (PId: 709026, launch time: 0.00, total connection time: 0.03s)
+[Licensing::Module] Error: Access token is unavailable; failed to update
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] License group:
+  Id: 5469322-UnityPersXXXX
+  Product: Unity Personal
+  Type: Assigned
+  Expiration: Unlimited
+[Licensing::Client] Successfully updated license, isAsync: True, time: 0.00
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] Licensing Background thread has ended after 0.03s
+Initialising UDS system complete:
+  - System type: Client
+  - Resource namespace: 8d89a45244ef0c38922a4252e3df656c
+  - Shared memory size: 1073741824
+  - Command buffer id: 1052624
+  - Command buffer size: 8192
+  - Hashmap size: 4194304
+  - Service connected: false
+[Package Manager] Connected to IPC stream "Upm-708943" after 0.1 seconds.
+[Licensing::Client] Successfully resolved entitlement details
+Library Redirect Path: Library/
+Rebuilding Library because the asset database could not be found!
+Launching Unity Data Store - /home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/Tools/Unity.DataStore 
+Unity Data Store artifact dir = Library/DataStore, working dir = /home/i/GitHub/sv-w103/tests/Sv.Editor/unityUnity Data Store running and initialised
+[Physics::Module] Selected backend (deferred post-plugins).
+[Physics::Module] Name: PhysX
+[Physics::Module] Id: 0xf2b8ea05
+[Physics::Module] SDK Version: 4.1.2
+[Physics::Module] Integration Version: 1.0.0
+[Physics::Module] Threading Mode: Multi-Threaded
+Initialize engine version: 6000.7.0b5 (5747dc44953f)
+[EntityIdStore] init: VM path (explicit commit), pageSize=4096, blockCount=262144, entitiesPerBlock=1024, blocksPerSlotPage=0, slots reserved=4294967296 bytes
+[Subsystems] Discovering subsystems at path /home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/Resources/UnitySubsystems
+[Subsystems] Discovering subsystems at path /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Assets
+Forcing GfxDevice: Null
+GfxDevice: creating device client; kGfxThreadingModeNonThreaded
+NullGfxDevice:
+    Version:  NULL 1.0 [1.0]
+    Renderer: Null Device
+    Vendor:   Unity Technologies
+Initialize mono
+Mono path[0] = '/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/Managed'
+Mono path[1] = '/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/BCLExtensions/runtime/netstandard2.1'
+Mono path[2] = '/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/MonoBleedingEdge/lib/mono/unityjit-linux'
+Mono config path = '/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/MonoBleedingEdge/etc'
+Using monoOptions --debugger-agent=transport=dt_socket,embedding=1,server=y,suspend=n,address=127.0.0.1:56943
+CodeReloadManager initialized
+ImportWorker Server TCP listen port: 0
+AcceleratorClientConnectionCallback - disconnected - :0
+Begin MonoManager ReloadAssembly
+Registering precompiled unity dll's ...
+Register platform support module: /home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/PlaybackEngines/LinuxStandaloneSupport/UnityEditor.LinuxStandalone.Extensions.dll
+Registered in 0.000542 seconds.
+[MODES] ModeService[none].Initialize
+[MODES] ModeService[none].LoadModes
+[MODES] Loading mode Default (0) for mode-current-id-unity
+UpdateMenuTitleForLanguage: 10
+Package Manager log level set to [2]
+Native extension for LinuxStandalone target not found
+[Licensing::Client] Successfully resolved entitlement details
+ScheduleIndexationOnStartup MainProcess:False IndexOnStartup:False
+Scripting: successfully reloaded assembly
+- Finished resetting the current domain, in  1.643 seconds
+Domain Reload Profiling: 1983ms
+	BeginReloadAssembly (58ms)
+		CreateAndSetChildDomain (12ms)
+	RebuildCommonClasses (3ms)
+	RebuildNativeTypeToScriptingClass (6ms)
+	initialDomainReloadingComplete (36ms)
+	LoadAllAssembliesAndSetupDomain (235ms)
+		LoadAssemblies (46ms)
+		TypeCache.Refresh (125ms)
+			TypeCache.ScanAssembly (117ms)
+		AnalyzeDomain (0ms)
+	FinalizeReload (1644ms)
+		SetupLoadedEditorAssemblies (0ms)
+			BeforeProcessingInitializeOnLoad (99ms)
+			ProcessInitializeOnLoadAttributes (33ms)
+			ProcessInitializeOnLoadMethodAttributes (1297ms)
+	Serialization: 25ms
+		Read: 25ms, 14442775 bytes
+		Write: 0ms, 0 bytes
+[Licensing::Client] Successfully resolved entitlement details
+Application.AssetDatabase Initial Refresh Start
+[Package Manager] Done resolving packages in 0.94 seconds
+[Licensing::Client] Successfully resolved entitlement details
+[Package Manager] Lock file was created
+[Package Manager] Registered 23 packages:
+  Packages from [https://packages.unity.com]:
+    com.unity.nuget.mono-cecil@1.11.6 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.nuget.mono-cecil@ecb9724e46ff)
+    com.unity.scriptablebuildpipeline@4.0.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.scriptablebuildpipeline@ee4c11ba2fa5)
+  Built-in packages:
+    com.unity.burst@2.0.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.burst@c3ed5b778d56)
+    com.unity.collections@6.7.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.collections@33da37bccbc7)
+    com.unity.entities@6.7.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.entities@8f92e3b8d01c)
+    com.unity.mathematics@1.4.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.mathematics@9c2fa23d2d82)
+    com.unity.profiling.core@1.0.3 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.profiling.core@d5d9b57c3f5b)
+    com.unity.test-framework.performance@6.7.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.test-framework.performance@d1ba76373224)
+    com.unity.modules.assetbundle@1.0.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.modules.assetbundle)
+    com.unity.modules.audio@1.0.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.modules.audio)
+    com.unity.modules.physics@1.0.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.modules.physics)
+    com.unity.modules.uielements@1.0.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.modules.uielements)
+    com.unity.modules.unityanalytics@1.0.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.modules.unityanalytics)
+    com.unity.modules.unitywebrequest@1.0.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.modules.unitywebrequest)
+    com.unity.modules.hierarchy@1.0.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.modules.hierarchy)
+    com.unity.test-framework@1.9.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.test-framework@250492a658a0)
+    com.unity.modules.hierarchycore@1.0.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.modules.hierarchycore)
+    com.unity.modules.jsonserialize@1.0.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.modules.jsonserialize)
+    com.unity.modules.ui@1.0.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.modules.ui)
+    com.unity.modules.imgui@1.0.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.modules.imgui)
+    com.unity.modules.animation@1.0.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.modules.animation)
+    com.unity.modules.accessibility@1.0.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.modules.accessibility)
+    com.unity.ext.nunit@2.1.1 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.ext.nunit@34629c509049)
+[Subsystems] No new subsystems found in resolved package list.
+[Package Manager] Done registering packages in 0.00 seconds
+AcceleratorClientConnectionCallback - disconnected - :0
+ADB: OOP importers: 'AudioImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: 'ComputeShaderImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: 'FBXImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: 'Mesh3DSImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: 'NativeFormatImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: 'PrefabImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: 'RayTracingShaderImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: 'ShaderImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: 'TextScriptImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: 'TextureImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: 'TrueTypeFontImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: 'VideoClipImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: 'VisualEffectImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: queue -1003 composition: TextureImporter, TextureImporter, TextureImporter, TextureImporter, TextureImporter, TextureImporter, TextureImporter, TextureImporter, TextureImporter, TextureImporter, TextureImporter, TextureImporter, TextureImporter, TextureImporter, TextureImporter (only the named importers above run OOP; the rest stay in-process)
+ADB: OOP importers: queue -1001 composition: ShaderImporter, ComputeShaderImporter, RayTracingShaderImporter (only the named importers above run OOP; the rest stay in-process)
+ADB: OOP importers: queue -1000 composition: NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter (only the named importers above run OOP; the rest stay in-process)
+ADB: OOP importers: queue 2 composition: TrueTypeFontImporter, TrueTypeFontImporter, TrueTypeFontImporter, TrueTypeFontImporter (only the named importers above run OOP; the rest stay in-process)
+ADB: OOP importers: queue 100 composition: Mesh3DSImporter, FBXImporter, FBXImporter, FBXImporter, FBXImporter, FBXImporter, FBXImporter, FBXImporter, FBXImporter, FBXImporter, FBXImporter (only the named importers above run OOP; the rest stay in-process)
+ADB: OOP importers: queue 150 composition: NativeFormatImporter (only the named importers above run OOP; the rest stay in-process)
+ADB: OOP importers: queue 198 composition: VisualEffectImporter, VisualEffectImporter (only the named importers above run OOP; the rest stay in-process)
+ADB: OOP importers: queue 199 composition: VisualEffectImporter (only the named importers above run OOP; the rest stay in-process)
+ADB: OOP importers: queue 200 composition: NativeFormatImporter (only the named importers above run OOP; the rest stay in-process)
+ADB: OOP importers: queue 1050 composition: TextScriptImporter, TextScriptImporter, TextScriptImporter, TextScriptImporter, TextScriptImporter, TextScriptImporter, TextScriptImporter, TextScriptImporter, TextScriptImporter, TextScriptImporter, TextScriptImporter, TextScriptImporter (only the named importers above run OOP; the rest stay in-process)
+ADB: OOP importers: queue 1100 composition: AudioImporter, AudioImporter, AudioImporter, AudioImporter, AudioImporter, AudioImporter, AudioImporter, AudioImporter, AudioImporter, AudioImporter (only the named importers above run OOP; the rest stay in-process)
+ADB: OOP importers: queue 1500 composition: PrefabImporter (only the named importers above run OOP; the rest stay in-process)
+ADB: OOP importers: queue 1700 composition: VideoClipImporter, VideoClipImporter, VideoClipImporter, VideoClipImporter, VideoClipImporter, VideoClipImporter, VideoClipImporter, VideoClipImporter, VideoClipImporter, VideoClipImporter (only the named importers above run OOP; the rest stay in-process)
+Assembly reference Packages/com.unity.entities/Unity.Scenes.Editor/Internals/Properties/Unity.Properties.Internals.asmref has no target assembly definition
+[API Updater] Processing imported assemblies took 74 ms (0/0 assembly(ies)).
+Assembly Updater Post Process Assets time: 0.075101s
+[ScriptCompilation] Requested script compilation because: Assembly Definition File(s) changed
+[ScriptCompilation] Requested script compilation because: AssetDatabase observed changes in script compilation related files
+Starting: /home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/Tools/BuildPipeline/bee_backend --ipc --defer-dag-verification --dagfile="Library/Bee/2400b0aE.dag" --continue-on-failure --profile="Library/Bee/backend1.traceevents" ScriptAssemblies
+WorkingDir: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity
+ExitCode: 4 Duration: 0s12ms
+[             ] Require frontend run.  Library/Bee/2400b0aE.dag couldn't be loaded
+DisplayProgressbar: Compiling Scripts
+Starting: /home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/DotNetSdk/dotnet "/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/Tools/BuildPipeline/ScriptCompilationBuildProgram.exe" "Library/Bee/2400b0aE.dag.json" "Library/Bee/2400b0aE-inputdata.json" "Library/Bee/buildprogram0.traceevents"
+WorkingDir: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity
+ExitCode: 0 Duration: 0s411ms
+Starting: /home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/Tools/BuildPipeline/bee_backend --ipc --defer-dag-verification --dagfile="Library/Bee/2400b0aE.dag" --continue-on-failure --dagfilejson="Library/Bee/2400b0aE.dag.json" --profile="Library/Bee/backend2.traceevents" ScriptAssemblies
+WorkingDir: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity
+warn: Unity.ILPP.Runner.PostProcessingAssemblyLoadContext[0]
+      Assembly system.runtime.interopservices.windowsruntime has duplicate hint path. Ignoring "/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/UnityReferenceAssemblies/unity-4.8-api/Facades/System.Runtime.InteropServices.WindowsRuntime.dll" in favor of "/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/Extensions/2.0.0/System.Runtime.InteropServices.WindowsRuntime.dll"
+warn: Unity.ILPP.Runner.PostProcessingAssemblyLoadContext[0]
+      Assembly system.componentmodel.composition has duplicate hint path. Ignoring "/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/UnityReferenceAssemblies/unity-4.8-api/System.ComponentModel.Composition.dll" in favor of "/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netfx/System.ComponentModel.Composition.dll"
+  - EILPP : Unity.Entities.UI.Editor : : 236ms (~170ms)
+    - EILPP : Unity.Entities.UI.Editor : GetAllComponentTypes: 60ms 
+    - EILPP : Unity.Entities.UI.Editor : ComponentDataPP: 3ms 
+    - EILPP : Unity.Entities.UI.Editor : StaticTypeRegistryPostProcessor: 3ms 
+  - EILPP : Unity.Deformations : : 313ms (~164ms)
+    - EILPP : Unity.Deformations : GetAllComponentTypes: 1ms 
+    - EILPP : Unity.Deformations : Cloner: 2ms 
+    - EILPP : Unity.Deformations : ComponentDataPP: 48ms 
+    - EILPP : Unity.Deformations : StaticTypeRegistryPostProcessor: 98ms 
+  - EILPP : Unity.Entities.Editor.Properties : : 269ms (~120ms)
+    - EILPP : Unity.Entities.Editor.Properties : GetAllComponentTypes: 54ms 
+    - EILPP : Unity.Entities.Editor.Properties : ComponentDataPP: 5ms 
+    - EILPP : Unity.Entities.Editor.Properties : StaticTypeRegistryPostProcessor: 89ms 
+    - EILPP : Unity.Entities.Editor.Properties : WriteAssembly: 1ms 
+  - EILPP : Unity.Entities.Build : : 314ms (~165ms)
+    - EILPP : Unity.Entities.Build : GetAllComponentTypes: 1ms 
+    - EILPP : Unity.Entities.Build : Cloner: 2ms 
+    - EILPP : Unity.Entities.Build : ComponentDataPP: 48ms 
+    - EILPP : Unity.Entities.Build : StaticTypeRegistryPostProcessor: 97ms 
+    - EILPP : Unity.Entities.Build : WriteAssembly: 1ms 
+  - EILPP : Unity.Entities.Hybrid.HybridComponents : : 315ms (~165ms)
+    - EILPP : Unity.Entities.Hybrid.HybridComponents : GetAllComponentTypes: 1ms 
+    - EILPP : Unity.Entities.Hybrid.HybridComponents : Cloner: 2ms 
+    - EILPP : Unity.Entities.Hybrid.HybridComponents : ComponentDataPP: 48ms 
+    - EILPP : Unity.Entities.Hybrid.HybridComponents : StaticTypeRegistryPostProcessor: 98ms 
+    - EILPP : Unity.Entities.Hybrid.HybridComponents : WriteAssembly: 1ms 
+  - EILPP : Unity.Transforms : : 383ms (~228ms)
+    - EILPP : Unity.Transforms : GetAllComponentTypes: 1ms 
+    - EILPP : Unity.Transforms : Cloner: 44ms 
+    - EILPP : Unity.Transforms : ComponentDataPP: 6ms 
+    - EILPP : Unity.Transforms : StaticTypeRegistryPostProcessor: 97ms 
+    - EILPP : Unity.Transforms : WriteAssembly: 7ms 
+  - EILPP : Unity.Scenes : : 126ms (~67ms)
+    - EILPP : Unity.Scenes : Cloner: 8ms 
+    - EILPP : Unity.Scenes : ComponentDataPP: 4ms 
+    - EILPP : Unity.Scenes : StaticTypeRegistryPostProcessor: 39ms 
+    - EILPP : Unity.Scenes : WriteAssembly: 8ms 
+  - EILPP : Unity.Entities : : 737ms (~560ms)
+    - EILPP : Unity.Entities : ComponentDataPP: 2ms 
+    - EILPP : Unity.Entities : StaticTypeRegistryPostProcessor: 13ms 
+    - EILPP : Unity.Entities : WriteAssembly: 162ms 
+  - EILPP : Unity.Entities.Hybrid : : 134ms (~94ms)
+    - EILPP : Unity.Entities.Hybrid : StaticTypeRegistryPostProcessor: 4ms 
+    - EILPP : Unity.Entities.Hybrid : WriteAssembly: 36ms 
+  - EILPP : Unity.Transforms.Hybrid : : 47ms (~15ms)
+    - EILPP : Unity.Transforms.Hybrid : StaticTypeRegistryPostProcessor: 1ms 
+    - EILPP : Unity.Transforms.Hybrid : WriteAssembly: 31ms 
+  - EILPP : Unity.Scenes.Editor : : 83ms (~72ms)
+    - EILPP : Unity.Scenes.Editor : StaticTypeRegistryPostProcessor: 1ms 
+    - EILPP : Unity.Scenes.Editor : WriteAssembly: 10ms 
+  - EILPP : Unity.Entities.Editor : : 390ms (~204ms)
+    - EILPP : Unity.Entities.Editor : GetAllComponentTypes: 39ms 
+    - EILPP : Unity.Entities.Editor : ComponentDataPP: 5ms 
+    - EILPP : Unity.Entities.Editor : StaticTypeRegistryPostProcessor: 16ms 
+    - EILPP : Unity.Entities.Editor : WriteAssembly: 126ms 
+ExitCode: 3 Duration: 7s355ms
+Finished compiling graph: 480 nodes, 6962 flattened edges (6048 ToBuild, 64 ToUse), maximum node priority 372
+[  1/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Burst.rsp2
+[  2/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Mathematics.UnityAdditionalFile.txt
+[  3/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Mathematics.rsp2
+[  4/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Burst.UnityAdditionalFile.txt
+[  5/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.TextCoreFontEngineModule.dll_F8A4D6B3BDAE19E1.mvfrm
+[  6/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.CoreModule.dll_6DE5CE4A71847FC3.mvfrm
+[  7/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.GIModule.dll_133145B50E372806.mvfrm
+[  8/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.HierarchyCoreModule.dll_CE18DA0BA1D46224.mvfrm
+[  9/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.GameCenterModule.dll_AFC20ED0FFBBEC9B.mvfrm
+[ 10/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.AccessibilityModule.dll_56FE3D313327092E.mvfrm
+[ 11/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.VectorGraphicsModule.dll_C5516B6B7C507907.mvfrm
+[ 12/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.ClusterRendererModule.dll_28B7654B6070922D.mvfrm
+[ 13/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.ClusterInputModule.dll_9E88B51458FDE214.mvfrm
+[ 14/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.UmbraModule.dll_72C944AB77FA9314.mvfrm
+[ 15/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.UnityConsentModule.dll_DDF15B39AF08A649.mvfrm
+[ 16/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.GraphicsStateCollectionSerializerModule.dll_2360FB5B496554D6.mvfrm
+[ 17/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.VFXModule.dll_7855C33004E68653.mvfrm
+[ 18/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.TextRenderingModule.dll_FA3CE5FCFE06160F.mvfrm
+[ 19/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.AudioModule.dll_BE2154F71C511846.mvfrm
+[ 20/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.XRModule.dll_BD8AF2CF8E46E4A3.mvfrm
+[ 21/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.dll_F7E035AFF638717D.mvfrm
+[ 22/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.AnimationModule.dll_3A4BC9059F18EC54.mvfrm
+[ 23/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.UnityConnectModule.dll_0C4BC40DA1FE0FF9.mvfrm
+[ 24/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.DSPGraphModule.dll_85941EA37FF9F7C1.mvfrm
+[ 25/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.UnityWebRequestModule.dll_A6486AA5ED89E4A0.mvfrm
+[ 26/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.dll_2A847C8854ABFE62.mvfrm
+[ 27/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.AssetBundleModule.dll_9B4FBC806F989602.mvfrm
+[ 28/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.GridModule.dll_4B56EA3889D915BA.mvfrm
+[ 29/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.CrashReportingModule.dll_961C4D8598250B3B.mvfrm
+[ 30/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.VirtualTexturingModule.dll_7EABB19EA9D4E4A1.mvfrm
+[ 31/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.ContentLoadModule.dll_346615C13E1B3DEF.mvfrm
+[ 32/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.VideoModule.dll_1CFE1CFDAD660346.mvfrm
+[ 33/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.UnityCurlModule.dll_6D686A370F2CDE41.mvfrm
+[ 34/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.UnityDataModule.dll_7F16B78B2273A44F.mvfrm
+[ 35/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.BurstModule.dll_2719464F43A73030.mvfrm
+[ 36/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.VFXModule.dll_8477658374969458.mvfrm
+[ 37/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.ShaderVariantAnalyticsModule.dll_FDAA26667B46DAAA.mvfrm
+[ 38/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.TLSModule.dll_0398CD149E292AEB.mvfrm
+[ 39/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.StreamingModule.dll_EEE0B655EEA0A392.mvfrm
+[ 40/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.MathematicsModule.dll_C0646A59E4108D36.mvfrm
+[ 41/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.SpriteShapeModule.dll_B4B0E9DB253ACE0C.mvfrm
+[ 42/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.ScriptingModule.dll_516D21CC1EA09B07.mvfrm
+[ 43/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.RuntimeInitializeOnLoadManagerInitializerModule.dll_364D13C6048CA6B2.mvfrm
+[ 44/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.MultiplayerModule.dll_1AF7D90D2860237A.mvfrm
+[ 45/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.PerformanceReportingModule.dll_F91D0C631EB69782.mvfrm
+[ 46/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.PhysicsBackendPhysXModule.dll_D9E73B88FD6AC7F9.mvfrm
+[ 47/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.PropertiesModule.dll_DCFD4E0F72A750D7.mvfrm
+[ 48/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.RenderAs2DModule.dll_1E35109552019B0E.mvfrm
+[ 49/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.PhysicsModule.dll_B2B63586532327D7.mvfrm
+[ 50/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.InputLegacyModule.dll_2C94D79F078A4BF3.mvfrm
+[ 51/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.InputForUIModule.dll_B27468EA5FDC8957.mvfrm
+[ 52/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.MarshallingModule.dll_43B85B1553C0C354.mvfrm
+[ 53/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.InputModule.dll_24971CA792893CEA.mvfrm
+[ 54/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.UnityAnalyticsModule.dll_08CE079BB25DE8C5.mvfrm
+[ 55/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.IdentifiersModule.dll_73D944763211641A.mvfrm
+[ 56/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.HotReloadModule.dll_BB94870B7A4C07D6.mvfrm
+[ 57/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.HierarchyModule.dll_0F2044A1681B0855.mvfrm
+[ 58/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.IMGUIModule.dll_F680F45DE282AC27.mvfrm
+[ 59/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.UnityConnectModule.dll_1EEC3FFEA7760F4E.mvfrm
+[ 60/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.JSONSerializeModule.dll_B715C66D326269B8.mvfrm
+[ 61/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.TextCoreTextEngineModule.dll_408D0D254D31D2FF.mvfrm
+[ 62/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.UICommonModule.dll_5E732CDF53D3EFD3.mvfrm
+[ 63/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.UnityAnalyticsCommonModule.dll_945BC9A7389F35E0.mvfrm
+[ 64/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.UIModule.dll_76689AD4CECF4598.mvfrm
+[ 65/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.LocalizationModule.dll_DCD57F66F079D50D.mvfrm
+[ 66/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.ManagedKernelModule.dll_79B475B6225C383C.mvfrm
+[ 67/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.U2DRuntimeModule.dll_D4783889BFCEE035.mvfrm
+[ 68/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.MediaModule.dll_C3B4B2246920702F.mvfrm
+[ 69/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.JobsProfilerModule.dll_CEB147E7F1CF3318.mvfrm
+[ 70/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.MathematicsModule.dll_BA9E9ACAD1D67CB1.mvfrm
+[ 71/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.LocalizationRuntimeModule.dll_8FDDBEC15D10443A.mvfrm
+[ 72/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.LightingModule.dll_7F337235DCBA1845.mvfrm
+[ 73/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.UIElementsModule.dll_07DA492AF29FA61F.mvfrm
+[ 74/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.GIModule.dll_D4C2B425A2B9F43B.mvfrm
+[ 75/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.GridAndSnapModule.dll_D60FEF0337BFA1A6.mvfrm
+[ 76/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.GraphicsStateCollectionSerializerModule.dll_1A6D2E6B7C660B71.mvfrm
+[ 77/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.GraphViewModule.dll_6BC64CDCC4BC17AE.mvfrm
+[ 78/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.HierarchyModule.dll_593A53B8829B5670.mvfrm
+[ 79/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.GenericRemoteModule.dll_60BEA0E51BD2AF08.mvfrm
+[ 80/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.GridModule.dll_283616E5E1D3AA8F.mvfrm
+[ 81/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.AIModule.dll_3C866B18070B0C21.mvfrm
+[ 82/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.AccessibilityModule.dll_CABD4B09BA2E8609.mvfrm
+[ 83/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.Scripting.dll_63FC23F75A685200.mvfrm
+[ 84/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.EmbreeModule.dll_F5D390DB16D47FE1.mvfrm
+[ 85/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.Physics2DModule.dll_D10BC80D5A963204.mvfrm
+[ 86/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.AcceleratorClientModule.dll_779C798FECFE5351.mvfrm
+[ 87/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.AdaptivePerformanceModule.dll_3F43BF45DF693235.mvfrm
+[ 88/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.AssetComplianceModule.dll_5BE5B2C86B7168D6.mvfrm
+[ 89/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.CoreBusinessMetricsModule.dll_BF2EB8C005B0612F.mvfrm
+[ 90/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.GraphToolkitModule.dll_3F8F1733734158B9.mvfrm
+[ 91/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.EditorToolbarModule.dll_00B960DC33C43759.mvfrm
+[ 92/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.AnimationWindowModule.dll_BE6E96B22643755F.mvfrm
+[ 93/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.BuildProfileModule.dll_23B2328882922A34.mvfrm
+[ 94/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.BurstModule.dll_60EC89EB1229FF8B.mvfrm
+[ 95/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.ClothModule.dll_5EDCF58DC4F0C685.mvfrm
+[ 96/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.ContentLoadModule.dll_2EA046322BE12D6A.mvfrm
+[ 97/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.DeviceSimulatorModule.dll_230AA2D9F0B584A9.mvfrm
+[ 98/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.BuildAnalysisModule.dll_2306888C5C088E25.mvfrm
+[ 99/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.UIElementsModule.dll_072BDBE2F05B8CD4.mvfrm
+[100/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.UIBuilderModule.dll_C04EF9F9377490E2.mvfrm
+[101/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.UIAutomationModule.dll_D45321791F05F2F4.mvfrm
+[102/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.U2DModule.dll_A42E6E133A82E6B2.mvfrm
+[103/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.UIElementsSamplesModule.dll_AB3DAD60C06BBDD9.mvfrm
+[104/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.TextCoreFontEngineModule.dll_7A455B60AAB05B16.mvfrm
+[105/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.DiagnosticsModule.dll_CC570881B45AE4B7.mvfrm
+[106/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Burst.dll.mvfrm.rsp
+[107/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Mathematics.dll.mvfrm.rsp
+[108/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.CoreModule.dll_4AC4FAF7C97F1498.mvfrm
+[109/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.UIToolkitAuthoringModule.dll_AD9BEFEDC936DED6.mvfrm
+[110/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Mathematics.rsp
+[111/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Collections.UnityAdditionalFile.txt
+[112/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Collections.rsp2
+[113/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Collections.dll.mvfrm.rsp
+[114/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Collections.rsp
+[115/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Mathematics.Extensions.rsp2
+[116/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Burst.rsp
+[117/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Profiling.Core.UnityAdditionalFile.txt
+[118/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Profiling.Core.rsp2
+[119/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Mathematics.Extensions.rsp
+[120/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.UnityAdditionalFile.txt
+[121/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/UnityEngine.TestRunner.rsp2
+[122/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/UnityEngine.TestRunner.UnityAdditionalFile.txt
+[123/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.rsp2
+[124/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Profiling.Core.dll.mvfrm.rsp
+[125/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Profiling.Core.rsp
+[126/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/UnityEngine.TestRunner.dll.mvfrm.rsp
+[127/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/UnityEngine.TestRunner.rsp
+[128/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.dll.mvfrm.rsp
+[129/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.rsp
+[130/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/UnityEditor.TestRunner.rsp2
+[131/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/UnityEditor.TestRunner.UnityAdditionalFile.txt
+[132/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Mathematics.Extensions.UnityAdditionalFile.txt
+[133/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Mathematics.Extensions.dll.mvfrm.rsp
+[134/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.TextRenderingModule.dll_6DFBF3D5850D92EA.mvfrm
+[135/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.SpriteShapeModule.dll_AEEB1A4C1300BD87.mvfrm
+[136/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.TreeModule.dll_A870F0065144A9D7.mvfrm
+[137/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.TimelineFoundationModule.dll_7C8ADA6D4502C04D.mvfrm
+[138/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.TextCoreTextEngineModule.dll_C22D91D23A341434.mvfrm
+[139/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.TilemapModule.dll_797E5FCBDB8F6A89.mvfrm
+[140/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.PhysicsModule.dll_C03B7CDBEE144092.mvfrm
+[141/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.MultiplayerModule.dll_1532097E162612F5.mvfrm
+[142/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.TerrainModule.dll_DA81F84AC3D28980.mvfrm
+[143/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.PlayModeModule.dll_CB1FEC7328975E80.mvfrm
+[144/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.PresetsUIModule.dll_272C85BEC7146FB3.mvfrm
+[145/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.SpriteMaskModule.dll_984014191EE768CA.mvfrm
+[146/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.PhysicsCore2DModule.dll_B88122B518D37AF3.mvfrm
+[147/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.ShaderCompilationModule.dll_B70C0FD8A36FB2A9.mvfrm
+[148/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.PropertiesModule.dll_DC4EE0C77063378C.mvfrm
+[149/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.ProjectAuditorModule.dll_78BEDF9C3EE2C81E.mvfrm
+[150/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.ShaderBuildSettingsModule.dll_476A05EEB2686377.mvfrm
+[151/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.ShaderPreprocessorModule.dll_9D2A6503A8D92DAD.mvfrm
+[152/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.SceneTemplateModule.dll_2458D19A32B0E191.mvfrm
+[153/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.SafeModeModule.dll_852BFAB989CE4F19.mvfrm
+[154/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.SceneViewModule.dll_AA762FE4B9DEE4BC.mvfrm
+[155/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.SmartStringsModule.dll_6DCE6C03E8A685A2.mvfrm
+[156/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.QuickSearchModule.dll_5766898F0D31E110.mvfrm
+[157/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.SketchUpModule.dll_6D40E009D4FFEB30.mvfrm
+[158/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.LinuxStandalone.Extensions.dll_6F71CB3284C1E5B8.mvfrm
+[159/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.QuickInstallModule.dll_029180C7C4189867.mvfrm
+[160/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.TerrainPhysicsModule.dll_E9A93FA51F799156.mvfrm
+[161/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.TetgenModule.dll_45D388DF71518811.mvfrm
+[162/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.Graphs.dll_D6602550EEC706CA.mvfrm
+[163/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.TimelineFoundationModule.dll_FAEA55C058007F18.mvfrm
+[164/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.TerrainModule.dll_CCFCB0F528E170C5.mvfrm
+[165/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.TilemapModule.dll_6BF91876409E51CE.mvfrm
+[166/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/UnityEditor.TestRunner.dll.mvfrm.rsp
+[167/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/UnityEditor.TestRunner.rsp
+[168/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.CodeGen.rsp2
+[169/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.CodeGen.UnityAdditionalFile.txt
+[170/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.Collections.LowLevel.ILSupport.dll_98E46D36AA530BBB.mvfrm
+[171/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Transforms.rsp2
+[172/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Transforms.UnityAdditionalFile.txt
+[173/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.Cecil.Awesome.dll_9436CB134919B4D2.mvfrm
+[174/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Build.UnityAdditionalFile.txt
+[175/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Build.rsp2
+[176/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.SubsystemsModule.dll_039BE7C2EF736A28.mvfrm
+[177/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Transforms.dll.mvfrm.rsp
+[178/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.UnityWebRequestTextureModule.dll_3CF008B5CF7A9F2F.mvfrm
+[179/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.CodeGen.dll.mvfrm.rsp
+[180/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Transforms.rsp
+[181/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Build.dll.mvfrm.rsp
+[182/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.CodeGen.rsp
+[183/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Build.rsp
+[184/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Scenes.rsp2
+[185/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Scenes.UnityAdditionalFile.txt
+[186/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Scenes.dll.mvfrm.rsp
+[187/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Hybrid.HybridComponents.UnityAdditionalFile.txt
+[188/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Hybrid.HybridComponents.rsp2
+[189/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Scenes.rsp
+[190/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.UI.UnityAdditionalFile.txt
+[191/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.UI.rsp2
+[192/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.ScriptableBuildPipeline.UnityAdditionalFile.txt
+[193/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.ScriptableBuildPipeline.rsp2
+[194/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Hybrid.HybridComponents.dll.mvfrm.rsp
+[195/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.UI.dll.mvfrm.rsp
+[196/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Hybrid.HybridComponents.rsp
+[197/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.UnityWebRequestWWWModule.dll_0B4F52813CF18F6B.mvfrm
+[198/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.VectorGraphicsModule.dll_8075CD06983D0D12.mvfrm
+[199/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.ScriptableBuildPipeline.dll.mvfrm.rsp
+[200/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.UI.rsp
+[201/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.ScriptableBuildPipeline.rsp
+[202/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Hybrid.UnityAdditionalFile.txt
+[203/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Hybrid.rsp2
+[204/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.UI.Editor.rsp2
+[205/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.UI.Editor.UnityAdditionalFile.txt
+[206/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Hybrid.dll.mvfrm.rsp
+[207/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.ScriptableBuildPipeline.Editor.rsp2
+[208/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.ScriptableBuildPipeline.Editor.UnityAdditionalFile.txt
+[209/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Hybrid.rsp
+[210/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.UI.Editor.dll.mvfrm.rsp
+[211/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.ScriptableBuildPipeline.Editor.dll.mvfrm.rsp
+[212/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.UI.Editor.rsp
+[213/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.ScriptableBuildPipeline.Editor.rsp
+[214/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/SvCore.rsp2
+[215/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/SvCore.UnityAdditionalFile.txt
+[216/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.InternalAPIEngineBridge.002.UnityAdditionalFile.txt
+[217/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Scenes.Editor.rsp2
+[218/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.PerformanceTesting.UnityAdditionalFile.txt
+[219/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Editor.Properties.rsp2
+[220/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Editor.Properties.UnityAdditionalFile.txt
+[221/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.InternalAPIEditorBridge.002.UnityAdditionalFile.txt
+[222/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.InternalAPIEditorBridge.002.rsp2
+[223/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.PerformanceTesting.rsp2
+[224/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Scenes.Editor.UnityAdditionalFile.txt
+[225/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.InternalAPIEngineBridge.002.rsp2
+[226/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.PerformanceTesting.dll.mvfrm.rsp
+[227/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/SvCore.dll.mvfrm.rsp
+[228/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.InternalAPIEngineBridge.002.dll.mvfrm.rsp
+[229/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.InternalAPIEditorBridge.002.dll.mvfrm.rsp
+[230/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Editor.Properties.dll.mvfrm.rsp
+[231/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Scenes.Editor.dll.mvfrm.rsp
+[232/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.UmbraModule.dll_38F6010FA977C3B9.mvfrm
+[233/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.UnityWebRequestAssetBundleModule.dll_C6E6CF73FB239756.mvfrm
+[234/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.InternalAPIEngineBridge.002.rsp
+[235/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.VehiclesModule.dll_F805B6B987C2F63B.mvfrm
+[236/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.InternalAPIEditorBridge.002.rsp
+[237/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Editor.Properties.rsp
+[238/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.PerformanceTesting.rsp
+[239/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/SvCore.rsp
+[240/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Sv.Unity.rsp2
+[241/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Sv.Unity.UnityAdditionalFile.txt
+[242/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Sv.Unity.dll.mvfrm.rsp
+[243/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Sv.Unity.rsp
+[244/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Transforms.Hybrid.dll.mvfrm.rsp
+[245/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Deformations.dll.mvfrm.rsp
+[246/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Mathematics.Extensions.Hybrid.dll.mvfrm.rsp
+[247/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Scenes.Editor.rsp
+[248/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/SvEditor.Editor.dll.mvfrm.rsp
+[249/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Transforms.Hybrid.rsp2
+[250/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Mathematics.Extensions.Hybrid.rsp2
+[251/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Deformations.rsp2
+[252/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Mathematics.Extensions.Hybrid.UnityAdditionalFile.txt
+[253/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Editor.dll.mvfrm.rsp
+[254/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Deformations.UnityAdditionalFile.txt
+[255/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Transforms.Hybrid.UnityAdditionalFile.txt
+[256/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Core.Editor.dll.mvfrm.rsp
+[257/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Core.Editor.UnityAdditionalFile.txt
+[258/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.PerformanceTesting.Editor.dll.mvfrm.rsp
+[259/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Mathematics.Extensions.Hybrid.rsp
+[260/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.XRModule.dll_FBF9845EF9C4186E.mvfrm
+[261/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Editor.rsp2
+[262/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Editor.UnityAdditionalFile.txt
+[263/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/SvEditor.Editor.rsp2
+[264/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Transforms.Hybrid.rsp
+[265/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Core.Editor.rsp2
+[266/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.PerformanceTesting.Editor.rsp2
+[267/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/SvEditor.Editor.UnityAdditionalFile.txt
+[268/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.PerformanceTesting.Editor.UnityAdditionalFile.txt
+[269/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Deformations.rsp
+[270/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Editor.rsp
+[271/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/SvEditor.Editor.rsp
+[272/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.PerformanceTesting.Editor.rsp
+[273/477    0s] WriteText Library/Bee/artifacts/2400b0aE.dag/Unity.Core.Editor.rsp
+[274/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.AIModule.dll_7AF4FCA772883FEC.mvfrm
+[275/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.AdaptivePerformanceModule.dll_FFD353FC1AAE853A.mvfrm
+[276/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.WindModule.dll_E434A97302BAFE2C.mvfrm
+[277/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.AMDModule.dll_050909AF76F8AF98.mvfrm
+[278/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.AndroidJNIModule.dll_8574C4B6397AFBAA.mvfrm
+[279/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.UnityWebRequestAudioModule.dll_71196041A521621A.mvfrm
+[280/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.VideoModule.dll_E32AD961DEE333EB.mvfrm
+[281/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.InsightsModule.dll_1A0985CA9816761F.mvfrm
+[282/477    0s] MovedFromExtractor-Combine Library/Bee/artifacts/2400b0aE.dag/UnityEngine.TestRunner.dll.mvfrm
+[283/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.DirectorModule.dll_8042BD3A0D9926A0.mvfrm
+[284/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.ClothModule.dll_2509B1F1F66DF72A.mvfrm
+[285/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.ImageConversionModule.dll_94A962FBE2954A21.mvfrm
+[286/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.Physics2DModule.dll_86F1B8F64015E3E9.mvfrm
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/UnityEngine.TestRunner.dll (+2 others) [CacheMiss 404a80f380b71918b211a11d636bae3a00000000000000000000000000000006]
+[287/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.NVIDIAModule.dll_4DE4A8C274719A8F.mvfrm
+[288/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.MetalFXModule.dll_D9408C4ECCC85689.mvfrm
+[289/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.PhysicsCore2DModule.dll_44C214DC91CBFE18.mvfrm
+[290/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.ParticleSystemModule.dll_E92E96D2063696C9.mvfrm
+[291/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.SmartStringsModule.dll_5B2DF012E32E864D.mvfrm
+[292/477    0s] MovedFromExtractor-Combine Library/Bee/artifacts/2400b0aE.dag/Unity.ScriptableBuildPipeline.dll.mvfrm
+[293/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.SpriteMaskModule.dll_98EE8161212B8215.mvfrm
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.ScriptableBuildPipeline.dll (+2 others) [CacheMiss 75da42ff13b6e0969f7eb3eb942d601400000000000000000000000000000006]
+[294/477    0s] MovedFromExtractor-Combine Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.UI.dll.mvfrm
+[295/477    0s] MovedFromExtractor-Combine Library/Bee/artifacts/2400b0aE.dag/Unity.InternalAPIEngineBridge.002.dll.mvfrm
+[296/477    0s] MovedFromExtractor-Combine Library/Bee/artifacts/2400b0aE.dag/Unity.Mathematics.dll.mvfrm
+[297/477    0s] MovedFromExtractor-Combine Library/Bee/artifacts/2400b0aE.dag/Unity.Burst.dll.mvfrm
+[298/477    0s] MovedFromExtractor-Combine Library/Bee/artifacts/2400b0aE.dag/Unity.Profiling.Core.dll.mvfrm
+[299/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.ScreenCaptureModule.dll_D0FD73F246CE961A.mvfrm
+[300/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.CompilationPipeline.Common.dll_20163D5440D02E46.mvfrm
+[301/477    0s] MovedFromExtractor-Combine Library/Bee/artifacts/2400b0aE.dag/SvCore.dll.mvfrm
+[302/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.LocalizationRuntimeModule.dll_506D53779855973F.mvfrm
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.UI.dll (+2 others) [CacheMiss 581f3d4d05bcce47c84d3e31688c203b00000000000000000000000000000006]
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.InternalAPIEngineBridge.002.dll (+2 others) [CacheMiss 461b18fc516f6816ce9755bb13f655fd00000000000000000000000000000006]
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Profiling.Core.dll (+2 others) [CacheMiss 4aac41223e6a8d8adc0484a4d546a3f600000000000000000000000000000006]
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Burst.dll (+2 others) [CacheMiss eb107724e934073128b151400746fd6400000000000000000000000000000006]
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Mathematics.dll (+2 others) [CacheMiss e5b75c58d6d73e831f1720a27b83cf5000000000000000000000000000000006]
+[303/477    0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.InternalAPIEngineBridge.002.dll (+2 others)
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.InternalAPIEngineBridge.002.dll (+2 others) [CacheWrite 461b18fc516f6816ce9755bb13f655fd00000000000000000000000000000006]
+[304/477    0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.UI.dll (+2 others)
+[305/477    0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Burst.dll (+2 others)
+[306/477    0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Mathematics.dll (+2 others)
+[307/477    0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Profiling.Core.dll (+2 others)
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Burst.dll (+2 others) [CacheWrite eb107724e934073128b151400746fd6400000000000000000000000000000006]
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.UI.dll (+2 others) [CacheWrite 581f3d4d05bcce47c84d3e31688c203b00000000000000000000000000000006]
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Mathematics.dll (+2 others) [CacheWrite e5b75c58d6d73e831f1720a27b83cf5000000000000000000000000000000006]
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Profiling.Core.dll (+2 others) [CacheWrite 4aac41223e6a8d8adc0484a4d546a3f600000000000000000000000000000006]
+[308/477    0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.ScriptableBuildPipeline.dll (+2 others)
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.ScriptableBuildPipeline.dll (+2 others) [CacheWrite 75da42ff13b6e0969f7eb3eb942d601400000000000000000000000000000006]
+[309/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.Entities.UI.ref.dll_9EC0A1AB0EAD6453.mvfrm
+[310/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.InternalAPIEngineBridge.002.ref.dll_AC18A109DA116E0E.mvfrm
+[311/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.ScriptableBuildPipeline.ref.dll_17CEFD00006B1BBD.mvfrm
+[312/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.Profiling.Core.ref.dll_BB57BE87EB72E14B.mvfrm
+[313/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.Burst.ref.dll_9CE15340CD9598D2.mvfrm
+[314/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.Mathematics.ref.dll_F20355C132B4E278.mvfrm
+[315/477    0s] MovedFromExtractor-Combine Library/Bee/artifacts/2400b0aE.dag/Unity.Collections.dll.mvfrm
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Collections.dll (+2 others) [CacheMiss 7e47cdd63c106d7427f4949791bb3aee00000000000000000000000000000006]
+[316/477    0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Collections.dll (+2 others)
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Collections.dll (+2 others) [CacheWrite 7e47cdd63c106d7427f4949791bb3aee00000000000000000000000000000006]
+[317/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.Collections.ref.dll_6E80EEB68CD969F7.mvfrm
+[318/477    0s] MovedFromExtractor-Combine Library/Bee/artifacts/2400b0aE.dag/Unity.Mathematics.Extensions.dll.mvfrm
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Mathematics.Extensions.dll (+2 others) [CacheMiss 2cb6f7ac883650a1dc53285650f9b1aa00000000000000000000000000000006]
+[319/477    0s] Csc Library/Bee/artifacts/2400b0aE.dag/UnityEngine.TestRunner.dll (+2 others)
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/UnityEngine.TestRunner.dll (+2 others) [CacheWrite 404a80f380b71918b211a11d636bae3a00000000000000000000000000000006]
+[320/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.TestRunner.ref.dll_F1B32A9E2F71E054.mvfrm
+[321/477    0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Mathematics.Extensions.dll (+2 others)
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Mathematics.Extensions.dll (+2 others) [CacheWrite 2cb6f7ac883650a1dc53285650f9b1aa00000000000000000000000000000006]
+[322/477    0s] MovedFromExtractor-Combine Library/Bee/artifacts/2400b0aE.dag/Unity.PerformanceTesting.dll.mvfrm
+[323/477    0s] MovedFromExtractor-Combine Library/Bee/artifacts/2400b0aE.dag/UnityEditor.TestRunner.dll.mvfrm
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.PerformanceTesting.dll (+2 others) [CacheMiss bcd39300361a7d3bcf1213e4148e703800000000000000000000000000000006]
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/UnityEditor.TestRunner.dll (+2 others) [CacheMiss f34f585c06fa716fb1abd3eb9c2a6afb00000000000000000000000000000006]
+[324/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.Mathematics.Extensions.ref.dll_17807253969AF790.mvfrm
+[325/477    0s] MovedFromExtractor-Combine Library/Bee/artifacts/2400b0aE.dag/Unity.Mathematics.Extensions.Hybrid.dll.mvfrm
+[326/477    0s] MovedFromExtractor-Combine Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.dll.mvfrm
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Mathematics.Extensions.Hybrid.dll (+2 others) [CacheMiss 8362f2bd9739366a4ba55ce56c3d870700000000000000000000000000000006]
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.dll (+2 others) [CacheMiss a0d2da36e1d83285dd38c4b615d9fd8400000000000000000000000000000006]
+[327/477    0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Mathematics.Extensions.Hybrid.dll (+2 others)
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Mathematics.Extensions.Hybrid.dll (+2 others) [CacheWrite 8362f2bd9739366a4ba55ce56c3d870700000000000000000000000000000006]
+[328/477    0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.PerformanceTesting.dll (+2 others)
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.PerformanceTesting.dll (+2 others) [CacheWrite bcd39300361a7d3bcf1213e4148e703800000000000000000000000000000006]
+[329/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.PerformanceTesting.ref.dll_9CA924C712E203D4.mvfrm
+[330/477    0s] Csc Library/Bee/artifacts/2400b0aE.dag/UnityEditor.TestRunner.dll (+2 others)
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/UnityEditor.TestRunner.dll (+2 others) [CacheWrite f34f585c06fa716fb1abd3eb9c2a6afb00000000000000000000000000000006]
+[331/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.TestRunner.ref.dll_2594DFF003AE8269.mvfrm
+[332/477    0s] MovedFromExtractor-Combine Library/Bee/artifacts/2400b0aE.dag/Unity.PerformanceTesting.Editor.dll.mvfrm
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.PerformanceTesting.Editor.dll (+2 others) [CacheMiss 02eb84ae9920465d19fe0c6bb482f14f00000000000000000000000000000006]
+[333/477    0s] MovedFromExtractor-Combine Library/Bee/artifacts/2400b0aE.dag/Unity.Core.Editor.dll.mvfrm
+[334/477    0s] MovedFromExtractor-Combine Library/Bee/artifacts/2400b0aE.dag/Unity.ScriptableBuildPipeline.Editor.dll.mvfrm
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Core.Editor.dll (+2 others) [CacheMiss 26f23e2a7161ca326a96e0941ee8a5d000000000000000000000000000000006]
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.ScriptableBuildPipeline.Editor.dll (+2 others) [CacheMiss 945fbaff083238dff9de8ae6f3c2827800000000000000000000000000000006]
+[335/477    0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Core.Editor.dll (+2 others)
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Core.Editor.dll (+2 others) [CacheWrite 26f23e2a7161ca326a96e0941ee8a5d000000000000000000000000000000006]
+[336/477    0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.PerformanceTesting.Editor.dll (+2 others)
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.PerformanceTesting.Editor.dll (+2 others) [CacheWrite 02eb84ae9920465d19fe0c6bb482f14f00000000000000000000000000000006]
+[337/477    1s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.ScriptableBuildPipeline.Editor.dll (+2 others)
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.ScriptableBuildPipeline.Editor.dll (+2 others) [CacheWrite 945fbaff083238dff9de8ae6f3c2827800000000000000000000000000000006]
+[338/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.ScriptableBuildPipeline.Editor.ref.dll_BA537E85FFAC56C4.mvfrm
+[339/477    2s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.dll (+2 others)
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.dll (+2 others) [CacheWrite a0d2da36e1d83285dd38c4b615d9fd8400000000000000000000000000000006]
+[340/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.Entities.ref.dll_D004BA08B8128A35.mvfrm
+[341/477    0s] MovedFromExtractor-Combine Library/Bee/artifacts/2400b0aE.dag/Sv.Unity.dll.mvfrm
+[342/477    0s] MovedFromExtractor-Combine Library/Bee/artifacts/2400b0aE.dag/SvEditor.Editor.dll.mvfrm
+[343/477    0s] MovedFromExtractor-Combine Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Hybrid.HybridComponents.dll.mvfrm
+[344/477    0s] MovedFromExtractor-Combine Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.UI.Editor.dll.mvfrm
+[345/477    0s] MovedFromExtractor-Combine Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Build.dll.mvfrm
+[346/477    0s] MovedFromExtractor-Combine Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.CodeGen.dll.mvfrm
+[347/477    0s] MovedFromExtractor-Combine Library/Bee/artifacts/2400b0aE.dag/Unity.Deformations.dll.mvfrm
+[348/477    0s] MovedFromExtractor-Combine Library/Bee/artifacts/2400b0aE.dag/Unity.Transforms.dll.mvfrm
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Transforms.dll (+2 others) [CacheMiss 90578d7653d0519771dfd87cfd96205d00000000000000000000000000000006]
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.CodeGen.dll (+2 others) [CacheMiss bd91a06e2ad9b18096c329a5d37c0f8600000000000000000000000000000006]
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Deformations.dll (+2 others) [CacheMiss 281435ad65478b726f7bf9121a198cc300000000000000000000000000000006]
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Hybrid.HybridComponents.dll (+2 others) [CacheMiss 3410592a905d80b8937b70e1d9f3c63000000000000000000000000000000006]
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Build.dll (+2 others) [CacheMiss 091ed76556f2f204e79d546ed665455c00000000000000000000000000000006]
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.UI.Editor.dll (+2 others) [CacheMiss 60f83ef24722c39cbe1296b2d86eaafe00000000000000000000000000000006]
+[349/477    0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Deformations.dll (+2 others)
+[350/477    0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Build.dll (+2 others)
+[351/477    0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Hybrid.HybridComponents.dll (+2 others)
+[352/477    0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.UI.Editor.dll (+2 others)
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Build.dll (+2 others) [CacheWrite 091ed76556f2f204e79d546ed665455c00000000000000000000000000000006]
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Deformations.dll (+2 others) [CacheWrite 281435ad65478b726f7bf9121a198cc300000000000000000000000000000006]
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Hybrid.HybridComponents.dll (+2 others) [CacheWrite 3410592a905d80b8937b70e1d9f3c63000000000000000000000000000000006]
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.UI.Editor.dll (+2 others) [CacheWrite 60f83ef24722c39cbe1296b2d86eaafe00000000000000000000000000000006]
+[353/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.Entities.Hybrid.HybridComponents.ref.dll_FE457B9B192B214B.mvfrm
+[354/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.Entities.UI.Editor.ref.dll_A9A23157965CE98E.mvfrm
+[355/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.Entities.Build.ref.dll_79D03716CAE45D05.mvfrm
+[356/477    0s] MovedFromExtractor-Combine Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Editor.Properties.dll.mvfrm
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Editor.Properties.dll (+2 others) [CacheMiss d327469f6d19829074c30077ec8152d500000000000000000000000000000006]
+[357/477    0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Transforms.dll (+2 others)
+[358/477    0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.CodeGen.dll (+2 others)
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.CodeGen.dll (+2 others) [CacheWrite bd91a06e2ad9b18096c329a5d37c0f8600000000000000000000000000000006]
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Transforms.dll (+2 others) [CacheWrite 90578d7653d0519771dfd87cfd96205d00000000000000000000000000000006]
+[359/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Entities.CodeGen.pdb
+[360/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Entities.CodeGen.dll
+[361/477    0s] ILPP-Configuration Library/ilpp-configuration.nevergeneratedoutput
+[362/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.Transforms.ref.dll_BC66C2C3D45A18BB.mvfrm
+[363/477    0s] MovedFromExtractor-Combine Library/Bee/artifacts/2400b0aE.dag/Unity.Scenes.dll.mvfrm
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Scenes.dll (+2 others) [CacheMiss 67b564987d3cbde89aba5af940c301e200000000000000000000000000000006]
+[364/477    0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Editor.Properties.dll (+2 others)
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Editor.Properties.dll (+2 others) [CacheWrite d327469f6d19829074c30077ec8152d500000000000000000000000000000006]
+[365/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.Entities.Editor.Properties.ref.dll_14F6F7C358FE45CB.mvfrm
+[366/477    0s] ILPostProcess Library/Bee/artifacts/2400b0aE.dag/post-processed/Unity.Core.Editor.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2400b0aE.dag/Unity.Core.Editor.dll, with 139 defines and 304 references
+processors: Unity.Entities.CodeGen.EntitiesILPostProcessors, Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+1 processor(s) skipped this assembly
+running Unity.Entities.CodeGen.EntitiesILPostProcessors
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+[367/477    0s] ILPostProcess Library/Bee/artifacts/2400b0aE.dag/post-processed/Unity.Mathematics.Extensions.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2400b0aE.dag/Unity.Mathematics.Extensions.dll, with 141 defines and 272 references
+processors: Unity.Entities.CodeGen.EntitiesILPostProcessors, Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+1 processor(s) skipped this assembly
+running Unity.Entities.CodeGen.EntitiesILPostProcessors
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+[368/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Mathematics.Extensions.pdb
+[369/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Mathematics.Extensions.dll
+[370/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Core.Editor.pdb
+[371/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Core.Editor.dll
+[372/477    0s] ILPostProcess Library/Bee/artifacts/2400b0aE.dag/post-processed/Unity.PerformanceTesting.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2400b0aE.dag/Unity.PerformanceTesting.dll, with 142 defines and 265 references
+processors: Unity.Entities.CodeGen.EntitiesILPostProcessors, Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+1 processor(s) skipped this assembly
+running Unity.Entities.CodeGen.EntitiesILPostProcessors
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+[373/477    0s] ILPostProcess Library/Bee/artifacts/2400b0aE.dag/post-processed/Unity.InternalAPIEngineBridge.002.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2400b0aE.dag/Unity.InternalAPIEngineBridge.002.dll, with 141 defines and 269 references
+processors: Unity.Entities.CodeGen.EntitiesILPostProcessors, Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+1 processor(s) skipped this assembly
+running Unity.Entities.CodeGen.EntitiesILPostProcessors
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+[374/477    0s] CopyFiles Library/ScriptAssemblies/Unity.InternalAPIEngineBridge.002.dll
+[375/477    0s] CopyFiles Library/ScriptAssemblies/Unity.PerformanceTesting.pdb
+[376/477    0s] CopyFiles Library/ScriptAssemblies/Unity.PerformanceTesting.dll
+[377/477    0s] CopyFiles Library/ScriptAssemblies/Unity.InternalAPIEngineBridge.002.pdb
+[378/477    0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Scenes.dll (+2 others)
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Scenes.dll (+2 others) [CacheWrite 67b564987d3cbde89aba5af940c301e200000000000000000000000000000006]
+[379/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.Scenes.ref.dll_2F79D98C0303EE8B.mvfrm
+[380/477    0s] MovedFromExtractor-Combine Library/Bee/artifacts/2400b0aE.dag/Unity.InternalAPIEditorBridge.002.dll.mvfrm
+[381/477    0s] MovedFromExtractor-Combine Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Hybrid.dll.mvfrm
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.InternalAPIEditorBridge.002.dll (+2 others) [CacheMiss 1480f54115dc848577fde9ee59fae25300000000000000000000000000000006]
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Hybrid.dll (+2 others) [CacheMiss 2c51268561c2621874d9daafda10f25f00000000000000000000000000000006]
+[382/477    0s] ILPostProcess Library/Bee/artifacts/2400b0aE.dag/post-processed/Unity.Entities.Editor.Properties.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Editor.Properties.dll, with 139 defines and 311 references
+processors: Unity.Entities.CodeGen.EntitiesILPostProcessors, Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+1 processor(s) skipped this assembly
+running Unity.Entities.CodeGen.EntitiesILPostProcessors
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+[383/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Entities.Editor.Properties.dll
+[384/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Entities.Editor.Properties.pdb
+[385/477    0s] ILPostProcess Library/Bee/artifacts/2400b0aE.dag/post-processed/Unity.Mathematics.Extensions.Hybrid.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2400b0aE.dag/Unity.Mathematics.Extensions.Hybrid.dll, with 141 defines and 273 references
+processors: Unity.Entities.CodeGen.EntitiesILPostProcessors, Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+1 processor(s) skipped this assembly
+running Unity.Entities.CodeGen.EntitiesILPostProcessors
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+[386/477    0s] ILPostProcess Library/Bee/artifacts/2400b0aE.dag/post-processed/Unity.Profiling.Core.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2400b0aE.dag/Unity.Profiling.Core.dll, with 141 defines and 269 references
+processors: Unity.Entities.CodeGen.EntitiesILPostProcessors, Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+1 processor(s) skipped this assembly
+running Unity.Entities.CodeGen.EntitiesILPostProcessors
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+[387/477    0s] ILPostProcess Library/Bee/artifacts/2400b0aE.dag/post-processed/Unity.Collections.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2400b0aE.dag/Unity.Collections.dll, with 143 defines and 271 references
+processors: Unity.Entities.CodeGen.EntitiesILPostProcessors, Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+1 processor(s) skipped this assembly
+running Unity.Entities.CodeGen.EntitiesILPostProcessors
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+[388/477    0s] ILPostProcess Library/Bee/artifacts/2400b0aE.dag/post-processed/Unity.Transforms.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2400b0aE.dag/Unity.Transforms.dll, with 141 defines and 273 references
+processors: Unity.Entities.CodeGen.EntitiesILPostProcessors, Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+running Unity.Entities.CodeGen.EntitiesILPostProcessors
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[389/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Transforms.pdb
+[390/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Transforms.dll
+[391/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Mathematics.Extensions.Hybrid.dll
+[392/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Mathematics.Extensions.Hybrid.pdb
+[393/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Collections.pdb
+[394/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Collections.dll
+[395/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Profiling.Core.pdb
+[396/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Profiling.Core.dll
+[397/477    0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.InternalAPIEditorBridge.002.dll (+2 others)
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.InternalAPIEditorBridge.002.dll (+2 others) [CacheWrite 1480f54115dc848577fde9ee59fae25300000000000000000000000000000006]
+[398/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.InternalAPIEditorBridge.002.ref.dll_B99DE85F750286C9.mvfrm
+[399/477    0s] ILPostProcess Library/Bee/artifacts/2400b0aE.dag/post-processed/Unity.InternalAPIEditorBridge.002.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2400b0aE.dag/Unity.InternalAPIEditorBridge.002.dll, with 139 defines and 309 references
+processors: Unity.Entities.CodeGen.EntitiesILPostProcessors, Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+1 processor(s) skipped this assembly
+running Unity.Entities.CodeGen.EntitiesILPostProcessors
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+[400/477    0s] ILPostProcess Library/Bee/artifacts/2400b0aE.dag/post-processed/Unity.Scenes.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2400b0aE.dag/Unity.Scenes.dll, with 141 defines and 276 references
+processors: Unity.Entities.CodeGen.EntitiesILPostProcessors, Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+running Unity.Entities.CodeGen.EntitiesILPostProcessors
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[401/477    0s] CopyFiles Library/ScriptAssemblies/Unity.InternalAPIEditorBridge.002.dll
+[402/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Scenes.pdb
+[403/477    0s] CopyFiles Library/ScriptAssemblies/Unity.InternalAPIEditorBridge.002.pdb
+[404/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Scenes.dll
+[405/477    0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Hybrid.dll (+2 others)
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Hybrid.dll (+2 others) [CacheWrite 2c51268561c2621874d9daafda10f25f00000000000000000000000000000006]
+[406/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.Entities.Hybrid.ref.dll_7708604A5D60E5FB.mvfrm
+[407/477    0s] MovedFromExtractor-Combine Library/Bee/artifacts/2400b0aE.dag/Unity.Transforms.Hybrid.dll.mvfrm
+[408/477    0s] MovedFromExtractor-Combine Library/Bee/artifacts/2400b0aE.dag/Unity.Scenes.Editor.dll.mvfrm
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Transforms.Hybrid.dll (+2 others) [CacheMiss 6340458a61cd4a1f20d87d2dfcc3428000000000000000000000000000000006]
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Scenes.Editor.dll (+2 others) [CacheMiss 2d8a5b2a412bae33661a2691d817f94400000000000000000000000000000006]
+[409/477    0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Transforms.Hybrid.dll (+2 others)
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Transforms.Hybrid.dll (+2 others) [CacheWrite 6340458a61cd4a1f20d87d2dfcc3428000000000000000000000000000000006]
+[410/477    0s] ILPostProcess Library/Bee/artifacts/2400b0aE.dag/post-processed/Unity.Transforms.Hybrid.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2400b0aE.dag/Unity.Transforms.Hybrid.dll, with 141 defines and 275 references
+processors: Unity.Entities.CodeGen.EntitiesILPostProcessors, Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+running Unity.Entities.CodeGen.EntitiesILPostProcessors
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[411/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Transforms.Hybrid.pdb
+[412/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Transforms.Hybrid.dll
+[413/477    0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Scenes.Editor.dll (+2 others)
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Scenes.Editor.dll (+2 others) [CacheWrite 2d8a5b2a412bae33661a2691d817f94400000000000000000000000000000006]
+[414/477    0s] ILPostProcess Library/Bee/artifacts/2400b0aE.dag/post-processed/Unity.Entities.Hybrid.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Hybrid.dll, with 142 defines and 278 references
+processors: Unity.Entities.CodeGen.EntitiesILPostProcessors, Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+running Unity.Entities.CodeGen.EntitiesILPostProcessors
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[415/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Entities.Hybrid.pdb
+[416/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Entities.Hybrid.dll
+[417/477    1s] ILPostProcess Library/Bee/artifacts/2400b0aE.dag/post-processed/Unity.Mathematics.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2400b0aE.dag/Unity.Mathematics.dll, with 141 defines and 269 references
+processors: Unity.Entities.CodeGen.EntitiesILPostProcessors, Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+1 processor(s) skipped this assembly
+running Unity.Entities.CodeGen.EntitiesILPostProcessors
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+[418/477    1s] ILPostProcess Library/Bee/artifacts/2400b0aE.dag/post-processed/Unity.Burst.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2400b0aE.dag/Unity.Burst.dll, with 141 defines and 269 references
+processors: Unity.Entities.CodeGen.EntitiesILPostProcessors, Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+running Unity.Entities.CodeGen.EntitiesILPostProcessors
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[419/477    1s] ILPostProcess Library/Bee/artifacts/2400b0aE.dag/post-processed/UnityEditor.TestRunner.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2400b0aE.dag/UnityEditor.TestRunner.dll, with 140 defines and 307 references
+processors: Unity.Entities.CodeGen.EntitiesILPostProcessors, Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+1 processor(s) skipped this assembly
+running Unity.Entities.CodeGen.EntitiesILPostProcessors
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+[420/477    1s] ILPostProcess Library/Bee/artifacts/2400b0aE.dag/post-processed/Unity.Entities.UI.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.UI.dll, with 141 defines and 269 references
+processors: Unity.Entities.CodeGen.EntitiesILPostProcessors, Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+1 processor(s) skipped this assembly
+running Unity.Entities.CodeGen.EntitiesILPostProcessors
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+[421/477    1s] ILPostProcess Library/Bee/artifacts/2400b0aE.dag/post-processed/Unity.ScriptableBuildPipeline.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2400b0aE.dag/Unity.ScriptableBuildPipeline.dll, with 141 defines and 269 references
+processors: Unity.Entities.CodeGen.EntitiesILPostProcessors, Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+1 processor(s) skipped this assembly
+running Unity.Entities.CodeGen.EntitiesILPostProcessors
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+[422/477    1s] ILPostProcess Library/Bee/artifacts/2400b0aE.dag/post-processed/Unity.PerformanceTesting.Editor.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2400b0aE.dag/Unity.PerformanceTesting.Editor.dll, with 140 defines and 305 references
+processors: Unity.Entities.CodeGen.EntitiesILPostProcessors, Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+1 processor(s) skipped this assembly
+running Unity.Entities.CodeGen.EntitiesILPostProcessors
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+[423/477    1s] ILPostProcess Library/Bee/artifacts/2400b0aE.dag/post-processed/Unity.ScriptableBuildPipeline.Editor.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2400b0aE.dag/Unity.ScriptableBuildPipeline.Editor.dll, with 141 defines and 309 references
+processors: Unity.Entities.CodeGen.EntitiesILPostProcessors, Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+1 processor(s) skipped this assembly
+running Unity.Entities.CodeGen.EntitiesILPostProcessors
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+[424/477    1s] ILPostProcess Library/Bee/artifacts/2400b0aE.dag/post-processed/UnityEngine.TestRunner.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2400b0aE.dag/UnityEngine.TestRunner.dll, with 143 defines and 264 references
+processors: Unity.Entities.CodeGen.EntitiesILPostProcessors, Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+1 processor(s) skipped this assembly
+running Unity.Entities.CodeGen.EntitiesILPostProcessors
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+[425/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Burst.dll
+[426/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Burst.pdb
+[427/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Mathematics.dll
+[428/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Mathematics.pdb
+[429/477    0s] CopyFiles Library/ScriptAssemblies/Unity.PerformanceTesting.Editor.pdb
+[430/477    0s] CopyFiles Library/ScriptAssemblies/Unity.PerformanceTesting.Editor.dll
+[431/477    0s] CopyFiles Library/ScriptAssemblies/Unity.ScriptableBuildPipeline.Editor.pdb
+[432/477    0s] CopyFiles Library/ScriptAssemblies/Unity.ScriptableBuildPipeline.Editor.dll
+[433/477    0s] CopyFiles Library/ScriptAssemblies/Unity.ScriptableBuildPipeline.pdb
+[434/477    0s] CopyFiles Library/ScriptAssemblies/Unity.ScriptableBuildPipeline.dll
+[435/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Entities.UI.dll
+[436/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Entities.UI.pdb
+[437/477    0s] CopyFiles Library/ScriptAssemblies/UnityEditor.TestRunner.pdb
+[438/477    0s] CopyFiles Library/ScriptAssemblies/UnityEngine.TestRunner.pdb
+[439/477    0s] CopyFiles Library/ScriptAssemblies/UnityEngine.TestRunner.dll
+[440/477    0s] CopyFiles Library/ScriptAssemblies/UnityEditor.TestRunner.dll
+[441/477    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.Scenes.Editor.ref.dll_5A73EDF98464EAD6.mvfrm
+[442/477    1s] ILPostProcess Library/Bee/artifacts/2400b0aE.dag/post-processed/Unity.Entities.Build.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Build.dll, with 139 defines and 311 references
+processors: Unity.Entities.CodeGen.EntitiesILPostProcessors, Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+1 processor(s) skipped this assembly
+running Unity.Entities.CodeGen.EntitiesILPostProcessors
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+[443/477    1s] ILPostProcess Library/Bee/artifacts/2400b0aE.dag/post-processed/Unity.Entities.UI.Editor.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.UI.Editor.dll, with 139 defines and 311 references
+processors: Unity.Entities.CodeGen.EntitiesILPostProcessors, Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+1 processor(s) skipped this assembly
+running Unity.Entities.CodeGen.EntitiesILPostProcessors
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+[444/477    1s] ILPostProcess Library/Bee/artifacts/2400b0aE.dag/post-processed/Unity.Deformations.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2400b0aE.dag/Unity.Deformations.dll, with 141 defines and 272 references
+processors: Unity.Entities.CodeGen.EntitiesILPostProcessors, Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+1 processor(s) skipped this assembly
+running Unity.Entities.CodeGen.EntitiesILPostProcessors
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+[445/477    1s] ILPostProcess Library/Bee/artifacts/2400b0aE.dag/post-processed/Unity.Entities.Hybrid.HybridComponents.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Hybrid.HybridComponents.dll, with 141 defines and 271 references
+processors: Unity.Entities.CodeGen.EntitiesILPostProcessors, Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+1 processor(s) skipped this assembly
+running Unity.Entities.CodeGen.EntitiesILPostProcessors
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+[446/477    1s] ILPostProcess Library/Bee/artifacts/2400b0aE.dag/post-processed/Unity.Entities.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.dll, with 145 defines and 274 references
+processors: Unity.Entities.CodeGen.EntitiesILPostProcessors, Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+running Unity.Entities.CodeGen.EntitiesILPostProcessors
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[447/477    0s] MovedFromExtractor-Combine Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Editor.dll.mvfrm
+[448/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Deformations.dll
+[449/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Deformations.pdb
+[450/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Entities.Hybrid.HybridComponents.dll
+[451/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Entities.Hybrid.HybridComponents.pdb
+[452/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Entities.UI.Editor.pdb
+[453/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Entities.UI.Editor.dll
+[454/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Entities.Build.dll
+[455/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Entities.Build.pdb
+[456/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Entities.pdb
+[457/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Entities.dll
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Editor.dll (+2 others) [CacheMiss 8673a6a72984e07fff68e543a84990af00000000000000000000000000000006]
+[458/477    0s] ILPostProcess Library/Bee/artifacts/2400b0aE.dag/post-processed/Unity.Scenes.Editor.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2400b0aE.dag/Unity.Scenes.Editor.dll, with 140 defines and 317 references
+processors: Unity.Entities.CodeGen.EntitiesILPostProcessors, Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+running Unity.Entities.CodeGen.EntitiesILPostProcessors
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[459/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Scenes.Editor.dll
+[460/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Scenes.Editor.pdb
+[461/477    1s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Editor.dll (+2 others)
+[           0s] Csc Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Editor.dll (+2 others) [CacheWrite 8673a6a72984e07fff68e543a84990af00000000000000000000000000000006]
+[462/477    0s] ILPostProcess Library/Bee/artifacts/2400b0aE.dag/post-processed/Unity.Entities.Editor.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2400b0aE.dag/Unity.Entities.Editor.dll, with 139 defines and 320 references
+processors: Unity.Entities.CodeGen.EntitiesILPostProcessors, Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+running Unity.Entities.CodeGen.EntitiesILPostProcessors
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[463/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Entities.Editor.dll
+[464/477    0s] CopyFiles Library/ScriptAssemblies/Unity.Entities.Editor.pdb
+[465/477    0s] Csc Library/Bee/artifacts/2400b0aE.dag/SvCore.dll (+2 others)
+##### CommandLine
+"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/DotNetSdk/dotnet" exec "/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/DotNetSdk/sdk/10.0.303/Roslyn/bincore/csc.dll" /nostdlib /noconfig /shared "@Library/Bee/artifacts/2400b0aE.dag/SvCore.rsp" "@Library/Bee/artifacts/2400b0aE.dag/SvCore.rsp2"
+##### Contents of Library/Bee/artifacts/2400b0aE.dag/SvCore.rsp
+-target:library
+-out:"Library/Bee/artifacts/2400b0aE.dag/SvCore.dll"
+-refout:"Library/Bee/artifacts/2400b0aE.dag/SvCore.ref.dll"
+-define:UNITY_6000_7_0
+-define:UNITY_6000_7
+-define:UNITY_6000
+-define:UNITY_5_3_OR_NEWER
+-define:UNITY_5_4_OR_NEWER
+-define:UNITY_5_5_OR_NEWER
+-define:UNITY_5_6_OR_NEWER
+-define:UNITY_2017_1_OR_NEWER
+-define:UNITY_2017_2_OR_NEWER
+-define:UNITY_2017_3_OR_NEWER
+-define:UNITY_2017_4_OR_NEWER
+-define:UNITY_2018_1_OR_NEWER
+-define:UNITY_2018_2_OR_NEWER
+-define:UNITY_2018_3_OR_NEWER
+-define:UNITY_2018_4_OR_NEWER
+-define:UNITY_2019_1_OR_NEWER
+-define:UNITY_2019_2_OR_NEWER
+-define:UNITY_2019_3_OR_NEWER
+-define:UNITY_2019_4_OR_NEWER
+-define:UNITY_2020_1_OR_NEWER
+-define:UNITY_2020_2_OR_NEWER
+-define:UNITY_2020_3_OR_NEWER
+-define:UNITY_2021_1_OR_NEWER
+-define:UNITY_2021_2_OR_NEWER
+-define:UNITY_2021_3_OR_NEWER
+-define:UNITY_2022_1_OR_NEWER
+-define:UNITY_2022_2_OR_NEWER
+-define:UNITY_2022_3_OR_NEWER
+-define:UNITY_2023_1_OR_NEWER
+-define:UNITY_2023_2_OR_NEWER
+-define:UNITY_2023_3_OR_NEWER
+-define:UNITY_6000_0_OR_NEWER
+-define:UNITY_6000_1_OR_NEWER
+-define:UNITY_6000_2_OR_NEWER
+-define:UNITY_6000_3_OR_NEWER
+-define:UNITY_6000_4_OR_NEWER
+-define:UNITY_6000_5_OR_NEWER
+-define:UNITY_6000_6_OR_NEWER
+-define:UNITY_6000_7_OR_NEWER
+-define:PLATFORM_ARCH_64
+-define:UNITY_64
+-define:UNITY_INCLUDE_TESTS
+-define:ENABLE_AUDIO
+-define:ENABLE_AUDIO_SCRIPTABLE_PIPELINE
+-define:ENABLE_BURST
+-define:ENABLE_CACHING
+-define:ENABLE_CLOTH
+-define:ENABLE_MICROPHONE
+-define:ENABLE_MULTIPLE_DISPLAYS
+-define:ENABLE_PHYSICS
+-define:ENABLE_TEXTURE_STREAMING
+-define:ENABLE_VIRTUALTEXTURING
+-define:ENABLE_LZMA
+-define:ENABLE_UNITYEVENTS
+-define:ENABLE_VR
+-define:ENABLE_WEBCAM
+-define:ENABLE_UNITYWEBREQUEST
+-define:ENABLE_WWW
+-define:ENABLE_CLOUD_SERVICES
+-define:ENABLE_CLOUD_SERVICES_ADS
+-define:ENABLE_CLOUD_SERVICES_USE_WEBREQUEST
+-define:ENABLE_UNITY_CONSENT
+-define:ENABLE_UNITY_CLOUD_IDENTIFIERS
+-define:ENABLE_CLOUD_SERVICES_CRASH_REPORTING
+-define:ENABLE_CLOUD_SERVICES_PURCHASING
+-define:ENABLE_CLOUD_SERVICES_ANALYTICS
+-define:ENABLE_CLOUD_SERVICES_BUILD
+-define:ENABLE_EDITOR_GAME_SERVICES
+-define:ENABLE_UNITY_GAME_SERVICES_ANALYTICS_SUPPORT
+-define:ENABLE_CLOUD_LICENSE
+-define:ENABLE_EDITOR_HUB_LICENSE
+-define:ENABLE_WEBSOCKET_CLIENT
+-define:ENABLE_GENERATE_NATIVE_PLUGINS_FOR_ASSEMBLIES_API
+-define:ENABLE_DIRECTOR_AUDIO
+-define:ENABLE_DIRECTOR_TEXTURE
+-define:ENABLE_MANAGED_JOBS
+-define:ENABLE_MANAGED_TRANSFORM_JOBS
+-define:ENABLE_MANAGED_ANIMATION_JOBS
+-define:ENABLE_MANAGED_AUDIO_JOBS
+-define:ENABLE_MANAGED_UNITYTLS
+-define:INCLUDE_DYNAMIC_GI
+-define:ENABLE_SCRIPTING_GC_WBARRIERS
+-define:PLATFORM_SUPPORTS_MONO
+-define:RENDER_SOFTWARE_CURSOR
+-define:ENABLE_MARSHALLING_TESTS
+-define:ENABLE_VIDEO
+-define:ENABLE_NAVIGATION_OFFMESHLINK_TO_NAVMESHLINK
+-define:ENABLE_ACCELERATOR_CLIENT_DEBUGGING
+-define:ENABLE_SMARTSTRINGS
+-define:ENABLE_LOCALIZATION_RUNTIME
+-define:TEXTCORE_1_0_OR_NEWER
+-define:EDITOR_ONLY_NAVMESH_BUILDER_DEPRECATED
+-define:INCLUDE_UNIFIED_RAYTRACING_COMPUTE_BACKEND
+-define:INCLUDE_UNIFIED_RAYTRACING_HARDWARE_BACKEND
+-define:PLATFORM_STANDALONE_LINUX
+-define:PLATFORM_STANDALONE
+-define:UNITY_STANDALONE_LINUX
+-define:UNITY_STANDALONE
+-define:UNITY_STANDALONE_LINUX_API
+-define:ENABLE_RUNTIME_GI
+-define:SURFACE_CACHE_SUPPORTED
+-define:ENABLE_NETWORK
+-define:ENABLE_CRUNCH_TEXTURE_COMPRESSION
+-define:ENABLE_CLUSTER_SYNC
+-define:ENABLE_CLUSTERINPUT
+-define:ENABLE_SPATIALTRACKING
+-define:ENABLE_MODULAR_UNITYENGINE_ASSEMBLIES
+-define:PLATFORM_SUPPORTS_SPLIT_GRAPHICS_JOBS
+-define:PLATFORM_USES_EXPLICIT_MEMORY_MANAGER_INITIALIZER
+-define:PLATFORM_SUPPORTS_DISPLAYINFO_API
+-define:ENABLE_MONO
+-define:NET_STANDARD_2_0
+-define:NET_STANDARD
+-define:NET_STANDARD_2_1
+-define:NETSTANDARD
+-define:NETSTANDARD2_1
+-define:ENABLE_PROFILER
+-define:UNITY_INCLUDE_INSTRUMENTATION
+-define:DEBUG
+-define:TRACE
+-define:UNITY_ASSERTIONS
+-define:UNITY_ENABLE_CHECKS
+-define:UNITY_EDITOR
+-define:UNITY_EDITOR_64
+-define:UNITY_EDITOR_LINUX
+-define:ENABLE_UNITY_COLLECTIONS_CHECKS
+-define:ENABLE_BURST_AOT
+-define:UNITY_TEAM_LICENSE
+-define:ENABLE_CUSTOM_RENDER_TEXTURE
+-define:ENABLE_DIRECTOR
+-define:ENABLE_LOCALIZATION
+-define:ENABLE_SPRITES
+-define:ENABLE_TERRAIN
+-define:ENABLE_TILEMAP
+-define:ENABLE_TIMELINE
+-define:ENABLE_LEGACY_INPUT_MANAGER
+-define:TEXTCORE_FONT_ENGINE_1_5_OR_NEWER
+-define:TEXTCORE_TEXT_ENGINE_1_5_OR_NEWER
+-define:TEXTCORE_FONT_ENGINE_1_6_OR_NEWER
+-define:CSHARP_7_OR_LATER
+-define:CSHARP_7_3_OR_NEWER
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/BCLExtensions/TargetingPacks/netstandard2.1/ref/Microsoft.Bcl.AsyncInterfaces.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/BCLExtensions/TargetingPacks/netstandard2.1/ref/Microsoft.Extensions.DependencyInjection.Abstractions.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/BCLExtensions/TargetingPacks/netstandard2.1/ref/Microsoft.Extensions.Logging.Abstractions.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/BCLExtensions/TargetingPacks/netstandard2.1/ref/System.Collections.Immutable.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/BCLExtensions/TargetingPacks/netstandard2.1/ref/System.Configuration.ConfigurationManager.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/BCLExtensions/TargetingPacks/netstandard2.1/ref/System.Diagnostics.DiagnosticSource.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/BCLExtensions/TargetingPacks/netstandard2.1/ref/System.IO.Hashing.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/BCLExtensions/TargetingPacks/netstandard2.1/ref/System.IO.Pipelines.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/BCLExtensions/TargetingPacks/netstandard2.1/ref/System.Reflection.Metadata.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/BCLExtensions/TargetingPacks/netstandard2.1/ref/System.Runtime.CompilerServices.Unsafe.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/BCLExtensions/TargetingPacks/netstandard2.1/ref/System.Security.Cryptography.ProtectedData.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/BCLExtensions/TargetingPacks/netstandard2.1/ref/System.Text.Encodings.Web.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/BCLExtensions/TargetingPacks/netstandard2.1/ref/System.Text.Json.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/Extensions/2.0.0/System.Runtime.InteropServices.WindowsRuntime.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netfx/System.ComponentModel.Composition.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netfx/System.Core.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netfx/System.Data.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netfx/System.Drawing.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netfx/System.IO.Compression.FileSystem.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netfx/System.Net.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netfx/System.Numerics.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netfx/System.Runtime.Serialization.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netfx/System.ServiceModel.Web.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netfx/System.Transactions.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netfx/System.Web.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netfx/System.Windows.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netfx/System.Xml.Linq.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netfx/System.Xml.Serialization.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netfx/System.Xml.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netfx/System.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netfx/mscorlib.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/Microsoft.Win32.Primitives.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.AppContext.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Buffers.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Collections.Concurrent.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Collections.NonGeneric.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Collections.Specialized.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Collections.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.ComponentModel.EventBasedAsync.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.ComponentModel.Primitives.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.ComponentModel.TypeConverter.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.ComponentModel.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Console.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Data.Common.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Diagnostics.Contracts.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Diagnostics.Debug.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Diagnostics.FileVersionInfo.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Diagnostics.Process.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Diagnostics.StackTrace.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Diagnostics.TextWriterTraceListener.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Diagnostics.Tools.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Diagnostics.TraceSource.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Diagnostics.Tracing.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Drawing.Primitives.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Dynamic.Runtime.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Globalization.Calendars.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Globalization.Extensions.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Globalization.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.IO.Compression.ZipFile.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.IO.Compression.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.IO.FileSystem.DriveInfo.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.IO.FileSystem.Primitives.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.IO.FileSystem.Watcher.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.IO.FileSystem.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.IO.IsolatedStorage.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.IO.MemoryMappedFiles.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.IO.Pipes.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.IO.UnmanagedMemoryStream.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.IO.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Linq.Expressions.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Linq.Parallel.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Linq.Queryable.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Linq.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Memory.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Net.Http.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Net.NameResolution.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Net.NetworkInformation.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Net.Ping.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Net.Primitives.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Net.Requests.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Net.Security.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Net.Sockets.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Net.WebHeaderCollection.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Net.WebSockets.Client.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Net.WebSockets.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Numerics.Vectors.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.ObjectModel.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Reflection.DispatchProxy.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Reflection.Emit.ILGeneration.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Reflection.Emit.Lightweight.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Reflection.Emit.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Reflection.Extensions.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Reflection.Primitives.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Reflection.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Resources.Reader.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Resources.ResourceManager.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Resources.Writer.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Runtime.CompilerServices.VisualC.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Runtime.Extensions.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Runtime.Handles.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Runtime.InteropServices.RuntimeInformation.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Runtime.InteropServices.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Runtime.Numerics.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Runtime.Serialization.Formatters.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Runtime.Serialization.Json.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Runtime.Serialization.Primitives.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Runtime.Serialization.Xml.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Runtime.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Security.Claims.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Security.Cryptography.Algorithms.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Security.Cryptography.Csp.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Security.Cryptography.Encoding.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Security.Cryptography.Primitives.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Security.Cryptography.X509Certificates.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Security.Principal.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Security.SecureString.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Text.Encoding.Extensions.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Text.Encoding.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Text.RegularExpressions.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Threading.Overlapped.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Threading.Tasks.Extensions.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Threading.Tasks.Parallel.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Threading.Tasks.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Threading.Thread.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Threading.ThreadPool.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Threading.Timer.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Threading.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.ValueTuple.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Xml.ReaderWriter.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Xml.XDocument.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Xml.XPath.XDocument.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Xml.XPath.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Xml.XmlDocument.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netstandard/System.Xml.XmlSerializer.dll"
+-r:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/ref/2.1.0/netstandard.dll"
+-r:"Library/PackageCache/com.unity.collections@33da37bccbc7/Unity.Collections.LowLevel.ILSupport/Unity.Collections.LowLevel.ILSupport.dll"
+-r:"Library/PackageCache/com.unity.entities@8f92e3b8d01c/Unity.Entities.CodeGen/Unity.Cecil.Awesome.dll"
+-r:"Library/PackageCache/com.unity.ext.nunit@34629c509049/net472/unity-custom/nunit.framework.dll"
+-r:"Library/PackageCache/com.unity.nuget.mono-cecil@ecb9724e46ff/Mono.Cecil.dll"
+-analyzer:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/BCLExtensions/TargetingPacks/netstandard2.1/analyzers/dotnet/roslyn4.4/cs/Microsoft.Extensions.Logging.Generators.dll"
+-analyzer:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/BCLExtensions/TargetingPacks/netstandard2.1/analyzers/dotnet/roslyn4.4/cs/System.Text.Json.SourceGeneration.dll"
+-analyzer:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/Tools/BuildPipeline/Unity.Analyzers/Unity.Analyzers.Common.dll"
+-analyzer:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/Tools/BuildPipeline/Unity.Analyzers/Unity.Analyzers.LongLiving.dll"
+-analyzer:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/Tools/BuildPipeline/Unity.SourceGenerators/Unity.Properties.SourceGenerator.dll"
+-analyzer:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/Tools/BuildPipeline/Unity.SourceGenerators/Unity.SourceGenerators.dll"
+-analyzer:"/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/Tools/BuildPipeline/Unity.SourceGenerators/Unity.UIToolkit.SourceGenerator.dll"
+"Assets/SvCore/BindingHandle.cs"
+"Assets/SvCore/BlockTable.cs"
+"Assets/SvCore/Board.Keyframe.cs"
+"Assets/SvCore/Board.Stats.cs"
+"Assets/SvCore/Board.Undo.cs"
+"Assets/SvCore/Board.Wheel.cs"
+"Assets/SvCore/Board.cs"
+"Assets/SvCore/Bounds.cs"
+"Assets/SvCore/Bulk.cs"
+"Assets/SvCore/Clamp.cs"
+"Assets/SvCore/ClampShift.cs"
+"Assets/SvCore/Column.cs"
+"Assets/SvCore/Columns.cs"
+"Assets/SvCore/Delta.cs"
+"Assets/SvCore/Drift.cs"
+"Assets/SvCore/EventStreams.cs"
+"Assets/SvCore/Guard.cs"
+"Assets/SvCore/InputState.cs"
+"Assets/SvCore/Kernel.cs"
+"Assets/SvCore/Modifier.cs"
+"Assets/SvCore/NativeArena.cs"
+"Assets/SvCore/Schema.Attributes.cs"
+"Assets/SvCore/Schema.cs"
+"Assets/SvCore/SetTable.cs"
+"Assets/SvCore/Simd.Chunk.cs"
+"Assets/SvCore/Simd.cs"
+"Assets/SvCore/StateCodec.cs"
+"Assets/SvCore/SvState.cs"
+"Assets/SvCore/UndoLog.cs"
+"Assets/SvCore/Window.cs"
+"Assets/SvCore/XxHash64.cs"
+-langversion:9.0
+/unsafe+
+/deterministic
+/optimize+
+/debug:portable
+/nologo
+/RuntimeMetadataVersion:v4.0.30319
+/nowarn:0169
+/nowarn:0649
+/nowarn:0282
+/nowarn:1701
+/nowarn:1702
+-langversion:11
+/utf8output
+/preferreduilang:en-US
+/additionalfile:"Library/Bee/artifacts/2400b0aE.dag/SvCore.UnityAdditionalFile.txt"
+##### Custom Environment Variables
+DOTNET_HOST_PATH=/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/DotNetSdk/dotnet
+DOTNET_MULTILEVEL_LOOKUP=0
+DOTNET_ROOT=/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/DotNetSdk
+DOTNET_SYSTEM_GLOBALIZATION_USENLS=1
+##### ExitCode
+1
+##### Output
+Assets/SvCore/Simd.Chunk.cs(2,22): error CS0234: The type or namespace name 'Intrinsics' does not exist in the namespace 'System.Runtime' (are you missing an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(3,22): error CS0234: The type or namespace name 'Intrinsics' does not exist in the namespace 'System.Runtime' (are you missing an assembly reference?)
+Assets/SvCore/Simd.cs(1,22): error CS0234: The type or namespace name 'Intrinsics' does not exist in the namespace 'System.Runtime' (are you missing an assembly reference?)
+Assets/SvCore/Schema.Attributes.cs(11,36): error CS9058: Feature 'primary constructors' is not available in C# 11.0. Please use language version 12.0 or greater.
+Assets/SvCore/Schema.Attributes.cs(19,39): error CS9058: Feature 'primary constructors' is not available in C# 11.0. Please use language version 12.0 or greater.
+Assets/SvCore/Schema.Attributes.cs(31,41): error CS9058: Feature 'primary constructors' is not available in C# 11.0. Please use language version 12.0 or greater.
+Assets/SvCore/Bulk.cs(19,16): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Bulk.cs(107,27): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Schema.cs(39,39): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/InputState.cs(38,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/InputState.cs(40,10): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Schema.cs(52,19): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/InputState.cs(42,11): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/InputState.cs(44,10): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Schema.cs(17,39): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/BlockTable.cs(11,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/StateCodec.cs(8,36): error CS8919: Target runtime doesn't support static abstract members in interfaces.
+Assets/SvCore/Drift.cs(51,10): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/EventStreams.cs(356,90): error CS8889: The target runtime doesn't support extensible or runtime-environment default calling conventions.
+Assets/SvCore/EventStreams.cs(374,98): error CS8889: The target runtime doesn't support extensible or runtime-environment default calling conventions.
+Assets/SvCore/EventStreams.cs(410,103): error CS8889: The target runtime doesn't support extensible or runtime-environment default calling conventions.
+Assets/SvCore/Simd.Chunk.cs(536,41): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(536,59): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(536,12): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(544,41): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(544,59): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(544,12): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/EventStreams.cs(440,101): error CS8889: The target runtime doesn't support extensible or runtime-environment default calling conventions.
+Assets/SvCore/Simd.Chunk.cs(552,46): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(552,68): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(552,12): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/EventStreams.cs(476,106): error CS8889: The target runtime doesn't support extensible or runtime-environment default calling conventions.
+Assets/SvCore/EventStreams.cs(506,86): error CS8889: The target runtime doesn't support extensible or runtime-environment default calling conventions.
+Assets/SvCore/Schema.cs(64,42): error CS0518: Predefined type 'System.Runtime.CompilerServices.IsExternalInit' is not defined or imported
+Assets/SvCore/Simd.Chunk.cs(560,46): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(560,68): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(560,12): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Schema.cs(50,49): error CS0518: Predefined type 'System.Runtime.CompilerServices.IsExternalInit' is not defined or imported
+Assets/SvCore/Schema.cs(50,61): error CS0518: Predefined type 'System.Runtime.CompilerServices.IsExternalInit' is not defined or imported
+Assets/SvCore/EventStreams.cs(64,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/EventStreams.cs(66,10): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Simd.cs(67,36): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(67,12): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(75,36): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(75,12): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(83,37): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(83,55): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(83,74): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(83,12): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(100,37): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(100,55): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(100,74): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(100,12): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Schema.cs(52,34): error CS0518: Predefined type 'System.Runtime.CompilerServices.IsExternalInit' is not defined or imported
+Assets/SvCore/Schema.cs(54,34): error CS0518: Predefined type 'System.Runtime.CompilerServices.IsExternalInit' is not defined or imported
+Assets/SvCore/Simd.cs(90,35): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(90,53): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(90,12): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Schema.cs(56,35): error CS0518: Predefined type 'System.Runtime.CompilerServices.IsExternalInit' is not defined or imported
+Assets/SvCore/Schema.cs(59,37): error CS0518: Predefined type 'System.Runtime.CompilerServices.IsExternalInit' is not defined or imported
+Assets/SvCore/SetTable.cs(26,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Schema.cs(59,49): error CS0518: Predefined type 'System.Runtime.CompilerServices.IsExternalInit' is not defined or imported
+Assets/SvCore/Simd.cs(107,35): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(107,53): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(107,12): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(95,35): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(95,53): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(95,12): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Schema.cs(61,53): error CS0518: Predefined type 'System.Runtime.CompilerServices.IsExternalInit' is not defined or imported
+Assets/SvCore/Simd.cs(112,35): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(112,53): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(112,12): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/EventStreams.cs(255,28): error CS8889: The target runtime doesn't support extensible or runtime-environment default calling conventions.
+Assets/SvCore/EventStreams.cs(257,39): error CS8889: The target runtime doesn't support extensible or runtime-environment default calling conventions.
+Assets/SvCore/Simd.Chunk.cs(27,30): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(27,9): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(29,30): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(29,9): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(35,9): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(37,9): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(45,20): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(47,20): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(55,37): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(55,16): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(58,37): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(58,16): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(75,37): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(75,16): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(78,37): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(78,16): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(95,37): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(95,16): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(98,37): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(98,16): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(112,37): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(112,16): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(115,37): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(115,16): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(129,37): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(129,16): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(132,37): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(132,16): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(149,37): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(149,16): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(152,37): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(152,16): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(166,37): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(166,16): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(169,37): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(169,16): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(183,37): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(183,16): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(186,37): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(186,16): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(200,16): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(203,16): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(219,16): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(222,16): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(231,27): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(236,27): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(256,27): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(259,27): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Board.Undo.cs(130,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Board.Stats.cs(108,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Board.Stats.cs(114,23): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Board.Undo.cs(120,12): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Board.Undo.cs(122,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+*** Tundra build failed (7.35 seconds), 465 items updated, 477 evaluated
+## Script Compilation Error for: Csc Library/Bee/artifacts/2400b0aE.dag/SvCore.dll (+2 others)
+## CmdLine: "/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/DotNetSdk/dotnet" exec "/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/DotNetSdk/sdk/10.0.303/Roslyn/bincore/csc.dll" /nostdlib /noconfig /shared "@Library/Bee/artifacts/2400b0aE.dag/SvCore.rsp" "@Library/Bee/artifacts/2400b0aE.dag/SvCore.rsp2"
+## Output:
+Assets/SvCore/Simd.Chunk.cs(2,22): error CS0234: The type or namespace name 'Intrinsics' does not exist in the namespace 'System.Runtime' (are you missing an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(3,22): error CS0234: The type or namespace name 'Intrinsics' does not exist in the namespace 'System.Runtime' (are you missing an assembly reference?)
+Assets/SvCore/Simd.cs(1,22): error CS0234: The type or namespace name 'Intrinsics' does not exist in the namespace 'System.Runtime' (are you missing an assembly reference?)
+Assets/SvCore/Schema.Attributes.cs(11,36): error CS9058: Feature 'primary constructors' is not available in C# 11.0. Please use language version 12.0 or greater.
+Assets/SvCore/Schema.Attributes.cs(19,39): error CS9058: Feature 'primary constructors' is not available in C# 11.0. Please use language version 12.0 or greater.
+Assets/SvCore/Schema.Attributes.cs(31,41): error CS9058: Feature 'primary constructors' is not available in C# 11.0. Please use language version 12.0 or greater.
+Assets/SvCore/Bulk.cs(19,16): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Bulk.cs(107,27): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Schema.cs(39,39): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/InputState.cs(38,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/InputState.cs(40,10): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Schema.cs(52,19): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/InputState.cs(42,11): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/InputState.cs(44,10): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Schema.cs(17,39): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/BlockTable.cs(11,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/StateCodec.cs(8,36): error CS8919: Target runtime doesn't support static abstract members in interfaces.
+Assets/SvCore/Drift.cs(51,10): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/EventStreams.cs(356,90): error CS8889: The target runtime doesn't support extensible or runtime-environment default calling conventions.
+Assets/SvCore/EventStreams.cs(374,98): error CS8889: The target runtime doesn't support extensible or runtime-environment default calling conventions.
+Assets/SvCore/EventStreams.cs(410,103): error CS8889: The target runtime doesn't support extensible or runtime-environment default calling conventions.
+Assets/SvCore/Simd.Chunk.cs(536,41): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(536,59): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(536,12): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(544,41): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(544,59): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(544,12): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/EventStreams.cs(440,101): error CS8889: The target runtime doesn't support extensible or runtime-environment default calling conventions.
+Assets/SvCore/Simd.Chunk.cs(552,46): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(552,68): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(552,12): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/EventStreams.cs(476,106): error CS8889: The target runtime doesn't support extensible or runtime-environment default calling conventions.
+Assets/SvCore/EventStreams.cs(506,86): error CS8889: The target runtime doesn't support extensible or runtime-environment default calling conventions.
+Assets/SvCore/Schema.cs(64,42): error CS0518: Predefined type 'System.Runtime.CompilerServices.IsExternalInit' is not defined or imported
+Assets/SvCore/Simd.Chunk.cs(560,46): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(560,68): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(560,12): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Schema.cs(50,49): error CS0518: Predefined type 'System.Runtime.CompilerServices.IsExternalInit' is not defined or imported
+Assets/SvCore/Schema.cs(50,61): error CS0518: Predefined type 'System.Runtime.CompilerServices.IsExternalInit' is not defined or imported
+Assets/SvCore/EventStreams.cs(64,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/EventStreams.cs(66,10): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Simd.cs(67,36): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(67,12): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(75,36): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(75,12): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(83,37): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(83,55): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(83,74): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(83,12): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(100,37): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(100,55): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(100,74): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(100,12): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Schema.cs(52,34): error CS0518: Predefined type 'System.Runtime.CompilerServices.IsExternalInit' is not defined or imported
+Assets/SvCore/Schema.cs(54,34): error CS0518: Predefined type 'System.Runtime.CompilerServices.IsExternalInit' is not defined or imported
+Assets/SvCore/Simd.cs(90,35): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(90,53): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(90,12): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Schema.cs(56,35): error CS0518: Predefined type 'System.Runtime.CompilerServices.IsExternalInit' is not defined or imported
+Assets/SvCore/Schema.cs(59,37): error CS0518: Predefined type 'System.Runtime.CompilerServices.IsExternalInit' is not defined or imported
+Assets/SvCore/SetTable.cs(26,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Schema.cs(59,49): error CS0518: Predefined type 'System.Runtime.CompilerServices.IsExternalInit' is not defined or imported
+Assets/SvCore/Simd.cs(107,35): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(107,53): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(107,12): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(95,35): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(95,53): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(95,12): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Schema.cs(61,53): error CS0518: Predefined type 'System.Runtime.CompilerServices.IsExternalInit' is not defined or imported
+Assets/SvCore/Simd.cs(112,35): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(112,53): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(112,12): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/EventStreams.cs(255,28): error CS8889: The target runtime doesn't support extensible or runtime-environment default calling conventions.
+Assets/SvCore/EventStreams.cs(257,39): error CS8889: The target runtime doesn't support extensible or runtime-environment default calling conventions.
+Assets/SvCore/Simd.Chunk.cs(27,30): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(27,9): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(29,30): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(29,9): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(35,9): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(37,9): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(45,20): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(47,20): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(55,37): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(55,16): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(58,37): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(58,16): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(75,37): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(75,16): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(78,37): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(78,16): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(95,37): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(95,16): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(98,37): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(98,16): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(112,37): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(112,16): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(115,37): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(115,16): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(129,37): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(129,16): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(132,37): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(132,16): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(149,37): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(149,16): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(152,37): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(152,16): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(166,37): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(166,16): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(169,37): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(169,16): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(183,37): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(183,16): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(186,37): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(186,16): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(200,16): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(203,16): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(219,16): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(222,16): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(231,27): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(236,27): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(256,27): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(259,27): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Board.Undo.cs(130,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Board.Stats.cs(108,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Board.Stats.cs(114,23): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Board.Undo.cs(120,12): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Board.Undo.cs(122,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+he type or namqV
+Assets/SvCore/Simd.Chunk.cs(2,22): error CS0234: The type or namespace name 'Intrinsics' does not exist in the namespace 'System.Runtime' (are you missing an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(3,22): error CS0234: The type or namespace name 'Intrinsics' does not exist in the namespace 'System.Runtime' (are you missing an assembly reference?)
+Assets/SvCore/Simd.cs(1,22): error CS0234: The type or namespace name 'Intrinsics' does not exist in the namespace 'System.Runtime' (are you missing an assembly reference?)
+Assets/SvCore/Schema.Attributes.cs(11,36): error CS9058: Feature 'primary constructors' is not available in C# 11.0. Please use language version 12.0 or greater.
+Assets/SvCore/Schema.Attributes.cs(19,39): error CS9058: Feature 'primary constructors' is not available in C# 11.0. Please use language version 12.0 or greater.
+Assets/SvCore/Schema.Attributes.cs(31,41): error CS9058: Feature 'primary constructors' is not available in C# 11.0. Please use language version 12.0 or greater.
+Assets/SvCore/Bulk.cs(19,16): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Bulk.cs(107,27): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Schema.cs(39,39): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/InputState.cs(38,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/InputState.cs(40,10): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Schema.cs(52,19): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/InputState.cs(42,11): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/InputState.cs(44,10): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Schema.cs(17,39): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/BlockTable.cs(11,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/StateCodec.cs(8,36): error CS8919: Target runtime doesn't support static abstract members in interfaces.
+Assets/SvCore/Drift.cs(51,10): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/EventStreams.cs(356,90): error CS8889: The target runtime doesn't support extensible or runtime-environment default calling conventions.
+Assets/SvCore/EventStreams.cs(374,98): error CS8889: The target runtime doesn't support extensible or runtime-environment default calling conventions.
+Assets/SvCore/EventStreams.cs(410,103): error CS8889: The target runtime doesn't support extensible or runtime-environment default calling conventions.
+Assets/SvCore/Simd.Chunk.cs(536,41): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(536,59): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(536,12): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(544,41): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(544,59): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(544,12): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/EventStreams.cs(440,101): error CS8889: The target runtime doesn't support extensible or runtime-environment default calling conventions.
+Assets/SvCore/Simd.Chunk.cs(552,46): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(552,68): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(552,12): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/EventStreams.cs(476,106): error CS8889: The target runtime doesn't support extensible or runtime-environment default calling conventions.
+Assets/SvCore/EventStreams.cs(506,86): error CS8889: The target runtime doesn't support extensible or runtime-environment default calling conventions.
+Assets/SvCore/Schema.cs(64,42): error CS0518: Predefined type 'System.Runtime.CompilerServices.IsExternalInit' is not defined or imported
+Assets/SvCore/Simd.Chunk.cs(560,46): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(560,68): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(560,12): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Schema.cs(50,49): error CS0518: Predefined type 'System.Runtime.CompilerServices.IsExternalInit' is not defined or imported
+Assets/SvCore/Schema.cs(50,61): error CS0518: Predefined type 'System.Runtime.CompilerServices.IsExternalInit' is not defined or imported
+Assets/SvCore/EventStreams.cs(64,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/EventStreams.cs(66,10): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Simd.cs(67,36): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(67,12): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(75,36): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(75,12): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(83,37): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(83,55): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(83,74): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(83,12): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(100,37): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(100,55): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(100,74): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(100,12): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Schema.cs(52,34): error CS0518: Predefined type 'System.Runtime.CompilerServices.IsExternalInit' is not defined or imported
+Assets/SvCore/Schema.cs(54,34): error CS0518: Predefined type 'System.Runtime.CompilerServices.IsExternalInit' is not defined or imported
+Assets/SvCore/Simd.cs(90,35): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(90,53): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(90,12): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Schema.cs(56,35): error CS0518: Predefined type 'System.Runtime.CompilerServices.IsExternalInit' is not defined or imported
+Assets/SvCore/Schema.cs(59,37): error CS0518: Predefined type 'System.Runtime.CompilerServices.IsExternalInit' is not defined or imported
+Assets/SvCore/SetTable.cs(26,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Schema.cs(59,49): error CS0518: Predefined type 'System.Runtime.CompilerServices.IsExternalInit' is not defined or imported
+Assets/SvCore/Simd.cs(107,35): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(107,53): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(107,12): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(95,35): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(95,53): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(95,12): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Schema.cs(61,53): error CS0518: Predefined type 'System.Runtime.CompilerServices.IsExternalInit' is not defined or imported
+Assets/SvCore/Simd.cs(112,35): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(112,53): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.cs(112,12): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/EventStreams.cs(255,28): error CS8889: The target runtime doesn't support extensible or runtime-environment default calling conventions.
+Assets/SvCore/EventStreams.cs(257,39): error CS8889: The target runtime doesn't support extensible or runtime-environment default calling conventions.
+Assets/SvCore/Simd.Chunk.cs(27,30): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(27,9): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(29,30): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(29,9): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(35,9): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(37,9): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(45,20): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(47,20): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(55,37): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(55,16): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(58,37): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(58,16): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(75,37): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(75,16): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(78,37): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(78,16): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(95,37): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(95,16): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(98,37): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(98,16): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(112,37): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(112,16): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(115,37): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(115,16): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(129,37): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(129,16): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(132,37): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(132,16): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(149,37): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(149,16): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(152,37): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(152,16): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(166,37): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(166,16): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(169,37): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(169,16): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(183,37): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(183,16): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(186,37): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(186,16): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(200,16): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(203,16): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(219,16): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(222,16): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(231,27): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(236,27): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(256,27): error CS0246: The type or namespace name 'Vector128<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Simd.Chunk.cs(259,27): error CS0246: The type or namespace name 'Vector256<>' could not be found (are you missing a using directive or an assembly reference?)
+Assets/SvCore/Board.Undo.cs(130,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Board.Stats.cs(108,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Board.Stats.cs(114,23): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Board.Undo.cs(120,12): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Board.Undo.cs(122,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+AssetDatabase: script compilation time: 8.047915s
+Scripts have compiler errors.
+[ExitDontLaunchBugReporter] Exiting without the bug reporter. Application will exit with return code 1
+VBCSCompilerPreWarmer: requested VBCSCompiler shutdown

@@ -244,6 +244,12 @@ namespace Unity.Entities
         public bool HasComponent<T>(Entity entity) where T : unmanaged, IComponentData =>
             world.Present.TryGetValue(typeof(T), out var present) && present.Contains(entity.Index);
 
+        public bool AddComponentData<T>(Entity entity, T componentData) where T : unmanaged, IComponentData
+        {
+            AddComponent<T>(entity, componentData);
+            return true;
+        }
+
         public void AddComponent<T>(Entity entity, T componentData) where T : unmanaged, IComponentData
         {
             var owner = world;
@@ -472,6 +478,9 @@ namespace Unity.Entities
         }
 
         public int Count { get; }
+
+        public NativeArray<Entity> GetNativeArray(EntityTypeHandle typeHandle) =>
+            new(entities ?? Array.Empty<Entity>(), Allocator.Temp);
 
         public NativeArray<Entity> GetNativeArray(ref EntityTypeHandle typeHandle) =>
             new(entities ?? Array.Empty<Entity>(), Allocator.Temp);

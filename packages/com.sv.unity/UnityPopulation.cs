@@ -27,7 +27,7 @@ namespace Sv.Unity
         public int Bind(EntityManager manager, Entity entity)
         {
             var slot = Board.Acquire();
-            manager.AddComponent(entity, new SvSlot { Slot = slot });
+            manager.AddComponentData(entity, new SvSlot { Slot = slot });
             return slot;
         }
 
@@ -53,7 +53,7 @@ namespace Sv.Unity
         public NativeArray<int> Reconcile(EntityManager manager)
         {
             manager.AddChunkComponentData(manager.CreateEntityQuery(typeof(SvSlot)), new SvRange());
-            var rangeHandle = manager.GetComponentTypeHandle<SvRange>();
+            var rangeHandle = manager.GetComponentTypeHandle<SvRange>(false);
             var map = new NativeArray<int>(Board.Capacity, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
             var mapPtr = (int*)map.GetUnsafePtr();
             for (var i = 0; i < Board.Capacity; i++)
@@ -61,7 +61,7 @@ namespace Sv.Unity
                 mapPtr[i] = -1;
             }
 
-            var handle = manager.GetComponentTypeHandle<SvSlot>();
+            var handle = manager.GetComponentTypeHandle<SvSlot>(false);
             var entityType = manager.GetEntityTypeHandle();
             var chunks = manager.GetAllChunks();
             var next = 0;
@@ -75,7 +75,7 @@ namespace Sv.Unity
 
                 var slotHandle = handle;
                 var slots = chunk.GetComponentDataPtrRW(ref slotHandle);
-                var chunkEntities = chunk.GetNativeArray(ref entityType);
+                var chunkEntities = chunk.GetNativeArray(entityType);
                 if (next + chunk.Count > Board.Capacity)
                 {
                     map.Dispose();

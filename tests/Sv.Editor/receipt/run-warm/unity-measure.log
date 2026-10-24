@@ -1,0 +1,515 @@
+[UnityConnectServicesConfig] Local config successfully read: "/usr/share/unity3d/config/services-config.json"
+[UnityConnectServicesConfig] Service configuration:
+    "servicesConfigBaseUrl": "",
+    "disableServicesWindow": false,
+    "disableUserLogin": false,
+    "entitlementCacheTimeoutInSeconds": 60,
+    "clientConnectTimeoutSec": 60,
+    "clientHandshakeTimeoutSec": 30,
+    "clientResolveEntitlementsTimeoutSec": 30,
+    "clientUpdateLicenseTimeoutSec": 30,
+    "licensingServiceBaseUrl": "",
+    "enableProxyAutoconfig": "false"
+
+Unity Editor version:    6000.7.0b5 (5747dc44953f)
+Branch:                  6000.7/staging
+Build type:              Release
+Batch mode:              YES
+System name:             Linux
+Distro version:          #1 SMP PREEMPT_DYNAMIC Mon, 14 Sep 2026 19:55:01 +0000
+Kernel version:          7.2.5-3-omarchy
+Architecture:            x86_64
+Window Protocol:         Wayland (XWayland)
+Available memory:        31840 MB
+Date:                    2026-10-24T19:06:43Z
+VBCSCompilerPreWarmer: watching VBCSCompiler (PID 1401672)
+VBCSCompilerPreWarmer: pre-warm launched (dotnet PID 1401673)
+VBCSCompiler prewarm took 3.29 ms
+Initialize udev device monitor.
+[Licensing::Module] Trying to connect to existing licensing client channel...
+[Licensing::IpcConnector] Channel LicenseClient-i doesn't exist
+[Licensing::Module] Successfully launched the LicensingClient (PId: 1401676)
+
+COMMAND LINE ARGUMENTS:
+/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Unity
+-batchmode
+-nographics
+-quit
+-projectPath
+/home/i/GitHub/sv-w103/tests/Sv.Editor/unity
+-executeMethod
+Sv.Editor.SvEditorBatch.Run
+-logFile
+/home/i/GitHub/sv-w103/tests/Sv.Editor/receipt/unity-measure.log
+Successfully changed project path to: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity
+/home/i/GitHub/sv-w103/tests/Sv.Editor/unity
+[UnityMemory] Configuration Parameters - Can be set up in boot.config
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-nav-mesh-worker=65536"
+    "memorysetup-temp-allocator-size-audio-worker=65536"
+    "memorysetup-temp-allocator-size-cloud-worker=32768"
+    "memorysetup-entities-archetype-allocator-budget=16777216"
+    "memorysetup-entities-query-allocator-budget=16777216"
+    "memorysetup-temp-allocator-size-preload-manager=33554432"
+    "memorysetup-remapper-allocator-initial-capacity=32768"
+    "memorysetup-temp-allocator-size-gfx=262144"
+    "memorysetup-allocator-temp-initial-block-size-main=262144"
+    "memorysetup-allocator-temp-initial-block-size-worker=262144"
+    "memorysetup-temp-allocator-size-background-worker=32768"
+    "memorysetup-temp-allocator-size-job-worker=262144"
+    "memorysetup-bucket-allocator-granularity=16"
+    "memorysetup-bucket-allocator-bucket-count=8"
+    "memorysetup-bucket-allocator-block-size=33554432"
+    "memorysetup-bucket-allocator-block-count=8"
+    "memorysetup-main-allocator-block-size=16777216"
+    "memorysetup-thread-allocator-block-size=16777216"
+    "memorysetup-main-allocator-mimalloc-enabled=1"
+    "memorysetup-gfx-main-allocator-block-size=16777216"
+    "memorysetup-gfx-thread-allocator-block-size=16777216"
+    "memorysetup-cache-allocator-block-size=4194304"
+    "memorysetup-typetree-allocator-block-size=2097152"
+    "memorysetup-profiler-bucket-allocator-granularity=16"
+    "memorysetup-profiler-bucket-allocator-bucket-count=8"
+    "memorysetup-profiler-bucket-allocator-block-size=33554432"
+    "memorysetup-profiler-bucket-allocator-block-count=8"
+    "memorysetup-profiler-allocator-block-size=16777216"
+    "memorysetup-profiler-editor-allocator-block-size=1048576"
+    "memorysetup-temp-allocator-size-main=16777216"
+    "memorysetup-job-temp-allocator-block-size=2097152"
+    "memorysetup-job-temp-allocator-block-size-background=1048576"
+    "memorysetup-job-temp-allocator-reduction-small-platforms=262144"
+Logging is directed to a specific file, skipping project log.
+Player connection [130970263902976]  Target information:
+
+Player connection [130970263902976]  * "[IP] 192.168.31.92 [Port] 55504 [Flags] 2 [Guid] 2490453686 [EditorId] 2490453686 [Version] 1048832 [Id] LinuxEditor(16,192.168.31.92) [Debug] 1 [PackageName] LinuxEditor [ProjectName] Editor" 
+
+Player connection [130970263902976]  * "[IP] 172.18.0.1 [Port] 55504 [Flags] 2 [Guid] 2490453686 [EditorId] 2490453686 [Version] 1048832 [Id] LinuxEditor(16,192.168.31.92) [Debug] 1 [PackageName] LinuxEditor [ProjectName] Editor" 
+
+Player connection [130970263902976]  * "[IP] 172.17.0.1 [Port] 55504 [Flags] 2 [Guid] 2490453686 [EditorId] 2490453686 [Version] 1048832 [Id] LinuxEditor(16,192.168.31.92) [Debug] 1 [PackageName] LinuxEditor [ProjectName] Editor" 
+
+Player connection [130970263902976] Host joined multi-casting on [225.0.0.222:54997]...
+Player connection [130970263902976] Host joined alternative multi-casting on [225.0.0.222:34997]...
+Input System module state changed to: Initialized.
+[Physics::Module] Initialized fallback backend.
+[Physics::Module] Id: 0xdecafbad
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-i" at "2026-10-24T19:06:43.578016Z"
+[SignatureVerifier] Application signature verification not supported on this platform.
+[Licensing::Client] Handshaking with LicensingClient:
+  Version:                 1.19.0-rc.1+a1d64c6
+  Session Id:              4b97b88dff1142ee8f2244c3ee87355d
+  Correlation Id:          c1f172716a18128f00ec7c8aa763483e
+  External correlation Id: 3644804048528433541
+  Machine Id:              3QFrjbePZf73KIZg6Vg0uKW2M4A=
+[Licensing::Module] Successfully connected to LicensingClient on channel: "LicenseClient-i" (connect: 0.02s, validation: 0.00s, handshake: 0.00s)
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-i-notifications" at "2026-10-24T19:06:43.581255Z"
+[Licensing::Module] Connected to LicensingClient (PId: 1401676, launch time: 0.00, total connection time: 0.03s)
+[Licensing::Module] Error: Access token is unavailable; failed to update
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] License group:
+  Id: 5469322-UnityPersXXXX
+  Product: Unity Personal
+  Type: Assigned
+  Expiration: Unlimited
+[Licensing::Client] Successfully updated license, isAsync: True, time: 0.00
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] Licensing Background thread has ended after 0.03s
+Initialising UDS system complete:
+  - System type: Client
+  - Resource namespace: 8d89a45244ef0c38922a4252e3df656c
+  - Shared memory size: 1073741824
+  - Command buffer id: 1052624
+  - Command buffer size: 8192
+  - Hashmap size: 4194304
+  - Service connected: false
+[Package Manager] Connected to IPC stream "Upm-1401637" after 0.1 seconds.
+[Licensing::Client] Successfully resolved entitlement details
+Library Redirect Path: Library/
+Launching Unity Data Store - /home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/Tools/Unity.DataStore 
+Unity Data Store artifact dir = Library/DataStore, working dir = /home/i/GitHub/sv-w103/tests/Sv.Editor/unityUnity Data Store running and initialised
+[Physics::Module] Selected backend (deferred post-plugins).
+[Physics::Module] Name: PhysX
+[Physics::Module] Id: 0xf2b8ea05
+[Physics::Module] SDK Version: 4.1.2
+[Physics::Module] Integration Version: 1.0.0
+[Physics::Module] Threading Mode: Multi-Threaded
+Initialize engine version: 6000.7.0b5 (5747dc44953f)
+[EntityIdStore] init: VM path (explicit commit), pageSize=4096, blockCount=262144, entitiesPerBlock=1024, blocksPerSlotPage=0, slots reserved=4294967296 bytes
+[Subsystems] Discovering subsystems at path /home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/Resources/UnitySubsystems
+[Subsystems] Discovering subsystems at path /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Assets
+Forcing GfxDevice: Null
+GfxDevice: creating device client; kGfxThreadingModeNonThreaded
+NullGfxDevice:
+    Version:  NULL 1.0 [1.0]
+    Renderer: Null Device
+    Vendor:   Unity Technologies
+Initialize mono
+Mono path[0] = '/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/Managed'
+Mono path[1] = '/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/BCLExtensions/runtime/netstandard2.1'
+Mono path[2] = '/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/MonoBleedingEdge/lib/mono/unityjit-linux'
+Mono config path = '/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/MonoBleedingEdge/etc'
+Using monoOptions --debugger-agent=transport=dt_socket,embedding=1,server=y,suspend=n,address=127.0.0.1:56637
+CodeReloadManager initialized
+ImportWorker Server TCP listen port: 0
+AcceleratorClientConnectionCallback - disconnected - :0
+Begin MonoManager ReloadAssembly
+Registering precompiled unity dll's ...
+Register platform support module: /home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/PlaybackEngines/LinuxStandaloneSupport/UnityEditor.LinuxStandalone.Extensions.dll
+Registered in 0.000607 seconds.
+[MODES] ModeService[none].Initialize
+[MODES] ModeService[none].LoadModes
+[MODES] Loading mode Default (0) for mode-current-id-unity
+UpdateMenuTitleForLanguage: 10
+Package Manager log level set to [2]
+Native extension for LinuxStandalone target not found
+[Licensing::Client] Successfully resolved entitlement details
+ScheduleIndexationOnStartup MainProcess:False IndexOnStartup:False
+Scripting: successfully reloaded assembly
+- Finished resetting the current domain, in  1.653 seconds
+Domain Reload Profiling: 2000ms
+	BeginReloadAssembly (56ms)
+		CreateAndSetChildDomain (7ms)
+	RebuildCommonClasses (3ms)
+	RebuildNativeTypeToScriptingClass (7ms)
+	initialDomainReloadingComplete (40ms)
+	LoadAllAssembliesAndSetupDomain (242ms)
+		LoadAssemblies (49ms)
+		TypeCache.Refresh (133ms)
+			TypeCache.ScanAssembly (124ms)
+		AnalyzeDomain (0ms)
+	FinalizeReload (1653ms)
+		SetupLoadedEditorAssemblies (0ms)
+			BeforeProcessingInitializeOnLoad (95ms)
+			ProcessInitializeOnLoadAttributes (32ms)
+			ProcessInitializeOnLoadMethodAttributes (1304ms)
+	Serialization: 26ms
+		Read: 26ms, 14442775 bytes
+		Write: 0ms, 0 bytes
+[Licensing::Client] Successfully resolved entitlement details
+Application.AssetDatabase Initial Refresh Start
+[Package Manager] Restoring resolved packages state from cache
+[Licensing::Client] Successfully resolved entitlement details
+[Package Manager] Registered 23 packages:
+  Packages from [https://packages.unity.com]:
+    com.unity.nuget.mono-cecil@1.11.6 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.nuget.mono-cecil@ecb9724e46ff)
+    com.unity.scriptablebuildpipeline@4.0.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.scriptablebuildpipeline@ee4c11ba2fa5)
+  Built-in packages:
+    com.unity.burst@2.0.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.burst@c3ed5b778d56)
+    com.unity.collections@6.7.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.collections@33da37bccbc7)
+    com.unity.entities@6.7.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.entities@8f92e3b8d01c)
+    com.unity.mathematics@1.4.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.mathematics@9c2fa23d2d82)
+    com.unity.profiling.core@1.0.3 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.profiling.core@d5d9b57c3f5b)
+    com.unity.test-framework.performance@6.7.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.test-framework.performance@d1ba76373224)
+    com.unity.modules.assetbundle@1.0.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.modules.assetbundle)
+    com.unity.modules.audio@1.0.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.modules.audio)
+    com.unity.modules.physics@1.0.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.modules.physics)
+    com.unity.modules.uielements@1.0.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.modules.uielements)
+    com.unity.modules.unityanalytics@1.0.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.modules.unityanalytics)
+    com.unity.modules.unitywebrequest@1.0.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.modules.unitywebrequest)
+    com.unity.modules.hierarchy@1.0.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.modules.hierarchy)
+    com.unity.test-framework@1.9.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.test-framework@250492a658a0)
+    com.unity.modules.hierarchycore@1.0.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.modules.hierarchycore)
+    com.unity.modules.jsonserialize@1.0.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.modules.jsonserialize)
+    com.unity.modules.ui@1.0.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.modules.ui)
+    com.unity.modules.imgui@1.0.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.modules.imgui)
+    com.unity.modules.animation@1.0.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.modules.animation)
+    com.unity.modules.accessibility@1.0.0 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.modules.accessibility)
+    com.unity.ext.nunit@2.1.1 (location: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Library/PackageCache/com.unity.ext.nunit@34629c509049)
+[Subsystems] No new subsystems found in resolved package list.
+[Package Manager] Done registering packages in 0.00 seconds
+ADB: OOP importers: 'AudioImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: 'ComputeShaderImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: 'FBXImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: 'Mesh3DSImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: 'NativeFormatImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: 'PrefabImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: 'RayTracingShaderImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: 'ShaderImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: 'TextScriptImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: 'TextureImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: 'TrueTypeFontImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: 'VideoClipImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: 'VisualEffectImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: queue -1003 composition: TextureImporter, TextureImporter, TextureImporter, TextureImporter, TextureImporter, TextureImporter, TextureImporter, TextureImporter, TextureImporter, TextureImporter, TextureImporter, TextureImporter, TextureImporter, TextureImporter, TextureImporter (only the named importers above run OOP; the rest stay in-process)
+ADB: OOP importers: queue -1001 composition: ShaderImporter, ComputeShaderImporter, RayTracingShaderImporter (only the named importers above run OOP; the rest stay in-process)
+ADB: OOP importers: queue -1000 composition: NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter (only the named importers above run OOP; the rest stay in-process)
+ADB: OOP importers: queue 2 composition: TrueTypeFontImporter, TrueTypeFontImporter, TrueTypeFontImporter, TrueTypeFontImporter (only the named importers above run OOP; the rest stay in-process)
+ADB: OOP importers: queue 100 composition: Mesh3DSImporter, FBXImporter, FBXImporter, FBXImporter, FBXImporter, FBXImporter, FBXImporter, FBXImporter, FBXImporter, FBXImporter, FBXImporter (only the named importers above run OOP; the rest stay in-process)
+ADB: OOP importers: queue 150 composition: NativeFormatImporter (only the named importers above run OOP; the rest stay in-process)
+ADB: OOP importers: queue 198 composition: VisualEffectImporter, VisualEffectImporter (only the named importers above run OOP; the rest stay in-process)
+ADB: OOP importers: queue 199 composition: VisualEffectImporter (only the named importers above run OOP; the rest stay in-process)
+ADB: OOP importers: queue 200 composition: NativeFormatImporter (only the named importers above run OOP; the rest stay in-process)
+ADB: OOP importers: queue 1050 composition: TextScriptImporter, TextScriptImporter, TextScriptImporter, TextScriptImporter, TextScriptImporter, TextScriptImporter, TextScriptImporter, TextScriptImporter, TextScriptImporter, TextScriptImporter, TextScriptImporter, TextScriptImporter (only the named importers above run OOP; the rest stay in-process)
+ADB: OOP importers: queue 1100 composition: AudioImporter, AudioImporter, AudioImporter, AudioImporter, AudioImporter, AudioImporter, AudioImporter, AudioImporter, AudioImporter, AudioImporter (only the named importers above run OOP; the rest stay in-process)
+ADB: OOP importers: queue 1500 composition: PrefabImporter (only the named importers above run OOP; the rest stay in-process)
+ADB: OOP importers: queue 1700 composition: VideoClipImporter, VideoClipImporter, VideoClipImporter, VideoClipImporter, VideoClipImporter, VideoClipImporter, VideoClipImporter, VideoClipImporter, VideoClipImporter, VideoClipImporter (only the named importers above run OOP; the rest stay in-process)
+Assembly reference Packages/com.unity.entities/Unity.Scenes.Editor/Internals/Properties/Unity.Properties.Internals.asmref has no target assembly definition
+[ScriptCompilation] Requested script compilation because: Assembly Definition File(s) changed
+[ScriptCompilation] Requested script compilation because: AssetDatabase observed changes in script compilation related files
+Starting: /home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/Tools/BuildPipeline/bee_backend --ipc --defer-dag-verification --dagfile="Library/Bee/2400b0aE.dag" --continue-on-failure --profile="Library/Bee/backend1.traceevents" ScriptAssemblies
+WorkingDir: /home/i/GitHub/sv-w103/tests/Sv.Editor/unity
+warn: Unity.ILPP.Runner.PostProcessingAssemblyLoadContext[0]
+      Assembly system.runtime.interopservices.windowsruntime has duplicate hint path. Ignoring "/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/UnityReferenceAssemblies/unity-4.8-api/Facades/System.Runtime.InteropServices.WindowsRuntime.dll" in favor of "/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/Extensions/2.0.0/System.Runtime.InteropServices.WindowsRuntime.dll"
+warn: Unity.ILPP.Runner.PostProcessingAssemblyLoadContext[0]
+      Assembly system.componentmodel.composition has duplicate hint path. Ignoring "/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/UnityReferenceAssemblies/unity-4.8-api/System.ComponentModel.Composition.dll" in favor of "/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/NetStandard/compat/2.1.0/shims/netfx/System.ComponentModel.Composition.dll"
+DisplayProgressbar: Compiling Scripts
+  - EILPP : SvEditor.Editor : : 133ms (~77ms)
+    - EILPP : SvEditor.Editor : GetAllComponentTypes: 1ms 
+    - EILPP : SvEditor.Editor : Cloner: 1ms 
+    - EILPP : SvEditor.Editor : ComponentDataPP: 5ms 
+    - EILPP : SvEditor.Editor : StaticTypeRegistryPostProcessor: 48ms 
+    - EILPP : SvEditor.Editor : WriteAssembly: 1ms 
+ExitCode: 0 Duration: 1s65ms
+[386/486    0s] ILPP-Configuration Library/ilpp-configuration.nevergeneratedoutput
+[474/486    0s] Csc Library/Bee/artifacts/2400b0aE.dag/SvCore.dll (+2 others)
+Assets/SvCore/Schema.cs(52,19): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Bulk.cs(19,16): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Schema.cs(17,39): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Schema.cs(39,39): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Board.Undo.cs(130,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/BlockTable.cs(11,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/SetTable.cs(26,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/InputState.cs(38,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Drift.cs(51,10): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/InputState.cs(40,10): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/InputState.cs(42,11): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/InputState.cs(44,10): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Bulk.cs(107,27): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Board.Stats.cs(108,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Board.Stats.cs(114,23): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Board.Undo.cs(120,12): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Board.Undo.cs(122,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/EventStreams.cs(64,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/EventStreams.cs(66,10): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+[478/486    0s] Csc Library/Bee/artifacts/2400b0aE.dag/Sv.Unity.dll (+2 others)
+Assets/SvUnity/SvChunk.cs(47,18): warning CS0618: 'ArchetypeChunk.HasChunkComponent<T>(ComponentTypeHandle<T>)' is obsolete: 'The typeHandle argument should now be passed by ref. (RemovedAfter Entities 1.0)'
+[482/486    0s] Csc Library/Bee/artifacts/2400b0aE.dag/SvEditor.Editor.dll (+2 others)
+[483/486    0s] ILPostProcess Library/Bee/artifacts/2400b0aE.dag/post-processed/SvEditor.Editor.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2400b0aE.dag/SvEditor.Editor.dll, with 139 defines and 314 references
+processors: Unity.Entities.CodeGen.EntitiesILPostProcessors, Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+running Unity.Entities.CodeGen.EntitiesILPostProcessors
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[484/486    0s] CopyFiles Library/ScriptAssemblies/SvEditor.Editor.dll
+[485/486    0s] CopyFiles Library/ScriptAssemblies/SvEditor.Editor.pdb
+*** Tundra build success (1.05 seconds), 7 items updated, 486 evaluated
+Assets/SvCore/Schema.cs(52,19): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Bulk.cs(19,16): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Schema.cs(17,39): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Schema.cs(39,39): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Board.Undo.cs(130,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/BlockTable.cs(11,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/SetTable.cs(26,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/InputState.cs(38,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Drift.cs(51,10): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/InputState.cs(40,10): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/InputState.cs(42,11): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/InputState.cs(44,10): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Bulk.cs(107,27): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Board.Stats.cs(108,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Board.Stats.cs(114,23): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Board.Undo.cs(120,12): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Board.Undo.cs(122,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/EventStreams.cs(64,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/EventStreams.cs(66,10): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvUnity/SvChunk.cs(47,18): warning CS0618: 'ArchetypeChunk.HasChunkComponent<T>(ComponentTypeHandle<T>)' is obsolete: 'The typeHandle argument should now be passed by ref. (RemovedAfter Entities 1.0)'
+Assets/SvCore/Schema.cs(17,39): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Schema.cs(39,39): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Board.Undo.cs(130,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/BlockTable.cs(11,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/SetTable.cs(26,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/InputState.cs(38,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Drift.cs(51,10): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/InputState.cs(40,10): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/InputState.cs(42,11): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/InputState.cs(44,10): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Bulk.cs(107,27): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Board.Stats.cs(108,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Board.Stats.cs(114,23): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Board.Undo.cs(120,12): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Board.Undo.cs(122,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/EventStreams.cs(64,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/EventStreams.cs(66,10): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Schema.cs(39,39): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Board.Undo.cs(130,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/BlockTable.cs(11,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/SetTable.cs(26,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/InputState.cs(38,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Drift.cs(51,10): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/InputState.cs(40,10): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/InputState.cs(42,11): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/InputState.cs(44,10): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Bulk.cs(107,27): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Board.Stats.cs(108,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Board.Stats.cs(114,23): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Board.Undo.cs(120,12): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/Board.Undo.cs(122,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/EventStreams.cs(64,21): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+Assets/SvCore/EventStreams.cs(66,10): warning CS8632: The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+AssetDatabase: script compilation time: 1.321059s
+Begin MonoManager ReloadAssembly
+Total cache size 266599341
+Total cache size after purge 266599341, took 00:00:00.0538815
+Assembly reference Packages/com.unity.entities/Unity.Scenes.Editor/Internals/Properties/Unity.Properties.Internals.asmref has no target assembly definition
+Importing 'GUID: d0fc6fd908c6a416f9c10e96f8e8de02 - Path: Assets/SvCore/SvCore.asmdef' with importer (AssemblyDefinitionImporter)
+Imported 'GUID: d0fc6fd908c6a416f9c10e96f8e8de02' -> (Import Result ID: 'aa0a3f45d677ed226b815a3df45e5617') in 0.008 seconds [static dependencies only]. Details - ImportResultOutputID=e8f72b34aabf2b67145e68f9e6f43cfc DependenciesID=f00d95eae6beb2f5f7fd26947db95f1c StaticDependenciesID=3e65ec9fee95d58b46cc275c4351b40d 
+Importing 'GUID: 58f414817e8b7f004882f88820f6df39 - Path: Assets/SvUnity/Sv.Unity.asmdef' with importer (AssemblyDefinitionImporter)
+Imported 'GUID: 58f414817e8b7f004882f88820f6df39' -> (Import Result ID: '6003c0b671eb01b77f31afad030c8c6f') in 0.001 seconds [static dependencies only]. Details - ImportResultOutputID=7b374c97dba6af5d711c66f22fe74437 DependenciesID=5ab8bbcffbaf87ba0e77cf2d7f81dfa4 StaticDependenciesID=258b195f048058e9ad48b6672a546759 
+[MODES] ModeService[none].Initialize
+[MODES] ModeService[none].LoadModes
+Native extension for LinuxStandalone target not found
+TypeManager.Initialize took: 66ms
+ScheduleIndexationOnStartup MainProcess:True IndexOnStartup:True
+Scripting: successfully reloaded assembly
+./Library/PackageCache/com.unity.entities@8f92e3b8d01c/Unity.Entities/IJobChunk.cs(364,17): Burst error BC1051: Invalid managed type found for the field `Board` of the struct `Sv.Unity.SvChunk`.: the type `Sv.Board` is a managed type and  is not supported
+
+ at Unity.Entities.JobChunkExtensions.JobChunkProducer`1<Sv.Unity.SvIntrinsicsSystem.IntrinsicsJob>.Execute(ref Unity.Entities.JobChunkExtensions.JobChunkWrapper`1<Sv.Unity.SvIntrinsicsSystem.IntrinsicsJob> jobWrapper, System.IntPtr additionalPtr, System.IntPtr bufferRangePatchData, ref Unity.Jobs.LowLevel.Unsafe.JobRanges ranges, int jobIndex) (at ./Library/PackageCache/com.unity.entities@8f92e3b8d01c/Unity.Entities/IJobChunk.cs:364)
+
+
+While compiling job:
+Unity.Entities.JobChunkExtensions+JobChunkProducer`1[[Sv.Unity.SvIntrinsicsSystem+IntrinsicsJob, Sv.Unity, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]], Unity.Entities, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null::Execute(Unity.Entities.JobChunkExtensions+JobChunkWrapper`1[[Sv.Unity.SvIntrinsicsSystem+IntrinsicsJob, Sv.Unity, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]]&, Unity.Entities, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null|System.IntPtr, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089|System.IntPtr, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089|Unity.Jobs.LowLevel.Unsafe.JobRanges&, UnityEngine.ManagedKernelModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null|System.Int32, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089)
+Sv.Unity.SvIntrinsicsSystem, Sv.Unity, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null::__codegen__OnCreate(System.IntPtr, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089|System.IntPtr, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089)
+Sv.Unity.SvIntrinsicsSystem, Sv.Unity, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null::__codegen__OnUpdate(System.IntPtr, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089|System.IntPtr, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089)
+- Finished resetting the current domain, in  0.504 seconds
+Domain Reload Profiling: 946ms
+	BeginReloadAssembly (131ms)
+		DisableScriptedObjects (8ms)
+		CreateAndSetChildDomain (38ms)
+	RebuildCommonClasses (5ms)
+	RebuildNativeTypeToScriptingClass (6ms)
+	initialDomainReloadingComplete (37ms)
+	LoadAllAssembliesAndSetupDomain (261ms)
+		LoadAssemblies (112ms)
+		TypeCache.Refresh (34ms)
+			TypeCache.ScanAssembly (28ms)
+		AnalyzeDomain (10ms)
+			BuildScriptInfoCaches (10ms)
+	FinalizeReload (505ms)
+		SetupLoadedEditorAssemblies (0ms)
+			BeforeProcessingInitializeOnLoad (81ms)
+			ProcessInitializeOnLoadAttributes (103ms)
+			ProcessInitializeOnLoadMethodAttributes (35ms)
+		AwakeInstancesAfterBackupRestoration (14ms)
+	Serialization: 61ms
+		Read: 38ms, 685646 bytes
+		Write: 23ms, 213056 bytes
+Starting new worker id: 0 with log in /home/i/GitHub/sv-w103/tests/Sv.Editor/unity/Logs/AssetImportWorkerHW0.log
+[UnityConnectServicesConfig] Local config successfully read: "/usr/share/unity3d/config/services-config.json"
+[UnityConnectServicesConfig] Service configuration:
+    "servicesConfigBaseUrl": "",
+    "disableServicesWindow": false,
+    "disableUserLogin": false,
+    "entitlementCacheTimeoutInSeconds": 60,
+    "clientConnectTimeoutSec": 60,
+    "clientHandshakeTimeoutSec": 30,
+    "clientResolveEntitlementsTimeoutSec": 30,
+    "clientUpdateLicenseTimeoutSec": 30,
+    "licensingServiceBaseUrl": "",
+    "enableProxyAutoconfig": "false"
+
+
+Asset Pipeline Refresh (id=4765af42d3d8df2bcb416568f4340014): Total: 2.504 seconds - Initiated by InitialRefreshV2(ForceSynchronousImport)
+	(Values over 0.05ms)
+	Summary:
+		Imports: total=2 (actual=2, local cache=0, cache server=0)
+		Asset DB Process Time: managed=1 ms, native=675 ms
+		Asset DB Callback time: managed=41 ms, native=5 ms
+		Scripting: domain reloads=1, domain reload time=457 ms, compile time=1322 ms, other=0 ms
+		Serialization: total=63.782 ms / 1129.2 KB (read=40.004 ms / 810.1 KB, write=23.778 ms / 319.1 KB)
+		Project Asset Count: scripts=548, non-scripts=627
+		Asset File Changes: new=0, changed=40, moved=0, deleted=0
+		Scan Filter Count: 1
+	InvokePackagesCallback: 1.486ms
+	ApplyChangesToAssetFolders: 0.106ms
+	Scan: 76.185ms
+	Collect global state as custom dependencies: 4.590ms
+	OnSourceAssetsModified: 0.411ms
+	CategorizeScriptCompilationAssets: 6.059ms
+	ProcessAssetsWithTransientArtifactChanges: 9.013ms
+	CategorizeAssets: 6.779ms
+	CompileScripts: 1322.438ms
+	ImportOutOfDateAssets: 527.931ms (505.989ms without children)
+		ImportManagerImport: 11.348ms (2.197ms without children)
+		UnloadImportedAssets: 0.275ms
+		EnsureUptoDateAssetsAreRegisteredWithGuidPM: 0.180ms
+		ImportSchedulerStart: 10.137ms
+	PostProcessAllAssets: 44.756ms
+		AssemblyValidation.PostprocessAllAssets 2.001ms
+		VCAutoAddAssetPostprocess 0.683ms
+		XRBuildSystem.XRAssetImported 0.135ms
+		PostProcessCallbackCreateDeferredMaterials 0.126ms
+		MonoPostProcessAllAssets: 41.205ms
+			AssetPostprocessor.OnPostprocessAllAssets 14.593ms
+			StyleCatalogPostProcessor.OnPostprocessAllAssets 6.762ms
+			BuilderAssetPostprocessor.OnPostprocessAllAssets 3.939ms
+			SceneAssetPostProcessor.OnPostprocessAllAssets 2.420ms
+			EditModeScopePostprocessor.OnPostprocessAllAssets 1.165ms
+			AssetChangedListener.OnPostprocessAllAssets 1.068ms
+			SyncVS.PostprocessSyncProject 0.866ms
+			RetainedModeAssetPostprocessor.OnPostprocessAllAssets 0.807ms
+			ResourceTableCollectionPostprocessor.OnPostprocessAllAssets 0.652ms
+			SpeedTree9Postprocessor.OnPostprocessAllAssets 0.483ms
+			TextAssetPostProcessor.OnPostprocessAllAssets 0.418ms
+			ArtifactBrowserPostProcessor.OnPostprocessAllAssets 0.261ms
+			RoslynAnalyzerAssetWatcher.OnPostprocessAllAssets 0.211ms
+			AudioMixerPostprocessor.OnPostprocessAllAssets 0.210ms
+			ReferencedClipsPostProcessor.OnPostprocessAllAssets 0.191ms
+			Postprocessor.OnPostprocessAllAssets 0.175ms
+			TerrainToolbarOverlayPostProcessor.OnPostprocessAllAssets 0.163ms
+			WindowAssetPostprocessingWatcher.OnPostprocessAllAssets 0.150ms
+			AssetEvents.OnPostprocessAllAssets 0.141ms
+			AssetDatabaseCallbacks.OnPostprocessAllAssets 0.129ms
+			ConfigAssetsTracker.OnPostprocessAllAssets 0.116ms
+			SpeedTreePostProcessor.OnPostprocessAllAssets 0.100ms
+			AudioContainerPostProcessor.OnPostprocessAllAssets 0.076ms
+			ThemePostprocessor.OnPostprocessAllAssets 0.074ms
+			RenderPipelineGlobalSettingsPostprocessor.OnPostprocessAllAssets 0.069ms
+			ScenarioDriftAssetsTracker.OnPostprocessAllAssets 0.067ms
+	PostAssetChangesProfiler: 0.541ms
+	UnloadStreamsBegin: 1.172ms
+	GenerateScriptTypeHashes: 0.595ms
+	GenerateScriptTypeSerializationHashes: 1.177ms
+	Untracked: 501.747ms
+
+Application.AssetDatabase Initial Refresh End
+Scanning for USB devices : 2.977ms
+Initializing Unity extensions:
+Unloading 4 Unused Serialized files (Serialized files now loaded: 0)
+Unloading 1983 unused Assets / (0.8 MB). Loaded Objects now: 2792.
+Memory consumption went from 150.8 MB to 150.0 MB.
+Total: 7.565855 ms (FindLiveObjects: 0.160828 ms CreateObjectMapping: 0.060991 ms MarkObjects: 6.754619 ms  DeleteObjects: 0.514119 ms)
+
+Serialization during EditorStartup: 101.15 ms / 22396.3 KB (read 77.37 ms / 22077.2 KB, write 23.78 ms / 319.1 KB)
+	DomainReload: 88.73 ms / 14981.9 KB (read 65.61 ms / 14773.8 KB, write 23.11 ms / 208.1 KB)
+entry epoch ms 1792868808380
+entities=1048576 warmup=16 rounds=512
+unity 6000.7.0b5 burst True
+Worker ready: AssetImportWorkerHW0 0
+verify ok probe hp=84 mana=46 hit=59 armor 22.5/56.25 live=1048576
+verify-end ok live=1048576
+chunks 8200 live 1048576 expiredTotal 3447 crossingsTotal 8
+sv editor batch ok
+reloads before=0 after=0
+Batchmode quit successfully invoked - shutting down!
+[Physics::Module] Cleanup current backend.
+[Physics::Module] Id: 0xf2b8ea05
+Input System module state changed to: ShutdownInProgress.
+Input Polling Thread exited.
+Input System module state changed to: Shutdown.
+[Licensing::IpcConnector] LicenseClient-i-notifications channel disconnected successfully.
+[Licensing::IpcConnector] LicenseClient-i channel disconnected successfully.
+Shut down UDS service system complete
+Lingering sessions upon destruction of worker manager
+Unity Data Store service was successfully shut down
+UDS shutting down local client system
+AcceleratorClientConnectionCallback - disconnected - :0
+debugger-agent: Unable to listen on 56
+Cleanup mono
+CodeReloadManager destroyed
+Leak Detected : TempJob allocates 9 individual allocations. To find out more please enable 'Preferences > Jobs > Leak Detection Level > Enabled With Stack Trace' and reproduce the leak again.
+Exiting batchmode successfully now!
+[ExitDontLaunchBugReporter] Exiting without the bug reporter. Application will exit with return code 0
+VBCSCompilerPreWarmer: requested VBCSCompiler shutdown

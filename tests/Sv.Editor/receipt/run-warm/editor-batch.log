@@ -1,0 +1,8 @@
+entry epoch ms 1792868808380
+entities=1048576 warmup=16 rounds=512
+unity 6000.7.0b5 burst True
+verify ok probe hp=84 mana=46 hit=59 armor 22.5/56.25 live=1048576
+verify-end ok live=1048576
+chunks 8200 live 1048576 expiredTotal 3447 crossingsTotal 8
+sv editor batch ok
+reloads before=0 after=0
