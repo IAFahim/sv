@@ -407,6 +407,72 @@ public class DriftTests
         }
     }
 
+    [Fact]
+    public unsafe void ApplyBatch_FoldsKHitsIntoOneWrite_MatchesEager()
+    {
+        const int slots = 12;
+        const int frames = 200;
+        using var drift = DriftStore.Create(slots);
+        var rules = new ClampShift[slots];
+        var eager = new int[slots];
+        var rng = new Random(20261104);
+        for (var i = 0; i < slots; i++)
+        {
+            rules[i] = Rule(rng);
+            eager[i] = rng.Next(-60, 61);
+            drift.Capture(i, eager[i], 0, rules[i]);
+        }
+
+        var batch = new List<DriftOp>();
+        for (var frame = 1; frame <= frames; frame++)
+        {
+            batch.Clear();
+            var opCount = rng.Next(0, 40);
+            for (var op = 0; op < opCount; op++)
+            {
+                var slot = rng.Next(slots);
+                var floor = rng.Next(-30, 5);
+                var shift = ClampShift.Step(rng.Next(-9, 10), floor, rng.Next(floor, 45));
+                batch.Add(new DriftOp(slot, shift));
+                eager[slot] = shift.Apply(eager[slot]);
+            }
+
+            if (batch.Count > 0)
+            {
+                drift.ApplyBatch(frame, batch.ToArray());
+            }
+
+            for (var i = 0; i < slots; i++)
+            {
+                eager[i] = rules[i].Apply(eager[i]);
+                Assert.Equal(eager[i], drift.Read(i, frame));
+            }
+        }
+    }
+
+    [Fact]
+    public void ApplyBatch_FoldsInArrivalOrder_NotCommutative()
+    {
+        var raise = ClampShift.Step(9, 0, 10);
+        var lower = ClampShift.Step(-7, 0, 100);
+        var still = ClampShift.Step(0, -1000, 1000);
+        using var first = DriftStore.Create(1);
+        first.Capture(0, 0, 0, still);
+        first.ApplyBatch(1, new[] { new DriftOp(0, raise), new DriftOp(0, lower) });
+        Assert.Equal(2, first.Read(0, 1));
+
+        using var second = DriftStore.Create(1);
+        second.Capture(0, 0, 0, still);
+        second.ApplyBatch(1, new[] { new DriftOp(0, lower), new DriftOp(0, raise) });
+        Assert.Equal(9, second.Read(0, 1));
+
+        using var third = DriftStore.Create(1);
+        third.Capture(0, 3, 5, still);
+        third.ApplyBatch(6, Array.Empty<DriftOp>());
+        Assert.Equal(3, third.Read(0, 6));
+        Assert.Throws<ArgumentOutOfRangeException>(() => third.ApplyBatch(6, new[] { new DriftOp(1, still) }));
+    }
+
     sealed class DriftModel
     {
         public bool[] Active = new bool[0];
