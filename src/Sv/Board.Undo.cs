@@ -127,6 +127,8 @@ public sealed unsafe partial class Board
     /// </summary>
     public int UndoFrames => undo?.Frames ?? 0;
 
+    internal UndoLog? ActiveUndo => undo;
+
     internal int UndoTop => undo?.Top ?? -1;
 
     /// <summary>

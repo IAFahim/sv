@@ -31,6 +31,8 @@ public sealed unsafe class DriftStore : IDisposable
 
     int capacity;
 
+    Board? board;
+
     bool disposed;
 
     DriftStore(DriftSegment* segments, int capacity)
@@ -52,10 +54,23 @@ public sealed unsafe class DriftStore : IDisposable
 
     public int Capacity => capacity;
 
+    /// <summary>Routes every later segment write through the board's undo window, so <see cref="Board.Rollback(int)"/> restores drift segments with the rest of the state. Renumbering closes the window — call <see cref="Renumber"/> after <see cref="Board.RenumberSlots"/>.</summary>
+    public void AttachBoard(Board board)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        this.board = board;
+    }
+
+    void Note(int slot)
+    {
+        board?.ActiveUndo?.Note(segments + slot, sizeof(DriftSegment));
+    }
+
     /// <summary>Establish or replace a slot's segment with an explicit value and rule.</summary>
     public void Capture(int slot, int value, long tick, ClampShift rule)
     {
         var s = Segment(slot);
+        Note(slot);
         s->Rule = rule;
         s->T0 = tick;
         s->V0 = value;
@@ -76,6 +91,7 @@ public sealed unsafe class DriftStore : IDisposable
             throw new InvalidOperationException($"sv: drift write at tick {tick} not after the segment start {s->T0}");
         }
 
+        Note(slot);
         s->V0 = value;
         s->T0 = tick - 1;
     }
@@ -94,9 +110,92 @@ public sealed unsafe class DriftStore : IDisposable
             throw new InvalidOperationException($"sv: drift rebase at tick {tick} before the segment start {s->T0}");
         }
 
+        Note(slot);
         s->V0 = s->Rule.Repeat(tick - s->T0).Apply(s->V0);
         s->T0 = tick;
         s->Rule = rule;
+    }
+
+    /// <summary>
+    /// The frame-step-3 bulk rebase: every row of <paramref name="window"/> whose rule changed rebases to
+    /// <c>ClampShift.Step(BoundOf(rate[row]), BoundOf(floor[row]), BoundOf(ceiling[row]))</c> — the
+    /// stat-broadcast columns are indexed by absolute row. Rows without a segment are skipped (they are
+    /// not drifting); masked windows rebase enabled rows only.
+    /// </summary>
+    public void RebaseRules(Window window, long tick, float* rate, float* floor, float* ceiling)
+    {
+        if (rate == null || floor == null || ceiling == null)
+        {
+            throw new ArgumentException("sv: drift rule columns must not be null");
+        }
+
+        if (window.Words == null)
+        {
+            Guard.ChunkRange(window.Start, window.Count, capacity);
+            for (var i = 0; i < window.Count; i++)
+            {
+                RebaseRow(window.Start + i, tick, rate, floor, ceiling);
+            }
+
+            return;
+        }
+
+        Guard.EnabledRange(window.Start, window.WordCount, capacity);
+        for (var w = 0; w < window.WordCount; w++)
+        {
+            var word = window.Words[w];
+            while (word != 0)
+            {
+                var bit = System.Numerics.BitOperations.TrailingZeroCount(word);
+                word &= word - 1;
+                RebaseRow(window.Start + (w << 6) + bit, tick, rate, floor, ceiling);
+            }
+        }
+    }
+
+    void RebaseRow(int row, long tick, float* rate, float* floor, float* ceiling)
+    {
+        var s = segments + row;
+        if (s->Active == 0)
+        {
+            return;
+        }
+
+        Note(row);
+        s->V0 = s->Rule.Repeat(tick - s->T0).Apply(s->V0);
+        s->T0 = tick;
+        s->Rule = ClampShift.Step(Clamp.BoundOf(rate[row]), Clamp.BoundOf(floor[row]), Clamp.BoundOf(ceiling[row]));
+    }
+
+    /// <summary>Remaps segments through <paramref name="oldToNew"/> (negative entries deactivate) — the drift half of law L3: <c>read ∘ renumber = π ∘ read</c>. Call after <see cref="Board.RenumberSlots"/>; renumbering closes the undo window.</summary>
+    public void Renumber(ReadOnlySpan<int> oldToNew)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        if (oldToNew.Length != capacity)
+        {
+            throw new ArgumentException($"sv: drift renumber map must cover capacity ({capacity} entries)");
+        }
+
+        var copy = (DriftSegment*)NativeMemory.Alloc((nuint)capacity, (nuint)sizeof(DriftSegment));
+        var bytes = (nuint)capacity * (nuint)sizeof(DriftSegment);
+        Buffer.MemoryCopy(segments, copy, bytes, bytes);
+        NativeMemory.Clear(segments, bytes);
+        for (var slot = 0; slot < capacity; slot++)
+        {
+            var next = oldToNew[slot];
+            if (next >= 0)
+            {
+                if (next >= capacity)
+                {
+                    NativeMemory.Free(copy);
+                    throw new ArgumentOutOfRangeException(nameof(oldToNew), $"sv: drift renumber maps slot {slot} to {next} outside 0..{capacity - 1}");
+                }
+
+                segments[next] = copy[slot];
+            }
+        }
+
+        NativeMemory.Free(copy);
     }
 
     /// <summary>The slot's value at the end of frame <paramref name="tick"/>'s step 3; a tick at or before the segment start reads v&#8320;.</summary>
@@ -153,6 +252,16 @@ public sealed unsafe class DriftStore : IDisposable
         }
 
         return segments + slot;
+    }
+
+    internal bool SegmentActive(int slot) => Segment(slot)->Active != 0;
+
+    internal void CopySegment(int slot, out ClampShift rule, out long t0, out int v0)
+    {
+        var s = Segment(slot);
+        rule = s->Rule;
+        t0 = s->T0;
+        v0 = s->V0;
     }
 
     public void Dispose()
