@@ -1,0 +1,20 @@
+burst compiler enabled=True executionMode=NonDeterministic forcedOff=False
+digestMono   2B43BC1549AAE751
+runProgram compiled ptr=0x0000703F886A8040
+digestBurst  2B43BC1549AAE751
+dump RunProgram: thunk at 0x0000703F886A8040 jumps to 0x0000703FFC021110
+dump RunProgram: code at 0x0000703FFC021110 after 1 thunk hop(s)
+dump RunProgram: 3824 bytes at 0x0000703FFC021110
+timing managed 1009031.0 ns/program burst 1013428.8 ns/program ratio 1.00x
+probe mathclamp (System.Math.Clamp/Min/Max on ints): managed B27BEA647660CDDF burst B27BEA647660CDDF match
+dump MathClampProbe: thunk at 0x0000703F886A8080 jumps to 0x0000000041119210
+dump MathClampProbe: code at 0x0000000041119210 after 1 thunk hop(s)
+dump MathClampProbe: 3568 bytes at 0x0000000041119210
+dump MathClampProbe-pre: 4096 bytes at 0x0000000041118E10
+probe floatfold (float a*b+c under FloatMode.Strict (must not fuse to FMA)): managed F3D8972A2DF16C60 burst F3D8972A2DF16C60 match
+dump FloatFoldProbe: thunk at 0x0000703F886A80C0 jumps to 0x0000000041119AE0
+dump FloatFoldProbe: code at 0x0000000041119AE0 after 1 thunk hop(s)
+dump FloatFoldProbe: 1312 bytes at 0x0000000041119AE0
+dump FloatFoldProbe-pre: 2336 bytes at 0x00000000411196E0
+probe throwinterpolated (throw new ArgumentException with interpolated string): compiled by Burst without error
+sv burst batch ok

@@ -1,0 +1,19 @@
+# atom 6.2 FMA scan — Burst-compiled code, x64, objdump AT&T syntax
+# grep -nE 'vfmadd|vfmsub|fnmadd|fmsub|fmla|fmadd' <dump>.asm — expecting no matches
+
+== FloatFoldProbe.asm
+match count: 0
+
+== FloatFoldProbe-pre.asm
+match count: 0
+
+== MathClampProbe.asm
+match count: 0
+
+== MathClampProbe-pre.asm
+match count: 0
+
+== RunProgram.asm
+match count: 0
+
+total FMA matches across all dumps: 0

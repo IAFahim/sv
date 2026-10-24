@@ -1,0 +1,11 @@
+{
+  "status": "ok",
+  "unityVersion": "6000.7.0b5",
+  "burstCompilerEnabled": true,
+  "digestMono": "2B43BC1549AAE751",
+  "digestBurst": "2B43BC1549AAE751",
+  "timingManagedNs": 1009031.0,
+  "timingBurstNs": 1013428.8,
+  "failures": 0,
+  "runProgramPtr": "0x0000703F886A8040"
+}

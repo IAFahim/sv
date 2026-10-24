@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="src/Sv/Sv.csproj" />
+  <Project Path="src/Sv.Burst/Sv.Burst.csproj" />
   <Project Path="src/Sv.Generators/Sv.Generators.csproj" />
   <Project Path="src/Sv.Frent/Sv.Frent.csproj" />
   <Project Path="src/Sv.Compose/Sv.Compose.csproj" />

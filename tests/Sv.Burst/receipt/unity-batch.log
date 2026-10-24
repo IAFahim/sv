@@ -1,0 +1,394 @@
+[UnityConnectServicesConfig] Local config successfully read: "/usr/share/unity3d/config/services-config.json"
+[UnityConnectServicesConfig] Service configuration:
+    "servicesConfigBaseUrl": "",
+    "disableServicesWindow": false,
+    "disableUserLogin": false,
+    "entitlementCacheTimeoutInSeconds": 60,
+    "clientConnectTimeoutSec": 60,
+    "clientHandshakeTimeoutSec": 30,
+    "clientResolveEntitlementsTimeoutSec": 30,
+    "clientUpdateLicenseTimeoutSec": 30,
+    "licensingServiceBaseUrl": "",
+    "enableProxyAutoconfig": "false"
+
+Unity Editor version:    6000.7.0b5 (5747dc44953f)
+Branch:                  6000.7/staging
+Build type:              Release
+Batch mode:              YES
+System name:             Linux
+Distro version:          #1 SMP PREEMPT_DYNAMIC Mon, 14 Sep 2026 19:55:01 +0000
+Kernel version:          7.2.5-3-omarchy
+Architecture:            x86_64
+Window Protocol:         Wayland (XWayland)
+Available memory:        31840 MB
+Date:                    2026-10-24T17:18:35Z
+VBCSCompilerPreWarmer: watching VBCSCompiler (PID 3019574)
+VBCSCompilerPreWarmer: pre-warm launched (dotnet PID 3019575)
+VBCSCompiler prewarm took 2.77 ms
+Initialize udev device monitor.
+[Licensing::Module] Trying to connect to existing licensing client channel...
+[Licensing::IpcConnector] Channel LicenseClient-i doesn't exist
+[Licensing::Module] Successfully launched the LicensingClient (PId: 3019579)
+
+COMMAND LINE ARGUMENTS:
+/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Unity
+-batchmode
+-nographics
+-quit
+-projectPath
+/home/i/GitHub/sv-w101/tests/Sv.Burst/unity
+-executeMethod
+Sv.Burst.SvBurstBatch.Run
+-logFile
+/home/i/GitHub/sv-w101/tests/Sv.Burst/receipt/unity-batch.log
+Successfully changed project path to: /home/i/GitHub/sv-w101/tests/Sv.Burst/unity
+/home/i/GitHub/sv-w101/tests/Sv.Burst/unity
+[UnityMemory] Configuration Parameters - Can be set up in boot.config
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-nav-mesh-worker=65536"
+    "memorysetup-temp-allocator-size-audio-worker=65536"
+    "memorysetup-temp-allocator-size-cloud-worker=32768"
+    "memorysetup-entities-archetype-allocator-budget=16777216"
+    "memorysetup-entities-query-allocator-budget=16777216"
+    "memorysetup-temp-allocator-size-preload-manager=33554432"
+    "memorysetup-remapper-allocator-initial-capacity=32768"
+    "memorysetup-temp-allocator-size-gfx=262144"
+    "memorysetup-allocator-temp-initial-block-size-main=262144"
+    "memorysetup-allocator-temp-initial-block-size-worker=262144"
+    "memorysetup-temp-allocator-size-background-worker=32768"
+    "memorysetup-temp-allocator-size-job-worker=262144"
+    "memorysetup-bucket-allocator-granularity=16"
+    "memorysetup-bucket-allocator-bucket-count=8"
+    "memorysetup-bucket-allocator-block-size=33554432"
+    "memorysetup-bucket-allocator-block-count=8"
+    "memorysetup-main-allocator-block-size=16777216"
+    "memorysetup-thread-allocator-block-size=16777216"
+    "memorysetup-main-allocator-mimalloc-enabled=1"
+    "memorysetup-gfx-main-allocator-block-size=16777216"
+    "memorysetup-gfx-thread-allocator-block-size=16777216"
+    "memorysetup-cache-allocator-block-size=4194304"
+    "memorysetup-typetree-allocator-block-size=2097152"
+    "memorysetup-profiler-bucket-allocator-granularity=16"
+    "memorysetup-profiler-bucket-allocator-bucket-count=8"
+    "memorysetup-profiler-bucket-allocator-block-size=33554432"
+    "memorysetup-profiler-bucket-allocator-block-count=8"
+    "memorysetup-profiler-allocator-block-size=16777216"
+    "memorysetup-profiler-editor-allocator-block-size=1048576"
+    "memorysetup-temp-allocator-size-main=16777216"
+    "memorysetup-job-temp-allocator-block-size=2097152"
+    "memorysetup-job-temp-allocator-block-size-background=1048576"
+    "memorysetup-job-temp-allocator-reduction-small-platforms=262144"
+Logging is directed to a specific file, skipping project log.
+Player connection [123425698454272]  Target information:
+
+Player connection [123425698454272]  * "[IP] 192.168.31.92 [Port] 55504 [Flags] 2 [Guid] 657215765 [EditorId] 657215765 [Version] 1048832 [Id] LinuxEditor(16,192.168.31.92) [Debug] 1 [PackageName] LinuxEditor [ProjectName] Editor" 
+
+Player connection [123425698454272]  * "[IP] 172.18.0.1 [Port] 55504 [Flags] 2 [Guid] 657215765 [EditorId] 657215765 [Version] 1048832 [Id] LinuxEditor(16,192.168.31.92) [Debug] 1 [PackageName] LinuxEditor [ProjectName] Editor" 
+
+Player connection [123425698454272]  * "[IP] 172.17.0.1 [Port] 55504 [Flags] 2 [Guid] 657215765 [EditorId] 657215765 [Version] 1048832 [Id] LinuxEditor(16,192.168.31.92) [Debug] 1 [PackageName] LinuxEditor [ProjectName] Editor" 
+
+Player connection [123425698454272] Host joined multi-casting on [225.0.0.222:54997]...
+Player connection [123425698454272] Host joined alternative multi-casting on [225.0.0.222:34997]...
+Input System module state changed to: Initialized.
+[Physics::Module] Initialized fallback backend.
+[Physics::Module] Id: 0xdecafbad
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-i" at "2026-10-24T17:18:35.653071Z"
+[SignatureVerifier] Application signature verification not supported on this platform.
+[Licensing::Client] Handshaking with LicensingClient:
+  Version:                 1.19.0-rc.1+a1d64c6
+  Session Id:              8cb66dd574744cccaca58506bd5f16ff
+  Correlation Id:          51936016e43b3ae12d5bb89a39fbc4c5
+  External correlation Id: 7496624545289108524
+  Machine Id:              3QFrjbePZf73KIZg6Vg0uKW2M4A=
+[Licensing::Module] Successfully connected to LicensingClient on channel: "LicenseClient-i" (connect: 0.02s, validation: 0.00s, handshake: 0.00s)
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-i-notifications" at "2026-10-24T17:18:35.655047Z"
+[Licensing::Module] Connected to LicensingClient (PId: 3019579, launch time: 0.00, total connection time: 0.03s)
+[Licensing::Module] Error: Access token is unavailable; failed to update
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] License group:
+  Id: 5469322-UnityPersXXXX
+  Product: Unity Personal
+  Type: Assigned
+  Expiration: Unlimited
+[Licensing::Client] Successfully updated license, isAsync: True, time: 0.00
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] Licensing Background thread has ended after 0.03s
+Initialising UDS system complete:
+  - System type: Client
+  - Resource namespace: 76c59a8c12cb1e4d3b2e0c80861e7462
+  - Shared memory size: 1073741824
+  - Command buffer id: 1052624
+  - Command buffer size: 8192
+  - Hashmap size: 4194304
+  - Service connected: false
+[Package Manager] Connected to IPC stream "Upm-3019494" after 0.1 seconds.
+[Licensing::Client] Successfully resolved entitlement details
+Library Redirect Path: Library/
+Launching Unity Data Store - /home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/Tools/Unity.DataStore 
+Unity Data Store artifact dir = Library/DataStore, working dir = /home/i/GitHub/sv-w101/tests/Sv.Burst/unityUnity Data Store running and initialised
+[Physics::Module] Selected backend (deferred post-plugins).
+[Physics::Module] Name: PhysX
+[Physics::Module] Id: 0xf2b8ea05
+[Physics::Module] SDK Version: 4.1.2
+[Physics::Module] Integration Version: 1.0.0
+[Physics::Module] Threading Mode: Multi-Threaded
+Initialize engine version: 6000.7.0b5 (5747dc44953f)
+[EntityIdStore] init: VM path (explicit commit), pageSize=4096, blockCount=262144, entitiesPerBlock=1024, blocksPerSlotPage=0, slots reserved=4294967296 bytes
+[Subsystems] Discovering subsystems at path /home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/Resources/UnitySubsystems
+[Subsystems] Discovering subsystems at path /home/i/GitHub/sv-w101/tests/Sv.Burst/unity/Assets
+Forcing GfxDevice: Null
+GfxDevice: creating device client; kGfxThreadingModeNonThreaded
+NullGfxDevice:
+    Version:  NULL 1.0 [1.0]
+    Renderer: Null Device
+    Vendor:   Unity Technologies
+Initialize mono
+Mono path[0] = '/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/Managed'
+Mono path[1] = '/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/BCLExtensions/runtime/netstandard2.1'
+Mono path[2] = '/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/MonoBleedingEdge/lib/mono/unityjit-linux'
+Mono config path = '/home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/MonoBleedingEdge/etc'
+Using monoOptions --debugger-agent=transport=dt_socket,embedding=1,server=y,suspend=n,address=127.0.0.1:56494
+CodeReloadManager initialized
+ImportWorker Server TCP listen port: 0
+AcceleratorClientConnectionCallback - disconnected - :0
+Begin MonoManager ReloadAssembly
+Registering precompiled unity dll's ...
+Register platform support module: /home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/PlaybackEngines/LinuxStandaloneSupport/UnityEditor.LinuxStandalone.Extensions.dll
+Registered in 0.000542 seconds.
+[MODES] ModeService[none].Initialize
+[MODES] ModeService[none].LoadModes
+[MODES] Loading mode Default (0) for mode-current-id-unity
+UpdateMenuTitleForLanguage: 10
+Package Manager log level set to [2]
+Native extension for LinuxStandalone target not found
+ScheduleIndexationOnStartup MainProcess:False IndexOnStartup:False
+Scripting: successfully reloaded assembly
+- Finished resetting the current domain, in  0.992 seconds
+Domain Reload Profiling: 1309ms
+	BeginReloadAssembly (45ms)
+	RebuildCommonClasses (3ms)
+	RebuildNativeTypeToScriptingClass (6ms)
+	initialDomainReloadingComplete (35ms)
+	LoadAllAssembliesAndSetupDomain (228ms)
+		LoadAssemblies (45ms)
+		TypeCache.Refresh (123ms)
+			TypeCache.ScanAssembly (115ms)
+		AnalyzeDomain (0ms)
+	FinalizeReload (992ms)
+		SetupLoadedEditorAssemblies (0ms)
+			BeforeProcessingInitializeOnLoad (94ms)
+			ProcessInitializeOnLoadAttributes (29ms)
+			ProcessInitializeOnLoadMethodAttributes (654ms)
+	Serialization: 28ms
+		Read: 28ms, 14442775 bytes
+		Write: 0ms, 0 bytes
+[Licensing::Client] Successfully resolved entitlement details
+Application.AssetDatabase Initial Refresh Start
+[Package Manager] Restoring resolved packages state from cache
+[Package Manager] Registered 0 packages:
+[Subsystems] No new subsystems found in resolved package list.
+[Package Manager] Done registering packages in 0.00 seconds
+ADB: OOP importers: 'AudioImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: 'ComputeShaderImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: 'FBXImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: 'Mesh3DSImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: 'NativeFormatImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: 'PrefabImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: 'RayTracingShaderImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: 'ShaderImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: 'TextScriptImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: 'TextureImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: 'TrueTypeFontImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: 'VideoClipImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: 'VisualEffectImporter' is OOP-eligible (per-importer)
+ADB: OOP importers: queue -1003 composition: TextureImporter, TextureImporter, TextureImporter, TextureImporter, TextureImporter, TextureImporter, TextureImporter, TextureImporter, TextureImporter, TextureImporter, TextureImporter, TextureImporter, TextureImporter, TextureImporter, TextureImporter (only the named importers above run OOP; the rest stay in-process)
+ADB: OOP importers: queue -1001 composition: ShaderImporter, ComputeShaderImporter, RayTracingShaderImporter (only the named importers above run OOP; the rest stay in-process)
+ADB: OOP importers: queue -1000 composition: NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter, NativeFormatImporter (only the named importers above run OOP; the rest stay in-process)
+ADB: OOP importers: queue 2 composition: TrueTypeFontImporter, TrueTypeFontImporter, TrueTypeFontImporter, TrueTypeFontImporter (only the named importers above run OOP; the rest stay in-process)
+ADB: OOP importers: queue 100 composition: Mesh3DSImporter, FBXImporter, FBXImporter, FBXImporter, FBXImporter, FBXImporter, FBXImporter, FBXImporter, FBXImporter, FBXImporter, FBXImporter (only the named importers above run OOP; the rest stay in-process)
+ADB: OOP importers: queue 150 composition: NativeFormatImporter (only the named importers above run OOP; the rest stay in-process)
+ADB: OOP importers: queue 198 composition: VisualEffectImporter, VisualEffectImporter (only the named importers above run OOP; the rest stay in-process)
+ADB: OOP importers: queue 199 composition: VisualEffectImporter (only the named importers above run OOP; the rest stay in-process)
+ADB: OOP importers: queue 200 composition: NativeFormatImporter (only the named importers above run OOP; the rest stay in-process)
+ADB: OOP importers: queue 1050 composition: TextScriptImporter, TextScriptImporter, TextScriptImporter, TextScriptImporter, TextScriptImporter, TextScriptImporter, TextScriptImporter, TextScriptImporter, TextScriptImporter, TextScriptImporter, TextScriptImporter, TextScriptImporter (only the named importers above run OOP; the rest stay in-process)
+ADB: OOP importers: queue 1100 composition: AudioImporter, AudioImporter, AudioImporter, AudioImporter, AudioImporter, AudioImporter, AudioImporter, AudioImporter, AudioImporter, AudioImporter (only the named importers above run OOP; the rest stay in-process)
+ADB: OOP importers: queue 1500 composition: PrefabImporter (only the named importers above run OOP; the rest stay in-process)
+ADB: OOP importers: queue 1700 composition: VideoClipImporter, VideoClipImporter, VideoClipImporter, VideoClipImporter, VideoClipImporter, VideoClipImporter, VideoClipImporter, VideoClipImporter, VideoClipImporter, VideoClipImporter (only the named importers above run OOP; the rest stay in-process)
+[ScriptCompilation] Requested script compilation because: AssetDatabase observed changes in script compilation related files
+Starting: /home/i/Unity/Hub/Editor/6000.7.0b5/Editor/Data/Tools/BuildPipeline/bee_backend --ipc --defer-dag-verification --dagfile="Library/Bee/2400b0aE.dag" --continue-on-failure --profile="Library/Bee/backend1.traceevents" ScriptAssemblies
+WorkingDir: /home/i/GitHub/sv-w101/tests/Sv.Burst/unity
+DisplayProgressbar: Compiling Scripts
+ExitCode: 0 Duration: 0s324ms
+[174/183    0s] ILPP-Configuration Library/ilpp-configuration.nevergeneratedoutput
+[175/183    0s] Csc Library/Bee/artifacts/2400b0aE.dag/SvBurst.dll (+2 others)
+[176/183    0s] ILPostProcess Library/Bee/artifacts/2400b0aE.dag/post-processed/SvBurst.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2400b0aE.dag/SvBurst.dll, with 141 defines and 252 references
+processors: Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[177/183    0s] CopyFiles Library/ScriptAssemblies/SvBurst.dll
+[178/183    0s] CopyFiles Library/ScriptAssemblies/SvBurst.pdb
+[179/183    0s] Csc Library/Bee/artifacts/2400b0aE.dag/SvBurst.Editor.dll (+2 others)
+[180/183    0s] ILPostProcess Library/Bee/artifacts/2400b0aE.dag/post-processed/SvBurst.Editor.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2400b0aE.dag/SvBurst.Editor.dll, with 139 defines and 302 references
+processors: Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[181/183    0s] CopyFiles Library/ScriptAssemblies/SvBurst.Editor.pdb
+[182/183    0s] CopyFiles Library/ScriptAssemblies/SvBurst.Editor.dll
+*** Tundra build success (0.31 seconds), 9 items updated, 183 evaluated
+AssetDatabase: script compilation time: 0.548378s
+Begin MonoManager ReloadAssembly
+Total cache size 267710448
+Total cache size after purge 267710448, took 00:00:00.0537878
+[MODES] ModeService[none].Initialize
+[MODES] ModeService[none].LoadModes
+Native extension for LinuxStandalone target not found
+ScheduleIndexationOnStartup MainProcess:True IndexOnStartup:True
+Scripting: successfully reloaded assembly
+- Finished resetting the current domain, in  0.334 seconds
+Domain Reload Profiling: 654ms
+	BeginReloadAssembly (147ms)
+		DisableScriptedObjects (7ms)
+		CreateAndSetChildDomain (51ms)
+	RebuildCommonClasses (5ms)
+	RebuildNativeTypeToScriptingClass (6ms)
+	initialDomainReloadingComplete (21ms)
+	LoadAllAssembliesAndSetupDomain (140ms)
+		LoadAssemblies (42ms)
+		TypeCache.Refresh (4ms)
+		AnalyzeDomain (1ms)
+	FinalizeReload (335ms)
+		SetupLoadedEditorAssemblies (0ms)
+			BeforeProcessingInitializeOnLoad (63ms)
+			ProcessInitializeOnLoadAttributes (20ms)
+			ProcessInitializeOnLoadMethodAttributes (22ms)
+		AwakeInstancesAfterBackupRestoration (13ms)
+	Serialization: 62ms
+		Read: 36ms, 160746 bytes
+		Write: 26ms, 197336 bytes
+Starting new worker id: 0 with log in /home/i/GitHub/sv-w101/tests/Sv.Burst/unity/Logs/AssetImportWorkerHW0.log
+[UnityConnectServicesConfig] Local config successfully read: "/usr/share/unity3d/config/services-config.json"
+[UnityConnectServicesConfig] Service configuration:
+    "servicesConfigBaseUrl": "",
+    "disableServicesWindow": false,
+    "disableUserLogin": false,
+    "entitlementCacheTimeoutInSeconds": 60,
+    "clientConnectTimeoutSec": 60,
+    "clientHandshakeTimeoutSec": 30,
+    "clientResolveEntitlementsTimeoutSec": 30,
+    "clientUpdateLicenseTimeoutSec": 30,
+    "licensingServiceBaseUrl": "",
+    "enableProxyAutoconfig": "false"
+
+
+Asset Pipeline Refresh (id=b3e880c3e0c538f77a77abc0ca1515d9): Total: 1.301 seconds - Initiated by InitialRefreshV2(ForceSynchronousImport)
+	(Values over 0.05ms)
+	Summary:
+		Imports: total=0 (actual=0, local cache=0, cache server=0)
+		Asset DB Process Time: managed=0 ms, native=386 ms
+		Asset DB Callback time: managed=32 ms, native=1 ms
+		Scripting: domain reloads=1, domain reload time=331 ms, compile time=550 ms, other=0 ms
+		Serialization: total=63.946 ms / 572.5 KB (read=37.352 ms / 297.4 KB, write=26.595 ms / 275.1 KB)
+		Project Asset Count: scripts=27, non-scripts=1
+		Asset File Changes: new=0, changed=1, moved=0, deleted=0
+		Scan Filter Count: 1
+	InvokePackagesCallback: 0.398ms
+	Scan: 12.549ms
+	Collect global state as custom dependencies: 4.587ms
+	OnSourceAssetsModified: 0.383ms
+	ProcessAssetsWithTransientArtifactChanges: 0.094ms
+	CategorizeAssets: 0.132ms
+	CompileScripts: 549.512ms
+	ImportOutOfDateAssets: 343.033ms (334.986ms without children)
+		UnloadImportedAssets: 0.200ms
+		ImportSchedulerStart: 7.834ms
+	PostProcessAllAssets: 32.640ms
+		VCAutoAddAssetPostprocess 0.578ms
+		MonoPostProcessAllAssets: 31.771ms
+			StyleCatalogPostProcessor.OnPostprocessAllAssets 8.956ms
+			AssetPostprocessor.OnPostprocessAllAssets 6.486ms
+			BuilderAssetPostprocessor.OnPostprocessAllAssets 3.822ms
+			AssetChangedListener.OnPostprocessAllAssets 1.044ms
+			EditModeScopePostprocessor.OnPostprocessAllAssets 0.882ms
+			SyncVS.PostprocessSyncProject 0.866ms
+			RetainedModeAssetPostprocessor.OnPostprocessAllAssets 0.733ms
+			ResourceTableCollectionPostprocessor.OnPostprocessAllAssets 0.617ms
+			SpeedTree9Postprocessor.OnPostprocessAllAssets 0.439ms
+			TextAssetPostProcessor.OnPostprocessAllAssets 0.356ms
+			ArtifactBrowserPostProcessor.OnPostprocessAllAssets 0.240ms
+			ReferencedClipsPostProcessor.OnPostprocessAllAssets 0.228ms
+			RoslynAnalyzerAssetWatcher.OnPostprocessAllAssets 0.208ms
+			AudioMixerPostprocessor.OnPostprocessAllAssets 0.169ms
+			TerrainToolbarOverlayPostProcessor.OnPostprocessAllAssets 0.167ms
+			Postprocessor.OnPostprocessAllAssets 0.165ms
+			AssetEvents.OnPostprocessAllAssets 0.158ms
+			WindowAssetPostprocessingWatcher.OnPostprocessAllAssets 0.130ms
+			AssetDatabaseCallbacks.OnPostprocessAllAssets 0.129ms
+			ConfigAssetsTracker.OnPostprocessAllAssets 0.122ms
+			SpeedTreePostProcessor.OnPostprocessAllAssets 0.094ms
+			ThemePostprocessor.OnPostprocessAllAssets 0.082ms
+			AudioContainerPostProcessor.OnPostprocessAllAssets 0.068ms
+			ScenarioDriftAssetsTracker.OnPostprocessAllAssets 0.066ms
+			RenderPipelineGlobalSettingsPostprocessor.OnPostprocessAllAssets 0.056ms
+	PostAssetChangesProfiler: 0.233ms
+	UnloadStreamsBegin: 1.285ms
+	Untracked: 355.152ms
+
+Application.AssetDatabase Initial Refresh End
+Scanning for USB devices : 2.871ms
+Initializing Unity extensions:
+Unloading 3 Unused Serialized files (Serialized files now loaded: 0)
+Unloading 19 unused Assets / (356.8 KB). Loaded Objects now: 845.
+Memory consumption went from 128.0 MB to 127.6 MB.
+Total: 6.146703 ms (FindLiveObjects: 0.066683 ms CreateObjectMapping: 0.014530 ms MarkObjects: 5.840550 ms  DeleteObjects: 0.161454 ms)
+
+Serialization during EditorStartup: 106.07 ms / 22347.9 KB (read 79.48 ms / 22072.8 KB, write 26.59 ms / 275.1 KB)
+	DomainReload: 91.32 ms / 14454.0 KB (read 65.11 ms / 14261.3 KB, write 26.21 ms / 192.7 KB)
+burst compiler enabled=True executionMode=NonDeterministic forcedOff=False
+digestMono   2B43BC1549AAE751
+runProgram compiled ptr=0x0000703F886A8040
+digestBurst  2B43BC1549AAE751
+dump RunProgram: thunk at 0x0000703F886A8040 jumps to 0x0000703FFC021110
+dump RunProgram: code at 0x0000703FFC021110 after 1 thunk hop(s)
+dump RunProgram: 3824 bytes at 0x0000703FFC021110
+Worker ready: AssetImportWorkerHW0 0
+timing managed 1009031.0 ns/program burst 1013428.8 ns/program ratio 1.00x
+Compilation was requested for method `Sv.Burst.Probes, SvBurst, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null::MathClampProbe(System.Int32*, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089|System.Int32, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089)` but it is not a known Burst entry point. This may be because the [BurstCompile] method is defined in a generic class, and the generic class is not instantiated with concrete types anywhere in your code.
+probe mathclamp (System.Math.Clamp/Min/Max on ints): managed B27BEA647660CDDF burst B27BEA647660CDDF match
+dump MathClampProbe: thunk at 0x0000703F886A8080 jumps to 0x0000000041119210
+dump MathClampProbe: code at 0x0000000041119210 after 1 thunk hop(s)
+dump MathClampProbe: 3568 bytes at 0x0000000041119210
+dump MathClampProbe-pre: 4096 bytes at 0x0000000041118E10
+Compilation was requested for method `Sv.Burst.Probes, SvBurst, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null::FloatFoldProbe(System.Single*, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089|System.Int32, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089)` but it is not a known Burst entry point. This may be because the [BurstCompile] method is defined in a generic class, and the generic class is not instantiated with concrete types anywhere in your code.
+probe floatfold (float a*b+c under FloatMode.Strict (must not fuse to FMA)): managed F3D8972A2DF16C60 burst F3D8972A2DF16C60 match
+dump FloatFoldProbe: thunk at 0x0000703F886A80C0 jumps to 0x0000000041119AE0
+dump FloatFoldProbe: code at 0x0000000041119AE0 after 1 thunk hop(s)
+dump FloatFoldProbe: 1312 bytes at 0x0000000041119AE0
+dump FloatFoldProbe-pre: 2336 bytes at 0x00000000411196E0
+Compilation was requested for method `Sv.Burst.Probes, SvBurst, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null::ThrowInterpolatedProbe(System.Int32*, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089)` but it is not a known Burst entry point. This may be because the [BurstCompile] method is defined in a generic class, and the generic class is not instantiated with concrete types anywhere in your code.
+probe throwinterpolated (throw new ArgumentException with interpolated string): compiled by Burst without error
+sv burst batch ok
+Batchmode quit successfully invoked - shutting down!
+[Physics::Module] Cleanup current backend.
+[Physics::Module] Id: 0xf2b8ea05
+Input System module state changed to: ShutdownInProgress.
+Input Polling Thread exited.
+Input System module state changed to: Shutdown.
+[Licensing::IpcConnector] LicenseClient-i-notifications channel disconnected successfully.
+[Licensing::IpcConnector] LicenseClient-i channel disconnected successfully.
+Lingering sessions upon destruction of worker manager
+Shut down UDS service system complete
+Unity Data Store service was successfully shut down
+UDS shutting down local client system
+AcceleratorClientConnectionCallback - disconnected - :0
+debugger-agent: Unable to listen on 56
+Cleanup mono
+CodeReloadManager destroyed
+Exiting batchmode successfully now!
+[ExitDontLaunchBugReporter] Exiting without the bug reporter. Application will exit with return code 0
+VBCSCompilerPreWarmer: requested VBCSCompiler shutdown

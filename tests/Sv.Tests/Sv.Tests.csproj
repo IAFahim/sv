@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Sv\Sv.csproj" />
+    <ProjectReference Include="..\..\src\Sv.Burst\Sv.Burst.csproj" />
     <ProjectReference Include="..\..\src\Sv.Generators\Sv.Generators.csproj" />
     <ProjectReference Include="..\..\src\Sv.Generators\Sv.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\..\src\Sv.Frent\Sv.Frent.csproj" />
