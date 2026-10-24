@@ -10,7 +10,7 @@ public unsafe class BoundColumnLengthTests
             .Build();
 
     [Fact]
-    public void ShortColumn_ThrowsUnderChecked_WritesThroughInRelease()
+    public void ShortColumn_RejectedAtBind_InEveryBuild()
     {
         using var board = Board.Create(Schema(), 8);
         var speed = board.Schema.Stat("move_speed");
@@ -20,14 +20,8 @@ public unsafe class BoundColumnLengthTests
             board.Acquire();
         }
 
-        board.BindOutput(speed, column, columnLength: 4);
-        board.AddModifier(4, speed, new Modifier(ModifierKind.Added, 1f));
-#if SV_CHECKED
-        Assert.Throws<InvalidOperationException>(() => board.Recalculate());
-#else
-        board.Recalculate();
-        Assert.Equal(7f, column[4]);
-#endif
+        Assert.Throws<ArgumentException>(() => board.BindOutput(speed, column, columnLength: 4));
+        Assert.Equal(0, board.PendingRebind);
     }
 
     [Fact]
@@ -48,24 +42,22 @@ public unsafe class BoundColumnLengthTests
     }
 
     [Fact]
-    public void Stride_MultipliesAgainstLength()
+    public void Stride_MultipliesAgainstLength_AtBind()
     {
         using var board = Board.Create(Schema(), 8);
         var speed = board.Schema.Stat("move_speed");
-        var column = stackalloc float[128];
+        var column = stackalloc float[256];
         for (var i = 0; i < 6; i++)
         {
             board.Acquire();
         }
 
-        board.BindOutput(speed, column, stride: 2, columnLength: 9);
+        var needed = (board.Capacity - 1) * 2 + 1;
+        Assert.Throws<ArgumentException>(() => board.BindOutput(speed, column, stride: 2, columnLength: needed - 1));
+        board.BindOutput(speed, column, stride: 2, columnLength: needed);
         board.AddModifier(5, speed, new Modifier(ModifierKind.Added, 1f));
-#if SV_CHECKED
-        Assert.Throws<InvalidOperationException>(() => board.Recalculate());
-#else
         board.Recalculate();
         Assert.Equal(7f, column[10]);
-#endif
     }
 
     [Fact]
@@ -86,30 +78,16 @@ public unsafe class BoundColumnLengthTests
     }
 
     [Fact]
-    public void ZeroLength_NoLiveSlots_NoThrow()
+    public void ZeroLength_RejectedAtBind_InEveryBuild()
     {
         using var board = Board.Create(Schema(), 8);
         var speed = board.Schema.Stat("move_speed");
         var column = stackalloc float[64];
-        board.BindOutput(speed, column, columnLength: 0);
+        Assert.Throws<ArgumentException>(() => board.BindOutput(speed, column, columnLength: 0));
+        Assert.Throws<ArgumentException>(() => board.BindExternal(speed, column, columnLength: 0));
+        Assert.Equal(0, board.PendingRebind);
+        board.BindOutput(speed, column, columnLength: board.Capacity);
         board.Recalculate();
-    }
-
-    [Fact]
-    public void BindExternal_AcceptsColumnLength_AndThrowsUnderChecked()
-    {
-        using var board = Board.Create(Schema(), 8);
-        var speed = board.Schema.Stat("move_speed");
-        var column = stackalloc float[64];
-        board.Acquire();
-        board.BindExternal(speed, column, columnLength: 0);
-        board.AddModifier(0, speed, new Modifier(ModifierKind.Added, 1f));
-#if SV_CHECKED
-        Assert.Throws<InvalidOperationException>(() => board.Recalculate());
-#else
-        board.Recalculate();
-        Assert.Equal(7f, column[0]);
-#endif
     }
 
     [Fact]

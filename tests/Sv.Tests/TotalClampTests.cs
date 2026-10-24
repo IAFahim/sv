@@ -66,16 +66,17 @@ public class TotalClampTests
         const int n = 16;
         var schema = SchemaBuilder.Create().Stat("lo", 0f).Stat("hi", 0f).Build();
         using var board = Board.Create(schema, n);
-        var lo = stackalloc float[n];
-        var hi = stackalloc float[n];
-        for (var i = 0; i < n; i++)
+        var cap = board.Capacity;
+        var lo = stackalloc float[cap];
+        var hi = stackalloc float[cap];
+        for (var i = 0; i < cap; i++)
         {
             lo[i] = 5f;
             hi[i] = -5f;
         }
 
-        board.BindOutput(schema.Stat("lo"), lo, 1, n);
-        board.BindOutput(schema.Stat("hi"), hi, 1, n);
+        board.BindOutput(schema.Stat("lo"), lo, 1, cap);
+        board.BindOutput(schema.Stat("hi"), hi, 1, cap);
         var bounds = Bounds.Stats(board, schema.Stat("lo"), schema.Stat("hi"));
 
         var values = stackalloc int[n];

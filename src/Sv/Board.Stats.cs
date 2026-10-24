@@ -150,11 +150,7 @@ public sealed unsafe partial class Board
         NativeMemory.Clear(outputColumn, (nuint)statCount * (nuint)sizeof(float*));
         outputStride = arena.Alloc<int>(statCount);
         owned = (float**)arena.AllocZeroedBytes(statCount * sizeof(float*));
-        boundGeneration = arena.Alloc<int>(statCount);
-        for (var i = 0; i < statCount; i++)
-        {
-            boundGeneration[i] = -1;
-        }
+        boundGeneration = arena.AllocZeroed<int>(statCount);
 
         mirrors = (int**)arena.AllocZeroedBytes(statCount * sizeof(int*));
         statMaskWords = (statCount + 31) >> 5;
@@ -601,6 +597,11 @@ public sealed unsafe partial class Board
             throw new ArgumentOutOfRangeException(nameof(columnLength), "sv: columnLength must be -1 (unchecked) or >= 0");
         }
 
+        if (columnLength >= 0 && (long)columnLength < (long)(Capacity - 1) * stride + 1)
+        {
+            throw new ArgumentException($"sv: bound column of {columnLength} elements cannot cover capacity {Capacity} at stride {stride}");
+        }
+
         outputColumn[index] = column;
         outputStride[index] = stride;
         boundLength[index] = columnLength;
@@ -633,6 +634,11 @@ public sealed unsafe partial class Board
             throw new ArgumentOutOfRangeException(nameof(columnLength), "sv: columnLength must be -1 (unchecked) or >= 0");
         }
 
+        if (columnLength >= 0 && (long)columnLength < (long)(Capacity - 1) * stride + 1)
+        {
+            throw new ArgumentException($"sv: bound column of {columnLength} elements cannot cover capacity {Capacity} at stride {stride}");
+        }
+
         outputColumn[index] = column;
         outputStride[index] = stride;
         boundLength[index] = columnLength;
@@ -643,9 +649,10 @@ public sealed unsafe partial class Board
     }
 
     /// <summary>
-    /// Declares every external binding suspect (storage moved or slot space renumbered). Checked
-    /// builds throw on the next stat broadcast or stat-bounds use; release builds keep writing
-    /// through the recorded pointers. Rebind to re-establish freshness.
+    /// Declares every external binding suspect (storage moved or slot space renumbered) and parks
+    /// their writes: the recorded pointers are dropped in every build, so broadcasts write the
+    /// sv-owned column (or nothing) until the host rebinds. Checked builds also throw on the next
+    /// stat-bounds use. Rebind to re-establish freshness.
     /// </summary>
     public void InvalidateBindings()
     {
@@ -655,8 +662,27 @@ public sealed unsafe partial class Board
         {
             if (outputColumn[stat] != null)
             {
+                outputColumn[stat] = null;
                 boundGeneration[stat] = -1;
             }
+        }
+    }
+
+    /// <summary>How many stats have parked bindings awaiting a rebind after <see cref="InvalidateBindings"/>.</summary>
+    public int PendingRebind
+    {
+        get
+        {
+            var count = 0;
+            for (var stat = 0; stat < statCount; stat++)
+            {
+                if (boundGeneration[stat] == -1)
+                {
+                    count++;
+                }
+            }
+
+            return count;
         }
     }
 
