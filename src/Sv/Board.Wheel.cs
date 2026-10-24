@@ -10,6 +10,8 @@ public sealed unsafe partial class Board
 
         public long Id;
 
+        public long Expiry;
+
         public int Next;
 
         public int Prev;
@@ -51,8 +53,19 @@ public sealed unsafe partial class Board
 
     int wheelScratchCap;
 
-    void InitWheel()
+    long* crossingDue;
+
+    int crossingDueCount;
+
+    int crossingDueCap;
+
+    void EnsureWheel()
     {
+        if (wheelEntries != null)
+        {
+            return;
+        }
+
         wheelEntryCap = 16;
         wheelEntries = arena.Alloc<WheelEntry>(wheelEntryCap);
         wheelEntryFree = -1;
@@ -71,6 +84,11 @@ public sealed unsafe partial class Board
 
     void FreeWheel()
     {
+        if (wheelEntries == null)
+        {
+            return;
+        }
+
         arena.Free(wheelEntries, wheelEntryCap);
         arena.Free(wheelHeads, WheelSlots);
         arena.Free(wheelTails, WheelSlots);
@@ -81,10 +99,24 @@ public sealed unsafe partial class Board
             arena.Free(wheelKeep, wheelScratchCap);
             arena.Free(wheelKeepTemp, wheelScratchCap);
         }
+
+        if (crossingDueCap > 0)
+        {
+            arena.Free(crossingDue, crossingDueCap * 2);
+        }
     }
 
-    void WheelInsert(int record, long id, long expiry)
+    /// <summary>
+    /// Schedules a drift crossing: the host-chosen 64-bit <paramref name="id"/> (generation-tagged per
+    /// the modifier-id discipline — a stale generation drains and is dropped by the host) comes due at
+    /// <paramref name="atTick"/> and is handed back by <see cref="TakeDueCrossings"/> during the
+    /// <see cref="ExpireModifiers"/> pass that reaches that tick, in (tick, id) order with the
+    /// expiries. Renumbering or loading state rebuilds the wheel from modifier records — reschedule
+    /// crossings afterwards.
+    /// </summary>
+    public void ScheduleCrossing(long atTick, long id)
     {
+        EnsureWheel();
         if (wheelEntryCount == wheelEntryCap)
         {
             var previous = wheelEntryCap;
@@ -94,7 +126,114 @@ public sealed unsafe partial class Board
 
         var entry = wheelEntryFree >= 0 ? TakeWheelEntry() : wheelEntryCount++;
         undo?.Note(wheelEntries + entry, sizeof(WheelEntry));
-        wheelEntries[entry] = new WheelEntry { Record = record, Id = id, Next = -1, Prev = -1, Cell = -1 };
+        wheelEntries[entry] = new WheelEntry { Record = -1, Id = id, Expiry = atTick, Next = -1, Prev = -1, Cell = -1 };
+        LinkWheelEntry(entry, atTick, id);
+        wheelEntryLive++;
+    }
+
+    void CollectCrossing(long tick, long id)
+    {
+        if (crossingDueCount == crossingDueCap)
+        {
+            var previous = crossingDue;
+            var previousCap = crossingDueCap;
+            crossingDueCap = crossingDueCap == 0 ? 16 : crossingDueCap * 2;
+            var grown = arena.Alloc<long>(crossingDueCap * 2);
+            if (previousCap > 0)
+            {
+                Buffer.MemoryCopy(previous, grown, (nuint)crossingDueCap * 2 * sizeof(long), (nuint)previousCap * 2 * sizeof(long));
+                arena.Free(previous, previousCap * 2);
+            }
+
+            crossingDue = grown;
+        }
+
+        crossingDue[2 * crossingDueCount] = tick;
+        crossingDue[2 * crossingDueCount + 1] = id;
+        crossingDueCount++;
+    }
+
+    /// <summary>Copies the ids that came due in the last <see cref="ExpireModifiers"/> pass, in (tick, id) order, and clears the ring. The ring is an event output, not state: it is not rolled back.</summary>
+    public int TakeDueCrossings(Span<long> due)
+    {
+        for (var i = 1; i < crossingDueCount; i++)
+        {
+            var tick = crossingDue[2 * i];
+            var id = crossingDue[2 * i + 1];
+            var j = i - 1;
+            while (j >= 0 && (crossingDue[2 * j] > tick || (crossingDue[2 * j] == tick && crossingDue[2 * j + 1] > id)))
+            {
+                crossingDue[2 * (j + 1)] = crossingDue[2 * j];
+                crossingDue[2 * (j + 1) + 1] = crossingDue[2 * j + 1];
+                j--;
+            }
+
+            crossingDue[2 * (j + 1)] = tick;
+            crossingDue[2 * (j + 1) + 1] = id;
+        }
+
+        if (due.Length < crossingDueCount)
+        {
+            throw new ArgumentException($"sv: due-crossing span of {due.Length} does not cover {crossingDueCount} due crossings");
+        }
+
+        for (var i = 0; i < crossingDueCount; i++)
+        {
+            due[i] = crossingDue[2 * i + 1];
+        }
+
+        var count = crossingDueCount;
+        crossingDueCount = 0;
+        return count;
+    }
+
+    /// <summary>Crossings waiting to come due in the wheel (excluding modifier expiries).</summary>
+    public int PendingCrossings
+    {
+        get
+        {
+            if (wheelEntries == null)
+            {
+                return 0;
+            }
+
+            var count = 0;
+            for (var at = wheelOverdue; at >= 0; at = wheelEntries[at].Next)
+            {
+                if (wheelEntries[at].Record < 0)
+                {
+                    count++;
+                }
+            }
+
+            for (var cell = 0; cell < WheelSlots; cell++)
+            {
+                for (var at = wheelHeads[cell]; at >= 0; at = wheelEntries[at].Next)
+                {
+                    if (wheelEntries[at].Record < 0)
+                    {
+                        count++;
+                    }
+                }
+            }
+
+            return count;
+        }
+    }
+
+    void WheelInsert(int record, long id, long expiry)
+    {
+        EnsureWheel();
+        if (wheelEntryCount == wheelEntryCap)
+        {
+            var previous = wheelEntryCap;
+            wheelEntryCap *= 2;
+            wheelEntries = UndoGrow(UndoArrayId.WheelEntries, wheelEntries, previous, wheelEntryCap);
+        }
+
+        var entry = wheelEntryFree >= 0 ? TakeWheelEntry() : wheelEntryCount++;
+        undo?.Note(wheelEntries + entry, sizeof(WheelEntry));
+        wheelEntries[entry] = new WheelEntry { Record = record, Id = id, Expiry = expiry, Next = -1, Prev = -1, Cell = -1 };
         LinkWheelEntry(entry, expiry, id);
         undo?.Note(&records[record].Wheel, sizeof(int));
         records[record].Wheel = entry;
@@ -156,7 +295,7 @@ public sealed unsafe partial class Board
             var previous = -1;
             while (at >= 0)
             {
-                var key = records[wheelEntries[at].Record].Expiry;
+                var key = wheelEntries[at].Expiry;
                 if (key > expiry || (key == expiry && wheelEntries[at].Id > id))
                 {
                     break;
@@ -308,18 +447,20 @@ public sealed unsafe partial class Board
 
     /// <summary>
     /// Removes every modifier whose expiry tick is &lt;= <paramref name="tick"/>, in (tick, insertion id)
-    /// order. Modifiers removed by handle, source or slot release are already unlinked from the
-    /// wheel. Returns how many were removed.
+    /// order, and collects the drift crossings due at or before it (see <see cref="ScheduleCrossing"/>).
+    /// Modifiers removed by handle, source or slot release are already unlinked from the
+    /// wheel. Returns how many modifiers were removed.
     /// </summary>
     public int ExpireModifiers(long tick)
     {
+        EnsureWheel();
         DebugValidateWheel();
         var removed = 0;
         while (wheelOverdue >= 0)
         {
             var entry = wheelOverdue;
             var value = wheelEntries[entry];
-            if (value.Record < recordCount && records[value.Record].Id == value.Id && records[value.Record].Expiry > tick)
+            if (value.Record >= 0 && value.Record < recordCount && records[value.Record].Id == value.Id && value.Expiry > tick)
             {
                 break;
             }
@@ -331,7 +472,7 @@ public sealed unsafe partial class Board
                 wheelEntries[value.Next].Prev = -1;
             }
 
-            removed += RemoveDueRecord(value.Record, value.Id);
+            removed += RetireWheelEntry(value);
             FreeWheelEntry(entry);
         }
 
@@ -382,7 +523,7 @@ public sealed unsafe partial class Board
         {
             var index = wheelHeads[bucket];
             var value = WheelDrainHead(bucket);
-            removed += RemoveDueRecord(value.Record, value.Id);
+            removed += RetireWheelEntry(value);
             FreeWheelEntry(index);
         }
 
@@ -414,16 +555,15 @@ public sealed unsafe partial class Board
         {
             var index = wheelKeep[i];
             var value = wheelEntries[index];
-            var expiry = value.Record < recordCount ? records[value.Record].Expiry : wheelTick;
             undo?.Note(wheelEntries + index, sizeof(WheelEntry));
-            wheelEntries[index] = new WheelEntry { Record = value.Record, Id = value.Id, Next = -1, Prev = -1, Cell = -1 };
-            if (expiry <= wheelTick)
+            wheelEntries[index] = new WheelEntry { Record = value.Record, Id = value.Id, Expiry = value.Expiry, Next = -1, Prev = -1, Cell = -1 };
+            if (value.Expiry <= wheelTick)
             {
                 WheelAppend((int)(wheelTick & 255), index);
             }
             else
             {
-                LinkWheelEntry(index, expiry, value.Id);
+                LinkWheelEntry(index, value.Expiry, value.Id);
             }
         }
     }
@@ -459,7 +599,7 @@ public sealed unsafe partial class Board
         {
             var index = wheelDue[i];
             var value = wheelEntries[index];
-            removed += RemoveDueRecord(value.Record, value.Id);
+            removed += RetireWheelEntry(value);
             FreeWheelEntry(index);
         }
 
@@ -468,9 +608,8 @@ public sealed unsafe partial class Board
             var index = wheelKeep[i];
             var value = wheelEntries[index];
             undo?.Note(wheelEntries + index, sizeof(WheelEntry));
-            wheelEntries[index] = new WheelEntry { Record = value.Record, Id = value.Id, Next = -1, Prev = -1, Cell = -1 };
-            var expiry = value.Record < recordCount ? records[value.Record].Expiry : wheelTick;
-            LinkWheelEntry(index, expiry, value.Id);
+            wheelEntries[index] = new WheelEntry { Record = value.Record, Id = value.Id, Expiry = value.Expiry, Next = -1, Prev = -1, Cell = -1 };
+            LinkWheelEntry(index, value.Expiry, value.Id);
         }
 
         return removed;
@@ -478,8 +617,8 @@ public sealed unsafe partial class Board
 
     void ClassifyWheelEntry(int index, in WheelEntry value, long to, ref int dueCount, ref int keepCount)
     {
-        var expiry = value.Record < recordCount ? records[value.Record].Expiry : to;
-        var due = value.Record >= recordCount || records[value.Record].Id != value.Id || expiry <= to;
+        var expiry = value.Expiry;
+        var due = expiry <= to || value.Record >= 0 && (value.Record >= recordCount || records[value.Record].Id != value.Id);
         if (due)
         {
             wheelDue[dueCount++] = index;
@@ -579,6 +718,17 @@ public sealed unsafe partial class Board
         }
     }
 
+    int RetireWheelEntry(in WheelEntry value)
+    {
+        if (value.Record < 0)
+        {
+            CollectCrossing(value.Expiry, value.Id);
+            return 0;
+        }
+
+        return RemoveDueRecord(value.Record, value.Id);
+    }
+
     bool WheelBefore(int left, int right, bool byRecord)
     {
         if (byRecord)
@@ -589,13 +739,36 @@ public sealed unsafe partial class Board
 
         var a = wheelEntries[left];
         var b = wheelEntries[right];
-        var ta = a.Record < recordCount ? records[a.Record].Expiry : long.MinValue;
-        var tb = b.Record < recordCount ? records[b.Record].Expiry : long.MinValue;
+        var ta = a.Expiry;
+        var tb = b.Expiry;
         return ta < tb || (ta == tb && a.Id < b.Id);
     }
 
     internal void RebuildWheel()
     {
+        var count = 0;
+        for (var slot = 0; slot < Capacity; slot++)
+        {
+            if ((live[slot >> 6] & (1ul << (slot & 63))) == 0)
+            {
+                continue;
+            }
+
+            for (var at = Slot(slot).Head; at >= 0; at = records[at].Next)
+            {
+                if (records[at].Expiry != long.MaxValue)
+                {
+                    count++;
+                }
+            }
+        }
+
+        if (wheelEntries == null && count == 0)
+        {
+            return;
+        }
+
+        EnsureWheel();
         undo?.NoteRange(wheelHeads, WheelSlots);
         undo?.NoteRange(wheelTails, WheelSlots);
         for (var i = 0; i < WheelSlots; i++)
@@ -608,7 +781,6 @@ public sealed unsafe partial class Board
         wheelEntryFree = -1;
         wheelEntryCount = 0;
         wheelEntryLive = 0;
-        var count = 0;
         for (var slot = 0; slot < Capacity; slot++)
         {
             if ((live[slot >> 6] & (1ul << (slot & 63))) == 0)
@@ -619,10 +791,6 @@ public sealed unsafe partial class Board
             for (var at = Slot(slot).Head; at >= 0; at = records[at].Next)
             {
                 records[at].Wheel = -1;
-                if (records[at].Expiry != long.MaxValue)
-                {
-                    count++;
-                }
             }
         }
 
@@ -652,7 +820,14 @@ public sealed unsafe partial class Board
         }
     }
 
-    public int PendingExpiries => wheelEntryLive;
+    public int PendingExpiries
+    {
+        get
+        {
+            EnsureWheel();
+            return wheelEntryLive;
+        }
+    }
 
     static readonly bool wheelDebug = Environment.GetEnvironmentVariable("SV_WHEEL_DEBUG") == "1";
 
@@ -671,7 +846,7 @@ public sealed unsafe partial class Board
             if (!seen.Add(at)) throw new InvalidOperationException($"wheel: overdue cycle at {at}");
             if (wheelEntries[at].Prev != previous) throw new InvalidOperationException($"wheel: overdue prev broken at {at}");
             if (wheelEntries[at].Cell != -1) throw new InvalidOperationException($"wheel: overdue cell at {at}");
-            if (wheelEntries[at].Record >= recordCount || records[wheelEntries[at].Record].Wheel != at) throw new InvalidOperationException($"wheel: overdue backlink broken at {at}");
+            if (wheelEntries[at].Record >= 0 && (wheelEntries[at].Record >= recordCount || records[wheelEntries[at].Record].Wheel != at)) throw new InvalidOperationException($"wheel: overdue backlink broken at {at}");
             previous = at;
             at = wheelEntries[at].Next;
         }
@@ -685,7 +860,7 @@ public sealed unsafe partial class Board
                 if (!seen.Add(at)) throw new InvalidOperationException($"wheel: bucket {cell} cycle at {at}");
                 if (wheelEntries[at].Prev != previous) throw new InvalidOperationException($"wheel: bucket {cell} prev broken at {at}");
                 if (wheelEntries[at].Cell != cell) throw new InvalidOperationException($"wheel: bucket {cell} mismatch at {at}");
-                if (wheelEntries[at].Record >= recordCount || records[wheelEntries[at].Record].Wheel != at) throw new InvalidOperationException($"wheel: bucket {cell} backlink broken at {at}");
+                if (wheelEntries[at].Record >= 0 && (wheelEntries[at].Record >= recordCount || records[wheelEntries[at].Record].Wheel != at)) throw new InvalidOperationException($"wheel: bucket {cell} backlink broken at {at}");
                 previous = at;
                 at = wheelEntries[at].Next;
             }

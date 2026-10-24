@@ -191,7 +191,6 @@ public sealed unsafe partial class Board
         scratchCap = 32;
         scratch = arena.Alloc<StatEntry>(scratchCap);
         scratchIds = arena.Alloc<long>(scratchCap);
-        InitWheel();
     }
 
     void InitSources(Schema schema)
@@ -254,6 +253,7 @@ public sealed unsafe partial class Board
 
     void FreeStats()
     {
+        FreeWheel();
         if (statCount == 0)
         {
             return;
@@ -307,7 +307,6 @@ public sealed unsafe partial class Board
         arena.Free(scratchIds, scratchCap);
         arena.Free(statScratch, Math.Max(statScratchCap, 1));
         arena.Free(statScratchIds, Math.Max(statScratchCap, 1));
-        FreeWheel();
     }
 
     void FreePages(SlotState** pages)
