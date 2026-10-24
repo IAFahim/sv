@@ -1,8 +1,9 @@
-# Issue 0107 — Atom 102 (roadmap 6.4): Unity adapter v2 — SvRange, Δ-sync views, Burst ISystem frame (DRAFT)
+# Issue 0110 — Atom 102 (roadmap 6.4): Unity adapter v2 — SvRange, Δ-sync views, Burst ISystem frame
 
 Roadmap [issues/0058](0058-roadmap-1m-entities-5us.md) 6.4, §5.5 and §6 line S3.
-Labels: `ai`, `area:unity`, `kind:feat`. DRAFT — completed in worktree `agent-102`
-(main@6723d60); uncommitted, awaiting review. The roadmap's "mask funnel" half of
+Labels: `ai`, `area:unity`, `kind:feat`. Built in worktree `agent-102`
+(main@6723d60); integrated onto main@c7fa211 (atoms 99/100 landed meanwhile —
+no shared files, clean pick). The roadmap's "mask funnel" half of
 this atom is intentionally NOT built: atom 94 ([issues/0103](0103-atom-94-any-offset-windows.md))
 already made `SvChunk.RunIntrinsics` consume Unity's v128 enabled mask directly at
 any slot alignment with a bounded tail — building a second funnel would duplicate it.
@@ -62,7 +63,7 @@ any slot alignment with a bounded tail — building a second funnel would duplic
   the current shape too; the facade now drives it. When 6.1 lands, the facade
   should re-tighten.
 
-## Tests (Sv.Tests 420 unchanged; Sv.Unity.Tests 7 → 13; NorthStar 27 unchanged)
+## Tests (Sv.Tests 434 after atoms 99/100; Sv.Unity.Tests 7 → 13; NorthStar 27 unchanged)
 
 New (`tests/Sv.Unity.Tests/SvUnityV2Tests.cs`):
 - `SvRange_ReconcileWritesPerChunkRanges_TwoArchetypes` — 70 + 60 bound plus an
@@ -101,9 +102,11 @@ new constructor.
 
 Measured on the bus host (decision 0048): i9-14900K, 24C/32T, .NET 10 Release.
 
-- `dotnet build sv.slnx -c Release` — 0 warnings, 0 errors. `dotnet test` green:
-  **420 / 13 / 27** (Sv.Tests / Sv.Unity.Tests / Sv.NorthStar), 2× repeat stable.
-  `-p:SV_CHECKED=true` rebuild + full retest green, same counts.
+- `dotnet build sv.slnx -c Release` — 0 warnings, 0 errors. `dotnet test` green in
+  the worktree: **420 / 13 / 27** (Sv.Tests / Sv.Unity.Tests / Sv.NorthStar), 2×
+  repeat stable; `-p:SV_CHECKED=true` rebuild + full retest green, same counts.
+  Integrated-main battery (i9-14900K): Sv.Tests **434 / 13 / 27**, SV_CHECKED 434,
+  bench `all scenarios ok`.
 - `dotnet run -c Release --project benchmarks/Sv.Bench -- all` — "all scenarios
   ok": ff1m p50 3,237 µs (Δ=128), renumber1m 5,189 µs + 9.5 µs next-frame
   Recalculate, wheel-expiry 135.9 µs Expire / 262,793 pending — within run noise
@@ -126,5 +129,5 @@ Measured on the bus host (decision 0048): i9-14900K, 24C/32T, .NET 10 Release.
 
 ## Provenance
 
-`main@6723d60` + this atom, worktree `agent-102`. Bus checked before and after
-(inbox empty before; after-check recorded in the atom thread).
+`main@6723d60` + this atom, worktree `agent-102`; integrated onto main@c7fa211.
+Bus checked before and after (inbox empty both checks).
