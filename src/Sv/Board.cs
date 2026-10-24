@@ -77,7 +77,7 @@ public sealed unsafe partial class Board : IDisposable
     /// </summary>
     public long MemoryBytes => arena.Live;
 
-    const uint StateMagic = 0x44425653;
+    const uint StateMagic = 0x44425654;
 
     const long SetTableFormatVersion = 11;
 

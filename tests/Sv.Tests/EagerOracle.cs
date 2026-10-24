@@ -96,7 +96,7 @@ public static class EagerOracle
         }
     }
 
-    public static float Fold(float @base, IReadOnlyList<(byte Kind, float Value, int Id)> canonical)
+    public static float Fold(float @base, IReadOnlyList<(byte Kind, float Value, long Id)> canonical)
     {
         var value = @base;
         for (var i = 0; i < canonical.Count; i++)
@@ -145,7 +145,7 @@ public sealed class EagerModel
 {
     public struct Entry
     {
-        public int Id;
+        public long Id;
 
         public byte Kind;
 
@@ -176,7 +176,7 @@ public sealed class EagerModel
 
     string?[] prevKey = Array.Empty<string>();
 
-    public int NextId = 1;
+    public long NextId = 1;
 
     public EagerModel(float[] bases, (int stat, float coefficient)[][] sources)
     {
@@ -252,7 +252,7 @@ public sealed class EagerModel
         dirty[pair] = true;
     }
 
-    public void RemoveModifier(int slot, int stat, int id)
+    public void RemoveModifier(int slot, int stat, long id)
     {
         var pair = slot * statCount + stat;
         var list = content[pair];
@@ -344,7 +344,7 @@ public sealed class EagerModel
             }
 
             var pair = slot * statCount + stat;
-            var canonical = new List<(byte Kind, float Value, int Id)>();
+            var canonical = new List<(byte Kind, float Value, long Id)>();
             for (var k = 0; k < sources[stat].Length; k++)
             {
                 var (source, coefficient) = sources[stat][k];
@@ -358,7 +358,7 @@ public sealed class EagerModel
                 canonical.Add((entry.Kind, entry.Value, entry.Id));
             }
 
-            canonical.Sort(static (a, b) => a.Kind != b.Kind ? a.Kind - b.Kind : a.Id - b.Id);
+            canonical.Sort(static (a, b) => a.Kind != b.Kind ? a.Kind.CompareTo(b.Kind) : a.Id.CompareTo(b.Id));
 
             var key = ContentKey(canonical);
             var value = EagerOracle.CanonicalNaN(EagerOracle.Fold(bases[stat], canonical));
@@ -381,7 +381,7 @@ public sealed class EagerModel
         }
     }
 
-    static string ContentKey(List<(byte Kind, float Value, int Id)> canonical)
+    static string ContentKey(List<(byte Kind, float Value, long Id)> canonical)
     {
         var parts = new string[canonical.Count];
         for (var i = 0; i < canonical.Count; i++)

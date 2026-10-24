@@ -11,7 +11,7 @@ public sealed unsafe partial class Board
 
     private struct ModRecord
     {
-        public int Id;
+        public long Id;
 
         public ModifierKind Kind;
 
@@ -63,7 +63,7 @@ public sealed unsafe partial class Board
 
     private StatEntry* statScratch;
 
-    private int* statScratchIds;
+    private long* statScratchIds;
 
     private int statScratchCap;
 
@@ -123,11 +123,13 @@ public sealed unsafe partial class Board
 
     private uint* allStatsMask;
 
-    private int nextInsertionId;
+    internal long nextInsertionId;
+
+    internal int insertionGeneration;
 
     private StatEntry* scratch;
 
-    private int* scratchIds;
+    private long* scratchIds;
 
     private int scratchCap;
 
@@ -188,7 +190,7 @@ public sealed unsafe partial class Board
         keyframeScratch = arena.Alloc<KeyframeRecord>(keyframeScratchCap);
         scratchCap = 32;
         scratch = arena.Alloc<StatEntry>(scratchCap);
-        scratchIds = arena.Alloc<int>(scratchCap);
+        scratchIds = arena.Alloc<long>(scratchCap);
         InitWheel();
     }
 
@@ -797,12 +799,24 @@ public sealed unsafe partial class Board
     /// (<see cref="long.MaxValue"/>: never). Like every modifier change it takes effect at the next
     /// <see cref="Recalculate"/>.
     /// </summary>
+    long NextInsertionId()
+    {
+        if (nextInsertionId >= (1L << 40) - 1)
+        {
+            insertionGeneration++;
+            nextInsertionId = 0;
+        }
+
+        nextInsertionId++;
+        return ((long)insertionGeneration << 40) | nextInsertionId;
+    }
+
     public ModifierHandle AddModifier(int slot, StatId stat, in Modifier modifier, int source, long expiresAtTick = long.MaxValue)
     {
         var index = StatIndex(stat);
         Guard.SlotLive(slot, live, Capacity);
         ref var state = ref Slot(slot);
-        var id = ++nextInsertionId;
+        var id = NextInsertionId();
         var record = AllocRecord();
         undo?.Note(records + record, sizeof(ModRecord));
         records[record] = new ModRecord { Id = id, Kind = modifier.Kind, Value = modifier.Value, Source = source, Expiry = expiresAtTick, Next = state.Head, Slot = slot, Stat = index, Wheel = -1 };
@@ -1472,7 +1486,7 @@ public sealed unsafe partial class Board
         return count;
     }
 
-    int GatherInto(int slot, int stat, StatEntry* entries, int* entryIds)
+    int GatherInto(int slot, int stat, StatEntry* entries, long* entryIds)
     {
         var synthetic = sourceOffset[stat + 1] - sourceOffset[stat];
         var count = synthetic;
@@ -1480,7 +1494,7 @@ public sealed unsafe partial class Board
         {
             var at = sourceOffset[stat] + k;
             entries[k] = new StatEntry(ModifierKind.Added, sourceCoefficient[at] * SourceValue(slot, sourceStat[at]));
-            entryIds[k] = int.MinValue + k;
+            entryIds[k] = long.MinValue + k;
         }
 
         for (var at = Slot(slot).Head; at >= 0; at = records[at].Next)
@@ -1601,7 +1615,7 @@ public sealed unsafe partial class Board
         return acquired + (nint)StatIndex(stat) * LiveWordCount;
     }
 
-    static void Canonicalize(StatEntry* entries, int* ids, int count)
+    static void Canonicalize(StatEntry* entries, long* ids, int count)
     {
         for (var i = 1; i < count; i++)
         {
@@ -1760,6 +1774,7 @@ public sealed unsafe partial class Board
     {
         var words = LiveWordCount;
         codec.Value(ref nextInsertionId);
+        codec.Value(ref insertionGeneration);
         var pending = dirtyTouchedCount;
         codec.Value(ref pending);
         if (TCodec.Reading)

@@ -8,7 +8,7 @@ public sealed unsafe partial class Board
     {
         public int Record;
 
-        public int Id;
+        public long Id;
 
         public int Next;
 
@@ -83,7 +83,7 @@ public sealed unsafe partial class Board
         }
     }
 
-    void WheelInsert(int record, int id, long expiry)
+    void WheelInsert(int record, long id, long expiry)
     {
         if (wheelEntryCount == wheelEntryCap)
         {
@@ -148,7 +148,7 @@ public sealed unsafe partial class Board
         FreeWheelEntry(index);
     }
 
-    void LinkWheelEntry(int entry, long expiry, int id)
+    void LinkWheelEntry(int entry, long expiry, long id)
     {
         if (expiry <= wheelTick)
         {
@@ -264,7 +264,7 @@ public sealed unsafe partial class Board
         wheelEntryLive--;
     }
 
-    int RemoveDueRecord(int record, int id)
+    int RemoveDueRecord(int record, long id)
     {
         if (record >= recordCount || records[record].Id != id)
         {

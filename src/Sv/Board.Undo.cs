@@ -74,7 +74,7 @@ public sealed unsafe partial class Board
 
         public int FreeHint;
 
-        public int NextInsertionId;
+        public long NextInsertionId;
 
         public int RecordCount;
 

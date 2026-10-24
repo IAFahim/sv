@@ -32,11 +32,16 @@ public readonly struct Modifier
     }
 }
 
+/// <summary>
+/// A live modifier's identity: the full 64-bit insertion id — generation in the high bits,
+/// monotone counter in the low 40. Unique for the board's lifetime across state loads and
+/// keyframe folds; sort order is insertion order (clause 3).
+/// </summary>
 public readonly struct ModifierHandle
 {
-    public int Id { get; }
+    public long Id { get; }
 
-    public ModifierHandle(int id)
+    public ModifierHandle(long id)
     {
         Id = id;
     }

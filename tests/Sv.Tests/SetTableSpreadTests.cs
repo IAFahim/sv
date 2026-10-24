@@ -70,7 +70,7 @@ public unsafe class SetTableSpreadTests
         board.SaveState(state);
 
         var bytes = state.Bytes.ToArray();
-        Assert.Equal((byte)'S', bytes[0]);
+        Assert.Equal((byte)'T', bytes[0]);
         var shape = BitConverter.ToInt64(bytes, 4);
         BitConverter.TryWriteBytes(bytes.AsSpan(4), shape ^ 1L);
         using var stale = new SvState();

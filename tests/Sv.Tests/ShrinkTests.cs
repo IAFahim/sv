@@ -32,7 +32,7 @@ public unsafe class ShrinkTests
         var before = board.MemoryBytes;
         board.Recalculate();
         var after = board.MemoryBytes;
-        Assert.True(before - after is > 1130000 and <= 1142360, $"record-pool slack reclaimed: {before - after} (max 1142360, bounded first-touch growth below)");
+        Assert.True(before - after is > 1352000 and <= 1365424, $"record-pool slack reclaimed: {before - after} (max 1365424, bounded first-touch growth below)");
     }
 
     [Fact]

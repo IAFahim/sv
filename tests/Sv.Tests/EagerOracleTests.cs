@@ -185,7 +185,7 @@ public unsafe class EagerOracleTests
         var model = new EagerModel(bases, sources);
         model.Grow(board.Capacity);
         var live = new List<int>();
-        var handles = new List<(int Slot, int Stat, int Id, int Source, long Expiry)>();
+        var handles = new List<(int Slot, int Stat, long Id, int Source, long Expiry)>();
         long tick = 0;
         for (var i = 0; i < 32; i++)
         {

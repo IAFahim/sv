@@ -7,7 +7,7 @@ public sealed unsafe partial class Board
 {
     internal struct KeyframeRecord
     {
-        public int Id;
+        public long Id;
 
         public int Stat;
 
@@ -20,7 +20,7 @@ public sealed unsafe partial class Board
         public long Expiry;
     }
 
-    const uint KeyframeMagic = 0x4B46564B;
+    const uint KeyframeMagic = 0x4B46564C;
 
     ulong* keyframePages;
 
@@ -150,6 +150,8 @@ public sealed unsafe partial class Board
         codec.Header(KeyframeMagic, StateShape, "keyframe");
         var insertion = nextInsertionId;
         codec.Value(ref insertion);
+        var generation = insertionGeneration;
+        codec.Value(ref generation);
         var digest = Digest;
         codec.Value(ref digest);
         var pages = keyframeDirtyCount;
@@ -222,10 +224,13 @@ public sealed unsafe partial class Board
         state.BeginRead();
         var codec = new LoadCodec(state);
         codec.Header(KeyframeMagic, StateShape, "keyframe");
-        var insertion = 0;
+        var insertion = 0L;
         codec.Value(ref insertion);
-        if (insertion > nextInsertionId)
+        var generation = 0;
+        codec.Value(ref generation);
+        if (generation > insertionGeneration || (generation == insertionGeneration && insertion > nextInsertionId))
         {
+            insertionGeneration = generation;
             nextInsertionId = insertion;
         }
 
