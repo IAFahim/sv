@@ -1,10 +1,10 @@
-# Issue 0107 (DRAFT) — Atom 101 (roadmap 6.2): BCL shims + Burst kernels
+# Issue 0111 — Atom 101 (roadmap 6.2): BCL shims + Burst kernels
 
 Roadmap [issues/0058](0058-roadmap-1m-entities-5us.md) 6.2 (§5.5 "One kernel
 source, two compilers"), clause 1 extension (FMA grep extended from source to
-Burst-generated assembly). Labels: `ai`, `area:core`, `kind:feat`.
-**Draft — numbering, README row and contract wording pending; v2.0 contract
-batch drafted unsent at [issues/0097](0097-*.md).**
+Burst-generated assembly). Labels: `ai`, `area:core`, `kind:feat`. The v2.0
+contract batch is drafted unsent at [issues/0097](0097-v12-batch-prepared-unsent.md)
+(send gate: the integrator folds 0036/0042/0051 first).
 
 ## Changes
 
@@ -55,7 +55,7 @@ batch drafted unsent at [issues/0097](0097-*.md).**
 | `throw new ArgumentException(...)` (guard style, string concat) | compiles under Burst 2.0 without error (compile-only probe) | guards as written are not blocked; Burst entry still takes pre-validated flat args |
 | `Math.Clamp` etc. on the .NET side | unchanged | — |
 
-## Tests (Sv.Tests 420 → 425; Sv.Unity.Tests 7; Sv.NorthStar 27)
+## Tests (Sv.Tests 420 → 425 in the worktree; 439 integrated after atoms 99/100/102; Sv.Unity.Tests 13; Sv.NorthStar 27)
 
 - `Shims_TzcntMatchesBitOperationsEverywhere` — 0..4096, all 2^k ±neighbors,
   all-ones, 100k xorshift values vs `BitOperations.TrailingZeroCount`.
@@ -78,10 +78,12 @@ batch drafted unsent at [issues/0097](0097-*.md).**
 Measured on the bus host: i9-14900K, .NET 10, Unity 6000.7.0b5 (owner
 decision: Unity 6.7, Burst the only hot-path compiler), Linux x64.
 
-- `dotnet build -c Release` — 0 warnings 0 errors; full battery
+- `dotnet build -c Release` — 0 warnings 0 errors; full battery in the worktree
   **425 / 7 / 27**; `-p:SV_CHECKED=true` build + retest **425 / 7 / 27**;
   `bench all` — *all scenarios ok* (intrinsics-uniform 33.0 µs/100k rows,
   statclamp 45.1 µs, enabled-runwalk 44.6 µs, ff1m p50 3.04 ms).
+  Integrated-main battery (this host, after the pick): `dotnet build sv.slnx`
+  0/0, **439 / 13 / 27**, SV_CHECKED **439**, bench `all scenarios ok`.
 - **Real Burst, not the facade fallback**: the batch harness
   (`tests/Sv.Burst/receipt/burst-receipt.log`) compiles
   `Kernels.RunProgram` via `BurstCompiler.CompileFunctionPointer`
@@ -131,3 +133,9 @@ decision: Unity 6.7, Burst the only hot-path compiler), Linux x64.
 - `FunctionPointer.IsCreatedByBurst` is gone in Burst 2.0 — "compiled by
   Burst" is evidenced by the disable-control differential + arena code
   content above, not an API flag.
+
+## Provenance
+
+`main@6723d60` + this atom, worktree `agent-101` (base atom 97); integrated
+onto main via clean cherry-pick after atoms 99/100/102 landed (no shared
+files). Bus checked before and after (inbox empty both checks).
