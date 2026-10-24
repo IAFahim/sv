@@ -358,7 +358,7 @@ public sealed class EagerModel
                 canonical.Add((entry.Kind, entry.Value, entry.Id));
             }
 
-            canonical.Sort(static (a, b) => a.Kind != b.Kind ? a.Kind.CompareTo(b.Kind) : a.Id.CompareTo(b.Id));
+            canonical.Sort(static (a, b) => a.Kind != b.Kind ? a.Kind.CompareTo(b.Kind) : BitConverter.SingleToUInt32Bits(a.Value).CompareTo(BitConverter.SingleToUInt32Bits(b.Value)));
 
             var key = ContentKey(canonical);
             var value = EagerOracle.CanonicalNaN(EagerOracle.Fold(bases[stat], canonical));

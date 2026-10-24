@@ -1620,8 +1620,9 @@ public sealed unsafe partial class Board
         {
             var entry = entries[i];
             var id = ids[i];
+            var bits = BitConverter.SingleToUInt32Bits(entry.Value);
             var j = i - 1;
-            while (j >= 0 && (entries[j].Kind > entry.Kind || (entries[j].Kind == entry.Kind && ids[j] > id)))
+            while (j >= 0 && (entries[j].Kind > entry.Kind || (entries[j].Kind == entry.Kind && BitConverter.SingleToUInt32Bits(entries[j].Value) > bits)))
             {
                 entries[j + 1] = entries[j];
                 ids[j + 1] = ids[j];

@@ -49,7 +49,7 @@ public unsafe class StatsTests
     }
 
     [Fact]
-    public void InsertionOrder_IsCanonical_AndChangesBits()
+    public void ModifierOrder_IsHistoryFree_ValuesAndSetsConverge()
     {
         using var board = Board.Create(Schema(), 4);
         var speed = board.Schema.Stat("move_speed");
@@ -68,9 +68,70 @@ public unsafe class StatsTests
 
         board.Recalculate();
 
-        Assert.Equal(9f, column[a]);
-        Assert.Equal(8f, column[b]);
-        Assert.NotEqual(Bits(column[a]), Bits(column[b]));
+        Assert.Equal(Bits(column[a]), Bits(column[b]));
+        Assert.Equal(2, board.SetCount);
+    }
+
+    [Fact]
+    public void FoldOrder_IsByValueBits_WithinAKind()
+    {
+        using var board = Board.Create(Schema(), 2);
+        var speed = board.Schema.Stat("move_speed");
+        var column = stackalloc float[2];
+        board.BindOutput(speed, column);
+        var slot = board.Acquire();
+        board.AddModifier(slot, speed, new Modifier(ModifierKind.Added, 1f));
+        board.AddModifier(slot, speed, new Modifier(ModifierKind.Added, -1e8f));
+        board.AddModifier(slot, speed, new Modifier(ModifierKind.Added, 1e8f));
+        board.Recalculate();
+
+        Assert.Equal(8f, column[slot]);
+    }
+
+    [Fact]
+    public void SameMultiset_RandomPermutations_AllSlotsConverge()
+    {
+        var rng = new Random(20261105);
+        float[] pool = { 0.5f, 3f, -7f, 1e8f, -1e8f, 1f, 0.1f, 12345.678f, -0.25f, 1e-8f };
+        using var board = Board.Create(Schema(), 16);
+        var speed = board.Schema.Stat("move_speed");
+        var column = stackalloc float[16];
+        board.BindOutput(speed, column);
+        var slots = new int[16];
+        var loadout = new (ModifierKind kind, float value)[6];
+        for (var i = 0; i < loadout.Length; i++)
+        {
+            loadout[i] = ((ModifierKind)rng.Next(0, 3), pool[rng.Next(pool.Length)]);
+        }
+
+        var order = new int[loadout.Length];
+        for (var slot = 0; slot < 16; slot++)
+        {
+            slots[slot] = board.Acquire();
+            for (var i = 0; i < order.Length; i++)
+            {
+                order[i] = i;
+            }
+
+            for (var i = order.Length - 1; i > 0; i--)
+            {
+                var j = rng.Next(i + 1);
+                (order[i], order[j]) = (order[j], order[i]);
+            }
+
+            for (var i = 0; i < order.Length; i++)
+            {
+                board.AddModifier(slots[slot], speed, new Modifier(loadout[order[i]].kind, loadout[order[i]].value));
+            }
+        }
+
+        board.Recalculate();
+        for (var slot = 1; slot < 16; slot++)
+        {
+            Assert.Equal(Bits(column[slots[0]]), Bits(column[slots[slot]]));
+        }
+
+        Assert.Equal(2, board.SetCount);
     }
 
     [Fact]
@@ -116,7 +177,7 @@ public unsafe class StatsTests
     }
 
     [Fact]
-    public void DifferentOrder_DistinctSets()
+    public void SameMultiset_AnyOrder_InternsToOneSet()
     {
         using var board = Board.Create(Schema(), 2);
         var speed = board.Schema.Stat("move_speed");
@@ -131,7 +192,7 @@ public unsafe class StatsTests
         board.AddModifier(b, speed, new Modifier(ModifierKind.Added, 1e8f));
         board.Recalculate();
 
-        Assert.Equal(3, board.SetCount);
+        Assert.Equal(2, board.SetCount);
         Assert.Equal(8f, column[a]);
         Assert.Equal(8f, column[b]);
     }
@@ -268,7 +329,7 @@ public unsafe class StatsTests
                 mirror.Add((kind, value, i));
             }
 
-            mirror.Sort((x, y) => x.kind != y.kind ? x.kind.CompareTo(y.kind) : x.order.CompareTo(y.order));
+            mirror.Sort((x, y) => x.kind != y.kind ? x.kind.CompareTo(y.kind) : BitConverter.SingleToUInt32Bits(x.value).CompareTo(BitConverter.SingleToUInt32Bits(y.value)));
             board.Recalculate();
 
             var expected = OracleFold(6f, mirror.Select(m => (m.kind, m.value)).ToList());
