@@ -155,8 +155,17 @@ public unsafe class BindingGenerationTests
 
         var handle = board.AddModifier(0, speed, new Modifier(ModifierKind.Multi, 1.5f));
         board.Recalculate();
-        var before = GC.GetAllocatedBytesForCurrentThread();
         long sink = 0;
+        for (var warm = 0; warm < 256; warm++)
+        {
+            var warmHandle = board.AddModifier(warm % 127, speed, new Modifier(ModifierKind.Added, warm % 5));
+            board.Recalculate();
+            sink += (int)board.Output(speed)[warm % 127];
+            board.RemoveModifier(warm % 127, speed, warmHandle);
+        }
+
+        GC.Collect();
+        var before = GC.GetAllocatedBytesForCurrentThread();
         for (var it = 0; it < 2000; it++)
         {
             board.AddModifier(it % 127, speed, new Modifier(ModifierKind.Added, it % 5));
