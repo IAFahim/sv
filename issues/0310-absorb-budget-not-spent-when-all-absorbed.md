@@ -1,6 +1,6 @@
 # 0310 compiled host does not spend an absorb budget when every hit of a target is absorbed
 
-Status: open
+Status: closed
 
 Found by T2 (`tests/Sv.Diff.Tests`, branch v3/t2-diff). Compiled kernels differ from the reference interpreter.
 
@@ -19,3 +19,4 @@ generator with absorb switched off passes 300 of 300. Receipts are written to `t
 Suspected cause: `src/Sv.Host/Frame.cs:160`, `rows = touched == 0ul ? 0ul : LaneScan.NonZero(...) & touched;`. `touched` is
 the Decide result (rows with a non-zero channel total). Issue 0190 item 3 says the host must fold `NonZero(delta)` without
 `& touched`, because an absorb spends its budget through the delta while every total is zero.
+Fixed 2026-11-13 (manager): absorb budget now folds via NonZero(delta) for chunks that hold records (Frame.cs Commit).

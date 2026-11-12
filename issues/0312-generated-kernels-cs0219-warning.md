@@ -1,6 +1,6 @@
 # 0312 generated kernels raise warning CS0219 (unused `effect`) for packs without a self-admit gate
 
-Status: open
+Status: closed
 
 Found by T2 (`tests/Sv.Diff.Tests`, `Generated_kernels_compile_without_warnings`): 243 of 680 generated packs. Kernel projects
 build with `TreatWarningsAsErrors` (as `tests/Sv.Kernels.Reference` does), so such a pack breaks the build.
@@ -11,3 +11,4 @@ Receipt: seed 101 (`PackGenerator.Make(101, new GeneratorOptions())`, full pack 
 
 Suspected cause: `src/Sv.Rules/Emit/Kernels.cs:404` writes `var effect = default(Effect);` unconditionally; it is read only when
 some case of `kernel.SelfAdmit` emits a rule.
+Fixed 2026-11-13 (manager): effect variable emitted only when a self-admit block exists (Kernels.cs).

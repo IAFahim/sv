@@ -290,7 +290,15 @@ namespace Sv.Pack
                     var kind = send.Kind;
                     if (kind == Scenario.Unset)
                     {
-                        var raw = send.Source == Scenario.Unset || kindLane < 0 ? 0 : host.Read(source, kindLane);
+                        var raw = 0;
+                        if (send.Source != Scenario.Unset && kindLane >= 0)
+                        {
+                            var origin = scenario.Entities[send.Source];
+                            raw = origin.Frame <= frame
+                                ? host.Read(source, kindLane)
+                                : pack.TemplateValues[origin.TemplateIndex][kindLane];
+                        }
+
                         kind = raw < 0 ? 0 : raw > 255 ? 255 : raw;
                     }
 

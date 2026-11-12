@@ -153,11 +153,12 @@ namespace Sv.Host
                 var scratch = context->Scratch + (long)index * context->ScratchInts;
                 var touched = context->Touched[index];
                 var statRows = context->StatRows[index];
+                var hasRecords = context->Start[chunk + 1] != context->Start[chunk];
                 var changed = 0ul;
                 for (var lane = 0; lane < deltaLanes; lane++)
                 {
                     var delta = scratch + (lane << Slot.RowBits);
-                    var rows = touched == 0ul ? 0ul : LaneScan.NonZero(context->Width, delta) & touched;
+                    var rows = hasRecords ? LaneScan.NonZero(context->Width, delta) : 0ul;
                     if (statRows != 0ul)
                     {
                         var floorStat = kernels.FloorStat(lane);

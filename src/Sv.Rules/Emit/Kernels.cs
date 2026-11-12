@@ -396,12 +396,29 @@ namespace Sv.Rules.Emit
             body.Close();
         }
 
+        static bool HasBlocks(List<GateChannel> channels, GateChannel any)
+        {
+            for (var c = 0; c < channels.Count; c++)
+            {
+                if (channels[c].Blocks.Count != 0)
+                {
+                    return true;
+                }
+            }
+
+            return any.Blocks.Count != 0;
+        }
+
         void WriteSelfAdmit()
         {
             body.Blank();
             body.Open("static int SelfAdmit(in WorldView world, ref ChunkView v, in DecideArgs a, int row, ulong self, int channel, int amount, ShapeTerm* terms)");
             body.Line("var state = default(GateState);");
-            body.Line("var effect = default(Effect);");
+            if (HasBlocks(kernel.SelfAdmit, kernel.SelfAdmitAny))
+            {
+                body.Line("var effect = default(Effect);");
+            }
+
             WriteSwitch(kernel.SelfAdmit, kernel.SelfAdmitAny, "effect");
             body.Open("if (state.Decided != 0 && state.Admit == 0)");
             body.Line("return 0;");
