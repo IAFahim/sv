@@ -2,8 +2,10 @@
     "name": "Sv.Unity",
     "rootNamespace": "Sv.Unity",
     "references": [
+        "Sv.Core",
         "Unity.Entities",
-        "Unity.Burst"
+        "Unity.Burst",
+        "Unity.Collections"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
