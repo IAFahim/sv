@@ -6,6 +6,7 @@ using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Jobs.LowLevel.Unsafe;
+using Unity.Mathematics;
 
 namespace Sv.Unity
 {
@@ -209,16 +210,30 @@ namespace Sv.Unity
                 }
             }
 
-            var changedLow = Fold.Word(in word, rows < 64 ? rows : 64);
+            var changedLow = 0ul;
             var changedHigh = 0ul;
-            if (rows > 64)
+            if (word.Floor == null && word.Ceiling != null)
             {
-                var high = word;
-                high.Value += 64;
-                high.Delta += 64;
-                high.Ceiling = word.Ceiling == null ? null : word.Ceiling + 64;
-                high.Floor = word.Floor == null ? null : word.Floor + 64;
-                changedHigh = Fold.Word(in high, rows - 64);
+                changedLow = FoldCeiling(word.Value, word.Delta, word.Ceiling, word.FloorConstant, rows < 64 ? rows : 64);
+                changedHigh = rows > 64 ? FoldCeiling(word.Value + 64, word.Delta + 64, word.Ceiling + 64, word.FloorConstant, rows - 64) : 0ul;
+            }
+            else if (word.Floor == null && word.Ceiling == null)
+            {
+                changedLow = FoldConstant(word.Value, word.Delta, word.FloorConstant, word.CeilingConstant, rows < 64 ? rows : 64);
+                changedHigh = rows > 64 ? FoldConstant(word.Value + 64, word.Delta + 64, word.FloorConstant, word.CeilingConstant, rows - 64) : 0ul;
+            }
+            else
+            {
+                changedLow = Fold.Word(in word, rows < 64 ? rows : 64);
+                if (rows > 64)
+                {
+                    var high = word;
+                    high.Value += 64;
+                    high.Delta += 64;
+                    high.Ceiling = word.Ceiling == null ? null : word.Ceiling + 64;
+                    high.Floor = word.Floor == null ? null : word.Floor + 64;
+                    changedHigh = Fold.Word(in high, rows - 64);
+                }
             }
 
             if (lane.HasCondition)
@@ -234,6 +249,36 @@ namespace Sv.Unity
             }
         }
 
+        static ulong FoldCeiling(int* value, int* delta, float* ceiling, int floor, int rows)
+        {
+            var changed = 0ul;
+            for (var row = 0; row < rows; row++)
+            {
+                var before = value[row];
+                var after = IntrinsicLaw.Step(before, delta[row], floor, Clamp.BoundOf(ceiling[row]));
+                value[row] = after;
+                delta[row] = 0;
+                changed |= (after != before ? 1ul : 0ul) << row;
+            }
+
+            return changed;
+        }
+
+        static ulong FoldConstant(int* value, int* delta, int floor, int ceiling, int rows)
+        {
+            var changed = 0ul;
+            for (var row = 0; row < rows; row++)
+            {
+                var before = value[row];
+                var after = IntrinsicLaw.Step(before, delta[row], floor, ceiling);
+                value[row] = after;
+                delta[row] = 0;
+                changed |= (after != before ? 1ul : 0ul) << row;
+            }
+
+            return changed;
+        }
+
         static void Conditions(ref SvLane lane, in ArchetypeChunk chunk, int* slots, in FoldWord word, ulong rowsToCheck, int offset)
         {
             if (rowsToCheck == 0)
@@ -245,7 +290,7 @@ namespace Sv.Unity
             var gate = lane.HasGate && chunk.Has(ref lane.Gate);
             while (rowsToCheck != 0)
             {
-                var row = offset + Bits.Tzcnt(rowsToCheck);
+                var row = offset + math.tzcnt(rowsToCheck);
                 rowsToCheck &= rowsToCheck - 1;
                 var whole = word.Ceiling == null ? word.CeilingConstant : Clamp.BoundOf(word.Ceiling[row]);
                 var value = word.Value[row];

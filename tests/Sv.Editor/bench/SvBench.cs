@@ -90,7 +90,10 @@ namespace SvBench
             var links = new SvLinkRegistry();
             links.Stat<BMaxHp>(maxHp);
             var hp = links.Intrinsic<BHp, BHpDelta>(schema.Intrinsic("hp"), SvBound.Of(0), SvBound.OfStat<BMaxHp>(), true);
-            links.Condition<BLow>(hp, 30, 100, 40, 100);
+            if (Arg("-svNoCondition", "0") != "1")
+            {
+                links.Condition<BLow>(hp, 30, 100, 40, 100);
+            }
             links.Intrinsic<BMana, BManaDelta>(schema.Intrinsic("mana"), SvBound.Of(0), SvBound.Of(1000));
             links.Link<BHpDelta>(1, LinkMode.Delta);
             links.Link<BHpDelta>(1, LinkMode.Delta, LinkScope.Remote);

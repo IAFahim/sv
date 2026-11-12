@@ -11,6 +11,6 @@ for rep in $(seq 1 $REPS); do
   t=bench-$rep
   "$U" -batchmode -nographics -quit -projectPath "$P" -job-worker-count 11 -logFile "$O/$t-compile.log" -executeMethod SvBench.SvBenchRun.Compile
   echo "$t compile exit=$? errorCS=$(grep -c 'error CS' "$O/$t-compile.log") warningCS=$(grep -c 'warning CS' "$O/$t-compile.log") errorBC=$(grep -c 'error BC' "$O/$t-compile.log")"
-  "$U" -batchmode -nographics -quit -projectPath "$P" -job-worker-count 11 -logFile "$O/$t.log" -executeMethod SvBench.SvBenchRun.Run -svOut "$O/$t.txt" -svTag "$t" -svShapes "$SHAPES"
+  "$U" -batchmode -nographics -quit -projectPath "$P" -job-worker-count 11 -logFile "$O/$t.log" -executeMethod SvBench.SvBenchRun.Run -svOut "$O/$t.txt" -svTag "$t" -svShapes "$SHAPES" $EXTRA
   echo "$t run exit=$? cells=$(grep -c '^cell' "$O/$t.txt") $(date +%T)"
 done
