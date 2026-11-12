@@ -1,6 +1,6 @@
 # Issue 0145 - Stat sheet asset: designer declares stats, intrinsics, conditions; code is generated
 
-Status: open
+Status: closed 2026-11-12 (merged into 0154). Premise of generated per-value structs is wrong; 0154 is the requirement.
 
 Labels: `ai`, `area:unity`, `area:authoring`, `open`.
 

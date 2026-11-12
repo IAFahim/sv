@@ -1,6 +1,6 @@
 # Issue 0153 - Anything on anyone: per-entity sets, immunity, targeted damage as data, reading and changing other entities
 
-Status: open
+Status: closed 2026-11-12 (withdrawn). Wrong premise: immunity is an ordinary number or bit mask, not a feature. Useful parts moved into 0154.
 
 Labels: `ai`, `area:unity`, `area:authoring`, `area:core`, `open`, `owner-question`.
 
