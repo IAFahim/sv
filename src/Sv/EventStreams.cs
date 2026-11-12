@@ -323,7 +323,7 @@ namespace Sv
                 return;
             }
 
-            var target = Round(peak + (peak >> 3));
+            var target = Round(Math.Max(4096, peak + (peak >> 3)));
             arenas[index] = (byte*)Memory.Realloc(arenas[index], (nuint)target);
             arenaCapacity[index] = target;
         }
