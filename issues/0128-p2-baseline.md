@@ -2,7 +2,7 @@
 
 Core agent, branch `proto2/core` from sv main `ac0e065`. Labels: `ai`, `area:test`.
 
-## Baseline (this Windows host, i9-14900K, SDK 10.0.401, before any change)
+## Baseline (this Windows host, AMD Ryzen 5 8500G 6C/12T, SDK 10.0.401, before any change)
 
 `dotnet build sv.slnx -c Release` then `dotnet test sv.slnx -c Release --no-build -p:NuGetAudit=false`:
 

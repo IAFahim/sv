@@ -115,7 +115,9 @@ namespace Sv.NorthStar2
         long tick;
         StageTimes times;
 
-        public FrameHost(int rows, int workers, int eventCapacity = EventDerive.DefaultCapacity, int crossRowPercent = -1)
+        readonly InboxLanes? lanes;
+
+        public FrameHost(int rows, int workers, int eventCapacity = EventDerive.DefaultCapacity, int crossRowPercent = -1, bool useLanes = false, int laneCells = InboxLanes.DefaultCells)
         {
             Rows = rows;
             words = (rows + 63) >> 6;
@@ -151,6 +153,7 @@ namespace Sv.NorthStar2
             low = (ulong*)NativeMemory.AllocZeroed((nuint)words, sizeof(ulong));
             edges = (ulong*)NativeMemory.AllocZeroed((nuint)words, sizeof(ulong));
             inbox = new InboxBuffer(capacity);
+            lanes = useLanes ? new InboxLanes(inbox, workers, laneCells) : null;
             streams = EventStreams.Create(1, 1 << 16);
             lowHp = streams.CreateChannel<LowHp>();
             dense = streams.CreateChannel<DenseEvent>();
@@ -448,6 +451,7 @@ namespace Sv.NorthStar2
         {
             var (start, count) = Partition(part);
             var cells = inbox.Pointer;
+            var lane = lanes == null ? null : lanes.Lane(part);
             var rows = random == null ? null : Order(count, random);
             for (var i = 0; i < count; i++)
             {
@@ -455,9 +459,22 @@ namespace Sv.NorthStar2
                 var amount = outgoing[row].Value;
                 if (amount != 0)
                 {
-                    Inbox.Send(cells, targets[row], amount);
+                    if (lane != null)
+                    {
+                        lane->Send(targets[row], amount);
+                    }
+                    else
+                    {
+                        Inbox.Send(cells, targets[row], amount);
+                    }
+
                     outgoing[row].Value = 0;
                 }
+            }
+
+            if (lane != null)
+            {
+                lane->Flush();
             }
         }
 
@@ -533,6 +550,7 @@ namespace Sv.NorthStar2
         {
             derive.Dispose();
             streams.Dispose();
+            lanes?.Dispose();
             inbox.Dispose();
             tlWorkers?.Dispose();
             kindStore.Dispose();

@@ -41,8 +41,22 @@ internal static unsafe class Frame1m
         var shapes = new[] { ("P1", 1 << 20, 1), ("P2", 1 << 18, 4), ("P3", 10_000, 150) };
         var writes = new[] { 1.0, 2.5, 4.0 };
         var crosses = new[] { 0, 10, 50 };
+        var onlyW = Environment.GetEnvironmentVariable("SV_FRAME_W");
+        if (!string.IsNullOrEmpty(onlyW))
+        {
+            writes = new[] { double.Parse(onlyW, System.Globalization.CultureInfo.InvariantCulture) };
+        }
+
+        var onlyCross = Environment.GetEnvironmentVariable("SV_FRAME_CROSS");
+        if (!string.IsNullOrEmpty(onlyCross))
+        {
+            crosses = Array.ConvertAll(onlyCross.Split(','), int.Parse);
+        }
+
+        var hot = Environment.GetEnvironmentVariable("SV_FRAME_HOT") == "1";
+        var lanes = Environment.GetEnvironmentVariable("SV_FRAME_LANES") == "1";
         var only = Environment.GetEnvironmentVariable("SV_FRAME_SHAPE");
-        Console.WriteLine($"frame1m  workers={workers} isa=v256:{Simd.Has256}/v128:{Simd.Has128} intrinsics=2 (hp bounded by sink stat, energy constant) kinds=sv stand-in (no tl) warm={WarmTicks} rounds={Rounds}x{TicksPerRound} first dropped, median of round means, 1 process per cell");
+        Console.WriteLine($"frame1m  workers={workers} isa=v256:{Simd.Has256}/v128:{Simd.Has128} intrinsics=2 (hp bounded by sink stat, energy constant) kinds=sv stand-in (no tl) cross-target={(hot ? "hot slot 0" : "hashed")} inbox={(lanes ? "lanes" : "atomic")} warm={WarmTicks} rounds={Rounds}x{TicksPerRound} first dropped, median of round means, 1 process per cell");
         Console.WriteLine("shape  W    cross  total ms | main  scatter  fold  kinds  derive  digest | statops/tick  edges/tick  alloc B/tick");
         foreach (var (name, rows, perRow) in shapes)
         {
@@ -55,7 +69,7 @@ internal static unsafe class Frame1m
             {
                 foreach (var cross in crosses)
                 {
-                    using var frame = new Frame(rows, perRow, w, cross, workers);
+                    using var frame = new Frame(rows, perRow, w, cross, workers, hot, lanes);
                     for (var t = 0; t < WarmTicks; t++)
                     {
                         frame.Tick();
@@ -147,8 +161,13 @@ internal static unsafe class Frame1m
         long tick;
         long edgeTotal;
 
-        public Frame(int rows, int perRow, double writesPerTimeline, int cross, int workers)
+        readonly bool hot;
+        readonly InboxLanes? hpLanes;
+        readonly InboxLanes? energyLanes;
+
+        public Frame(int rows, int perRow, double writesPerTimeline, int cross, int workers, bool hot, bool lanes)
         {
+            this.hot = hot;
             this.rows = rows;
             this.perRow = perRow;
             this.writesPerTimeline = writesPerTimeline;
@@ -182,6 +201,11 @@ internal static unsafe class Frame1m
             edges = (ulong*)NativeMemory.AllocZeroed((nuint)words, sizeof(ulong));
             hpInbox = new InboxBuffer(capacity);
             energyInbox = new InboxBuffer(capacity);
+            if (lanes)
+            {
+                hpLanes = new InboxLanes(hpInbox, workers);
+                energyLanes = new InboxLanes(energyInbox, workers);
+            }
             streams = EventStreams.Create(1, 1 << 20);
             channel = streams.CreateChannel<EdgeEvent>();
             dense = streams.CreateChannel<DenseEvent>();
@@ -361,6 +385,8 @@ internal static unsafe class Frame1m
             var (start, count) = Partition(part);
             var hpCells = hpInbox.Pointer;
             var energyCells = energyInbox.Pointer;
+            var hpLane = hpLanes == null ? null : hpLanes.Lane(part);
+            var energyLane = energyLanes == null ? null : energyLanes.Lane(part);
             var whole = (int)writesPerTimeline;
             var half = writesPerTimeline - whole > 0;
             var seed = (ulong)tick * 0xD1B54A32D192ED03ul;
@@ -384,8 +410,15 @@ internal static unsafe class Frame1m
                         var amount = (int)(bits % 7) - 3;
                         if (cross > 0 && (int)((bits >> 3) % 100) < cross)
                         {
-                            var target = (int)((bits >> 10) % (ulong)rows);
-                            Inbox.Send((w & 1) == 0 ? hpCells : energyCells, target, amount);
+                            var target = hot ? 0 : (int)((bits >> 10) % (ulong)rows);
+                            if (hpLane != null)
+                            {
+                                ((w & 1) == 0 ? hpLane : energyLane)->Send(target, amount);
+                            }
+                            else
+                            {
+                                Inbox.Send((w & 1) == 0 ? hpCells : energyCells, target, amount);
+                            }
                         }
                         else if ((w & 1) == 0)
                         {
@@ -400,6 +433,12 @@ internal static unsafe class Frame1m
 
                 hpDelta[row] += localHp;
                 energyDelta[row] += localEnergy;
+            }
+
+            if (hpLane != null)
+            {
+                hpLane->Flush();
+                energyLane->Flush();
             }
 
             partial[part] = (ulong)reads;
@@ -426,6 +465,8 @@ internal static unsafe class Frame1m
         {
             derive.Dispose();
             streams.Dispose();
+            hpLanes?.Dispose();
+            energyLanes?.Dispose();
             hpInbox.Dispose();
             energyInbox.Dispose();
             board.Dispose();
