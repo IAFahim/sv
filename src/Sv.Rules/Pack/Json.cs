@@ -475,7 +475,6 @@ namespace Sv.Rules
     public sealed class JsonWriter
     {
         readonly StringBuilder builder = new StringBuilder();
-        readonly Rows<bool> needsComma = new Rows<bool>();
         bool[] commaStack = new bool[16];
         int depth;
 
