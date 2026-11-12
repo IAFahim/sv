@@ -49,7 +49,7 @@ namespace SvV3Bench
 
         public int Forward(in WorldView world, int slot, int channel) => -1;
 
-        public ulong Decide(in WorldView world, int chunk, Effect* effects, int count, int* scratch, ref EffectWriter next)
+        public ulong Decide(in WorldView world, int chunk, int capacity, Effect* effects, int count, int* scratch, byte* records, ref EffectWriter next)
         {
             var touched = 0ul;
             var at = 0;
@@ -74,7 +74,7 @@ namespace SvV3Bench
 
         public ulong Events(in WorldView world, ref LaneWriter writer, int chunk, ulong recheck, int* scratch, ulong* edges) => 0ul;
 
-        public void EdgeEmits(in WorldView world, int chunk, ulong* edges, ref EffectWriter next)
+        public void EdgeEmits(in WorldView world, int chunk, int capacity, ulong* edges, int* scratch, ref EffectWriter next)
         {
         }
 
@@ -238,7 +238,7 @@ namespace SvV3Bench
             {
                 var chunk = canonical.Active[index];
                 var first = canonical.Start[chunk];
-                touched += Bits(kernels.Decide(view, chunk, canonical.Records + first, canonical.Start[chunk + 1] - first, scratch, ref *writer));
+                touched += Bits(kernels.Decide(view, chunk, 0, canonical.Records + first, canonical.Start[chunk + 1] - first, scratch, null, ref *writer));
             }
 
             return touched;

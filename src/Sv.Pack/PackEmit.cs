@@ -78,9 +78,9 @@ namespace Sv.Pack
             Line(text, "public int EventId(int ordinal) => Kernels.EventId(ordinal);");
             Line(text, "public bool Forwards(int template) => Kernels.Forwards(template);");
             Line(text, "public int Forward(in WorldView world, int slot, int channel) => Kernels.Forward(world, slot, channel);");
-            Line(text, "public ulong Decide(in WorldView world, int chunk, Effect* effects, int count, int* scratch, ref EffectWriter next) => Kernels.Decide(world, chunk, effects, count, scratch, ref next);");
+            Line(text, "public ulong Decide(in WorldView world, int chunk, int capacity, Effect* effects, int count, int* scratch, byte* records, ref EffectWriter next) => Kernels.Decide(world, chunk, capacity, effects, count, scratch, records, ref next);");
             Line(text, "public ulong Events(in WorldView world, ref LaneWriter writer, int chunk, ulong recheck, int* scratch, ulong* edges) => Kernels.Events(world, ref writer, chunk, recheck, scratch, edges);");
-            Line(text, "public void EdgeEmits(in WorldView world, int chunk, ulong* edges, ref EffectWriter next) => Kernels.EdgeEmits(world, chunk, edges, ref next);");
+            Line(text, "public void EdgeEmits(in WorldView world, int chunk, int capacity, ulong* edges, int* scratch, ref EffectWriter next) => Kernels.EdgeEmits(world, chunk, capacity, edges, scratch, ref next);");
             text.Append("    }\n");
             text.Append("}\n");
             return new EmittedFile(FileName, text.ToString());

@@ -28,11 +28,11 @@ namespace Sv.Host
 
         int Forward(in WorldView world, int slot, int channel);
 
-        ulong Decide(in WorldView world, int chunk, Effect* effects, int count, int* scratch, ref EffectWriter next);
+        ulong Decide(in WorldView world, int chunk, int capacity, Effect* effects, int count, int* scratch, byte* records, ref EffectWriter next);
 
         ulong Events(in WorldView world, ref LaneWriter writer, int chunk, ulong recheck, int* scratch, ulong* edges);
 
-        void EdgeEmits(in WorldView world, int chunk, ulong* edges, ref EffectWriter next);
+        void EdgeEmits(in WorldView world, int chunk, int capacity, ulong* edges, int* scratch, ref EffectWriter next);
     }
 
     public struct PackForward<TKernels> : IForward

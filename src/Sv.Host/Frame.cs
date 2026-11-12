@@ -39,8 +39,17 @@ namespace Sv.Host
     }
 
     [StructLayout(LayoutKind.Sequential)]
+    public unsafe struct RecordBuffer
+    {
+        public byte* Pointer;
+        public long Bytes;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
     public unsafe struct FrameContext
     {
+        public int Capacity;
+        public RecordBuffer* Buffers;
         public WorldView World;
         public SealView Seal;
         public Effect* Records;
@@ -70,6 +79,8 @@ namespace Sv.Host
         where TKernels : struct, IPackKernels
     {
         public const int DigestStride = 16;
+
+        public const int RecordScratchBytes = 32;
 
         public static void SealCount(void* state, int part)
         {
@@ -102,6 +113,7 @@ namespace Sv.Host
             WorkRange.Of(context->ActiveCount, part, context->Parts, out var from, out var to);
             var kernels = default(TKernels);
             var bytes = (nuint)context->ScratchInts * sizeof(int);
+            ref var buffer = ref context->Buffers[part];
             for (var index = from; index < to; index++)
             {
                 var chunk = context->Active[index];
@@ -109,9 +121,20 @@ namespace Sv.Host
                 Memory.Clear(scratch, bytes);
                 var first = context->Start[chunk];
                 var count = context->Start[chunk + 1] - first;
-                context->Touched[index] = count == 0
-                    ? 0ul
-                    : kernels.Decide(context->World, chunk, context->Records + first, count, scratch, ref context->NextWriters[part]);
+                if (count == 0)
+                {
+                    context->Touched[index] = 0ul;
+                    continue;
+                }
+
+                var need = (long)count * RecordScratchBytes;
+                if (need > buffer.Bytes)
+                {
+                    buffer.Pointer = (byte*)Memory.Realloc(buffer.Pointer, (nuint)need);
+                    buffer.Bytes = need;
+                }
+
+                context->Touched[index] = kernels.Decide(context->World, chunk, context->Capacity, context->Records + first, count, scratch, buffer.Pointer, ref context->NextWriters[part]);
             }
         }
 
@@ -173,7 +196,7 @@ namespace Sv.Host
             {
                 if (context->EdgeAny[index] != 0ul)
                 {
-                    kernels.EdgeEmits(context->World, context->Active[index], context->Edges + (long)index * context->EventCount, ref context->NextWriters[part]);
+                    kernels.EdgeEmits(context->World, context->Active[index], context->Capacity, context->Edges + (long)index * context->EventCount, context->Scratch + (long)index * context->ScratchInts, ref context->NextWriters[part]);
                 }
             }
         }
@@ -354,6 +377,8 @@ namespace Sv.Host
             denseCounts = (int*)Memory.AllocZeroed((nuint)Math.Max(1, eventCount), sizeof(int));
             context->DigestParts = (ulong*)Memory.AllocAligned((nuint)parts * Phases<TKernels>.DigestStride * sizeof(ulong), 128);
             context->Parts = parts;
+            context->Capacity = options.EntityCapacity;
+            context->Buffers = (RecordBuffer*)Memory.AllocZeroed((nuint)parts, (nuint)sizeof(RecordBuffer));
             context->EventCount = eventCount;
             context->ScratchInts = scratchInts;
             context->LaneWriters = laneWriters;
@@ -1010,6 +1035,12 @@ namespace Sv.Host
             Memory.Free(context->EdgeAny);
             Memory.Free(context->Edges);
             Memory.Free(context->Scratch);
+            for (var part = 0; part < parts; part++)
+            {
+                Memory.Free(context->Buffers[part].Pointer);
+            }
+
+            Memory.Free(context->Buffers);
             Memory.FreeAligned(context->DigestParts);
             Memory.Free(context);
             Memory.Free(laneWriters);
