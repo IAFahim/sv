@@ -256,6 +256,7 @@ namespace Sv
             log.TruncateTo(target);
             MarkAllKeyframesDirty();
             SweepUndo();
+            RefillSink();
         }
 
         internal void InvalidateUndo()
