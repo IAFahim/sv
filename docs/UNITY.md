@@ -55,8 +55,8 @@ tl's systems run between them. Limits: 4 dense intrinsics, 8 stat columns, stat 
 | main thread, before the group | `host.Enqueue(StatOp.Add(...))`, `host.Enqueue(StatOp.RemoveSource(...))` |
 | `SvBeginSystem` | expire, canonical Apply, Recalculate, scatter of changed stats, fold job |
 | tl systems | kinds read store columns and add into deltas |
-| a kind that writes another row | `SvInboxWriter inbox = host.InboxWriter(hp);` in the job, then `inbox.Send(targetSlot, amount)` |
-| `SvEndSystem` | derive events, digest every `host.DigestEvery` ticks |
+| a kind that writes another row | not possible from a tl kind (a kind writes its own row only). Write the amount to a row-local effect column, then run your own Burst job after tl's systems that reads that column and calls `inbox.Send(targetSlot, amount)` on an `SvInboxWriter` from `host.InboxWriter(hp)`. The adapter ships no such send pass yet |
+| `SvEndSystem` | derive events, digest every `host.DigestEvery` ticks (fixed at 8 in every build) |
 | main thread, after the group | `host.Events(hp)` (ascending slot), `host.Channel(hp).Dense`, `host.Digest` |
 
 Deltas written in tick t are folded at the start of tick t+1. The fold is
@@ -72,7 +72,18 @@ and `host.EdgeBit(hp, slot)` stays readable until the next fold.
   already carries the template's stat values and assigns slots with `Board.Spawn`.
 - Structural changes cost sv nothing: sv keeps slot-indexed arrays only, never chunk pointers.
 
-## 6. Rules that keep it exact
+## 6. Sharp edges (measured by the independent verifier, not yet fixed)
+
+- `host.Digest` is stale between digest ticks (it updates every `DigestEvery` = 8 ticks).
+- Rows that exist before `Install` never get their stats scattered: `Bind` them after `Install`.
+- `Unbind` does not remove `SvSlot` and does not cancel a `Bind` made earlier in the same frame.
+- Destroying an entity without calling `Unbind` leaks its board slot.
+- One `SvHost` per world.
+- `Enqueue` and the stat scatter throw above 65,536 StatOps or 65,536 stat writes per frame.
+- Adding and removing the same (slot, source) in one batch leaves the modifier live (remove sorts before add).
+- Real tl kinds meet the Burst fold job only in a 30-tick hook test; the NorthStar2 digest test runs the sv half managed through test glue. No performance number includes tl's generated kind job.
+
+## 7. Rules that keep it exact
 
 - Remote writes are integers through the inbox. Floats never cross rows.
 - Every delta writer goes through a read-write type handle (tl's generated job does). A write
