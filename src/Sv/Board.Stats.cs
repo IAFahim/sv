@@ -260,7 +260,7 @@ public sealed unsafe partial class Board
                     curveMin[at] = source.CurveMin;
                     curveStep[at] = source.CurveStep;
                     curveLength[at] = curve.Length;
-                    curveCeiling[at] = source.CurveMin + (curve.Length - 1) * source.CurveStep;
+                    curveCeiling[at] = StatMath.CurveCeiling(source.CurveMin, curve.Length, source.CurveStep);
                     for (var k = 0; k < curve.Length; k++)
                     {
                         curveData[dataAt + k] = curve[k];
@@ -1693,20 +1693,7 @@ public sealed unsafe partial class Board
         return count;
     }
 
-    int CurveBucket(int at, float value)
-    {
-        if (value <= curveMin[at])
-        {
-            return 0;
-        }
-
-        if (value >= curveCeiling[at])
-        {
-            return curveLength[at] - 1;
-        }
-
-        return (int)((value - curveMin[at]) / curveStep[at]);
-    }
+    int CurveBucket(int at, float value) => StatMath.CurveBucket(value, curveMin[at], curveCeiling[at], curveStep[at], curveLength[at]);
 
     int GatherInto(int slot, int stat, StatEntry* entries, long* entryIds)
     {
@@ -1718,7 +1705,7 @@ public sealed unsafe partial class Board
             var anchor = sourceAnchor[at];
             var sourceValue = SourceValue(anchor >= 0 ? anchor : slot, sourceStat[at]);
             var dataAt = sourceCurve[at];
-            entries[k] = new StatEntry(ModifierKind.Added, dataAt < 0 ? sourceCoefficient[at] * sourceValue : curveData[dataAt + CurveBucket(at, sourceValue)]);
+            entries[k] = new StatEntry(ModifierKind.Added, dataAt < 0 ? StatMath.Derived(sourceCoefficient[at], sourceValue) : curveData[dataAt + CurveBucket(at, sourceValue)]);
             entryIds[k] = long.MinValue + k;
         }
 
@@ -1865,45 +1852,7 @@ public sealed unsafe partial class Board
         return float.IsNaN(value) ? Bits.ToSingle(0x7FC00000u) : value;
     }
 
-    internal static float Fold(float @base, StatEntry* entries, int count)
-    {
-        var value = @base;
-        var additive = 1f;
-        for (var i = 0; i < count; i++)
-        {
-            if (entries[i].Kind == ModifierKind.Added)
-            {
-                value = value + entries[i].Value;
-            }
-        }
-
-        for (var i = 0; i < count; i++)
-        {
-            if (entries[i].Kind == ModifierKind.Additive)
-            {
-                additive = additive + entries[i].Value;
-            }
-        }
-
-        value = value * additive;
-        for (var i = 0; i < count; i++)
-        {
-            if (entries[i].Kind == ModifierKind.Multi)
-            {
-                value = value * (1f + entries[i].Value);
-            }
-        }
-
-        for (var i = 0; i < count; i++)
-        {
-            if (entries[i].Kind == ModifierKind.Cap)
-            {
-                value = value > entries[i].Value ? entries[i].Value : value;
-            }
-        }
-
-        return value;
-    }
+    internal static float Fold(float @base, StatEntry* entries, int count) => StatMath.Fold(@base, entries, count);
 
     public float Stat(int slot, StatId stat)
     {
