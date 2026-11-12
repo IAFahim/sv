@@ -50,6 +50,8 @@ namespace Sv
     {
         public const int DefaultCapacity = 16384;
 
+        public const int MaxCapacity = 1 << 24;
+
         readonly EdgeRecord* records;
 
         readonly EdgeRecord* scratch;
@@ -62,9 +64,9 @@ namespace Sv
 
         public EventDerive(ushort channel, int capacity = DefaultCapacity)
         {
-            if (capacity < 1)
+            if (capacity < 1 || capacity > MaxCapacity)
             {
-                throw new ArgumentOutOfRangeException(nameof(capacity), "sv: event capacity must be >= 1");
+                throw new ArgumentOutOfRangeException(nameof(capacity), $"sv: event capacity per channel must be in [1, {MaxCapacity}], got {capacity}");
             }
 
             Channel = channel;
