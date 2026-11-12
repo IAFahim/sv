@@ -47,21 +47,32 @@ namespace Sv.Unity
         public ComponentType Type;
     }
 
+    public sealed class SvSendSpec
+    {
+        public int Intrinsic;
+        public ComponentType Effect;
+        public ComponentType Target;
+    }
+
     public sealed class SvLinkRegistry
     {
         public const int MaxIntrinsics = 4;
         public const int MaxStats = 8;
         public const int MaxStatIndex = 64;
+        public const int MaxSends = 4;
 
         readonly List<ColumnDef> columns = new List<ColumnDef>();
         readonly List<Link> links = new List<Link>();
         readonly Dictionary<TypeIndex, ushort> columnOf = new Dictionary<TypeIndex, ushort>();
         readonly List<SvIntrinsicSpec> intrinsics = new List<SvIntrinsicSpec>();
         readonly List<SvStatSpec> stats = new List<SvStatSpec>();
+        readonly List<SvSendSpec> sends = new List<SvSendSpec>();
 
         public IReadOnlyList<SvIntrinsicSpec> Intrinsics => intrinsics;
 
         public IReadOnlyList<SvStatSpec> Stats => stats;
+
+        public IReadOnlyList<SvSendSpec> Sends => sends;
 
         public ReadOnlySpan<ColumnDef> Columns => columns.ToArray();
 
@@ -119,6 +130,25 @@ namespace Sv.Unity
             spec.HasCondition = true;
             spec.Condition = new SvConditionSpec { Gate = ComponentType.ReadWrite<TGate>(), HasGate = true, EnterNumerator = enterNumerator, EnterDenominator = enterDenominator, StayNumerator = stayNumerator, StayDenominator = stayDenominator, Capacity = capacity };
             return Add(ComponentType.ReadWrite<TGate>(), ColumnRole.Condition, spec.Column, spec.Column);
+        }
+
+        public void Send<TEffect, TTarget>(int intrinsic)
+            where TEffect : unmanaged, IComponentData
+            where TTarget : unmanaged, IComponentData
+        {
+            Require4<TEffect>();
+            Require4<TTarget>();
+            if (intrinsic < 0 || intrinsic >= intrinsics.Count || !intrinsics[intrinsic].Remote)
+            {
+                throw new ArgumentException($"sv.unity: send pass {typeof(TEffect).FullName} needs an intrinsic registered with remote: true");
+            }
+
+            if (sends.Count == MaxSends)
+            {
+                throw new InvalidOperationException($"sv.unity: more than {MaxSends} send passes");
+            }
+
+            sends.Add(new SvSendSpec { Intrinsic = intrinsic, Effect = ComponentType.ReadWrite<TEffect>(), Target = ComponentType.ReadOnly<TTarget>() });
         }
 
         public void Link<TColumn>(ushort kind, LinkMode mode, LinkScope scope = LinkScope.Self) where TColumn : unmanaged, IComponentData

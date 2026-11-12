@@ -6,4 +6,9 @@ namespace Sv.Unity
     {
         public int Slot;
     }
+
+    public struct SvSlotCleanup : ICleanupComponentData
+    {
+        public int Slot;
+    }
 }

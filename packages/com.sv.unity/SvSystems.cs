@@ -13,6 +13,7 @@ namespace Sv.Unity
         public long Fold;
         public long Derive;
         public long Digest;
+        public long Send;
     }
 
     [DisableAutoCreation]
@@ -25,6 +26,8 @@ namespace Sv.Unity
         SvFoldJob fold;
         SvLaneResetJob reset;
         ComponentLookup<SvSlot> slots;
+        ComponentLookup<SvSlotCleanup> cleanups;
+        EntityQuery husks;
         int stats;
         public bool Split;
         public SvStageTimes Times;
@@ -65,6 +68,8 @@ namespace Sv.Unity
             fold.L3 = SvLanes.Build(ref state, sv, 3, spare, true);
             reset = new SvLaneResetJob { Sent0 = sv.SentPtr(0), Sent1 = sv.SentPtr(1), Sent2 = sv.SentPtr(2), Sent3 = sv.SentPtr(3) };
             slots = state.GetComponentLookup<SvSlot>(false);
+            cleanups = state.GetComponentLookup<SvSlotCleanup>(false);
+            husks = new EntityQueryBuilder(Allocator.Temp).WithAll<SvSlotCleanup>().WithAbsent<SvSlot>().WithOptions(EntityQueryOptions.IgnoreComponentEnabledState).Build(ref state);
         }
 
         public void OnUpdate(ref SystemState state)
@@ -72,18 +77,12 @@ namespace Sv.Unity
             state.Dependency.Complete();
             var sv = SvHost.From(host);
             var t0 = SvClock.Now;
-            if (sv.PendingEntities.Length > 0)
-            {
-                slots.Update(ref state);
-                new SvSlotWriteJob { Slots = slots, Entities = sv.PendingEntities.AsArray(), Assigned = sv.PendingSlots, SlotEntity = sv.SlotEntity }.Run();
-                sv.PendingEntities.Clear();
-            }
-
+            Rows(ref state, sv);
             sv.Sparse();
             var t1 = SvClock.Now;
-            UpdateScatter(ref state);
-            if (*sv.WriteCount > 0)
+            while (sv.TakeWrites() > 0)
             {
+                UpdateScatter(ref state);
                 scatter.Run();
             }
 
@@ -113,6 +112,61 @@ namespace Sv.Unity
             Times.Fold = t3 - t2;
         }
 
+        void Rows(ref SystemState state, SvHost sv)
+        {
+            var manager = state.EntityManager;
+            if (sv.PendingRemovals.Length > 0)
+            {
+                for (var i = sv.PendingRemovals.Length - 1; i >= 0; i--)
+                {
+                    if (!manager.Exists(sv.PendingRemovals[i]))
+                    {
+                        sv.PendingRemovals.RemoveAtSwapBack(i);
+                    }
+                }
+
+                manager.RemoveComponent(sv.PendingRemovals.AsArray(), new ComponentTypeSet(ComponentType.ReadWrite<SvSlot>(), ComponentType.ReadWrite<SvSlotCleanup>()));
+                sv.PendingRemovals.Clear();
+            }
+
+            if (!husks.IsEmptyIgnoreFilter)
+            {
+                using (var entities = husks.ToEntityArray(Allocator.Temp))
+                using (var dead = husks.ToComponentDataArray<SvSlotCleanup>(Allocator.Temp))
+                {
+                    for (var i = 0; i < entities.Length; i++)
+                    {
+                        var slot = dead[i].Slot;
+                        if (slot >= 0 && slot < sv.Capacity && sv.SlotEntity[slot] == entities[i])
+                        {
+                            sv.Free(slot);
+                        }
+                    }
+                }
+
+                manager.RemoveComponent<SvSlotCleanup>(husks);
+            }
+
+            if (sv.PendingEntities.Length == 0)
+            {
+                return;
+            }
+
+            for (var i = sv.PendingEntities.Length - 1; i >= 0; i--)
+            {
+                if (!manager.Exists(sv.PendingEntities[i]))
+                {
+                    sv.DropPending(i);
+                }
+            }
+
+            manager.AddComponent(sv.PendingEntities.AsArray(), new ComponentTypeSet(ComponentType.ReadWrite<SvSlot>(), ComponentType.ReadWrite<SvSlotCleanup>()));
+            slots.Update(ref state);
+            cleanups.Update(ref state);
+            new SvSlotWriteJob { Slots = slots, Cleanups = cleanups, Entities = sv.PendingEntities.AsArray(), Assigned = sv.PendingSlots, SlotEntity = sv.SlotEntity }.Run();
+            sv.ClearPending();
+        }
+
         void UpdateScatter(ref SystemState state)
         {
             scatter.S0.Update(ref state);
@@ -134,6 +188,11 @@ namespace Sv.Unity
         IntPtr host;
         EntityQuery query;
         SvDigestJob digest;
+        SvSendJob send0;
+        SvSendJob send1;
+        SvSendJob send2;
+        SvSendJob send3;
+        int sends;
         public SvStageTimes Times;
 
         public void OnCreate(ref SystemState state)
@@ -147,11 +206,54 @@ namespace Sv.Unity
             digest.L1 = SvLanes.Build(ref state, sv, 1, spare, false);
             digest.L2 = SvLanes.Build(ref state, sv, 2, spare, false);
             digest.L3 = SvLanes.Build(ref state, sv, 3, spare, false);
+            sends = sv.Links.Sends.Count;
+            send0 = BuildSend(ref state, sv, 0, spare);
+            send1 = BuildSend(ref state, sv, 1, spare);
+            send2 = BuildSend(ref state, sv, 2, spare);
+            send3 = BuildSend(ref state, sv, 3, spare);
+        }
+
+        static SvSendJob BuildSend(ref SystemState state, SvHost sv, int index, DynamicComponentTypeHandle spare)
+        {
+            if (index >= sv.Links.Sends.Count)
+            {
+                return new SvSendJob { Effect = spare, Target = spare };
+            }
+
+            var spec = sv.Links.Sends[index];
+            return new SvSendJob
+            {
+                Effect = state.GetDynamicComponentTypeHandle(spec.Effect),
+                Target = state.GetDynamicComponentTypeHandle(spec.Target),
+                Inbox = sv.InboxWriter(spec.Intrinsic),
+                Capacity = sv.Capacity,
+            };
+        }
+
+        JobHandle Send(ref SvSendJob job, ref SystemState state, SvHost sv, JobHandle after)
+        {
+            job.Effect.Update(ref state);
+            job.Target.Update(ref state);
+            job.LastVersion = state.LastSystemVersion;
+            job.Filter = sv.Filter;
+            return job.ScheduleParallel(query, after);
         }
 
         public void OnUpdate(ref SystemState state)
         {
             var sv = SvHost.From(host);
+            var ts = SvClock.Now;
+            if (sends > 0)
+            {
+                var sent = JobHandle.CombineDependencies(state.Dependency, sv.FoldHandle);
+                sent = Send(ref send0, ref state, sv, sent);
+                if (sends > 1) sent = Send(ref send1, ref state, sv, sent);
+                if (sends > 2) sent = Send(ref send2, ref state, sv, sent);
+                if (sends > 3) sent = Send(ref send3, ref state, sv, sent);
+                sent.Complete();
+                state.Dependency = sent;
+            }
+
             var t0 = SvClock.Now;
             var derive = default(JobHandle);
             for (var k = 0; k < sv.Links.Intrinsics.Count; k++)
@@ -195,11 +297,13 @@ namespace Sv.Unity
 
                     sv.CellDigestValue = cells;
                     sv.Digest = sv.Board.Digest + cells;
+                    sv.DigestTick = sv.Tick;
                 }
             }
 
             var t2 = SvClock.Now;
             sv.Tick++;
+            Times.Send = t0 - ts;
             Times.Derive = t1 - t0;
             Times.Digest = t2 - t1;
         }

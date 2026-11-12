@@ -102,7 +102,7 @@ namespace SvBench
             var setup = Stopwatch.StartNew();
             var host = SvHost.Install(world, board, links, 1 << 16, 1 << 16);
             var manager = world.EntityManager;
-            var archetype = manager.CreateArchetype(typeof(SvSlot), typeof(BHp), typeof(BHpDelta), typeof(BMaxHp), typeof(BMana), typeof(BManaDelta), typeof(BLow), typeof(BFiller));
+            var archetype = manager.CreateArchetype(typeof(SvSlot), typeof(SvSlotCleanup), typeof(BHp), typeof(BHpDelta), typeof(BMaxHp), typeof(BMana), typeof(BManaDelta), typeof(BLow), typeof(BFiller));
             var entities = new NativeArray<Entity>(rows, Allocator.Persistent);
             manager.CreateEntity(archetype, entities);
             var query = manager.CreateEntityQuery(typeof(SvSlot));
