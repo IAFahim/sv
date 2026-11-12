@@ -1297,6 +1297,7 @@ public sealed unsafe partial class Board
 
     internal void ClearChangedMasks()
     {
+        ResetSink();
         for (var stat = 0; stat < statCount; stat++)
         {
             var @base = stat * LiveWordCount;

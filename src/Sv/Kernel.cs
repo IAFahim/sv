@@ -9,7 +9,7 @@ namespace Sv
 /// <see cref="Run(Column{int}, Window, Delta, Bounds, Column{int})"/> is the one verb over the
 /// vocabulary; the clause-5 <c>Run*</c> names survive as aliases.
 /// </summary>
-public static unsafe class Kernel
+public static unsafe partial class Kernel
 {
     /// <summary>
     /// The one kernel verb: adds <paramref name="delta"/> to every row of <paramref name="window"/> inside

@@ -86,6 +86,8 @@ internal static class Program
         failures += Renumber1m.Run(scenario, ms);
         failures += WheelExpiry.Run(scenario, ms);
         failures += DayToDay.Run(scenario, ms);
+        failures += Fold1m.Run(scenario, ms);
+        failures += Statop10k.Run(scenario, ms);
         if (!Markdown)
         {
             Console.WriteLine(failures == 0 ? "all scenarios ok" : $"{failures} scenario(s) failed");
