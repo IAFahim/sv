@@ -1,5 +1,7 @@
 # Issue 0141 - U1: cross-row send pass in the adapter
 
+Status: closed 2026-11-12. Verified by an independent fresh clone of proto2/int at 4fcd3e3 (logs verify2-out). Remaining items live in 0149, 0150, 0151.
+
 `SvLinkRegistry.Send<TEffect, TTarget>(intrinsic)` registers a send pass (max 4) over two 4-byte int
 columns: a row-local effect amount and a target slot. `SvEndSystem` runs it first, after tl's systems:
 `SvSendJob` (Burst, parallel `IJobChunk`, skipped on chunks whose effect column did not change) sends

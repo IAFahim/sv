@@ -85,7 +85,7 @@ and `host.EdgeBit(hp, slot)` stays readable until the next fold.
 ## 6. Sharp edges (what is still true)
 
 - Adding and removing the same (slot, source) in one batch leaves the modifier live (remove sorts before add).
-- All sends to one slot serialize (about 10 ns each, `Interlocked.Add`); the per-worker fallback is core work (C3).
+- All sends to one slot serialize (about 10 ns each, `Interlocked.Add`); the core `InboxLanes` fallback exists but the adapter's send pass does not use it yet (issue 0151). `digestEvery: 0` turns the digest off; the StatOp queue grows with managed memory when `opCapacity` is exceeded, so size it for the busiest frame.
 - Above the channel capacity (`Condition(..., capacity)`) only one Dense record; the edge bits stay readable until the next fold.
 - `host.Digest` is the value of tick `host.DigestTick`; compare digests only on ticks where `DigestTick == Tick - 1`.
 - `Unbind`, `Bind` and `Enqueue` are main-thread calls between frames. Structural changes for new, unbound and

@@ -1,5 +1,7 @@
 # Issue 0116 - V2: the intrinsic fold (law, kernel, conditions, cell digest, inbox)
 
+Status: closed 2026-11-12. Verified by an independent fresh clone of proto2/int at 4fcd3e3 (logs verify2-out). Remaining items live in 0149, 0150, 0151.
+
 Plan `_work/plan-sv.md` SV-Q1 / SV-Q7 / SV-Q10, step V2 plus the .NET half of V8
 (clause 19 of `contract/CONTRACT-v2.1.0.md`). Labels: `ai`, `area:core`, `kind:feat`.
 

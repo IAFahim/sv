@@ -1,5 +1,7 @@
 # Issue 0145 - Stat sheet asset: designer declares stats, intrinsics, conditions; code is generated
 
+Status: open
+
 Labels: `ai`, `area:unity`, `area:authoring`, `open`.
 
 ## Problem

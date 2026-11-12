@@ -1,5 +1,7 @@
 # Issue 0131 - Event cap per channel at host build (default 16,384), bounded and tested
 
+Status: closed 2026-11-12. Verified by an independent fresh clone of proto2/int at 4fcd3e3 (logs verify2-out). Remaining items live in 0149, 0150, 0151.
+
 Core agent, branch `proto2/core`. Labels: `ai`, `area:core`.
 
 State found: phase 1 (issue 0121) already set the cap per `EventDerive` (one per channel) at

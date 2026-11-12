@@ -1,5 +1,7 @@
 # Issue 0142 - U3 (digest half) + U1 twin: NorthStar2 through SvHost with tl's generated Burst kind jobs
 
+Status: closed 2026-11-12. Verified by an independent fresh clone of proto2/int at 4fcd3e3 (logs verify2-out). Remaining items live in 0149, 0150, 0151.
+
 `Tests/Tl/SvNorthStar2AdapterTests.cs` replaces the "real tl kinds only in a 30-tick hook test" gap.
 The sv half is now the adapter itself, no managed glue: `SvBeginSystem` (scatter + Burst fold + condition
 lane 3/10 enter, 4/10 stay), tl.unity's systems (`TlSceneRun.AddSystems`: kind tick + generated

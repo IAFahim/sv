@@ -1,5 +1,7 @@
 # Issue 0115 - V0 probes (c, d, e, g, h): Unity 7 facts for plan-sv
 
+Status: closed 2026-11-12. Verified by an independent fresh clone of proto2/int at 4fcd3e3 (logs verify2-out). Remaining items live in 0149, 0150, 0151.
+
 Agent C (sv-unity), branch `proto/c-unity` from sv main a0963c8. Probes only, no engine change.
 
 ## Settings (every Unity number)

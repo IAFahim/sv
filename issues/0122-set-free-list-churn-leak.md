@@ -1,5 +1,7 @@
 # Issue 0122 - Set table never reused freed sets under steady churn (pre-existing leak)
 
+Status: closed 2026-11-12. Verified by an independent fresh clone of proto2/int at 4fcd3e3 (logs verify2-out). Remaining items live in 0149, 0150, 0151.
+
 Agent D, branch `proto/d-frame`. Reported by agent C (repro `c-out/repro`). Labels: `ai`, `area:core`, `kind:fix`.
 
 ## Findings

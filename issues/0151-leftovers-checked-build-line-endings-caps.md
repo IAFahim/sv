@@ -1,12 +1,13 @@
 # Issue 0151 - Small leftovers
 
+Status: open
+
 Labels: `ai`, `area:core`, `open`.
 
 1. **SV_CHECKED test (also in 0134):** `BindingGenerationTests.ExternalBind_Invalidate_Recalculate_CheckedThrows_ReleaseParks`
    fails under `-p:DefineConstants=SV_CHECKED` on main `ac0e065`: expects a throw, the binding parks. Owner decision: the
    checked contract is "park" (edit the test, needs approval) or "throw" (fix src).
-2. **SHA256SUMS and line endings:** `packages/com.sv.core/SHA256SUMS` matches a Windows CRLF checkout; a Linux checkout fails
-   `eng/unity-sync.sh check`. Fix: `.gitattributes` for `packages/com.sv.core` with `eol=lf` or `-text`, regenerate sums.
+2. **SHA256SUMS and line endings (fixed 2026-11-12):** `.gitattributes` pins LF for `src/Sv`, `packages/com.sv.core` and `eng/*.sh`; sums regenerated from LF files; `eng/unity-sync.sh check "$PWD/packages/com.sv.core"` passes. Needs the absolute path.
 3. **Schema-level event cap:** the cap is per host at build (default 16,384, max 1<<24). A schema-level cap changes
    `Schema.ContentHash` and so the pinned digests; not done.
 4. **Debug digest every tick:** `DigestCadence.Default` and `Install(..., digestEvery)` exist; the default in a Unity build is

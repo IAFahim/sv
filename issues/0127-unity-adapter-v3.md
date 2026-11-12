@@ -1,5 +1,7 @@
 # Issue 0127 - V6-V9 in Unity: adapter v3 (link registry, scatter, fold, derive, digest, frame systems)
 
+Status: closed 2026-11-12. Verified by an independent fresh clone of proto2/int at 4fcd3e3 (logs verify2-out). Remaining items live in 0149, 0150, 0151.
+
 Agent C, branch `proto/c-unity` (merged `proto/int` 71e30f7). Plan steps V6, V7 (Unity half), V8, V9.
 
 ## What changed

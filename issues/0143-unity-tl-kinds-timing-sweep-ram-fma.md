@@ -1,5 +1,7 @@
 # Issue 0143 - U3 timing + U4: tl's generated kind jobs at 1M rows, worker sweep, P2/P3, RAM, FMA
 
+Status: closed 2026-11-12. Verified by an independent fresh clone of proto2/int at 4fcd3e3 (logs verify2-out). Remaining items live in 0149, 0150, 0151.
+
 Harness: `Tests/Tl/SvTlBench.cs` (`-executeMethod Sv.Unity.TlTests.SvTlBench.Run`), script
 `tests/Sv.Editor/bench/run-bench-p2.sh`, raw lines in `tests/Sv.Editor/bench/receipt-p2/`.
 Settings: Unity 7000.0.0a16 batch, CoreCLR 10.0.10, Burst on, safety checks off, job debugger off, leak

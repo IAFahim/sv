@@ -1,5 +1,7 @@
 # Issue 0118 - V3: link table, 24-byte StatOp batch, chunked-host sink
 
+Status: closed 2026-11-12. Verified by an independent fresh clone of proto2/int at 4fcd3e3 (logs verify2-out). Remaining items live in 0149, 0150, 0151.
+
 Plan `_work/plan-sv.md` SV-Q6, step V3 (clauses 4, 20 of `contract/CONTRACT-v2.1.0.md`).
 Labels: `ai`, `area:core`, `kind:feat`.
 

@@ -1,5 +1,7 @@
 # Issue 0149 - tl's own kind job is over the frame budget at 1M rows (owner decision, tl side)
 
+Status: open
+
 Labels: `ai`, `area:tl`, `open`, `owner-decision`.
 
 ## Finding (issue 0143, Unity 7000.0.0a16, 1M rows, W 2.5, 0 percent cross-row, Burst on, safety off, 3 fresh processes)

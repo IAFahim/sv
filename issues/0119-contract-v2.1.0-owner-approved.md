@@ -1,5 +1,7 @@
 # Issue 0119 - Contract v2.1.0 vendored (owner-approved, bus unreachable)
 
+Status: closed 2026-11-12. Verified by an independent fresh clone of proto2/int at 4fcd3e3 (logs verify2-out). Remaining items live in 0149, 0150, 0151.
+
 Plan `_work/plan-sv.md` section 5, steps A0 and A1. Labels: `ai`, `area:contract`.
 
 ## Changes

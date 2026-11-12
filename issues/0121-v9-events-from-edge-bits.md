@@ -1,5 +1,7 @@
 # Issue 0121 - V9: events derived from edge bits, per-channel cap, Dense record
 
+Status: closed 2026-11-12. Verified by an independent fresh clone of proto2/int at 4fcd3e3 (logs verify2-out). Remaining items live in 0149, 0150, 0151.
+
 Agent D, branch `proto/d-frame`. Plan SV-Q7 / step V9, clause 17 of contract v2.1.0. Labels: `ai`, `area:core`.
 
 ## Change: `src/Sv/EventStreams.Derive.cs` (new, portable, C# 9, no `delegate*`)

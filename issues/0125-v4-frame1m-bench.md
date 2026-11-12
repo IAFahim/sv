@@ -1,5 +1,7 @@
 # Issue 0125 - V4: frame1m bench (P1, P2, P3 x W x cross-row, stage split)
 
+Status: closed 2026-11-12. Verified by an independent fresh clone of proto2/int at 4fcd3e3 (logs verify2-out). Remaining items live in 0149, 0150, 0151.
+
 Agent D, branch `proto/d-frame`. Plan step V4 measurement. Labels: `ai`, `area:bench`.
 
 `benchmarks/Sv.Bench/Frame1mBench.cs` (`dotnet Sv.Bench.dll frame1m`, `SV_FRAME_WORKERS`, `SV_FRAME_SHAPE`).

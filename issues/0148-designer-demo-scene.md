@@ -1,5 +1,7 @@
 # Issue 0148 - Designer-facing demo: Timeline window clips and a scene a designer can edit without code
 
+Status: open
+
 Labels: `ai`, `area:unity`, `area:authoring`, `open`.
 
 ## Problem

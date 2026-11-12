@@ -1,5 +1,7 @@
 # Issue 0124 - Event arena could shrink to 0 B and hang the next append (pre-existing)
 
+Status: closed 2026-11-12. Verified by an independent fresh clone of proto2/int at 4fcd3e3 (logs verify2-out). Remaining items live in 0149, 0150, 0151.
+
 Agent D, branch `proto/d-frame`. Found by the derive bench. Labels: `ai`, `area:core`, `kind:fix`.
 
 `EventStreams.ShrinkArena` shrinks a writer arena above 4,096 B to `Round(peak + peak/8)`. A writer

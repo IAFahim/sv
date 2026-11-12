@@ -1,5 +1,7 @@
 # Issue 0123 - V4: NorthStar2, the frame of plan 2.4 on .NET against tl 4.0
 
+Status: closed 2026-11-12. Verified by an independent fresh clone of proto2/int at 4fcd3e3 (logs verify2-out). Remaining items live in 0149, 0150, 0151.
+
 Agent D, branch `proto/d-frame`. Plan step V4 (clauses 7, 13, 17, 19, 20). Labels: `ai`, `area:test`.
 
 ## Consuming tl (decision, smallest choice)

@@ -1,5 +1,7 @@
 # Issue 0134 - docs/PRODUCTION-CHECKLIST.md; USING-WITH-TL limits refreshed
 
+Status: closed 2026-11-12. Verified by an independent fresh clone of proto2/int at 4fcd3e3 (logs verify2-out). Remaining items live in 0149, 0150, 0151.
+
 Core agent, branch `proto2/core`. Labels: `ai`, `area:docs`.
 
 - New `docs/PRODUCTION-CHECKLIST.md` (one page): what to enable for a real tl project test, measured

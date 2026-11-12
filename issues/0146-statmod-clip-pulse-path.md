@@ -1,5 +1,7 @@
 # Issue 0146 - Modifier clips: pulse at clip Start/End becomes a StatOp inside Burst (plan mode M)
 
+Status: open
+
 Labels: `ai`, `area:unity`, `area:core`, `open`, `plan-gap`.
 
 ## Problem

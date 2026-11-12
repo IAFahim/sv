@@ -1,5 +1,7 @@
 # Issue 0147 - Reactions: an sv event starts a tl timeline, declared as data
 
+Status: open
+
 Labels: `ai`, `area:unity`, `area:authoring`, `open`.
 
 ## Problem

@@ -1,5 +1,7 @@
 # Issue 0120 - Sink: fill existing rows on bind, rewind on undo rollback
 
+Status: closed 2026-11-12. Verified by an independent fresh clone of proto2/int at 4fcd3e3 (logs verify2-out). Remaining items live in 0149, 0150, 0151.
+
 Agent D (sv-frame), branch `proto/d-frame` from proto/int 71e30f7. Closes the two "not done"
 lines of issue 0118. Labels: `ai`, `area:core`, `kind:fix`.
 

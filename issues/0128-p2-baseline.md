@@ -1,5 +1,7 @@
 # Issue 0128 - Phase 2 baseline: exact counts, and where "442/446" came from
 
+Status: closed 2026-11-12. Verified by an independent fresh clone of proto2/int at 4fcd3e3 (logs verify2-out). Remaining items live in 0149, 0150, 0151.
+
 Core agent, branch `proto2/core` from sv main `ac0e065`. Labels: `ai`, `area:test`.
 
 ## Baseline (this Windows host, AMD Ryzen 5 8500G 6C/12T, SDK 10.0.401, before any change)

@@ -1,5 +1,7 @@
 # Issue 0129 - Keyframe/state load refills a bound sink; Bounds.StatRows over a host float column
 
+Status: closed 2026-11-12. Verified by an independent fresh clone of proto2/int at 4fcd3e3 (logs verify2-out). Remaining items live in 0149, 0150, 0151.
+
 Core agent, branch `proto2/core`. Closes the "not done" line of issue 0120. Labels: `ai`, `area:core`.
 
 ## Changes

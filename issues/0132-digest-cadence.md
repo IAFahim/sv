@@ -1,5 +1,7 @@
 # Issue 0132 - DigestCadence: every tick in debug builds, every 8 in release, core API
 
+Status: closed 2026-11-12. Verified by an independent fresh clone of proto2/int at 4fcd3e3 (logs verify2-out). Remaining items live in 0149, 0150, 0151.
+
 Core agent, branch `proto2/core`. Owner default (phase 1): digest every tick in debug, every
 K = 8 ticks in release. Labels: `ai`, `area:core`.
 

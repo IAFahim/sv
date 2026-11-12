@@ -17,11 +17,11 @@ For a first real-project test of sv 2.1.0 with tl on .NET 10 or Unity 7. Frame o
    and less when many sends hit few slots.
 6. **Events**: one `EventDerive` per channel, cap at host build (default 16,384, max 16,777,216). Every
    handler must accept the `DenseEvent` + edge-word form; above the cap no per-row event exists.
-7. **Digest**: `DigestCadence.Default` (debug: every tick, release: every 8). Log
+7. **Digest**: `SvHost.Install` defaults to `digestEvery: 8` in every build; pass `digestEvery: 1` in a development player (`DigestCadence.Default` is the core-level default: every tick in debug, every 8 in release). `digestEvery: 0` turns the digest off. Log
    `(tick, Board.Digest, CellDigest sums per intrinsic column)` on due ticks.
-8. **Test builds**: run once with `-p:DefineConstants=SV_CHECKED` (Unity: add `SV_CHECKED` to Scripting Define Symbols) (stale-binding and range guards throw), and run
+8. **Test builds**: run once with `-p:DefineConstants=SV_CHECKED` (Unity: add `SV_CHECKED` to Scripting Define Symbols) (range guards throw; after `InvalidateBindings` a bound column parks instead of throwing, see issue 0151), and run
    `sh eng/isa-legs.sh` on each machine you compare.
-9. **Unity**: `eng/unity-sync.sh sync <project>/Packages/com.sv.core`, then `check` in CI; the repo copy
+9. **Unity**: `eng/unity-sync.sh sync <project>/Packages/com.sv.core`, then `check` in CI (the sums need LF files: `.gitattributes` pins that); the repo copy
    lives in `packages/com.sv.core`.
 
 ## Expected numbers (measured, Ryzen 5 8500G 6C/12T)
@@ -31,7 +31,8 @@ For a first real-project test of sv 2.1.0 with tl on .NET 10 or Unity 7. Frame o
 | .NET P1 (1,048,576 rows), W 2.5, 0 % cross, 6 workers, stand-in kinds | ~6.1 ms/tick total, sv stages ~3.3 ms | issues 0125, 0130 |
 | same, 10 % cross to one slot, `InboxLanes` | 7.3 ms (atomic 8.0 ms) | issue 0130 |
 | .NET digest of 2 x 1M intrinsics | 1.2-1.4 ms when computed (hence K = 8) | issue 0125 |
-| Unity Burst P1, W 2.5, 0 % cross, sv + bench kinds | ~4.7 ms/tick | issue 0127 |
+| Unity Burst P1, W 2.5, 0 % cross, sv + stand-in kinds | ~4.7 ms/tick | issue 0127 |
+| same with tl's real Damage kind job, 11 workers | sv 2.35 ms, tl kinds 8.45 ms, frame 10.83 ms (gate covers sv only) | verifier, issue 0143 |
 | gate | 8.3 ms per tick at P1 (25 % of 30 Hz) | plan |
 | warm managed allocation in sv calls | 0 B (soak: 50,000 ticks) | issue 0133 |
 | board memory under churn | flat after warm-up | issue 0133 |

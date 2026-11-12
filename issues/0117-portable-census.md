@@ -1,5 +1,7 @@
 # 0117 - V0-a census, V1/V5 portability: src/Sv on net10.0 + netstandard2.1 at C# 9
 
+Status: closed 2026-11-12. Verified by an independent fresh clone of proto2/int at 4fcd3e3 (logs verify2-out). Remaining items live in 0149, 0150, 0151.
+
 Branch `proto/b-portable` off sv main `a0963c8`. Agent B. Plan `plan-sv.md` SV-Q4, steps V0-a, V1, V5.
 
 ## Baseline (before any change, this Windows host)

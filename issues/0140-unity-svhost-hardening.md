@@ -1,5 +1,7 @@
 # Issue 0140 - U2: SvHost hardening (rows before Install, Unbind, destroyed rows, capacities, one host, digest cadence)
 
+Status: closed 2026-11-12. Verified by an independent fresh clone of proto2/int at 4fcd3e3 (logs verify2-out). Remaining items live in 0149, 0150, 0151.
+
 Branch `proto2/unity`. Owner of the change: Unity agent (phase 2).
 
 | Trap (VERIFY.md risk 4, UNITY.md sharp edges) | Now | Test |

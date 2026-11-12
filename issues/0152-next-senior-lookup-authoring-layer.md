@@ -1,5 +1,7 @@
 # Issue 0152 - Next senior lookup: the authoring layer the first plan did not cover
 
+Status: open
+
 Labels: `ai`, `area:plan`, `open`, `senior-lookup`.
 
 ## Why

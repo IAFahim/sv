@@ -1,5 +1,7 @@
 # Issue 0126 - V10 (.NET): determinism sweeps
 
+Status: closed 2026-11-12. Verified by an independent fresh clone of proto2/int at 4fcd3e3 (logs verify2-out). Remaining items live in 0149, 0150, 0151.
+
 Agent D, branch `proto/d-frame`. Plan step V10, .NET half (chunk-order and host legs are agent C's Unity work).
 Labels: `ai`, `area:test`. No digest difference anywhere.
 

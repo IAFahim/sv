@@ -1,5 +1,7 @@
 # Issue 0150 - Not proven: Mono float bits, IL2CPP, long digest at 1M rows
 
+Status: open
+
 Labels: `ai`, `area:unity`, `open`, `proof-gap`.
 
 - **Mono:** Unity 7000.0.0a16 ships CoreCLR and IL2CPP only. Asking for Mono silently builds a CoreCLR player (issue 0144).

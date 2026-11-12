@@ -1,5 +1,7 @@
 # Issue 0117 - V2 receipt: `fold1m` bench and its kill rule (TRIPPED, decision needed)
 
+Status: closed 2026-11-12. Verified by an independent fresh clone of proto2/int at 4fcd3e3 (logs verify2-out). Remaining items live in 0149, 0150, 0151.
+
 Plan `_work/plan-sv.md` step V2: `fold1m` = 1M rows x 4 intrinsics, one thread,
 <= 1.5 ms [target]; kill: fold not 10 % faster than `Kernel.Run` plus a masked clear.
 Labels: `ai`, `area:bench`.
