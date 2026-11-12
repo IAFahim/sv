@@ -1,0 +1,22 @@
+settings tag=first burstEnabled=True burstCompilation=True safety=False jobDebugger=False leak=Disabled workers=11 clr=10.0.10 unity=7000.0.0a16
+statfold host=unity-coreclr sets=1048576 raw=B92436E15A0DE4CF canonical=1420F6ADDA0DE4CF nan=63744
+statfold host=burst-strict sets=1048576 raw=9FCACAC45A0DE4CF canonical=1420F6ADDA0DE4CF nan=63744 burstProbe=1
+statfold host=burst-default sets=1048576 raw=9FCACAC45A0DE4CF canonical=1420F6ADDA0DE4CF nan=63744 burstProbe=1
+statfold host=burst-fast sets=1048576 raw=0C44787F7C71A8AA canonical=C10061A6FC71A8AA nan=99805 burstProbe=1
+versions rows=100000 chunks=2084 capacity=48
+versions tick=1 writer=none(create) foldVisited=2084 flagDidChange=2084 hpMaxDidChange=2084 burstProbe=1
+versions tick=2 writer=none foldVisited=0 flagDidChange=0 hpMaxDidChange=0 burstProbe=1
+versions tick=3 writer=none foldVisited=0 flagDidChange=0 hpMaxDidChange=0 burstProbe=1
+versions tick=4 writer=RW-ptr-even-chunks-no-write foldVisited=1042 flagDidChange=0 hpMaxDidChange=0 burstProbe=1
+versions tick=5 writer=none foldVisited=0 flagDidChange=0 hpMaxDidChange=0 burstProbe=1
+versions tick=6 writer=RO-ptr-all foldVisited=0 flagDidChange=0 hpMaxDidChange=0 burstProbe=1
+versions tick=7 writer=none foldVisited=0 flagDidChange=0 hpMaxDidChange=0 burstProbe=1
+versions tick=8 writer=lookup-write-HpMax-100 foldVisited=3 flagDidChange=0 hpMaxDidChange=3 burstProbe=1
+versions tick=9 writer=none foldVisited=0 flagDidChange=0 hpMaxDidChange=0 burstProbe=1
+versions tick=10 writer=lookup-SetComponentEnabled-100 foldVisited=0 flagDidChange=3 hpMaxDidChange=0 burstProbe=1
+versions tick=11 writer=none foldVisited=0 flagDidChange=0 hpMaxDidChange=0 burstProbe=1
+versions tick=12 writer=chunk.SetComponentEnabled-1/4 foldVisited=0 flagDidChange=521 hpMaxDidChange=0 burstProbe=1
+versions tick=13 writer=none foldVisited=0 flagDidChange=0 hpMaxDidChange=0 burstProbe=1
+versions tick=14 writer=EnabledMask[i]-1/4 foldVisited=0 flagDidChange=521 hpMaxDidChange=0 burstProbe=1
+versions tick=15 writer=none foldVisited=0 flagDidChange=0 hpMaxDidChange=0 burstProbe=1
+done tag=first
