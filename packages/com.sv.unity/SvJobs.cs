@@ -158,10 +158,16 @@ namespace Sv.Unity
             }
 
             var slots = (int*)chunk.GetRequiredComponentDataPtrRO(ref Slot);
-            if (visit0) Run(ref L0, chunk, slots);
-            if (visit1) Run(ref L1, chunk, slots);
-            if (visit2) Run(ref L2, chunk, slots);
-            if (visit3) Run(ref L3, chunk, slots);
+            var rebound = chunk.DidChange(ref Slot, LastVersion);
+            if (visit0) Run(ref L0, chunk, slots, Every(ref L0, chunk, rebound));
+            if (visit1) Run(ref L1, chunk, slots, Every(ref L1, chunk, rebound));
+            if (visit2) Run(ref L2, chunk, slots, Every(ref L2, chunk, rebound));
+            if (visit3) Run(ref L3, chunk, slots, Every(ref L3, chunk, rebound));
+        }
+
+        bool Every(ref SvLane lane, in ArchetypeChunk chunk, bool rebound)
+        {
+            return !Filter || rebound || (lane.HasCeiling && chunk.DidChange(ref lane.Ceiling, LastVersion));
         }
 
         bool Due(ref SvLane lane, in ArchetypeChunk chunk)
@@ -178,11 +184,12 @@ namespace Sv.Unity
 
             return chunk.DidChange(ref lane.Delta, LastVersion)
                 || chunk.DidChange(ref lane.Value, LastVersion)
+                || chunk.DidChange(ref Slot, LastVersion)
                 || (lane.HasCeiling && chunk.DidChange(ref lane.Ceiling, LastVersion))
                 || (lane.HasFloor && chunk.DidChange(ref lane.Floor, LastVersion));
         }
 
-        static void Run(ref SvLane lane, in ArchetypeChunk chunk, int* slots)
+        static void Run(ref SvLane lane, in ArchetypeChunk chunk, int* slots, bool every)
         {
             var rows = chunk.Count;
             var word = new FoldWord
@@ -194,7 +201,7 @@ namespace Sv.Unity
                 CeilingConstant = lane.CeilingConstant,
                 FloorConstant = lane.FloorConstant,
             };
-            if (lane.Inbox != null)
+            if (lane.Inbox != null && *lane.Sent != 0)
             {
                 for (var row = 0; row < rows; row++)
                 {
@@ -202,7 +209,8 @@ namespace Sv.Unity
                 }
             }
 
-            Fold.Word(in word, rows < 64 ? rows : 64);
+            var changedLow = Fold.Word(in word, rows < 64 ? rows : 64);
+            var changedHigh = 0ul;
             if (rows > 64)
             {
                 var high = word;
@@ -210,21 +218,35 @@ namespace Sv.Unity
                 high.Delta += 64;
                 high.Ceiling = word.Ceiling == null ? null : word.Ceiling + 64;
                 high.Floor = word.Floor == null ? null : word.Floor + 64;
-                Fold.Word(in high, rows - 64);
+                changedHigh = Fold.Word(in high, rows - 64);
             }
 
             if (lane.HasCondition)
             {
-                Conditions(ref lane, chunk, slots, in word, rows);
+                if (every)
+                {
+                    changedLow = rows >= 64 ? ulong.MaxValue : (1ul << rows) - 1ul;
+                    changedHigh = rows > 64 ? (rows >= 128 ? ulong.MaxValue : (1ul << (rows - 64)) - 1ul) : 0ul;
+                }
+
+                Conditions(ref lane, chunk, slots, in word, changedLow, 0);
+                Conditions(ref lane, chunk, slots, in word, changedHigh, 64);
             }
         }
 
-        static void Conditions(ref SvLane lane, in ArchetypeChunk chunk, int* slots, in FoldWord word, int rows)
+        static void Conditions(ref SvLane lane, in ArchetypeChunk chunk, int* slots, in FoldWord word, ulong rowsToCheck, int offset)
         {
+            if (rowsToCheck == 0)
+            {
+                return;
+            }
+
             var edges = 0;
             var gate = lane.HasGate && chunk.Has(ref lane.Gate);
-            for (var row = 0; row < rows; row++)
+            while (rowsToCheck != 0)
             {
+                var row = offset + Bits.Tzcnt(rowsToCheck);
+                rowsToCheck &= rowsToCheck - 1;
                 var whole = word.Ceiling == null ? word.CeilingConstant : Clamp.BoundOf(word.Ceiling[row]);
                 var value = word.Value[row];
                 var enter = Condition.Below(value, whole, lane.EnterNumerator, lane.EnterDenominator) ? 1ul : 0ul;
