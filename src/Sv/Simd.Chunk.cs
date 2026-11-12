@@ -2,8 +2,8 @@ using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 
-namespace Sv;
-
+namespace Sv
+{
 internal static unsafe partial class Simd
 {
     internal struct Width128
@@ -564,4 +564,5 @@ internal static unsafe partial class Simd
         var saturated = Vector256.ConditionalSelect(Vector256.LessThan(after, Vector256<int>.Zero), Vector256.Create(int.MinValue), Vector256.Create(int.MaxValue));
         return Vector256.ConditionalSelect(overflow, saturated, diff);
     }
+}
 }

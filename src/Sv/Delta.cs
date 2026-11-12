@@ -1,32 +1,33 @@
 using System;
 
-namespace Sv;
-
-/// <summary>
-/// What a kernel run adds to each row: <see cref="Delta(int)"/> for one value everywhere, or
-/// <see cref="Delta(int*)"/> for a column indexed by absolute slot. <see langword="default"/> is uniform zero.
-/// </summary>
-public readonly unsafe struct Delta
+namespace Sv
 {
-    public int Uniform { get; }
-
-    public int* PerRow { get; }
-
-    Delta(int uniform, int* perRow)
+    /// <summary>
+    /// What a kernel run adds to each row: <see cref="Delta(int)"/> for one value everywhere, or
+    /// <see cref="Delta(int*)"/> for a column indexed by absolute slot. <see langword="default"/> is uniform zero.
+    /// </summary>
+    public readonly unsafe struct Delta
     {
-        Uniform = uniform;
-        PerRow = perRow;
-    }
+        public int Uniform { get; }
 
-    public Delta(int uniform) => this = new Delta(uniform, null);
+        public int* PerRow { get; }
 
-    public Delta(int* perRow)
-    {
-        if (perRow == null)
+        Delta(int uniform, int* perRow)
         {
-            throw new ArgumentNullException(nameof(perRow));
+            Uniform = uniform;
+            PerRow = perRow;
         }
 
-        this = new Delta(0, perRow);
+        public Delta(int uniform) => this = new Delta(uniform, null);
+
+        public Delta(int* perRow)
+        {
+            if (perRow == null)
+            {
+                throw new ArgumentNullException(nameof(perRow));
+            }
+
+            this = new Delta(0, perRow);
+        }
     }
 }

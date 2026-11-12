@@ -1,7 +1,7 @@
 using System;
 
-namespace Sv;
-
+namespace Sv
+{
 /// <summary>
 /// The chunk verbs as static kernels: the caller supplies the capacity the guards validate
 /// against, so a context that holds only pointers, masks and an unmanaged <see cref="Clamp"/>
@@ -175,4 +175,5 @@ public static unsafe class Kernel
             Simd.EnabledWord(value, delta, 0, clamp, words[w], offset + w * 64, applied, 64);
         }
     }
+}
 }

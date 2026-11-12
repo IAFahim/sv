@@ -1,8 +1,8 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace Sv;
-
+namespace Sv
+{
 public sealed unsafe partial class Board
 {
     private const int PageShift = 12;
@@ -2452,4 +2452,5 @@ public sealed unsafe partial class Board
 
         arena.Free(moved!, movedCap);
     }
+}
 }
