@@ -48,7 +48,7 @@ namespace Sv
 
     public sealed unsafe class EventDerive : IDisposable
     {
-        public const int DefaultCapacity = 65536;
+        public const int DefaultCapacity = 16384;
 
         readonly EdgeRecord* records;
 

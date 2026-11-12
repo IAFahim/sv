@@ -57,7 +57,7 @@ internal static unsafe class Derive
         var unitCount = (Slots + ChunkRows - 1) / ChunkRows;
         var shuffled = new EdgeUnit[unitCount];
         var straight = new EdgeUnit[unitCount];
-        foreach (var count in new[] { 0, 1_000, 65_536, Slots })
+        foreach (var count in new[] { 0, 1_000, 16_384, 65_536, Slots })
         {
             new Span<ulong>(edges, Words).Clear();
             new Span<ulong>(state, Words).Clear();

@@ -95,9 +95,23 @@ public unsafe class EventDeriveTests
     [InlineData(1000)]
     [InlineData(65536)]
     [InlineData(65537)]
-    public void Cap_EveryEventSortedBySlot_OrExactlyOneDenseRecord(int edges)
+    public void Cap65536_EveryEventSortedBySlot_OrExactlyOneDenseRecord(int edges)
     {
-        using var rig = new Rig();
+        CapCase(edges, 65536);
+    }
+
+    [Theory]
+    [InlineData(16384)]
+    [InlineData(16385)]
+    public void DefaultCap_Is16384_AfterTheSortKillRule(int edges)
+    {
+        Assert.Equal(16384, EventDerive.DefaultCapacity);
+        CapCase(edges, EventDerive.DefaultCapacity);
+    }
+
+    static void CapCase(int edges, int capacity)
+    {
+        using var rig = new Rig(capacity);
         var slots = DistinctSlots(edges, edges + 7);
         var random = new Random(edges);
         foreach (var slot in slots)
@@ -111,7 +125,7 @@ public unsafe class EventDeriveTests
 
         var delivered = rig.RunWords(42);
         var read = rig.Read();
-        if (edges <= EventDerive.DefaultCapacity)
+        if (edges <= capacity)
         {
             Assert.False(rig.Derive.LastDense);
             Assert.Equal(edges, delivered);
@@ -248,7 +262,7 @@ public unsafe class EventDeriveTests
 
     [Theory]
     [InlineData(1000)]
-    [InlineData(65536)]
+    [InlineData(16384)]
     public void ChunkUnits_InAnyOrder_GiveTheWordStreamByteForByte(int edges)
     {
         using var rig = new Rig();
