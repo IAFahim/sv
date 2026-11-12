@@ -1,0 +1,9 @@
+{"schema":1,"name":"r8_immunity_bit_mask","frames":2,
+"entities":[{"name":"P","template":"player"},{"name":"R","template":"rifleman"}],
+"sends":[
+{"frame":0,"target":"P","channel":"GiveImmunity","amount":5},
+{"frame":1,"target":"P","source":"R","channel":"Physical","amount":10},
+{"frame":1,"target":"P","source":"R","channel":"Poison","amount":10},
+{"frame":1,"target":"P","source":"R","channel":"Bleeding","amount":10}
+],
+"expect":[{"frame":1,"entity":"P","value":"Health","equals":90}]}

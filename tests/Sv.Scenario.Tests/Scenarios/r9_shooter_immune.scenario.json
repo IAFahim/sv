@@ -1,0 +1,8 @@
+{"schema":1,"name":"r9_shooter_immune","frames":3,
+"entities":[{"name":"P","template":"player"},{"name":"R","template":"player"}],
+"sends":[
+{"frame":0,"target":"P","channel":"GiveThorns","amount":1},
+{"frame":0,"target":"R","channel":"GiveDamageImmune","amount":1},
+{"frame":1,"target":"P","source":"R","channel":"Physical","amount":20}
+],
+"expect":[{"frame":1,"entity":"P","value":"Health","equals":80},{"frame":2,"entity":"R","value":"Health","equals":100}]}

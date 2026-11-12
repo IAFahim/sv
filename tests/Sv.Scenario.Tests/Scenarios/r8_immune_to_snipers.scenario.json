@@ -1,0 +1,9 @@
+{"schema":1,"name":"r8_immune_to_snipers","frames":2,
+"entities":[{"name":"P","template":"player"},{"name":"S","template":"sniper"},{"name":"R","template":"rifleman"}],
+"sends":[
+{"frame":0,"target":"P","channel":"GiveSniperWard","amount":1},
+{"frame":1,"target":"P","source":"S","channel":"Physical","amount":40},
+{"frame":1,"target":"P","source":"S","channel":"Poison","amount":10},
+{"frame":1,"target":"P","source":"R","channel":"Physical","amount":20}
+],
+"expect":[{"frame":1,"entity":"P","value":"Health","equals":80}]}

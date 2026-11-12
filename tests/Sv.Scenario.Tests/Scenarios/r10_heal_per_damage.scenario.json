@@ -1,0 +1,10 @@
+{"schema":1,"name":"r10_heal_per_damage","frames":3,
+"entities":[{"name":"P","template":"player"},{"name":"A","template":"rifleman"},{"name":"B","template":"rifleman"}],
+"sends":[
+{"frame":0,"target":"P","channel":"GiveLeech","amount":1},
+{"frame":1,"target":"P","source":"A","channel":"Physical","amount":10},
+{"frame":1,"target":"P","source":"B","channel":"Physical","amount":10},
+{"frame":2,"target":"P","source":"A","channel":"Physical","amount":10},
+{"frame":2,"target":"P","source":"A","channel":"Poison","amount":10}
+],
+"expect":[{"frame":1,"entity":"P","value":"Health","equals":90},{"frame":2,"entity":"P","value":"Health","equals":75}]}

@@ -1,0 +1,10 @@
+{"schema":1,"name":"r8_immune_to_damage","frames":2,
+"entities":[{"name":"P","template":"player"},{"name":"R","template":"rifleman"},{"name":"M","template":"rifleman"}],
+"sends":[
+{"frame":0,"target":"P","source":"R","channel":"Physical","amount":50},
+{"frame":0,"target":"P","channel":"GiveDamageImmune","amount":1},
+{"frame":1,"target":"P","source":"R","channel":"Physical","amount":30},
+{"frame":1,"target":"P","source":"R","channel":"Poison","amount":10},
+{"frame":1,"target":"P","source":"M","channel":"Healing","amount":15}
+],
+"expect":[{"frame":0,"entity":"P","value":"Health","equals":50},{"frame":1,"entity":"P","value":"Health","equals":65}]}

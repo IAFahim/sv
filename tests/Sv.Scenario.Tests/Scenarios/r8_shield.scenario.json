@@ -1,0 +1,8 @@
+{"schema":1,"name":"r8_shield","frames":2,
+"entities":[{"name":"P","template":"player"},{"name":"A","template":"rifleman"},{"name":"B","template":"rifleman"}],
+"sends":[
+{"frame":0,"target":"P","channel":"GiveShield","amount":25},
+{"frame":1,"target":"P","source":"A","channel":"Physical","amount":20},
+{"frame":1,"target":"P","source":"B","channel":"Physical","amount":10}
+],
+"expect":[{"frame":1,"entity":"P","value":"Health","equals":95},{"frame":1,"entity":"P","value":"Shield","equals":0}]}

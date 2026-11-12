@@ -1,0 +1,8 @@
+{"schema":1,"name":"r9_immune_and_still_reflect","frames":3,
+"entities":[{"name":"P","template":"player"},{"name":"R","template":"rifleman"}],
+"sends":[
+{"frame":0,"target":"P","channel":"GiveMirrorWard","amount":1},
+{"frame":0,"target":"P","channel":"GiveDamageImmune","amount":1},
+{"frame":1,"target":"P","source":"R","channel":"Physical","amount":20}
+],
+"expect":[{"frame":1,"entity":"P","value":"Health","equals":100},{"frame":2,"entity":"R","value":"Health","equals":80}]}
