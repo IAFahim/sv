@@ -441,6 +441,7 @@ namespace Sv.Unity
     public unsafe struct SvSlotWriteJob : IJob
     {
         public ComponentLookup<SvSlot> Slots;
+        public ComponentLookup<SvSlotCleanup> Cleanups;
         [ReadOnly] public NativeArray<Entity> Entities;
         [NativeDisableUnsafePtrRestriction] public int* Assigned;
         [NativeDisableUnsafePtrRestriction] public Entity* SlotEntity;
@@ -452,7 +453,52 @@ namespace Sv.Unity
             {
                 var slot = Assigned[i];
                 Slots[Entities[i]] = new SvSlot { Slot = slot };
+                Cleanups[Entities[i]] = new SvSlotCleanup { Slot = slot };
                 SlotEntity[slot] = Entities[i];
+            }
+        }
+    }
+
+    [BurstCompile]
+    public unsafe struct SvSendJob : IJobChunk
+    {
+        public DynamicComponentTypeHandle Effect;
+        public DynamicComponentTypeHandle Target;
+        public SvInboxWriter Inbox;
+        public int Capacity;
+        public uint LastVersion;
+        public bool Filter;
+
+        public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
+        {
+            SvProbe.Mark();
+            if (!chunk.Has(ref Effect) || !chunk.Has(ref Target))
+            {
+                return;
+            }
+
+            if (Filter && !chunk.DidChange(ref Effect, LastVersion))
+            {
+                return;
+            }
+
+            var effects = (int*)NativeArrayUnsafeUtility.GetUnsafePtr(chunk.GetDynamicComponentDataArrayReinterpret<int>(ref Effect, 4));
+            var targets = (int*)NativeArrayUnsafeUtility.GetUnsafeReadOnlyPtr(chunk.GetDynamicComponentDataArrayReinterpret<int>(ref Target, 4));
+            var rows = chunk.Count;
+            for (var row = 0; row < rows; row++)
+            {
+                var amount = effects[row];
+                if (amount == 0)
+                {
+                    continue;
+                }
+
+                effects[row] = 0;
+                var target = targets[row];
+                if ((uint)target < (uint)Capacity)
+                {
+                    Inbox.Send(target, amount);
+                }
             }
         }
     }
