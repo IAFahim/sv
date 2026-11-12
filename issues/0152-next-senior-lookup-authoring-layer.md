@@ -34,3 +34,6 @@ tl.unity `Tests/Kinds/Game/KindGame.cs` (`Hit`, `Damage`, `[Pulse]`, `[TimelineS
 ## Done when
 
 A written answer with signatures and files, saved next to plan-sv.md, and issues 0145 to 0148 updated from it.
+
+
+Owner clarification 2026-11-12: the main question for this lookup is issue 0154 (designer-defined values per entity, contiguous, and a pass between any two entities).

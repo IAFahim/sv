@@ -43,3 +43,6 @@ and changing its belongings must work.
 
 A scene where player A has Hp and Mana, player B has Hp only, a shield makes A immune to damage for five seconds, A hits B
 through data only, and B's Hp is read by A's code, all with pinned digests at 1 and 11 workers.
+
+
+Owner clarification 2026-11-12: re-scoped by issue 0154. The premise of hand-written components and per-value C# in this file is wrong; read 0154 first.

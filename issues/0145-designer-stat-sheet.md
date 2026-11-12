@@ -35,3 +35,6 @@ Validation errors name the sheet field (same style as tl's JSON errors).
 ## Notes
 
 tl side: additions only, no change to tl's 13 hashes. Needs the senior lookup in issue 0152 (question 1).
+
+
+Owner clarification 2026-11-12: re-scoped by issue 0154. The premise of hand-written components and per-value C# in this file is wrong; read 0154 first.
