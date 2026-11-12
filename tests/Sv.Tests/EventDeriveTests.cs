@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using Sv;
 using Xunit;
 
+[Collection(HeavyAllocationCollection.Name)]
 public unsafe class EventDeriveTests
 {
     const int Slots = 1 << 20;

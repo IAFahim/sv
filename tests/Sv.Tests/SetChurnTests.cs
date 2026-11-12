@@ -1,6 +1,7 @@
 using Sv;
 using Xunit;
 
+[Collection(HeavyAllocationCollection.Name)]
 public class SetChurnTests
 {
     const int Slots = 10_000;
