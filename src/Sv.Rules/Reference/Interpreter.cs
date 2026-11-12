@@ -509,13 +509,21 @@ namespace Sv.Rules.Reference
                 }
 
                 var present = at < modifiers.Count && modifiers[at].Handle == op.Handle;
-                if (op.Kind == StatOpKind.Add && !present)
+                if (op.Kind == StatOpKind.Add)
                 {
+                    while (at < modifiers.Count && modifiers[at].Handle == op.Handle)
+                    {
+                        at++;
+                    }
+
                     modifiers.Insert(at, new HeldModifier(op.Handle, op.Stat, op.Shape, op.Value));
                 }
                 else if (op.Kind == StatOpKind.Remove && present)
                 {
-                    modifiers.RemoveAt(at);
+                    while (at < modifiers.Count && modifiers[at].Handle == op.Handle)
+                    {
+                        modifiers.RemoveAt(at);
+                    }
                 }
                 else
                 {

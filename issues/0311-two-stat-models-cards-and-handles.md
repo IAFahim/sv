@@ -1,6 +1,6 @@
 # 0311 compiled host and reference interpreter run two stat models (cards and modifier handles)
 
-Status: open (makes issue 0210 item 1 concrete; owner or senior decides the one model)
+Status: open (part 2 closed: reference now allows many modifiers per source and removes by source; part 1 cards open)
 
 Found by T2 (`tests/Sv.Diff.Tests`). Two differences, each with a minimal receipt:
 
