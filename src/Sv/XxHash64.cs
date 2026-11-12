@@ -1,5 +1,4 @@
 using System;
-using System.Numerics;
 using System.Runtime.CompilerServices;
 
 namespace Sv
@@ -19,14 +18,14 @@ namespace Sv
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         static ulong Read64(byte* p)
         {
-            var v = Unsafe.ReadUnaligned<ulong>(p);
+            var v = Bits.ReadUnaligned64(p);
             return BitConverter.IsLittleEndian ? v : System.Buffers.Binary.BinaryPrimitives.ReverseEndianness(v);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         static uint Read32(byte* p)
         {
-            var v = Unsafe.ReadUnaligned<uint>(p);
+            var v = Bits.ReadUnaligned32(p);
             return BitConverter.IsLittleEndian ? v : System.Buffers.Binary.BinaryPrimitives.ReverseEndianness(v);
         }
 
@@ -36,7 +35,7 @@ namespace Sv
             unchecked
             {
                 acc += input * P2;
-                acc = BitOperations.RotateLeft(acc, 31);
+                acc = Bits.RotateLeft(acc, 31);
                 return acc * P1;
             }
         }
@@ -74,7 +73,7 @@ namespace Sv
                         p += 32;
                     }
 
-                    h = BitOperations.RotateLeft(v1, 1) + BitOperations.RotateLeft(v2, 7) + BitOperations.RotateLeft(v3, 12) + BitOperations.RotateLeft(v4, 18);
+                    h = Bits.RotateLeft(v1, 1) + Bits.RotateLeft(v2, 7) + Bits.RotateLeft(v3, 12) + Bits.RotateLeft(v4, 18);
                     h = Merge(h, v1);
                     h = Merge(h, v2);
                     h = Merge(h, v3);
@@ -89,21 +88,21 @@ namespace Sv
                 while (p + 8 <= end)
                 {
                     h ^= Round(0, Read64(p));
-                    h = BitOperations.RotateLeft(h, 27) * P1 + P4;
+                    h = Bits.RotateLeft(h, 27) * P1 + P4;
                     p += 8;
                 }
 
                 if (p + 4 <= end)
                 {
                     h ^= Read32(p) * P1;
-                    h = BitOperations.RotateLeft(h, 23) * P2 + P3;
+                    h = Bits.RotateLeft(h, 23) * P2 + P3;
                     p += 4;
                 }
 
                 while (p < end)
                 {
                     h ^= *p * P5;
-                    h = BitOperations.RotateLeft(h, 11) * P1;
+                    h = Bits.RotateLeft(h, 11) * P1;
                     p++;
                 }
 

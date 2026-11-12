@@ -65,7 +65,7 @@ namespace Sv
                 throw new ArgumentException($"sv: drift store of {capacity} slots");
             }
 
-            var segments = (DriftSegment*)NativeMemory.AllocZeroed((nuint)capacity, (nuint)sizeof(DriftSegment));
+            var segments = (DriftSegment*)Memory.AllocZeroed((nuint)capacity, (nuint)sizeof(DriftSegment));
             return new DriftStore(segments, capacity);
         }
 
@@ -74,7 +74,7 @@ namespace Sv
         /// <summary>Routes every later segment write through the board's undo window, so <see cref="Board.Rollback(int)"/> restores drift segments with the rest of the state. Renumbering closes the window — call <see cref="Renumber"/> after <see cref="Board.RenumberSlots"/>.</summary>
         public void AttachBoard(Board board)
         {
-            ObjectDisposedException.ThrowIf(disposed, this);
+            Guard.NotDisposed(disposed, this);
             this.board = board;
         }
 
@@ -163,7 +163,7 @@ namespace Sv
                 var word = window.Words[w];
                 while (word != 0)
                 {
-                    var bit = System.Numerics.BitOperations.TrailingZeroCount(word);
+                    var bit = Bits.Tzcnt(word);
                     word &= word - 1;
                     RebaseRow(window.Start + (w << 6) + bit, tick, rate, floor, ceiling);
                 }
@@ -187,16 +187,16 @@ namespace Sv
         /// <summary>Remaps segments through <paramref name="oldToNew"/> (negative entries deactivate) — the drift half of law L3: <c>read ∘ renumber = π ∘ read</c>. Call after <see cref="Board.RenumberSlots"/>; renumbering closes the undo window.</summary>
         public void Renumber(ReadOnlySpan<int> oldToNew)
         {
-            ObjectDisposedException.ThrowIf(disposed, this);
+            Guard.NotDisposed(disposed, this);
             if (oldToNew.Length != capacity)
             {
                 throw new ArgumentException($"sv: drift renumber map must cover capacity ({capacity} entries)");
             }
 
-            var copy = (DriftSegment*)NativeMemory.Alloc((nuint)capacity, (nuint)sizeof(DriftSegment));
+            var copy = (DriftSegment*)Memory.Alloc((nuint)capacity, (nuint)sizeof(DriftSegment));
             var bytes = (nuint)capacity * (nuint)sizeof(DriftSegment);
             Buffer.MemoryCopy(segments, copy, bytes, bytes);
-            NativeMemory.Clear(segments, bytes);
+            Memory.Clear(segments, bytes);
             for (var slot = 0; slot < capacity; slot++)
             {
                 var next = oldToNew[slot];
@@ -204,7 +204,7 @@ namespace Sv
                 {
                     if (next >= capacity)
                     {
-                        NativeMemory.Free(copy);
+                        Memory.Free(copy);
                         throw new ArgumentOutOfRangeException(nameof(oldToNew), $"sv: drift renumber maps slot {slot} to {next} outside 0..{capacity - 1}");
                     }
 
@@ -212,7 +212,7 @@ namespace Sv
                 }
             }
 
-            NativeMemory.Free(copy);
+            Memory.Free(copy);
         }
 
         /// <summary>
@@ -224,15 +224,15 @@ namespace Sv
         /// </summary>
         public unsafe void ApplyBatch(long tick, ReadOnlySpan<DriftOp> ops)
         {
-            ObjectDisposedException.ThrowIf(disposed, this);
+            Guard.NotDisposed(disposed, this);
             if (ops.IsEmpty)
             {
                 return;
             }
 
             var count = ops.Length;
-            var sorted = (DriftOp*)NativeMemory.Alloc((nuint)count, (nuint)sizeof(DriftOp));
-            var temp = (DriftOp*)NativeMemory.Alloc((nuint)count, (nuint)sizeof(DriftOp));
+            var sorted = (DriftOp*)Memory.Alloc((nuint)count, (nuint)sizeof(DriftOp));
+            var temp = (DriftOp*)Memory.Alloc((nuint)count, (nuint)sizeof(DriftOp));
             ops.CopyTo(new Span<DriftOp>(sorted, count));
             var source = sorted;
             var target = temp;
@@ -276,8 +276,8 @@ namespace Sv
                 var slot = sorted[at].Slot;
                 if ((uint)slot >= (uint)capacity)
                 {
-                    NativeMemory.Free(sorted);
-                    NativeMemory.Free(temp);
+                    Memory.Free(sorted);
+                    Memory.Free(temp);
                     throw new ArgumentOutOfRangeException(nameof(ops), $"sv: drift op aims at slot {slot} outside 0..{capacity - 1}");
                 }
 
@@ -292,8 +292,8 @@ namespace Sv
                 Write(slot, composed.Apply(Read(slot, tick - 1)), tick);
             }
 
-            NativeMemory.Free(sorted);
-            NativeMemory.Free(temp);
+            Memory.Free(sorted);
+            Memory.Free(temp);
         }
 
         /// <summary>The slot's value at the end of frame <paramref name="tick"/>'s step 3; a tick at or before the segment start reads v&#8320;.</summary>
@@ -333,7 +333,7 @@ namespace Sv
                 var word = window.Words[w];
                 while (word != 0)
                 {
-                    var bit = System.Numerics.BitOperations.TrailingZeroCount(word);
+                    var bit = Bits.Tzcnt(word);
                     word &= word - 1;
                     var row = window.Start + (w << 6) + bit;
                     destination[row] = Read(row, tick);
@@ -343,7 +343,7 @@ namespace Sv
 
         DriftSegment* Segment(int slot)
         {
-            ObjectDisposedException.ThrowIf(disposed, this);
+            Guard.NotDisposed(disposed, this);
             if ((uint)slot >= (uint)capacity)
             {
                 throw new ArgumentOutOfRangeException(nameof(slot), $"sv: drift slot {slot} outside 0..{capacity - 1}");
@@ -370,7 +370,7 @@ namespace Sv
             }
 
             disposed = true;
-            NativeMemory.Free(segments);
+            Memory.Free(segments);
             segments = null;
         }
     }

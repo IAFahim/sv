@@ -165,7 +165,7 @@ public sealed unsafe partial class Board
         }
 
         outputColumn = (float**)arena.AllocBytes(statCount * sizeof(float*));
-        NativeMemory.Clear(outputColumn, (nuint)statCount * (nuint)sizeof(float*));
+        Memory.Clear(outputColumn, (nuint)statCount * (nuint)sizeof(float*));
         outputStride = arena.Alloc<int>(statCount);
         owned = (float**)arena.AllocZeroedBytes(statCount * sizeof(float*));
         boundGeneration = arena.AllocZeroed<int>(statCount);
@@ -490,7 +490,7 @@ public sealed unsafe partial class Board
 
     void DigestKeyAdd(int slot, int stat, int set)
     {
-        var key = DigestKey(stat, slot, BitConverter.SingleToUInt32Bits(table!.Computed(set)));
+        var key = DigestKey(stat, slot, Bits.OfSingle(table!.Computed(set)));
         digest += key;
         var cell = pageDigests + (nint)stat * PageCount + (slot >> 8);
         if (!digestRecomputing)
@@ -508,8 +508,8 @@ public sealed unsafe partial class Board
             return;
         }
 
-        var oldKey = oldSet >= 0 ? DigestKey(stat, slot, BitConverter.SingleToUInt32Bits(table!.Computed(oldSet))) : 0ul;
-        var newKey = newSet >= 0 ? DigestKey(stat, slot, BitConverter.SingleToUInt32Bits(table!.Computed(newSet))) : 0ul;
+        var oldKey = oldSet >= 0 ? DigestKey(stat, slot, Bits.OfSingle(table!.Computed(oldSet))) : 0ul;
+        var newKey = newSet >= 0 ? DigestKey(stat, slot, Bits.OfSingle(table!.Computed(newSet))) : 0ul;
         if (oldKey == newKey)
         {
             return;
@@ -535,14 +535,14 @@ public sealed unsafe partial class Board
             digestRecomputing = true;
         }
 
-        NativeMemory.Clear(pageDigests, (nuint)(statCount * PageCount) * sizeof(ulong));
+        Memory.Clear(pageDigests, (nuint)(statCount * PageCount) * sizeof(ulong));
         digest = 0;
         for (var word = 0; word < LiveWordCount; word++)
         {
             var bits = live[word];
             while (bits != 0)
             {
-                var slot = (word << 6) + System.Numerics.BitOperations.TrailingZeroCount(bits);
+                var slot = (word << 6) + Bits.Tzcnt(bits);
                 bits &= bits - 1;
                 var block = Slot(slot).Block;
                 if (block < 0)
@@ -872,7 +872,7 @@ public sealed unsafe partial class Board
             var bits = live[word];
             while (bits != 0)
             {
-                var slot = (word << 6) + System.Numerics.BitOperations.TrailingZeroCount(bits);
+                var slot = (word << 6) + Bits.Tzcnt(bits);
                 bits &= bits - 1;
                 mirror[slot] = Clamp.BoundOf(external == null ? SourceValue(slot, index) : external[slot * stride]);
             }
@@ -896,7 +896,7 @@ public sealed unsafe partial class Board
                 var bits = live[word];
                 while (bits != 0)
                 {
-                    var slot = (word << 6) + System.Numerics.BitOperations.TrailingZeroCount(bits);
+                    var slot = (word << 6) + Bits.Tzcnt(bits);
                     bits &= bits - 1;
                     if (SetOf(slot, stat) >= 0)
                     {
@@ -1202,7 +1202,7 @@ public sealed unsafe partial class Board
             }
 
             var bits = ~live[word];
-            var slot = (word << 6) + System.Numerics.BitOperations.TrailingZeroCount(bits);
+            var slot = (word << 6) + Bits.Tzcnt(bits);
             undo?.Note(live + word, sizeof(ulong));
             live[word] = ~bits | (1ul << (slot & 63));
             slots[i] = slot;
@@ -1488,7 +1488,7 @@ public sealed unsafe partial class Board
                     continue;
                 }
 
-                var stat = (w << 5) + System.Numerics.BitOperations.TrailingZeroCount(word);
+                var stat = (w << 5) + Bits.Tzcnt(word);
                 undo?.Note(mask + w, sizeof(uint));
                 mask[w] = word & (word - 1);
                 ResolvePair(slot, stat);
@@ -1547,7 +1547,7 @@ public sealed unsafe partial class Board
                 var word = dependents[w];
                 while (word != 0)
                 {
-                    var dependent = (w << 5) + System.Numerics.BitOperations.TrailingZeroCount(word);
+                    var dependent = (w << 5) + Bits.Tzcnt(word);
                     word &= word - 1;
                     MarkStatDirty(slot, dependent);
                 }
@@ -1780,7 +1780,7 @@ public sealed unsafe partial class Board
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     void MarkChanged(int stat, int slot, float before, float after)
     {
-        if (BitConverter.SingleToUInt32Bits(before) == BitConverter.SingleToUInt32Bits(after))
+        if (Bits.OfSingle(before) == Bits.OfSingle(after))
         {
             return;
         }
@@ -1846,9 +1846,9 @@ public sealed unsafe partial class Board
         {
             var entry = entries[i];
             var id = ids[i];
-            var bits = BitConverter.SingleToUInt32Bits(entry.Value);
+            var bits = Bits.OfSingle(entry.Value);
             var j = i - 1;
-            while (j >= 0 && (entries[j].Kind > entry.Kind || (entries[j].Kind == entry.Kind && BitConverter.SingleToUInt32Bits(entries[j].Value) > bits)))
+            while (j >= 0 && (entries[j].Kind > entry.Kind || (entries[j].Kind == entry.Kind && Bits.OfSingle(entries[j].Value) > bits)))
             {
                 entries[j + 1] = entries[j];
                 ids[j + 1] = ids[j];
@@ -1862,7 +1862,7 @@ public sealed unsafe partial class Board
 
     internal static float CanonicalNaN(float value)
     {
-        return float.IsNaN(value) ? BitConverter.UInt32BitsToSingle(0x7FC00000u) : value;
+        return float.IsNaN(value) ? Bits.ToSingle(0x7FC00000u) : value;
     }
 
     internal static float Fold(float @base, StatEntry* entries, int count)
@@ -1953,7 +1953,7 @@ public sealed unsafe partial class Board
 
         var words = (Capacity + 63) >> 6;
         var newLive = arena.Alloc<ulong>(words);
-        NativeMemory.Clear(newLive, (nuint)words * sizeof(ulong));
+        Memory.Clear(newLive, (nuint)words * sizeof(ulong));
         var seen = arena.Alloc<int>(Capacity);
         for (var i = 0; i < Capacity; i++)
         {
@@ -2011,7 +2011,7 @@ public sealed unsafe partial class Board
         codec.Value(ref insertionGeneration);
         var pending = dirtyTouchedCount;
         codec.Value(ref pending);
-        if (TCodec.Reading)
+        if (codec.Reading)
         {
             if (pending < 0 || pending > Capacity)
             {
@@ -2031,9 +2031,9 @@ public sealed unsafe partial class Board
 
         for (var i = 0; i < pending; i++)
         {
-            var slot = TCodec.Reading ? 0 : dirtyTouched[i];
+            var slot = codec.Reading ? 0 : dirtyTouched[i];
             codec.Value(ref slot);
-            if (TCodec.Reading)
+            if (codec.Reading)
             {
                 if (slot < 0 || slot >= Capacity)
                 {
@@ -2050,7 +2050,7 @@ public sealed unsafe partial class Board
         for (var stat = 0; stat < statCount; stat++)
         {
             var touched = changedTouchedCounts[stat];
-            if (TCodec.Reading && (touched < 0 || touched > words))
+            if (codec.Reading && (touched < 0 || touched > words))
             {
                 throw new System.IO.InvalidDataException("sv: corrupt board state");
             }
@@ -2061,14 +2061,14 @@ public sealed unsafe partial class Board
         codec.Bytes(changed, (long)statCount * words * sizeof(ulong));
         var acquiredCount = acquiredTouchedCount;
         codec.Value(ref acquiredCount);
-        if (TCodec.Reading)
+        if (codec.Reading)
         {
             acquiredTouchedCount = acquiredCount;
         }
 
         codec.Bytes(acquiredTouched, (long)acquiredCount * sizeof(int));
         codec.Bytes(acquired, (long)statCount * words * sizeof(ulong));
-        var staleColumns = TCodec.Reading ? arena.Alloc<int>(statCount) : null;
+        var staleColumns = codec.Reading ? arena.Alloc<int>(statCount) : null;
         var staleCount = 0;
         for (var stat = 0; stat < statCount; stat++)
         {
@@ -2076,20 +2076,20 @@ public sealed unsafe partial class Board
             codec.Value(ref hasOwned);
             if (hasOwned != 0)
             {
-                if (TCodec.Reading && owned[stat] == null)
+                if (codec.Reading && owned[stat] == null)
                 {
                     owned[stat] = arena.AllocAlignedZeroed<float>(Capacity);
                 }
 
                 codec.Bytes(owned[stat], (long)Capacity * sizeof(float));
             }
-            else if (TCodec.Reading && owned[stat] != null)
+            else if (codec.Reading && owned[stat] != null)
             {
                 staleColumns![staleCount++] = stat;
             }
         }
 
-        var staleMirrors = TCodec.Reading ? arena.Alloc<int>(statCount) : null;
+        var staleMirrors = codec.Reading ? arena.Alloc<int>(statCount) : null;
         var staleMirrorCount = 0;
         for (var stat = 0; stat < statCount; stat++)
         {
@@ -2097,7 +2097,7 @@ public sealed unsafe partial class Board
             codec.Value(ref hasMirror);
             if (hasMirror == 0)
             {
-                if (TCodec.Reading && mirrors[stat] != null && outputColumn[stat] == null)
+                if (codec.Reading && mirrors[stat] != null && outputColumn[stat] == null)
                 {
                     staleMirrors![staleMirrorCount++] = stat;
                 }
@@ -2105,7 +2105,7 @@ public sealed unsafe partial class Board
                 continue;
             }
 
-            if (TCodec.Reading && mirrors[stat] == null)
+            if (codec.Reading && mirrors[stat] == null)
             {
                 mirrors[stat] = arena.AllocAlignedZeroed<int>(Capacity);
             }
@@ -2115,7 +2115,7 @@ public sealed unsafe partial class Board
 
         var poolCount = recordCount;
         codec.Value(ref poolCount);
-        if (TCodec.Reading)
+        if (codec.Reading)
         {
             if (poolCount < 0 || poolCount > (1 << 24))
             {
@@ -2134,7 +2134,7 @@ public sealed unsafe partial class Board
 
         codec.Bytes(records, (long)poolCount * sizeof(ModRecord));
         codec.Value(ref recordFree);
-        if (TCodec.Reading && (recordFree < -1 || recordFree >= poolCount))
+        if (codec.Reading && (recordFree < -1 || recordFree >= poolCount))
         {
             throw new System.IO.InvalidDataException("sv: corrupt board state");
         }
@@ -2146,7 +2146,7 @@ public sealed unsafe partial class Board
             codec.Value(ref hasPage);
             if (hasPage == 0)
             {
-                if (TCodec.Reading && slotPages[page] != null)
+                if (codec.Reading && slotPages[page] != null)
                 {
                     arena.Free(slotPages[page], PageSlots);
                     slotPages[page] = null;
@@ -2155,7 +2155,7 @@ public sealed unsafe partial class Board
                 continue;
             }
 
-            if (TCodec.Reading && slotPages[page] == null)
+            if (codec.Reading && slotPages[page] == null)
             {
                 slotPages[page] = arena.Alloc<SlotState>(PageSlots);
                 for (var i = 0; i < PageSlots; i++)
@@ -2169,12 +2169,12 @@ public sealed unsafe partial class Board
 
         blocks!.VisitState(ref codec);
         table!.VisitState(ref codec);
-        if (TCodec.Reading)
+        if (codec.Reading)
         {
             for (var i = 0; i < staleCount; i++)
             {
                 var stat = staleColumns![i];
-                NativeMemory.Clear(owned[stat], (nuint)Capacity * sizeof(float));
+                Memory.Clear(owned[stat], (nuint)Capacity * sizeof(float));
                 if (outputColumn[stat] != null)
                 {
                     continue;
@@ -2185,7 +2185,7 @@ public sealed unsafe partial class Board
                     var bits = live[word];
                     while (bits != 0)
                     {
-                        var slot = (word << 6) + System.Numerics.BitOperations.TrailingZeroCount(bits);
+                        var slot = (word << 6) + Bits.Tzcnt(bits);
                         bits &= bits - 1;
                         if (SetOf(slot, stat) >= 0)
                         {
@@ -2198,7 +2198,7 @@ public sealed unsafe partial class Board
             for (var i = 0; i < staleMirrorCount; i++)
             {
                 var stat = staleMirrors![i];
-                NativeMemory.Clear(mirrors[stat], (nuint)Capacity * sizeof(int));
+                Memory.Clear(mirrors[stat], (nuint)Capacity * sizeof(int));
                 FillMirrorFromColumns(stat, mirrors[stat]);
             }
 
@@ -2232,7 +2232,7 @@ public sealed unsafe partial class Board
         {
             var source = dirty + (nint)dirtyTouched[i] * statMaskWords;
             new ReadOnlySpan<uint>(source, statMaskWords).CopyTo(new Span<uint>(masks + (nint)i * statMaskWords, statMaskWords));
-            NativeMemory.Clear(source, (nuint)statMaskWords * sizeof(uint));
+            Memory.Clear(source, (nuint)statMaskWords * sizeof(uint));
         }
 
         var count = 0;
@@ -2339,7 +2339,7 @@ public sealed unsafe partial class Board
                     continue;
                 }
 
-                var bits = BitConverter.SingleToUInt32Bits(table!.Computed(set));
+                var bits = Bits.OfSingle(table!.Computed(set));
                 var oldKey = DigestKey(stat, slot, bits);
                 var newKey = DigestKey(stat, next, bits);
                 digest += newKey - oldKey;
@@ -2360,7 +2360,7 @@ public sealed unsafe partial class Board
 
             while (bits != 0)
             {
-                var deadSlot = (word << 6) + System.Numerics.BitOperations.TrailingZeroCount(bits);
+                var deadSlot = (word << 6) + Bits.Tzcnt(bits);
                 bits &= bits - 1;
                 if (nextPages[deadSlot >> PageShift] != null)
                 {
@@ -2396,7 +2396,7 @@ public sealed unsafe partial class Board
 
             while (bits != 0)
             {
-                var slot = (word << 6) + System.Numerics.BitOperations.TrailingZeroCount(bits);
+                var slot = (word << 6) + Bits.Tzcnt(bits);
                 bits &= bits - 1;
                 dead![found++] = slot;
             }
@@ -2411,7 +2411,7 @@ public sealed unsafe partial class Board
                 continue;
             }
 
-            NativeMemory.Copy(column, tempRows, (nuint)Capacity * sizeof(float));
+            Memory.Copy(column, tempRows, (nuint)Capacity * sizeof(float));
             for (var j = 0; j < movedCount; j++)
             {
                 tempRows[moved![j * 2 + 1]] = column[moved[j * 2]];
@@ -2430,7 +2430,7 @@ public sealed unsafe partial class Board
             }
 
             var mirrorRows = (int*)tempRows;
-            NativeMemory.Copy(mirror, mirrorRows, (nuint)Capacity * sizeof(int));
+            Memory.Copy(mirror, mirrorRows, (nuint)Capacity * sizeof(int));
             for (var j = 0; j < movedCount; j++)
             {
                 mirrorRows[moved![j * 2 + 1]] = mirror[moved[j * 2]];

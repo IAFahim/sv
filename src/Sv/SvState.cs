@@ -60,7 +60,7 @@ namespace Sv
             {
                 var next = Math.Max(capacity * 2L, Math.Max(need, 4096));
                 capacity = (int)Math.Min(next, int.MaxValue);
-                data = data == null ? (byte*)NativeMemory.Alloc((nuint)capacity) : (byte*)NativeMemory.Realloc(data, (nuint)capacity);
+                data = data == null ? (byte*)Memory.Alloc((nuint)capacity) : (byte*)Memory.Realloc(data, (nuint)capacity);
             }
 
             Buffer.MemoryCopy(source, data + length, capacity - length, bytes);
@@ -110,7 +110,7 @@ namespace Sv
 
             if (data != null)
             {
-                NativeMemory.Free(data);
+                Memory.Free(data);
             }
 
             disposed = true;

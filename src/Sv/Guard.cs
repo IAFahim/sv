@@ -5,6 +5,14 @@ namespace Sv
 {
     internal static unsafe class Guard
     {
+        public static void NotDisposed(bool disposed, object instance)
+        {
+            if (disposed)
+            {
+                throw new ObjectDisposedException(instance.GetType().FullName);
+            }
+        }
+
         public static void SlotLive(int slot, ulong* live, int capacity)
         {
             if (slot < 0 || slot >= capacity || (live[slot >> 6] & (1ul << (slot & 63))) == 0)

@@ -8,28 +8,47 @@ namespace Sv
     }
 
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
-    public sealed class SvStatAttribute(string name, float @base) : Attribute
+    public sealed class SvStatAttribute : Attribute
     {
-        public string Name { get; } = name;
+        public SvStatAttribute(string name, float @base)
+        {
+            Name = name;
+            Base = @base;
+        }
 
-        public float Base { get; } = @base;
+        public string Name { get; }
+
+        public float Base { get; }
     }
 
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
-    public sealed class SvDerivedAttribute(string name, float @base, string[] sources, float[] coefficients) : Attribute
+    public sealed class SvDerivedAttribute : Attribute
     {
-        public string Name { get; } = name;
+        public SvDerivedAttribute(string name, float @base, string[] sources, float[] coefficients)
+        {
+            Name = name;
+            Base = @base;
+            Sources = sources;
+            Coefficients = coefficients;
+        }
 
-        public float Base { get; } = @base;
+        public string Name { get; }
 
-        public string[] Sources { get; } = sources;
+        public float Base { get; }
 
-        public float[] Coefficients { get; } = coefficients;
+        public string[] Sources { get; }
+
+        public float[] Coefficients { get; }
     }
 
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
-    public sealed class SvIntrinsicAttribute(string name) : Attribute
+    public sealed class SvIntrinsicAttribute : Attribute
     {
-        public string Name { get; } = name;
+        public SvIntrinsicAttribute(string name)
+        {
+            Name = name;
+        }
+
+        public string Name { get; }
     }
 }

@@ -1,12 +1,20 @@
+#if NET
 using System.Runtime.Intrinsics;
+#endif
 
 namespace Sv
 {
     internal static unsafe partial class Simd
     {
+#if NET
         internal static bool Has128 => Vector128.IsHardwareAccelerated;
 
         internal static bool Has256 => Vector256.IsHardwareAccelerated;
+#else
+        internal static bool Has128 => false;
+
+        internal static bool Has256 => false;
+#endif
 
         internal static int SaturatingAdd(int a, int b)
         {
@@ -23,6 +31,7 @@ namespace Sv
         internal static void Chunk(int* value, int* delta, int deltaValue, in Clamp clamp, int start, int count, int* applied)
         {
             clamp.CheckStatBounds();
+#if NET
             if (Vector256.IsHardwareAccelerated)
             {
                 ChunkW256(value, delta, deltaValue, clamp, start, count, applied);
@@ -34,6 +43,7 @@ namespace Sv
                 ChunkW128(value, delta, deltaValue, clamp, start, count, applied);
                 return;
             }
+#endif
 
             ChunkScalar(value, delta, deltaValue, clamp, start, count, applied);
         }
@@ -53,6 +63,174 @@ namespace Sv
                 }
             }
         }
+
+        internal static int ValidBits(int length, int start) => System.Math.Clamp(length - start, 0, 64);
+
+        internal static void EnabledWord(int* value, int* delta, int deltaValue, in Clamp clamp, ulong word, int offset, int* applied, int validBits)
+        {
+            clamp.CheckStatBounds();
+#if NET
+            var count = System.Math.Min(validBits, 64);
+            if (word == ulong.MaxValue && Vector256.IsHardwareAccelerated)
+            {
+                Dispatch<Width256>(value, delta, deltaValue, clamp, offset, count, applied);
+                return;
+            }
+
+            if (word == ulong.MaxValue && Vector128.IsHardwareAccelerated)
+            {
+                Dispatch<Width128>(value, delta, deltaValue, clamp, offset, count, applied);
+                return;
+            }
+
+            if (Vector256.IsHardwareAccelerated)
+            {
+                Dispatch<Masked256>(value, delta, deltaValue, clamp, offset, count, applied, word);
+                return;
+            }
+
+            if (Vector128.IsHardwareAccelerated)
+            {
+                Dispatch<Masked128>(value, delta, deltaValue, clamp, offset, count, applied, word);
+                return;
+            }
+#endif
+
+            EnabledWordScalar(value, delta, deltaValue, clamp, word, offset, applied);
+        }
+
+        internal static void EnabledWordScalar(int* value, int* delta, int deltaValue, in Clamp clamp, ulong word, int offset, int* applied)
+        {
+            var mask = word;
+            while (mask != 0)
+            {
+                var bit = Bits.Tzcnt(mask);
+                mask &= mask - 1;
+                var slot = offset + bit;
+                var before = value[slot];
+                var after = clamp.Apply(SaturatingAdd(before, delta == null ? deltaValue : delta[slot]), slot);
+                value[slot] = after;
+                if (applied != null)
+                {
+                    applied[slot] = SaturatingSubtract(after, before);
+                }
+            }
+
+            if (applied == null)
+            {
+                return;
+            }
+
+            var skipped = ~word;
+            while (skipped != 0)
+            {
+                var bit = Bits.Tzcnt(skipped);
+                skipped &= skipped - 1;
+                applied[offset + bit] = 0;
+            }
+        }
+
+        internal static ulong BoolNonZeroWord(byte* cond, int row)
+        {
+#if NET
+            if (Vector256.IsHardwareAccelerated)
+            {
+                return BoolWord256(cond, row);
+            }
+
+            if (Vector128.IsHardwareAccelerated)
+            {
+                return BoolWord128(cond, row);
+            }
+#endif
+
+            return BoolWordScalar(cond, row);
+        }
+
+        internal static ulong BoolWordScalar(byte* cond, int row)
+        {
+            ulong word = 0;
+            for (var i = 0; i < 64; i++)
+            {
+                if (cond[row + i] != 0)
+                {
+                    word |= 1ul << i;
+                }
+            }
+
+            return word;
+        }
+
+        internal static ulong IntNonZeroWord(int* values, int row)
+        {
+#if NET
+            if (Vector256.IsHardwareAccelerated)
+            {
+                return IntWord256(values, row);
+            }
+
+            if (Vector128.IsHardwareAccelerated)
+            {
+                return IntWord128(values, row);
+            }
+#endif
+
+            return IntWordScalar(values, row);
+        }
+
+        internal static ulong IntWordScalar(int* values, int row)
+        {
+            ulong word = 0;
+            for (var i = 0; i < 64; i++)
+            {
+                if (values[row + i] != 0)
+                {
+                    word |= 1ul << i;
+                }
+            }
+
+            return word;
+        }
+
+        internal static void NormalizeBoolsScalar(byte* src, byte* dst, int count)
+        {
+            for (var i = 0; i < count; i++)
+            {
+                dst[i] = (byte)(src[i] != 0 ? 1 : 0);
+            }
+        }
+
+        internal static void ApplyButtonWords(ulong* words, ulong* buttons, ulong* previous, ulong* pressed, ulong* released, int count)
+        {
+#if NET
+            if (Vector256.IsHardwareAccelerated)
+            {
+                ApplyButtonWords256(words, buttons, previous, pressed, released, count);
+                return;
+            }
+
+            if (Vector128.IsHardwareAccelerated)
+            {
+                ApplyButtonWords128(words, buttons, previous, pressed, released, count);
+                return;
+            }
+#endif
+
+            ApplyButtonWordsScalar(words, buttons, previous, pressed, released, count);
+        }
+
+        internal static void ApplyButtonWordsScalar(ulong* words, ulong* buttons, ulong* previous, ulong* pressed, ulong* released, int count)
+        {
+            for (var w = 0; w < count; w++)
+            {
+                previous[w] = buttons[w];
+                var word = words[w];
+                pressed[w] = word & ~previous[w];
+                released[w] = ~word & previous[w];
+                buttons[w] = word;
+            }
+        }
+#if NET
 
         internal static void ChunkW128(int* value, int* delta, int deltaValue, in Clamp clamp, int start, int count, int* applied)
         {
@@ -114,35 +292,6 @@ namespace Sv
             return Vector256.ConditionalSelect(Vector256.GreaterThan(v, hi), hi, v);
         }
 
-        internal static ulong BoolNonZeroWord(byte* cond, int row)
-        {
-            if (Vector256.IsHardwareAccelerated)
-            {
-                return BoolWord256(cond, row);
-            }
-
-            if (Vector128.IsHardwareAccelerated)
-            {
-                return BoolWord128(cond, row);
-            }
-
-            return BoolWordScalar(cond, row);
-        }
-
-        internal static ulong BoolWordScalar(byte* cond, int row)
-        {
-            ulong word = 0;
-            for (var i = 0; i < 64; i++)
-            {
-                if (cond[row + i] != 0)
-                {
-                    word |= 1ul << i;
-                }
-            }
-
-            return word;
-        }
-
         internal static ulong BoolWord128(byte* cond, int row)
         {
             var zero = Vector128<byte>.Zero;
@@ -166,35 +315,6 @@ namespace Sv
                 var v = Vector256.Load(cond + row + part * 32);
                 var bits = ~Vector256.ExtractMostSignificantBits(Vector256.Equals(v, zero)) & 0xFFFFFFFFu;
                 word |= (ulong)bits << (part * 32);
-            }
-
-            return word;
-        }
-
-        internal static ulong IntNonZeroWord(int* values, int row)
-        {
-            if (Vector256.IsHardwareAccelerated)
-            {
-                return IntWord256(values, row);
-            }
-
-            if (Vector128.IsHardwareAccelerated)
-            {
-                return IntWord128(values, row);
-            }
-
-            return IntWordScalar(values, row);
-        }
-
-        internal static ulong IntWordScalar(int* values, int row)
-        {
-            ulong word = 0;
-            for (var i = 0; i < 64; i++)
-            {
-                if (values[row + i] != 0)
-                {
-                    word |= 1ul << i;
-                }
             }
 
             return word;
@@ -228,14 +348,6 @@ namespace Sv
             return word;
         }
 
-        internal static void NormalizeBoolsScalar(byte* src, byte* dst, int count)
-        {
-            for (var i = 0; i < count; i++)
-            {
-                dst[i] = (byte)(src[i] != 0 ? 1 : 0);
-            }
-        }
-
         internal static void NormalizeBools128(byte* src, byte* dst, int count)
         {
             int i;
@@ -265,35 +377,6 @@ namespace Sv
             for (; i < count; i++)
             {
                 dst[i] = (byte)(src[i] != 0 ? 1 : 0);
-            }
-        }
-
-        internal static void ApplyButtonWords(ulong* words, ulong* buttons, ulong* previous, ulong* pressed, ulong* released, int count)
-        {
-            if (Vector256.IsHardwareAccelerated)
-            {
-                ApplyButtonWords256(words, buttons, previous, pressed, released, count);
-                return;
-            }
-
-            if (Vector128.IsHardwareAccelerated)
-            {
-                ApplyButtonWords128(words, buttons, previous, pressed, released, count);
-                return;
-            }
-
-            ApplyButtonWordsScalar(words, buttons, previous, pressed, released, count);
-        }
-
-        internal static void ApplyButtonWordsScalar(ulong* words, ulong* buttons, ulong* previous, ulong* pressed, ulong* released, int count)
-        {
-            for (var w = 0; w < count; w++)
-            {
-                previous[w] = buttons[w];
-                var word = words[w];
-                pressed[w] = word & ~previous[w];
-                released[w] = ~word & previous[w];
-                buttons[w] = word;
             }
         }
 
@@ -342,5 +425,6 @@ namespace Sv
                 buttons[w] = word;
             }
         }
+#endif
     }
 }

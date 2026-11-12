@@ -48,14 +48,14 @@ namespace Sv
             Axes = axes;
             ButtonWords = buttonWords;
             RingTicks = ringTicks;
-            axisBits = (uint*)NativeMemory.AllocZeroed((nuint)axes * sizeof(uint));
-            buttons = (ulong*)NativeMemory.AllocZeroed((nuint)buttonWords * sizeof(ulong));
-            previous = (ulong*)NativeMemory.AllocZeroed((nuint)buttonWords * sizeof(ulong));
-            pressed = (ulong*)NativeMemory.AllocZeroed((nuint)buttonWords * sizeof(ulong));
-            released = (ulong*)NativeMemory.AllocZeroed((nuint)buttonWords * sizeof(ulong));
+            axisBits = (uint*)Memory.AllocZeroed((nuint)axes * sizeof(uint));
+            buttons = (ulong*)Memory.AllocZeroed((nuint)buttonWords * sizeof(ulong));
+            previous = (ulong*)Memory.AllocZeroed((nuint)buttonWords * sizeof(ulong));
+            pressed = (ulong*)Memory.AllocZeroed((nuint)buttonWords * sizeof(ulong));
+            released = (ulong*)Memory.AllocZeroed((nuint)buttonWords * sizeof(ulong));
             ringStride = axes * sizeof(uint) + buttonWords * sizeof(ulong);
-            ring = (byte*)NativeMemory.AllocZeroed((nuint)ringTicks * (nuint)ringStride);
-            ringTickIds = (long*)NativeMemory.Alloc((nuint)ringTicks * sizeof(long));
+            ring = (byte*)Memory.AllocZeroed((nuint)ringTicks * (nuint)ringStride);
+            ringTickIds = (long*)Memory.Alloc((nuint)ringTicks * sizeof(long));
             for (var i = 0; i < ringTicks; i++)
             {
                 ringTickIds[i] = -1;
@@ -275,7 +275,7 @@ namespace Sv
         public float AxisF(int axis)
         {
             Guard.Axis(axis, Axes);
-            return BitConverter.UInt32BitsToSingle(axisBits[axis]);
+            return Bits.ToSingle(axisBits[axis]);
         }
 
         const uint StateMagic = 0x4E495653;
@@ -303,7 +303,7 @@ namespace Sv
 
         internal void VisitState<TCodec>(ref TCodec codec) where TCodec : struct, IStateCodec
         {
-            if (TCodec.Reading)
+            if (codec.Reading)
             {
                 EndUndoWindow();
             }
@@ -384,13 +384,13 @@ namespace Sv
             }
 
             EndUndoWindow();
-            NativeMemory.Free(axisBits);
-            NativeMemory.Free(buttons);
-            NativeMemory.Free(previous);
-            NativeMemory.Free(pressed);
-            NativeMemory.Free(released);
-            NativeMemory.Free(ring);
-            NativeMemory.Free(ringTickIds);
+            Memory.Free(axisBits);
+            Memory.Free(buttons);
+            Memory.Free(previous);
+            Memory.Free(pressed);
+            Memory.Free(released);
+            Memory.Free(ring);
+            Memory.Free(ringTickIds);
             disposed = true;
         }
     }

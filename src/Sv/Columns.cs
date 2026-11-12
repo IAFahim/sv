@@ -31,7 +31,7 @@ namespace Sv
                 return;
             }
 
-            var temp = (T*)NativeMemory.AllocZeroed((nuint)count * (nuint)sizeof(T));
+            var temp = (T*)Memory.AllocZeroed((nuint)count * (nuint)sizeof(T));
             for (var old = 0; old < oldToNew.Length; old++)
             {
                 var next = oldToNew[old];
@@ -39,7 +39,7 @@ namespace Sv
                 {
                     if (next >= count)
                     {
-                        NativeMemory.Free(temp);
+                        Memory.Free(temp);
                         throw new ArgumentOutOfRangeException(nameof(oldToNew), $"sv: permute maps slot {old} to {next} outside [0, {count})");
                     }
 
@@ -52,7 +52,7 @@ namespace Sv
                 column[i] = temp[i];
             }
 
-            NativeMemory.Free(temp);
+            Memory.Free(temp);
         }
     }
 }

@@ -1,3 +1,4 @@
+#if NET
 using System;
 using System.Threading;
 
@@ -236,3 +237,4 @@ namespace Sv
         }
     }
 }
+#endif

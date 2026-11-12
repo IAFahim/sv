@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <LangVersion>latest</LangVersion>
+    <TargetFrameworks>net10.0;netstandard2.1</TargetFrameworks>
+    <LangVersion>9</LangVersion>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ImplicitUsings>disable</ImplicitUsings>
@@ -15,5 +15,6 @@
     <InternalsVisibleTo Include="Sv.Frent" />
     <InternalsVisibleTo Include="Sv.Compose" />
     <InternalsVisibleTo Include="Sv.NorthStar" />
+    <InternalsVisibleTo Include="Sv.Portable.Tests" />
   </ItemGroup>
 </Project>

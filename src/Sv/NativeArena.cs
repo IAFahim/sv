@@ -14,35 +14,40 @@ namespace Sv
         public T* Alloc<T>(int count) where T : unmanaged
         {
             live += (long)count * sizeof(T);
-            return (T*)NativeMemory.Alloc((nuint)count * (nuint)sizeof(T));
+            return (T*)Memory.Alloc((nuint)count * (nuint)sizeof(T));
         }
 
         public void* AllocBytes(int bytes)
         {
             live += bytes;
-            return NativeMemory.Alloc((nuint)bytes);
+            return Memory.Alloc((nuint)bytes);
         }
 
         public void* AllocZeroedBytes(int bytes)
         {
             live += bytes;
-            return NativeMemory.AllocZeroed((nuint)bytes);
+            return Memory.AllocZeroed((nuint)bytes);
         }
 
         public T* AllocZeroed<T>(int count) where T : unmanaged
         {
             live += (long)count * sizeof(T);
-            return (T*)NativeMemory.AllocZeroed((nuint)count * (nuint)sizeof(T));
+            return (T*)Memory.AllocZeroed((nuint)count * (nuint)sizeof(T));
         }
 
         public T* AllocAlignedZeroed<T>(int count) where T : unmanaged
         {
             var bytes = (nuint)count * (nuint)sizeof(T);
             live += (long)bytes;
+#if NET
             var alignment = bytes >= (nuint)2 * 1024 * 1024 ? (nuint)2 * 1024 * 1024 : 64;
-            var block = (T*)NativeMemory.AlignedAlloc(bytes, alignment);
-            NativeMemory.Clear(block, bytes);
+            var block = (T*)Memory.AllocAligned(bytes, alignment);
+            Memory.Clear(block, bytes);
             AdviseHugePages(block, bytes);
+#else
+            var block = (T*)Memory.AllocAligned(bytes, 64);
+            Memory.Clear(block, bytes);
+#endif
             return block;
         }
 
@@ -54,9 +59,10 @@ namespace Sv
             }
 
             live -= (long)count * sizeof(T);
-            NativeMemory.AlignedFree(old);
+            Memory.FreeAligned(old);
         }
 
+#if NET
         [DllImport("libc", SetLastError = true)]
         static extern int madvise(void* address, nuint length, int advice);
 
@@ -67,11 +73,12 @@ namespace Sv
                 _ = madvise(block, bytes, 14);
             }
         }
+#endif
 
         public T* Realloc<T>(T* old, int oldCount, int newCount) where T : unmanaged
         {
             live += (long)(newCount - oldCount) * sizeof(T);
-            return (T*)NativeMemory.Realloc(old, (nuint)newCount * (nuint)sizeof(T));
+            return (T*)Memory.Realloc(old, (nuint)newCount * (nuint)sizeof(T));
         }
 
         public void Free<T>(T* old, int count) where T : unmanaged
@@ -82,7 +89,7 @@ namespace Sv
             }
 
             live -= (long)count * sizeof(T);
-            NativeMemory.Free(old);
+            Memory.Free(old);
         }
 
         public void FreeBytes(void* old, int bytes)
@@ -93,7 +100,7 @@ namespace Sv
             }
 
             live -= bytes;
-            NativeMemory.Free(old);
+            Memory.Free(old);
         }
 
         public void FreeBytesAligned(void* old, int bytes)
@@ -104,7 +111,7 @@ namespace Sv
             }
 
             live -= bytes;
-            NativeMemory.AlignedFree(old);
+            Memory.FreeAligned(old);
         }
 
         public void Dispose()

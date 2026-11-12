@@ -47,21 +47,77 @@ namespace Sv
         public override string ToString() => $"Stat({Index})";
     }
 
-    public readonly record struct StatSource(StatId Stat, float Coefficient)
+    public readonly struct StatSource : IEquatable<StatSource>
     {
-        public float[]? Curve { get; init; }
+        public StatId Stat { get; }
 
-        public float CurveMin { get; init; }
+        public float Coefficient { get; }
 
-        public float CurveStep { get; init; }
+        public float[]? Curve { get; }
+
+        public float CurveMin { get; }
+
+        public float CurveStep { get; }
+
+        public StatSource(StatId stat, float coefficient)
+            : this(stat, coefficient, null, 0f, 0f)
+        {
+        }
+
+        public StatSource(StatId stat, float coefficient, float[]? curve, float curveMin, float curveStep)
+        {
+            Stat = stat;
+            Coefficient = coefficient;
+            Curve = curve;
+            CurveMin = curveMin;
+            CurveStep = curveStep;
+        }
+
+        public bool Equals(StatSource other) => Stat == other.Stat && Coefficient.Equals(other.Coefficient) && ReferenceEquals(Curve, other.Curve) && CurveMin.Equals(other.CurveMin) && CurveStep.Equals(other.CurveStep);
+
+        public override bool Equals(object? obj) => obj is StatSource other && Equals(other);
+
+        public override int GetHashCode() => HashCode.Combine(Stat, Coefficient, Curve, CurveMin, CurveStep);
+
+        public static bool operator ==(StatSource left, StatSource right) => left.Equals(right);
+
+        public static bool operator !=(StatSource left, StatSource right) => !left.Equals(right);
+
+        public override string ToString() => $"StatSource {{ Stat = {Stat}, Coefficient = {Coefficient} }}";
     }
 
-    public sealed record StatDef(string Name, float Base)
+    public sealed class StatDef
     {
-        public IReadOnlyList<StatSource> Sources { get; init; } = Array.Empty<StatSource>();
+        public string Name { get; }
+
+        public float Base { get; }
+
+        public IReadOnlyList<StatSource> Sources { get; }
+
+        public StatDef(string name, float @base)
+            : this(name, @base, Array.Empty<StatSource>())
+        {
+        }
+
+        public StatDef(string name, float @base, IReadOnlyList<StatSource> sources)
+        {
+            Name = name;
+            Base = @base;
+            Sources = sources;
+        }
+
+        public StatDef WithSources(IReadOnlyList<StatSource> sources) => new StatDef(Name, Base, sources);
     }
 
-    public sealed record IntrinsicDef(string Name);
+    public sealed class IntrinsicDef
+    {
+        public string Name { get; }
+
+        public IntrinsicDef(string name)
+        {
+            Name = name;
+        }
+    }
 
     public sealed unsafe class Schema
     {
@@ -117,20 +173,20 @@ namespace Sv
             {
                 bytes.Add(1);
                 AddName(def.Name);
-                AddU32(BitConverter.SingleToUInt32Bits(def.Base));
+                AddU32(Bits.OfSingle(def.Base));
                 AddI32(def.Sources.Count);
                 foreach (var source in def.Sources)
                 {
                     AddI32(source.Stat.Index);
-                    AddU32(BitConverter.SingleToUInt32Bits(source.Coefficient));
+                    AddU32(Bits.OfSingle(source.Coefficient));
                     if (source.Curve is { } curve)
                     {
                         AddI32(curve.Length);
-                        AddU32(BitConverter.SingleToUInt32Bits(source.CurveMin));
-                        AddU32(BitConverter.SingleToUInt32Bits(source.CurveStep));
+                        AddU32(Bits.OfSingle(source.CurveMin));
+                        AddU32(Bits.OfSingle(source.CurveStep));
                         foreach (var entry in curve)
                         {
-                            AddU32(BitConverter.SingleToUInt32Bits(entry));
+                            AddU32(Bits.OfSingle(entry));
                         }
                     }
                 }
@@ -231,7 +287,7 @@ namespace Sv
                 resolved[i] = new StatSource(new StatId(index), sources[i].Coefficient);
             }
 
-            stats[stats.Count - 1] = stats[stats.Count - 1] with { Sources = resolved };
+            stats[stats.Count - 1] = stats[stats.Count - 1].WithSources(resolved);
             return this;
         }
 
@@ -275,9 +331,9 @@ namespace Sv
 
             var resolved = new StatSource[1]
             {
-                new StatSource(new StatId(index), 0f) { Curve = curve, CurveMin = min, CurveStep = step },
+                new StatSource(new StatId(index), 0f, curve, min, step),
             };
-            stats[stats.Count - 1] = stats[stats.Count - 1] with { Sources = resolved };
+            stats[stats.Count - 1] = stats[stats.Count - 1].WithSources(resolved);
             return this;
         }
 

@@ -1,5 +1,4 @@
 using System;
-using System.Numerics;
 using System.Runtime.InteropServices;
 
 namespace Sv
@@ -115,7 +114,7 @@ namespace Sv
 
         internal void VisitState<TCodec>(ref TCodec codec) where TCodec : struct, IStateCodec
         {
-            if (TCodec.Reading)
+            if (codec.Reading)
             {
                 InvalidateUndo();
                 RebaseKeyframes();
@@ -124,13 +123,13 @@ namespace Sv
             codec.Header(StateMagic, StateShape, "board");
             var liveCount = LiveCount;
             codec.Value(ref liveCount);
-            if (TCodec.Reading)
+            if (codec.Reading)
             {
                 LiveCount = liveCount;
             }
 
             codec.Bytes(live, (long)LiveWordCount * sizeof(ulong));
-            if (TCodec.Reading)
+            if (codec.Reading)
             {
                 var word = 0;
                 while (word < LiveWordCount && live[word] == ulong.MaxValue)
@@ -178,7 +177,7 @@ namespace Sv
                 throw new InvalidOperationException("sv: slot exhaustion");
             }
 
-            var slot = (word << 6) + BitOperations.TrailingZeroCount(~live[word]);
+            var slot = (word << 6) + Bits.Tzcnt(~live[word]);
             undo?.Note(live + word, sizeof(ulong));
             live[word] |= 1ul << (slot & 63);
             freeHint = live[word] == ulong.MaxValue ? word + 1 : word;
@@ -325,14 +324,14 @@ namespace Sv
             {
                 if (words[w] != 0)
                 {
-                    return offset + w * 64 + 64 - BitOperations.LeadingZeroCount(words[w]);
+                    return offset + w * 64 + 64 - Bits.Lzcnt(words[w]);
                 }
             }
 
             return 0;
         }
 
-        static int Reach(ulong word, int offset) => word == 0 ? 0 : offset + 64 - BitOperations.LeadingZeroCount(word);
+        static int Reach(ulong word, int offset) => word == 0 ? 0 : offset + 64 - Bits.Lzcnt(word);
 
         public void RunIntrinsicsChunk(Span<int> value, int delta, in Clamp clamp, int start, int count, Span<int> applied = default)
         {

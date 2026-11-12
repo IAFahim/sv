@@ -1,11 +1,10 @@
 using System;
-using System.Runtime.CompilerServices;
 
 namespace Sv
 {
     internal unsafe interface IStateCodec
     {
-        static abstract bool Reading { get; }
+        bool Reading { get; }
 
         void Header(uint magic, long shape, string what);
 
@@ -23,7 +22,7 @@ namespace Sv
             this.state = state;
         }
 
-        public static bool Reading => false;
+        public readonly bool Reading => false;
 
         public void Header(uint magic, long shape, string what)
         {
@@ -32,7 +31,10 @@ namespace Sv
 
         public void Value<T>(ref T value) where T : unmanaged
         {
-            state.Write(Unsafe.AsPointer(ref value), sizeof(T));
+            fixed (T* pointer = &value)
+            {
+                state.Write(pointer, sizeof(T));
+            }
         }
 
         public void Bytes(void* pointer, long bytes)
@@ -50,7 +52,7 @@ namespace Sv
             this.state = state;
         }
 
-        public static bool Reading => true;
+        public readonly bool Reading => true;
 
         public void Header(uint magic, long shape, string what)
         {
@@ -62,7 +64,10 @@ namespace Sv
 
         public void Value<T>(ref T value) where T : unmanaged
         {
-            state.Read(Unsafe.AsPointer(ref value), sizeof(T));
+            fixed (T* pointer = &value)
+            {
+                state.Read(pointer, sizeof(T));
+            }
         }
 
         public void Bytes(void* pointer, long bytes)
@@ -75,7 +80,7 @@ namespace Sv
     {
         public long Total;
 
-        public static bool Reading => false;
+        public readonly bool Reading => false;
 
         public void Header(uint magic, long shape, string what)
         {
@@ -102,7 +107,7 @@ namespace Sv
             hash = seed;
         }
 
-        public static bool Reading => false;
+        public readonly bool Reading => false;
 
         public readonly ulong Digest => hash;
 
@@ -114,7 +119,10 @@ namespace Sv
 
         public void Value<T>(ref T value) where T : unmanaged
         {
-            Mix((byte*)Unsafe.AsPointer(ref value), sizeof(T));
+            fixed (T* pointer = &value)
+            {
+                Mix((byte*)pointer, sizeof(T));
+            }
         }
 
         public void Bytes(void* pointer, long bytes)

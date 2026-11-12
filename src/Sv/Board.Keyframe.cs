@@ -72,7 +72,7 @@ namespace Sv
                 InitKeyframes();
             }
 
-            NativeMemory.Clear(keyframePages, (nuint)keyframePageWords * sizeof(ulong));
+            Memory.Clear(keyframePages, (nuint)keyframePageWords * sizeof(ulong));
             var full = PageCount >> 6;
             for (var word = 0; word < full; word++)
             {
@@ -95,7 +95,7 @@ namespace Sv
                 return;
             }
 
-            NativeMemory.Clear(keyframePages, (nuint)keyframePageWords * sizeof(ulong));
+            Memory.Clear(keyframePages, (nuint)keyframePageWords * sizeof(ulong));
             keyframeDirtyCount = 0;
         }
 
@@ -162,7 +162,7 @@ namespace Sv
                 var bits = keyframePages[word];
                 while (bits != 0 && written < pages)
                 {
-                    var page = (word << 6) + System.Numerics.BitOperations.TrailingZeroCount(bits);
+                    var page = (word << 6) + Bits.Tzcnt(bits);
                     bits &= bits - 1;
                     written++;
                     codec.Value(ref page);
@@ -256,7 +256,7 @@ namespace Sv
 
                 var first = page << 2;
                 var wordsInPage = Math.Min(4, LiveWordCount - first);
-                NativeMemory.Clear(pageLive, 4 * sizeof(ulong));
+                Memory.Clear(pageLive, 4 * sizeof(ulong));
                 codec.Bytes(pageLive, (long)wordsInPage * sizeof(ulong));
                 var slotBase = page << 8;
                 var slotsInPage = Math.Min(256, Capacity - slotBase);
@@ -327,7 +327,7 @@ namespace Sv
                         {
                             var shipped = keyframeScratch[r];
                             if (records[at].Id == shipped.Id && records[at].Stat == shipped.Stat && records[at].Kind == shipped.Kind &&
-                                BitConverter.SingleToUInt32Bits(records[at].Value) == BitConverter.SingleToUInt32Bits(shipped.Value) &&
+                                Bits.OfSingle(records[at].Value) == Bits.OfSingle(shipped.Value) &&
                                 records[at].Source == shipped.Source && records[at].Expiry == shipped.Expiry)
                             {
                                 continue;

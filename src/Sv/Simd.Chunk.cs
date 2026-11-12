@@ -1,3 +1,4 @@
+#if NET
 using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
@@ -387,70 +388,6 @@ internal static unsafe partial class Simd
         }
     }
 
-    internal static int ValidBits(int length, int start) => System.Math.Clamp(length - start, 0, 64);
-
-    internal static void EnabledWord(int* value, int* delta, int deltaValue, in Clamp clamp, ulong word, int offset, int* applied, int validBits)
-    {
-        clamp.CheckStatBounds();
-        var count = System.Math.Min(validBits, 64);
-        if (word == ulong.MaxValue && Vector256.IsHardwareAccelerated)
-        {
-            Dispatch<Width256>(value, delta, deltaValue, clamp, offset, count, applied);
-            return;
-        }
-
-        if (word == ulong.MaxValue && Vector128.IsHardwareAccelerated)
-        {
-            Dispatch<Width128>(value, delta, deltaValue, clamp, offset, count, applied);
-            return;
-        }
-
-        if (Vector256.IsHardwareAccelerated)
-        {
-            Dispatch<Masked256>(value, delta, deltaValue, clamp, offset, count, applied, word);
-            return;
-        }
-
-        if (Vector128.IsHardwareAccelerated)
-        {
-            Dispatch<Masked128>(value, delta, deltaValue, clamp, offset, count, applied, word);
-            return;
-        }
-
-        EnabledWordScalar(value, delta, deltaValue, clamp, word, offset, applied);
-    }
-
-    internal static void EnabledWordScalar(int* value, int* delta, int deltaValue, in Clamp clamp, ulong word, int offset, int* applied)
-    {
-        var mask = word;
-        while (mask != 0)
-        {
-            var bit = System.Numerics.BitOperations.TrailingZeroCount(mask);
-            mask &= mask - 1;
-            var slot = offset + bit;
-            var before = value[slot];
-            var after = clamp.Apply(SaturatingAdd(before, delta == null ? deltaValue : delta[slot]), slot);
-            value[slot] = after;
-            if (applied != null)
-            {
-                applied[slot] = SaturatingSubtract(after, before);
-            }
-        }
-
-        if (applied == null)
-        {
-            return;
-        }
-
-        var skipped = ~word;
-        while (skipped != 0)
-        {
-            var bit = System.Numerics.BitOperations.TrailingZeroCount(skipped);
-            skipped &= skipped - 1;
-            applied[offset + bit] = 0;
-        }
-    }
-
     static void MaskedWord256<TB, TD, TA>(int* value, TD delta, TB bound, TA applied, in Clamp clamp, int offset, ulong word, int validBits)
         where TB : struct, IBound
         where TD : struct, IDelta
@@ -566,3 +503,4 @@ internal static unsafe partial class Simd
     }
 }
 }
+#endif

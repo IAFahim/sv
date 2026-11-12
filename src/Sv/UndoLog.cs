@@ -122,8 +122,8 @@ namespace Sv
                 }
 
                 frame.Entries = frame.Entries == null
-                    ? (byte*)NativeMemory.Alloc((nuint)capacity)
-                    : (byte*)NativeMemory.Realloc(frame.Entries, (nuint)capacity);
+                    ? (byte*)Memory.Alloc((nuint)capacity)
+                    : (byte*)Memory.Realloc(frame.Entries, (nuint)capacity);
                 frame.Capacity = capacity;
             }
 
@@ -293,8 +293,8 @@ namespace Sv
             }
 
             order = order == null
-                ? (int*)NativeMemory.Alloc((nuint)capacity * sizeof(int))
-                : (int*)NativeMemory.Realloc(order, (nuint)capacity * sizeof(int));
+                ? (int*)Memory.Alloc((nuint)capacity * sizeof(int))
+                : (int*)Memory.Realloc(order, (nuint)capacity * sizeof(int));
             orderCapacity = capacity;
         }
 
@@ -318,14 +318,14 @@ namespace Sv
             {
                 if (frames[i].Entries != null)
                 {
-                    NativeMemory.Free(frames[i].Entries);
+                    Memory.Free(frames[i].Entries);
                     frames[i].Entries = null;
                 }
             }
 
             if (order != null)
             {
-                NativeMemory.Free(order);
+                Memory.Free(order);
                 order = null;
             }
 

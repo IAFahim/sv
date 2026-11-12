@@ -1,5 +1,4 @@
 using System;
-using System.Numerics;
 using System.Runtime.InteropServices;
 
 namespace Sv
@@ -126,7 +125,7 @@ namespace Sv
                 Mix((ulong)stat);
                 for (var i = 0; i < count; i++)
                 {
-                    Mix((ulong)entries[i].Kind | ((ulong)BitConverter.SingleToUInt32Bits(entries[i].Value) << 8));
+                    Mix((ulong)entries[i].Kind | ((ulong)Bits.OfSingle(entries[i].Value) << 8));
                 }
 
                 hash ^= hash >> 33;
@@ -186,7 +185,7 @@ namespace Sv
             for (var i = 0; i < count; i++)
             {
                 if (contentArena[offset + i].Kind != canonical[i].Kind ||
-                    BitConverter.SingleToUInt32Bits(contentArena[offset + i].Value) != BitConverter.SingleToUInt32Bits(canonical[i].Value))
+                    Bits.OfSingle(contentArena[offset + i].Value) != Bits.OfSingle(canonical[i].Value))
                 {
                     return false;
                 }
@@ -222,7 +221,7 @@ namespace Sv
             setHash[index] = hash;
             var span = ClassSize(count);
             int offset;
-            var cls = BitOperations.TrailingZeroCount(span);
+            var cls = Bits.Tzcnt(span);
             if (contentClassHead[cls] >= 0)
             {
                 offset = contentClassHead[cls];
@@ -255,7 +254,7 @@ namespace Sv
             }
 
             undo?.Note(contentArena + offset + count, (span - count) * sizeof(StatEntry));
-            NativeMemory.Clear(contentArena + offset + count, (nuint)(span - count) * (nuint)sizeof(StatEntry));
+            Memory.Clear(contentArena + offset + count, (nuint)(span - count) * (nuint)sizeof(StatEntry));
             undo?.Note(setRefCount + index, sizeof(int));
             setRefCount[index] = 0;
             undo?.Note(setComputed + index, sizeof(float));
@@ -288,7 +287,7 @@ namespace Sv
             setFolded = GrowArray(UndoArrayId.SetFolded, setFolded, previous, setCapacity);
             setFreeNext = GrowArray(UndoArrayId.SetFreeNext, setFreeNext, previous, setCapacity);
             setFreedAt = GrowArray(UndoArrayId.SetFreedAt, setFreedAt, previous, setCapacity);
-            NativeMemory.Clear(setFreedAt + previous, (nuint)(setCapacity - previous) * (nuint)sizeof(long));
+            Memory.Clear(setFreedAt + previous, (nuint)(setCapacity - previous) * (nuint)sizeof(long));
         }
 
         T* GrowArray<T>(UndoArrayId id, T* old, int oldCount, int newCount) where T : unmanaged
@@ -316,7 +315,7 @@ namespace Sv
         {
             var undo = Undo;
             var span = setContentSpan[set];
-            var cls = BitOperations.TrailingZeroCount(span);
+            var cls = Bits.Tzcnt(span);
             var node = (int*)(contentArena + setContentOffset[set]);
             undo?.Note(node, sizeof(int));
             *node = contentClassHead[cls];
@@ -442,7 +441,7 @@ namespace Sv
             codec.Value(ref count);
             codec.Value(ref capacity);
             codec.Value(ref mask);
-            if (TCodec.Reading)
+            if (codec.Reading)
             {
                 if (count < 0 || capacity < count || mask < 0)
                 {
@@ -464,7 +463,7 @@ namespace Sv
                     setFreedAt = memory.Realloc(setFreedAt, previousCapacity, capacity);
                     if (capacity > previousCapacity)
                     {
-                        NativeMemory.Clear(setFreedAt + previousCapacity, (nuint)(capacity - previousCapacity) * (nuint)sizeof(long));
+                        Memory.Clear(setFreedAt + previousCapacity, (nuint)(capacity - previousCapacity) * (nuint)sizeof(long));
                     }
                 }
 
@@ -491,7 +490,7 @@ namespace Sv
             codec.Value(ref contentUsed);
             var arenaCapacity = contentCapacity;
             codec.Value(ref arenaCapacity);
-            if (TCodec.Reading && arenaCapacity != contentCapacity)
+            if (codec.Reading && arenaCapacity != contentCapacity)
             {
                 contentArena = memory.Realloc(contentArena, contentCapacity, arenaCapacity);
                 contentCapacity = arenaCapacity;
@@ -504,7 +503,7 @@ namespace Sv
             codec.Value(ref generation);
             codec.Bytes(setFreeNext, (long)count * sizeof(int));
             codec.Bytes(setFreedAt, (long)count * sizeof(long));
-            if (TCodec.Reading && (liveSets < 0 || liveSets > count || setFreeHead < -1 || setFreeHead >= count))
+            if (codec.Reading && (liveSets < 0 || liveSets > count || setFreeHead < -1 || setFreeHead >= count))
             {
                 throw new System.IO.InvalidDataException("sv: corrupt set table state");
             }

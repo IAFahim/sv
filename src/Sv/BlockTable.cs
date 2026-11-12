@@ -1,5 +1,4 @@
 using System;
-using System.Numerics;
 using System.Runtime.InteropServices;
 
 namespace Sv
@@ -160,8 +159,8 @@ namespace Sv
             blockHash = GrowArray(UndoArrayId.BlockHash, blockHash, previous, blockCapacity);
             blockRefCount = GrowArray(UndoArrayId.BlockRefCount, blockRefCount, previous, blockCapacity);
             blockFreeNext = GrowArray(UndoArrayId.BlockFreeNext, blockFreeNext, previous, blockCapacity);
-            NativeMemory.Clear(blockRefCount + previous, (nuint)(blockCapacity - previous) * (nuint)sizeof(int));
-            NativeMemory.Clear(blockFreeNext + previous, (nuint)(blockCapacity - previous) * (nuint)sizeof(int));
+            Memory.Clear(blockRefCount + previous, (nuint)(blockCapacity - previous) * (nuint)sizeof(int));
+            Memory.Clear(blockFreeNext + previous, (nuint)(blockCapacity - previous) * (nuint)sizeof(int));
         }
 
         T* GrowArray<T>(UndoArrayId id, T* old, int oldCount, int newCount) where T : unmanaged
@@ -285,7 +284,7 @@ namespace Sv
             codec.Value(ref count);
             codec.Value(ref capacity);
             codec.Value(ref mask);
-            if (TCodec.Reading)
+            if (codec.Reading)
             {
                 if (count < 0 || count > capacity || capacity > (1 << 24) || (mask & (mask + 1)) != 0)
                 {
@@ -319,7 +318,7 @@ namespace Sv
             codec.Bytes(blockRefCount, (long)count * sizeof(int));
             codec.Value(ref blockFreeHead);
             codec.Bytes(blockFreeNext, (long)count * sizeof(int));
-            if (TCodec.Reading && (blockFreeHead < -1 || blockFreeHead >= count))
+            if (codec.Reading && (blockFreeHead < -1 || blockFreeHead >= count))
             {
                 throw new System.IO.InvalidDataException("sv: corrupt board state");
             }

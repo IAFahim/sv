@@ -55,7 +55,7 @@ namespace Sv
 
         private const int OffsetStride = LockStride * 2;
 
-        private readonly nint* locks;
+        private readonly long* locks;
 
         private int nextTypeId;
 
@@ -92,13 +92,13 @@ namespace Sv
         EventStreams(int writerCount, int bytesPerWriter)
         {
             this.writerCount = writerCount;
-            arenas = (byte**)NativeMemory.Alloc((nuint)writerCount * 2 * (nuint)sizeof(byte*));
-            arenaCapacity = (int*)NativeMemory.AllocZeroed((nuint)writerCount * 2 * sizeof(int));
-            arenaPeak = (int*)NativeMemory.AllocZeroed((nuint)writerCount * 2 * sizeof(int));
-            readOffset = (int*)NativeMemory.AllocZeroed((nuint)writerCount * sizeof(int));
-            readCursorOffset = (int*)NativeMemory.AllocZeroed((nuint)writerCount * sizeof(int));
-            locks = (nint*)NativeMemory.AlignedAlloc((nuint)(writerCount * LockStride * sizeof(nint)), 64);
-            NativeMemory.Clear(locks, (nuint)(writerCount * LockStride * sizeof(nint)));
+            arenas = (byte**)Memory.Alloc((nuint)writerCount * 2 * (nuint)sizeof(byte*));
+            arenaCapacity = (int*)Memory.AllocZeroed((nuint)writerCount * 2 * sizeof(int));
+            arenaPeak = (int*)Memory.AllocZeroed((nuint)writerCount * 2 * sizeof(int));
+            readOffset = (int*)Memory.AllocZeroed((nuint)writerCount * sizeof(int));
+            readCursorOffset = (int*)Memory.AllocZeroed((nuint)writerCount * sizeof(int));
+            locks = (long*)Memory.AllocAligned((nuint)(writerCount * LockStride * sizeof(long)), 64);
+            Memory.Clear(locks, (nuint)(writerCount * LockStride * sizeof(long)));
             writeOffset = (int*)(locks + 1);
             var rounded = Round(bytesPerWriter);
             for (var w = 0; w < writerCount; w++)
@@ -106,7 +106,7 @@ namespace Sv
                 for (var b = 0; b < 2; b++)
                 {
                     var index = w * 2 + b;
-                    arenas[index] = (byte*)NativeMemory.Alloc((nuint)rounded);
+                    arenas[index] = (byte*)Memory.Alloc((nuint)rounded);
                     arenaCapacity[index] = rounded;
                 }
             }
@@ -181,14 +181,14 @@ namespace Sv
                     if (Undo != null)
                     {
                         var previous = arenas[index];
-                        var fresh = (byte*)NativeMemory.Alloc((nuint)capacity);
+                        var fresh = (byte*)Memory.Alloc((nuint)capacity);
                         Buffer.MemoryCopy(previous, fresh, capacity, arenaCapacity[index]);
                         arenaReplaces.Add(new ArenaReplace(index, (IntPtr)previous, arenaCapacity[index], (IntPtr)fresh, Undo.Top));
                         arenas[index] = fresh;
                     }
                     else
                     {
-                        arenas[index] = (byte*)NativeMemory.Realloc(arenas[index], (nuint)capacity);
+                        arenas[index] = (byte*)Memory.Realloc(arenas[index], (nuint)capacity);
                     }
 
                     arenaCapacity[index] = capacity;
@@ -227,7 +227,7 @@ namespace Sv
             {
                 while (mask != 0)
                 {
-                    var bit = System.Numerics.BitOperations.TrailingZeroCount(mask);
+                    var bit = Bits.Tzcnt(mask);
                     mask &= mask - 1;
                     var row = rowBase + bit;
                     var evt = maker.Make(row, values == null ? 1 : values[row]);
@@ -241,7 +241,7 @@ namespace Sv
             var count = 0;
             while (mask != 0)
             {
-                var bit = System.Numerics.BitOperations.TrailingZeroCount(mask);
+                var bit = Bits.Tzcnt(mask);
                 mask &= mask - 1;
                 var row = rowBase + bit;
                 batch[count++] = maker.Make(row, values == null ? 1 : values[row]);
@@ -250,6 +250,7 @@ namespace Sv
             AppendBatch(channel.Id, channel.Writer, batch, count);
         }
 
+#if NET
         readonly struct PointerMaker<T> : IEventMaker<T> where T : unmanaged
         {
             readonly delegate* unmanaged<int, int, T> make;
@@ -261,6 +262,7 @@ namespace Sv
 
             public T Make(int row, int value) => make(row, value);
         }
+#endif
 
         internal long ArenaBytes
         {
@@ -322,7 +324,7 @@ namespace Sv
             }
 
             var target = Round(peak + (peak >> 3));
-            arenas[index] = (byte*)NativeMemory.Realloc(arenas[index], (nuint)target);
+            arenas[index] = (byte*)Memory.Realloc(arenas[index], (nuint)target);
             arenaCapacity[index] = target;
         }
 
@@ -353,11 +355,13 @@ namespace Sv
             return false;
         }
 
+#if NET
         public void EmitFromMask<T>(Channel<T> channel, ulong enabled, int offset, delegate* unmanaged<int, int, T> make) where T : unmanaged
         {
             var maker = new PointerMaker<T>(make);
             EmitFromMask(channel, enabled, offset, ref maker);
         }
+#endif
 
         public void EmitFromMask<T, TMaker>(Channel<T> channel, ulong enabled, int offset, ref TMaker maker)
             where T : unmanaged
@@ -371,11 +375,13 @@ namespace Sv
             EmitWord(channel, enabled, offset, null, ref maker);
         }
 
+#if NET
         public void EmitFromBools<T>(Channel<T> channel, byte* cond, int start, int count, delegate* unmanaged<int, int, T> make) where T : unmanaged
         {
             var maker = new PointerMaker<T>(make);
             EmitFromBools(channel, cond, start, count, ref maker);
         }
+#endif
 
         public void EmitFromBools<T, TMaker>(Channel<T> channel, byte* cond, int start, int count, ref TMaker maker)
             where T : unmanaged
@@ -407,11 +413,13 @@ namespace Sv
             EmitWord(channel, tail, row, null, ref maker);
         }
 
+#if NET
         public void EmitFromBools<T>(Channel<T> channel, byte* cond, ulong enabled, int offset, delegate* unmanaged<int, int, T> make) where T : unmanaged
         {
             var maker = new PointerMaker<T>(make);
             EmitFromBools(channel, cond, enabled, offset, ref maker);
         }
+#endif
 
         public void EmitFromBools<T, TMaker>(Channel<T> channel, byte* cond, ulong enabled, int offset, ref TMaker maker)
             where T : unmanaged
@@ -426,7 +434,7 @@ namespace Sv
             ulong hits = 0;
             while (mask != 0)
             {
-                var bit = System.Numerics.BitOperations.TrailingZeroCount(mask);
+                var bit = Bits.Tzcnt(mask);
                 mask &= mask - 1;
                 if (cond[offset + bit] != 0)
                 {
@@ -437,11 +445,13 @@ namespace Sv
             EmitWord(channel, hits, offset, null, ref maker);
         }
 
+#if NET
         public void EmitFromNonZero<T>(Channel<T> channel, int* values, int start, int count, delegate* unmanaged<int, int, T> make) where T : unmanaged
         {
             var maker = new PointerMaker<T>(make);
             EmitFromNonZero(channel, values, start, count, ref maker);
         }
+#endif
 
         public void EmitFromNonZero<T, TMaker>(Channel<T> channel, int* values, int start, int count, ref TMaker maker)
             where T : unmanaged
@@ -473,11 +483,13 @@ namespace Sv
             EmitWord(channel, tail, row, values, ref maker);
         }
 
+#if NET
         public void EmitFromNonZero<T>(Channel<T> channel, int* values, ulong enabled, int offset, delegate* unmanaged<int, int, T> make) where T : unmanaged
         {
             var maker = new PointerMaker<T>(make);
             EmitFromNonZero(channel, values, enabled, offset, ref maker);
         }
+#endif
 
         public void EmitFromNonZero<T, TMaker>(Channel<T> channel, int* values, ulong enabled, int offset, ref TMaker maker)
             where T : unmanaged
@@ -492,7 +504,7 @@ namespace Sv
             ulong hits = 0;
             while (mask != 0)
             {
-                var bit = System.Numerics.BitOperations.TrailingZeroCount(mask);
+                var bit = Bits.Tzcnt(mask);
                 mask &= mask - 1;
                 if (values[offset + bit] != 0)
                 {
@@ -503,12 +515,13 @@ namespace Sv
             EmitWord(channel, hits, offset, values, ref maker);
         }
 
+#if NET
         public static void WalkNonZero(int* values, ulong enabled, int offset, delegate* unmanaged<int, int, void> visit)
         {
             var mask = enabled;
             while (mask != 0)
             {
-                var bit = System.Numerics.BitOperations.TrailingZeroCount(mask);
+                var bit = Bits.Tzcnt(mask);
                 mask &= mask - 1;
                 var row = offset + bit;
                 var value = values[row];
@@ -518,6 +531,7 @@ namespace Sv
                 }
             }
         }
+#endif
 
         const uint StateMagic = 0x56455653;
 
@@ -543,7 +557,7 @@ namespace Sv
 
         internal void VisitState<TCodec>(ref TCodec codec) where TCodec : struct, IStateCodec
         {
-            if (TCodec.Reading)
+            if (codec.Reading)
             {
                 EndUndoWindow();
             }
@@ -558,7 +572,7 @@ namespace Sv
                 codec.Value(ref written);
                 codec.Value(ref published);
                 codec.Value(ref cursor);
-                if (TCodec.Reading)
+                if (codec.Reading)
                 {
                     if (written < 0 || published < 0)
                     {
@@ -595,7 +609,7 @@ namespace Sv
                 capacity *= 2;
             }
 
-            arenas[index] = (byte*)NativeMemory.Realloc(arenas[index], (nuint)capacity);
+            arenas[index] = (byte*)Memory.Realloc(arenas[index], (nuint)capacity);
             arenaCapacity[index] = capacity;
             arenaPeak[index] = capacity;
         }
@@ -626,7 +640,7 @@ namespace Sv
                 {
                     if (arenaReplaces[i].Frame < undo.Bottom)
                     {
-                        NativeMemory.Free((void*)arenaReplaces[i].Old);
+                        Memory.Free((void*)arenaReplaces[i].Old);
                         arenaReplaces.RemoveAt(i);
                     }
                 }
@@ -645,7 +659,7 @@ namespace Sv
             undoActiveHalves = null;
             for (var i = arenaReplaces.Count - 1; i >= 0; i--)
             {
-                NativeMemory.Free((void*)arenaReplaces[i].Old);
+                Memory.Free((void*)arenaReplaces[i].Old);
             }
 
             arenaReplaces.Clear();
@@ -670,7 +684,7 @@ namespace Sv
                     continue;
                 }
 
-                NativeMemory.Free((void*)replace.New);
+                Memory.Free((void*)replace.New);
                 arenas[replace.Index] = (byte*)replace.Old;
                 arenaCapacity[replace.Index] = replace.OldCapacity;
                 arenaReplaces.RemoveAt(i);
@@ -687,16 +701,16 @@ namespace Sv
             EndUndoWindow();
             for (var w = 0; w < writerCount; w++)
             {
-                NativeMemory.Free(arenas[w * 2]);
-                NativeMemory.Free(arenas[w * 2 + 1]);
+                Memory.Free(arenas[w * 2]);
+                Memory.Free(arenas[w * 2 + 1]);
             }
 
-            NativeMemory.Free(arenas);
-            NativeMemory.Free(arenaCapacity);
-            NativeMemory.Free(arenaPeak);
-            NativeMemory.Free(readOffset);
-            NativeMemory.Free(readCursorOffset);
-            NativeMemory.AlignedFree(locks);
+            Memory.Free(arenas);
+            Memory.Free(arenaCapacity);
+            Memory.Free(arenaPeak);
+            Memory.Free(readOffset);
+            Memory.Free(readCursorOffset);
+            Memory.FreeAligned(locks);
             disposed = true;
         }
     }
