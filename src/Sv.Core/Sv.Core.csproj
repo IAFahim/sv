@@ -17,4 +17,8 @@
     <InternalsVisibleTo Include="Sv.Scenario.Tests" />
     <InternalsVisibleTo Include="Sv.Bench" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Sv\Memory.cs" Link="Linked\Memory.cs" />
+    <Compile Include="..\Sv\NativeArena.cs" Link="Linked\NativeArena.cs" />
+  </ItemGroup>
 </Project>
