@@ -286,13 +286,12 @@ namespace Sv
 
             if (chunk < 0)
             {
-                cursor[template] = chunkCount;
                 chunk = Unassigned();
                 Assign(chunk, template);
                 free = Available(chunk);
             }
 
-            cursor[template] = Math.Min(cursor[template], chunk);
+            cursor[template] = chunk;
             var row = Bits.Tzcnt(free);
             Initialize(chunk, row, template);
             var meta = (ulong*)Lanes.Writable(view, ref main, chunk, view.Layout.MetaLane);
