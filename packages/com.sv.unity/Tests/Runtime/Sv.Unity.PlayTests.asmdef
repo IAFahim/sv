@@ -1,0 +1,25 @@
+{
+    "name": "Sv.Unity.PlayTests",
+    "rootNamespace": "Sv.Unity.PlayTests",
+    "references": [
+        "Sv.Core",
+        "Sv.Unity",
+        "Unity.Entities",
+        "Unity.Burst",
+        "Unity.Collections",
+        "UnityEngine.TestRunner"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
