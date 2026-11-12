@@ -6,6 +6,8 @@ namespace Sv
     {
         ulong[]? sinkStats;
 
+        ulong[]? sinkFill;
+
         ushort[]? sinkList;
 
         int sinkCount;
@@ -24,6 +26,11 @@ namespace Sv
 
         public void BindSink(StatId stat)
         {
+            BindSink(stat, false);
+        }
+
+        public void BindSink(StatId stat, bool fillExisting)
+        {
             var index = StatIndex(stat);
             if (index > ushort.MaxValue)
             {
@@ -33,11 +40,16 @@ namespace Sv
             if (sinkStats == null)
             {
                 sinkStats = new ulong[(statCount + 63) >> 6];
+                sinkFill = new ulong[(statCount + 63) >> 6];
                 sinkList = new ushort[statCount];
                 sinkUnion = new ulong[(LiveWordCount + 63) >> 6];
             }
 
             sinkStats[index >> 6] |= 1ul << (index & 63);
+            if (fillExisting)
+            {
+                sinkFill![index >> 6] |= 1ul << (index & 63);
+            }
             sinkCount = 0;
             for (var s = 0; s < statCount; s++)
             {
@@ -105,7 +117,7 @@ namespace Sv
                 var combined = 0ul;
                 for (var k = 0; k < sinkCount; k++)
                 {
-                    combined |= changed[(nint)list[k] * words + word];
+                    combined |= SinkBits(list[k], word, words);
                 }
 
                 combined &= ulong.MaxValue << (slot & 63);
@@ -127,7 +139,7 @@ namespace Sv
                 for (; statAt < sinkCount && written < destination.Length; statAt++)
                 {
                     var stat = list[statAt];
-                    if ((changed[(nint)stat * words + word] & (1ul << (slot & 63))) == 0)
+                    if ((SinkBits(stat, word, words) & (1ul << (slot & 63))) == 0)
                     {
                         continue;
                     }
@@ -151,6 +163,11 @@ namespace Sv
 
             sinkSlot = slot;
             sinkStatAt = statAt;
+            if (sinkTaken >= sinkTotal)
+            {
+                Array.Clear(sinkFill!, 0, sinkFill!.Length);
+            }
+
             return written;
         }
 
@@ -194,6 +211,23 @@ namespace Sv
             return applied;
         }
 
+        void RefillSink()
+        {
+            if (sinkCount == 0)
+            {
+                return;
+            }
+
+            Array.Copy(sinkStats!, sinkFill!, sinkStats!.Length);
+            ResetSink();
+        }
+
+        ulong SinkBits(int stat, int word, int words)
+        {
+            var bits = changed[(nint)stat * words + word];
+            return (sinkFill![stat >> 6] & (1ul << (stat & 63))) != 0 ? bits | live[word] : bits;
+        }
+
         void ResetSink()
         {
             sinkBuilt = false;
@@ -218,6 +252,21 @@ namespace Sv
             {
                 var stat = sinkList![k];
                 var @base = stat * words;
+                if ((sinkFill![stat >> 6] & (1ul << (stat & 63))) != 0)
+                {
+                    for (var word = 0; word < words; word++)
+                    {
+                        var bits = changed[(nint)@base + word] | live[word];
+                        if (bits != 0)
+                        {
+                            union[word >> 6] |= 1ul << (word & 63);
+                            total += PopCount(bits);
+                        }
+                    }
+
+                    continue;
+                }
+
                 var touched = changedTouchedCounts[stat];
                 for (var t = 0; t < touched; t++)
                 {

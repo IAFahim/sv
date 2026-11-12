@@ -56,6 +56,12 @@ namespace Sv
 
         private int setFreeHead;
 
+        private int freeWalkPrev = -1;
+
+        private long freeWalkGeneration = -1;
+
+        private long freeWalkHorizon = -1;
+
         private int liveSets;
 
         private long generation;
@@ -202,10 +208,21 @@ namespace Sv
             }
 
             int index;
-            if (setFreeHead >= 0 && generation - setFreedAt[setFreeHead] > ReclaimHorizon)
+            var prev = ReclaimablePrev();
+            var reclaim = prev < 0 ? setFreeHead : setFreeNext[prev];
+            if (reclaim >= 0)
             {
-                index = setFreeHead;
-                setFreeHead = setFreeNext[index];
+                index = reclaim;
+                if (prev < 0)
+                {
+                    setFreeHead = setFreeNext[index];
+                }
+                else
+                {
+                    Undo?.Note(setFreeNext + prev, sizeof(int));
+                    setFreeNext[prev] = setFreeNext[index];
+                }
+
                 liveSets++;
             }
             else
@@ -332,8 +349,33 @@ namespace Sv
             setFreedAt[set] = generation;
             undo?.Note(setFreeNext + set, sizeof(int));
             setFreeNext[set] = setFreeHead;
+            if (freeWalkPrev < 0 && freeWalkGeneration == generation && freeWalkHorizon == ReclaimHorizon)
+            {
+                freeWalkPrev = set;
+            }
+
             setFreeHead = set;
             liveSets--;
+        }
+
+        int ReclaimablePrev()
+        {
+            if (freeWalkGeneration != generation || freeWalkHorizon != ReclaimHorizon)
+            {
+                var prev = -1;
+                var node = setFreeHead;
+                while (node >= 0 && generation - setFreedAt[node] <= ReclaimHorizon)
+                {
+                    prev = node;
+                    node = setFreeNext[node];
+                }
+
+                freeWalkPrev = prev;
+                freeWalkGeneration = generation;
+                freeWalkHorizon = ReclaimHorizon;
+            }
+
+            return freeWalkPrev;
         }
 
         void DeleteFromBuckets(int set)
@@ -500,6 +542,7 @@ namespace Sv
             codec.Bytes(contentClassHead, (long)ClassCount * sizeof(int));
             codec.Value(ref liveSets);
             codec.Value(ref setFreeHead);
+            freeWalkGeneration = -1;
             codec.Value(ref generation);
             codec.Bytes(setFreeNext, (long)count * sizeof(int));
             codec.Bytes(setFreedAt, (long)count * sizeof(long));
