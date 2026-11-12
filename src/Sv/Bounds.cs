@@ -21,6 +21,8 @@ namespace Sv
 
         public static Bounds Rows(int* min, int* max) => new(Clamp.Columns(min, max));
 
+        public static Bounds StatRows(float* min, float* max) => new(Clamp.StatColumns(min, max));
+
         public static Bounds Stats(Board board, StatId? minStat, StatId? maxStat)
         {
             if (minStat.HasValue && maxStat.HasValue)

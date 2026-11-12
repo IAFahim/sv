@@ -69,6 +69,16 @@ namespace Sv
             return new Clamp(ClampKind.Columns, 0, 0, min, max);
         }
 
+        public static Clamp StatColumns(float* min, float* max)
+        {
+            if (min == null && max == null)
+            {
+                throw new ArgumentException("sv: clamp stat columns require at least one bound");
+            }
+
+            return new Clamp(ClampKind.StatBounds, 0, 0, null, null, min, max);
+        }
+
         public static Clamp Stat(Board board, StatId minStat, StatId maxStat)
         {
             var min = ResolveColumn(board, minStat, out var minSlot, out var minGeneration);

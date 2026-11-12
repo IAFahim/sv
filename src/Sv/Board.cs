@@ -109,6 +109,7 @@ namespace Sv
             state.BeginRead();
             var codec = new LoadCodec(state);
             VisitState(ref codec);
+            RefillSink();
             state.EndRead();
         }
 

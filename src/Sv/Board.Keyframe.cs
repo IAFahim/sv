@@ -402,6 +402,7 @@ namespace Sv
             }
 
             RebaseKeyframes();
+            RefillSink();
             state.EndRead();
         }}
 }
