@@ -7,6 +7,7 @@
   <Project Path="tests/Sv.Tests/Sv.Tests.csproj" />
   <Project Path="tests/Sv.Fuzz/Sv.Fuzz.csproj" />
   <Project Path="tests/Sv.NorthStar/Sv.NorthStar.csproj" />
+  <Project Path="tests/Sv.Unity.Facade/Unity.Facade.csproj" />
   <Project Path="tests/Sv.Unity.Tests/Sv.Unity.Tests.csproj" />
   <Project Path="tests/Sv.Portable.Tests/Sv.Portable.Tests.csproj" />
   <Project Path="benchmarks/Sv.Bench/Sv.Bench.csproj" />
