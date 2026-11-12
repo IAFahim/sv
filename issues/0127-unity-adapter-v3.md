@@ -56,10 +56,11 @@ Agent C, branch `proto/c-unity` (merged `proto/int` 71e30f7). Plan steps V6, V7 
 
 | SvNorthStar2PinTests (3) | D's fold scenario **0D945D8FD131DA2A** on the Unity sv core build (managed `Kernel.Fold`) and through the Burst fold job on 4,099 entities; D's link table hash **A47434070C42E4AC** |
 
-Not done: the three NorthStar2 per-tick digests (939FBDEE2E7DEE50, E5CE5FA31824A22E, 75035C43BBDC14AF)
-in Unity. That scenario runs tl's .NET kind host (`Tl.Gen.Tlb`, `KindStore`) inside `FrameHost`; a
-Unity leg needs the same library baked for tl.unity and the frame driven through the tl.unity
-systems. The sv halves it exercises (fold, inbox, conditions, link table) are pinned equal above.
+| SvNorthStar2UnityTests (workers 1 and 11) | D's NorthStar2 in Unity with Burst: the same typed timelines baked in the editor with tl.unity's vendored `LibraryBake`/`LibraryAssembler` (3,192 B), loaded with `TlLibrary.FromBytes`, 1,000 entities driven by the tl.unity systems under `TlSimulationGroup` (`[TlState]` HpDelta/Outgoing/ArmorPulse written by tl's generated kind jobs), the sv half on the Unity sv core build with D's exact frame order: per-tick digests **939FBDEE2E7DEE50, E5CE5FA31824A22E, 75035C43BBDC14AF** at `JobWorkerCount` 1 and 11; tl kind-tick managed runs 0. No tl change. |
+
+The NorthStar2 leg exchanges the three effect columns between entities and the sv arrays on the main thread
+(test glue); it proves tl.unity kinds + Unity sv core = .NET bit for bit. The adapter's own fold job is
+pinned separately by the fold scenario above.
 
 ## Bench
 

@@ -5,6 +5,7 @@
         "Sv.Core",
         "Sv.Unity",
         "Sv.Unity.TlGame",
+        "Sv.NorthStar2.UnityGame",
         "Tl.Core",
         "Tl.Unity",
         "Tl.Unity.Bake",
