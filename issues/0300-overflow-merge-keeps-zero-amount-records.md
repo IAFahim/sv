@@ -1,6 +1,6 @@
 # 0300 overflow merge keeps records whose merged amount is zero
 
-Status: open
+Status: closed
 
 Found by `tests/Sv.Laws.Tests` (branch v3/t1-laws), test
 `InputLaws.OverflowMergeOutputIsStillCanonicalWithNoZeroAmounts` (5 of 5 seeds fail).
@@ -30,3 +30,5 @@ heal 5" per record or per hit) see a hit that carried nothing. Totals per (targe
 
 Suggested fix (manager decides): skip a merged group whose total is 0 in both coalesce functions (do not write it,
 do not advance `written`).
+
+Fixed 2026-11-13: both coalesce functions skip a merged group whose saturated total is 0 (src/Sv.Core/Seal.cs). Sv.Laws.Tests: 334 of 334 pass on net10.0 default.

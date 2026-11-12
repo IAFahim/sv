@@ -371,8 +371,19 @@ namespace Sv
                     end++;
                 }
 
-                output[written] = end - at == 1 ? first : new Effect(first.Key, EffectLaw.Saturate32(total), 1);
-                written++;
+                if (end - at == 1)
+                {
+                    output[written++] = first;
+                }
+                else
+                {
+                    var merged = EffectLaw.Saturate32(total);
+                    if (merged != 0)
+                    {
+                        output[written++] = new Effect(first.Key, merged, 1);
+                    }
+                }
+
                 at = end;
             }
 
@@ -403,8 +414,19 @@ namespace Sv
                     end++;
                 }
 
-                output[written] = end - at == 1 ? first : new Effect(group | (origin << EffectKey.OriginShift) | depth, EffectLaw.Saturate32(total), 1);
-                written++;
+                if (end - at == 1)
+                {
+                    output[written++] = first;
+                }
+                else
+                {
+                    var merged = EffectLaw.Saturate32(total);
+                    if (merged != 0)
+                    {
+                        output[written++] = new Effect(group | (origin << EffectKey.OriginShift) | depth, merged, 1);
+                    }
+                }
+
                 at = end;
             }
 
