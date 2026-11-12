@@ -77,8 +77,14 @@ accept the bit words (mask form). A 1M-edge death wave costs ~0.01 ms and 0 B.
   refresh). Remove a clip modifier in a later frame than its add.
 - Before issue 0122 the set table never reused freed sets under steady churn (~70 B per change, unbounded);
   fixed, memory now flat.
-- No public `Bounds` over a host float stat column: a sink host keeps an int bound column filled with
-  `Clamp.BoundOf` at scatter.
+- `Bounds.StatRows(floor, ceiling)` folds against host float stat columns (sink-filled), same
+  `Clamp.BoundOf` conversion as `Bounds.Stats` (issue 0129); an int bound column is no longer needed.
 - tl kinds cannot write another row; use the effect column + send pass of section 2.
-- Frame rollback over dense columns is off by default; `Rollback` refills a bound sink from the restored board.
+- Frame rollback over dense columns is off by default; `Rollback`, `LoadKeyframe` and `LoadState` refill
+  a bound sink from the restored board (issue 0129).
+- Many sends to few slots: give each worker an `InboxLanes` lane (`lanes.Lane(worker)->Send`, `Flush` at
+  the end of its send pass). Same bits as `Inbox.Send`; 15-23 % off the kinds stage when 10 % of sends
+  hit one slot, equal cost otherwise (issue 0130).
+- Digest cadence: `DigestCadence.Default` is every tick in debug builds and every 8 ticks in release
+  (issue 0132).
 - frame1m numbers (issue 0125) use an sv stand-in for the kinds, not tl.
