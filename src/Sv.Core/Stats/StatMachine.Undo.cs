@@ -10,6 +10,9 @@ namespace Sv
         int markOldest;
         int markCount;
         bool undoing;
+        ulong** markDirty;
+        int* markDirtyCount;
+        int* markDirtyCapacity;
 
         public int UndoEpochs => markRing;
 
@@ -24,6 +27,9 @@ namespace Sv
             }
 
             marks = (StatUndoMark*)Memory.Alloc((nuint)markRing, (nuint)sizeof(StatUndoMark));
+            markDirty = (ulong**)Memory.AllocZeroed((nuint)markRing, (nuint)sizeof(ulong*));
+            markDirtyCount = (int*)Memory.AllocZeroed((nuint)markRing, sizeof(int));
+            markDirtyCapacity = (int*)Memory.AllocZeroed((nuint)markRing, sizeof(int));
             MarkEpoch(world.Epoch);
         }
 
@@ -37,6 +43,21 @@ namespace Sv
             if (marks != null)
             {
                 Memory.Free(marks);
+            }
+
+            if (markDirty != null)
+            {
+                for (var at = 0; at < markRing; at++)
+                {
+                    if (markDirty[at] != null)
+                    {
+                        Memory.Free(markDirty[at]);
+                    }
+                }
+
+                Memory.Free(markDirty);
+                Memory.Free(markDirtyCount);
+                Memory.Free(markDirtyCapacity);
             }
         }
 
@@ -87,6 +108,14 @@ namespace Sv
             mark->Epoch = epoch;
             mark->LogStart = undoCount;
             mark->NextId = nextId;
+            var place = (int)(mark - marks);
+            markDirty[place] = Grow(markDirty[place], 0, ref markDirtyCapacity[place], dirtyCount);
+            if (dirtyCount > 0)
+            {
+                Memory.Copy(dirty, markDirty[place], (nuint)dirtyCount * sizeof(ulong));
+            }
+
+            markDirtyCount[place] = dirtyCount;
             markCount++;
         }
 
@@ -103,7 +132,8 @@ namespace Sv
                 return false;
             }
 
-            var mark = *MarkAt(found);
+            var place = (int)(MarkAt(found) - marks);
+            var mark = marks[place];
             undoing = true;
             for (var at = undoCount - 1; at >= mark.LogStart; at--)
             {
@@ -122,7 +152,13 @@ namespace Sv
             undoCount = mark.LogStart;
             nextId = mark.NextId;
             markCount = found + 1;
-            dirtyCount = 0;
+            dirtyCount = markDirtyCount[place];
+            dirty = Grow(dirty, 0, ref dirtyCapacity, dirtyCount);
+            if (dirtyCount > 0)
+            {
+                Memory.Copy(markDirty[place], dirty, (nuint)dirtyCount * sizeof(ulong));
+            }
+
             changedPairCount = 0;
             changedChunkCount = 0;
             return true;

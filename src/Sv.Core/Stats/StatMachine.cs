@@ -29,7 +29,7 @@ namespace Sv
         LaneWriter writer;
         bool disposed;
 
-        public StatMachine(World world, ReadOnlySpan<StatDef> stats, ReadOnlySpan<StatSource> sources, ReadOnlySpan<int> curveValues, int undoEpochs)
+        public StatMachine(World world, ReadOnlySpan<StatDef> stats, ReadOnlySpan<StatSource> sources, ReadOnlySpan<int> curveValues, ReadOnlySpan<CardTerm> cards, int undoEpochs)
         {
             this.world = world ?? throw new ArgumentNullException(nameof(world));
             if (stats.Length > ushort.MaxValue)
@@ -90,6 +90,13 @@ namespace Sv
                     Memory.Free(ordinalOfLane);
                     throw new ArgumentException("sv: a derived source names two declared stats and a curve inside the curve table", nameof(sources));
                 }
+            }
+
+            if (!ValidCards(cards, declared, layout, valueLanes))
+            {
+                Memory.Free(declared);
+                Memory.Free(ordinalOfLane);
+                throw new ArgumentException("sv: a card term names a declared stat, an Intrinsic lane and a shape kind", nameof(cards));
             }
 
             var rank = (int*)Memory.Alloc((nuint)Math.Max(1, statCount), sizeof(int));
@@ -173,6 +180,7 @@ namespace Sv
             templateCapacity = 0;
             templateBase = null;
             writer = world.CreateWriter(64);
+            InitCards(cards);
             InitModifiers();
             InitRecalculate();
             InitUndo(undoEpochs);
@@ -390,6 +398,7 @@ namespace Sv
                 Memory.Free(templateBase);
             }
 
+            FreeCards();
             FreeModifiers();
             FreeRecalculate();
             FreeUndo();

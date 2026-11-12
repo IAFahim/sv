@@ -48,6 +48,31 @@ namespace Sv
     }
 
     [StructLayout(LayoutKind.Sequential)]
+    public readonly struct CardTerm
+    {
+        public readonly int Stat;
+        public readonly int Card;
+        public readonly ShapeKind Kind;
+        public readonly int Value;
+
+        public CardTerm(int stat, int card, ShapeKind kind, int value)
+        {
+            Stat = stat;
+            Card = card;
+            Kind = kind;
+            Value = value;
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct CardRow
+    {
+        public int Lane;
+        public int Value;
+        public ShapeKind Kind;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
     internal struct ModifierRecord
     {
         public long Id;

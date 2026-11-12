@@ -142,7 +142,7 @@ namespace Sv
 
         int Gather(int slot, int ordinal)
         {
-            var count = GatherDerived(ordinal, null, slot);
+            var count = GatherCards(ordinal, slot, GatherDerived(ordinal, null, slot));
             for (var at = HeadPeek(slot); at != NoRecord; at = records[at].Next)
             {
                 if (records[at].Stat != ordinal)
