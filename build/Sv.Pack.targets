@@ -1,0 +1,31 @@
+<Project>
+  <PropertyGroup>
+    <SvPackFolder Condition="'$(SvPackFolder)' == ''">$(MSBuildProjectDirectory)\pack</SvPackFolder>
+    <SvPackNamespace Condition="'$(SvPackNamespace)' == ''">$(RootNamespace).Sv</SvPackNamespace>
+    <SvPackOutput Condition="'$(SvPackOutput)' == ''">$(IntermediateOutputPath)SvPack\</SvPackOutput>
+    <SvPackTool Condition="'$(SvPackTool)' == ''">$(MSBuildThisFileDirectory)..\src\Sv.Pack\bin\$(Configuration)\net10.0\sv.dll</SvPackTool>
+    <SvPackDiagnostics Condition="'$(SvPackDiagnostics)' == ''">text</SvPackDiagnostics>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <SvPackInput Include="$(SvPackFolder)\*.sv.json" />
+  </ItemGroup>
+
+  <Target Name="SvPack"
+          BeforeTargets="CoreCompile;BeforeBuild"
+          Inputs="@(SvPackInput);$(SvPackTool)"
+          Outputs="$(SvPackOutput).svpack.key">
+    <Error Condition="!Exists('$(SvPackTool)')" Text="sv: the pack tool $(SvPackTool) is missing; build src/Sv.Pack first or set SvPackTool" />
+    <Exec Command="dotnet &quot;$(SvPackTool)&quot; pack &quot;$(SvPackFolder)&quot; --out &quot;$(SvPackOutput)&quot; --namespace $(SvPackNamespace) --diagnostics $(SvPackDiagnostics)" />
+    <Touch Files="$(SvPackOutput).svpack.key" AlwaysCreate="true" />
+  </Target>
+
+  <Target Name="SvPackSources" AfterTargets="SvPack" BeforeTargets="CoreCompile">
+    <ItemGroup>
+      <Compile Remove="$(SvPackOutput)*.g.cs" />
+      <Compile Include="$(SvPackOutput)*.g.cs" />
+      <None Include="$(SvPackOutput)pack.svb" CopyToOutputDirectory="PreserveNewest" Link="pack.svb" />
+      <FileWrites Include="$(SvPackOutput)*.g.cs;$(SvPackOutput)pack.svb;$(SvPackOutput).svpack.key" />
+    </ItemGroup>
+  </Target>
+</Project>
