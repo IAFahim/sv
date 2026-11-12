@@ -13,14 +13,17 @@ namespace Sv.Host
 
         public int[][] TemplateValues { get; }
 
+        public CardTerm[] Cards { get; }
+
         public ulong PackHash { get; }
 
-        public HostPack(LaneClass[] classes, int channels, StatDef[] stats, int[][] templateValues, ulong packHash)
+        public HostPack(LaneClass[] classes, int channels, StatDef[] stats, int[][] templateValues, CardTerm[] cards, ulong packHash)
         {
             Classes = classes;
             Channels = channels;
             Stats = stats;
             TemplateValues = templateValues;
+            Cards = cards;
             PackHash = packHash;
         }
 
@@ -82,8 +85,41 @@ namespace Sv.Host
                 templates[t] = values;
             }
 
-            return new HostPack(classes, schema.Channels.Length, stats, templates, plan.Hash);
+            return new HostPack(classes, schema.Channels.Length, stats, templates, CardsOf(schema), plan.Hash);
         }
+
+        static CardTerm[] CardsOf(PackSchema schema)
+        {
+            var count = 0;
+            for (var c = 0; c < schema.Cards.Length; c++)
+            {
+                var card = schema.Cards[c];
+                for (var m = 0; m < card.Modifiers.Length; m++)
+                {
+                    count += Holds(schema, card, card.Modifiers[m]) ? 1 : 0;
+                }
+            }
+
+            var cards = new CardTerm[count];
+            var at = 0;
+            for (var c = 0; c < schema.Cards.Length; c++)
+            {
+                var card = schema.Cards[c];
+                for (var m = 0; m < card.Modifiers.Length; m++)
+                {
+                    var modifier = card.Modifiers[m];
+                    if (Holds(schema, card, modifier))
+                    {
+                        cards[at++] = new CardTerm(schema.Stats[schema.IndexOf(ValueClass.Stat, modifier.Stat)].Lane, schema.Intrinsics[schema.IndexOf(ValueClass.Intrinsic, card.Intrinsic)].Lane, modifier.Kind, modifier.Value);
+                    }
+                }
+            }
+
+            return cards;
+        }
+
+        static bool Holds(PackSchema schema, CardDef card, StatModifier modifier) =>
+            card.Intrinsic >= 0 && schema.IndexOf(ValueClass.Intrinsic, card.Intrinsic) >= 0 && schema.IndexOf(ValueClass.Stat, modifier.Stat) >= 0;
 
         public int TemplateIndexOf(PackSchema schema, int templateId)
         {

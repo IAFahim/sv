@@ -79,7 +79,7 @@ namespace SvV3Bench
         }
 
         public static HostPack Pack() =>
-            new HostPack(new[] { LaneClass.Intrinsic, LaneClass.Intrinsic }, 2, new StatDef[0], new[] { new[] { 1000, 0 } }, Hash);
+            new HostPack(new[] { LaneClass.Intrinsic, LaneClass.Intrinsic }, 2, new StatDef[0], new[] { new[] { 1000, 0 } }, new CardTerm[0], Hash);
     }
 
     internal abstract class V3Bench : IDisposable

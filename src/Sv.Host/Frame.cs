@@ -71,6 +71,9 @@ namespace Sv.Host
         public int* PairFrom;
         public int* PairTo;
         public ulong* DigestParts;
+        public int* CardOfDelta;
+        public ulong* CardRows;
+        public int CardLanes;
         public int ChunkCount;
         public Width Width;
     }
@@ -154,6 +157,12 @@ namespace Sv.Host
                 var touched = context->Touched[index];
                 var statRows = context->StatRows[index];
                 var hasRecords = context->Start[chunk + 1] != context->Start[chunk];
+                var cardRows = context->CardRows + (long)index * context->CardLanes;
+                for (var card = 0; card < context->CardLanes; card++)
+                {
+                    cardRows[card] = 0ul;
+                }
+
                 var changed = 0ul;
                 for (var lane = 0; lane < deltaLanes; lane++)
                 {
@@ -176,7 +185,13 @@ namespace Sv.Host
 
                     var value = (int*)Lanes.Writable(context->World, ref writer, chunk, kernels.DeltaTarget(lane));
                     kernels.Bounds(context->World, chunk, lane, floor, ceiling);
-                    changed |= CommitFold.Lane(context->Width, value, delta, floor, ceiling, rows);
+                    var laneChanged = CommitFold.Lane(context->Width, value, delta, floor, ceiling, rows);
+                    changed |= laneChanged;
+                    var cardOf = context->CardOfDelta[lane];
+                    if (cardOf >= 0)
+                    {
+                        cardRows[cardOf] |= laneChanged;
+                    }
                 }
 
                 var live = Lanes.WordsOf(context->World, chunk, context->World.Layout.MetaLane)[ChunkMeta.Live];
@@ -286,7 +301,7 @@ namespace Sv.Host
             }
 
             world = World.Create(pack.Classes, pack.Channels, options.EntityCapacity, options.Policy, options.RingEpochs, options.FramesPerEpoch);
-            stats = new StatMachine(world, pack.Stats, ReadOnlySpan<StatSource>.Empty, ReadOnlySpan<int>.Empty, options.RingEpochs);
+            stats = new StatMachine(world, pack.Stats, ReadOnlySpan<StatSource>.Empty, ReadOnlySpan<int>.Empty, pack.Cards, options.RingEpochs);
             AddTemplates(pack);
             parts = options.Parts;
             chunkCapacity = world.ChunkCapacity;
@@ -385,6 +400,14 @@ namespace Sv.Host
             context->LaneWriters = laneWriters;
             context->NextWriters = raw.Writer(options.ExternalWriters);
             context->Width = options.Width ?? Widths.FromEnvironment();
+            var deltaLanes = default(TKernels).DeltaLanes;
+            context->CardLanes = stats.CardLaneCount;
+            context->CardOfDelta = (int*)Memory.Alloc((nuint)Math.Max(1, deltaLanes), sizeof(int));
+            for (var lane = 0; lane < deltaLanes; lane++)
+            {
+                context->CardOfDelta[lane] = stats.CardOf(default(TKernels).DeltaTarget(lane));
+            }
+
             var ring = world.RingEpochs;
             carryRecords = (Effect**)Memory.AllocZeroed((nuint)ring, (nuint)sizeof(Effect*));
             carryCount = (int*)Memory.AllocZeroed((nuint)ring, sizeof(int));
@@ -412,6 +435,7 @@ namespace Sv.Host
             context->EdgeAny = (ulong*)Memory.Realloc(context->EdgeAny, (nuint)grown * sizeof(ulong));
             context->Edges = (ulong*)Memory.Realloc(context->Edges, (nuint)grown * (nuint)Math.Max(1, eventCount) * sizeof(ulong));
             context->Scratch = (int*)Memory.Realloc(context->Scratch, (nuint)grown * (nuint)scratchInts * sizeof(int));
+            context->CardRows = (ulong*)Memory.Realloc(context->CardRows, (nuint)grown * (nuint)Math.Max(1, context->CardLanes) * sizeof(ulong));
             activeCapacity = grown;
         }
 
@@ -432,6 +456,7 @@ namespace Sv.Host
                 log.Spawn(world.Frame, template, slot);
             }
 
+            stats.Spawned(slot);
             Arrive(slot);
             return slot;
         }
@@ -532,6 +557,7 @@ namespace Sv.Host
             var active = CollectPhase();
             DecidePhase(active);
             CommitPhase(active);
+            CardPhase(active);
             EdgePhase(active);
             Publish(frame, active);
             Remember(active);
@@ -643,6 +669,28 @@ namespace Sv.Host
             for (var part = 0; part < used; part++)
             {
                 world.Absorb(ref laneWriters[part]);
+            }
+        }
+
+        void CardPhase(int active)
+        {
+            var cards = context->CardLanes;
+            if (cards == 0)
+            {
+                return;
+            }
+
+            for (var index = 0; index < active; index++)
+            {
+                var chunk = context->Active[index];
+                var rows = context->CardRows + (long)index * cards;
+                for (var card = 0; card < cards; card++)
+                {
+                    if (rows[card] != 0ul)
+                    {
+                        stats.CardRowsChanged(chunk, card, rows[card]);
+                    }
+                }
             }
         }
 
@@ -1036,6 +1084,8 @@ namespace Sv.Host
             Memory.Free(context->EdgeAny);
             Memory.Free(context->Edges);
             Memory.Free(context->Scratch);
+            Memory.Free(context->CardRows);
+            Memory.Free(context->CardOfDelta);
             for (var part = 0; part < parts; part++)
             {
                 Memory.Free(context->Buffers[part].Pointer);

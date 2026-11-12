@@ -1,6 +1,6 @@
 # 0311 compiled host and reference interpreter run two stat models (cards and modifier handles)
 
-Status: open (part 2 closed: reference now allows many modifiers per source and removes by source; part 1 cards open)
+Status: closed (part 2: reference allows many modifiers per source and removes by source; part 1: host folds card terms)
 
 Found by T2 (`tests/Sv.Diff.Tests`). Two differences, each with a minimal receipt:
 
@@ -16,3 +16,11 @@ Found by T2 (`tests/Sv.Diff.Tests`). Two differences, each with a minimal receip
    F8A4C63154AD4608). `HandwrittenTests.Two_modifiers_from_one_source_fold_alike_on_both_hosts`.
    Cause: the reference keys a modifier by handle = source (`Interpreter.cs:504-523`); `StatOp.Add` allows many per source.
    With one modifier per source the generated stat-op property passes 40 of 40.
+Part 1 fix (C4, branch v3/c3-cards): `StatMachine` takes a static card-term table (`CardTerm`: stat lane, card lane, kind, value;
+`StatMachine.Cards.cs`). `Gather` adds the terms of every held card (lane value > 0) before the one `Canonicalize` then `Fold`, so the
+terms and the fold equal the reference. Dirty marks: Commit records per card lane the rows whose value changed
+(`FrameContext.CardRows`), the serial `CardPhase` marks the card's stats dirty, the next frame's `Recalculate` folds them (same frame
+of delay as the reference); `Spawn` marks the stats of cards its template holds. Templates fold without cards (the reference spawns
+with the base). The pending dirty list is state between frames, so each epoch mark keeps a copy and `Rewind` restores it.
+Receipts: `dotnet test tests/Sv.Diff.Tests -c Release` 12 of 12; `tests/Sv.Laws.Tests` 341 of 341 (334 + 7 new `CardLaws`);
+`tests/Sv.Scenario.Tests` 80 of 80.
