@@ -114,9 +114,9 @@ namespace Sv.Rules.Reference
 
         public ShapeKind Shape { get; }
 
-        public float Value { get; }
+        public int Value { get; }
 
-        public RefStatOp(StatOpKind kind, int slot, int stat, long handle, ShapeKind shape, float value)
+        public RefStatOp(StatOpKind kind, int slot, int stat, long handle, ShapeKind shape, int value)
         {
             Kind = kind;
             Slot = slot;

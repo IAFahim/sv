@@ -236,6 +236,34 @@ namespace Sv.Rules
             return 0f;
         }
 
+        int RequireScaled(JsonValue value, int scale, string what)
+        {
+            if (value.TryScaled(scale, out var scaled))
+            {
+                return scaled;
+            }
+
+            Error(DiagnosticCode.NotExact, value, what + " must be a decimal that is exact in steps of 1/" + Text(scale) + " and fits an int at that scale");
+            return 0;
+        }
+
+        int OptionalScale(JsonValue row)
+        {
+            var found = row.Find("scale");
+            if (found == null)
+            {
+                return StatLaw.MinScale;
+            }
+
+            if (found.TryInt(out var scale) && StatLaw.IsScale(scale))
+            {
+                return scale;
+            }
+
+            Error(DiagnosticCode.BadScale, found, "a scale is 1, 10, 100, 1000, 10000, 100000 or 1000000");
+            return StatLaw.MinScale;
+        }
+
         void ReadValues(JsonValue[] rows)
         {
             var statRows = new Rows<ValueDef>();
@@ -254,7 +282,7 @@ namespace Sv.Rules
                     continue;
                 }
 
-                CheckKeys(row, new[] { "id", "lane", "word", "name", "class", "default", "role", "timeline", "into" });
+                CheckKeys(row, new[] { "id", "lane", "word", "name", "class", "default", "scale", "role", "timeline", "into" });
                 var name = RequireString(row, "name");
                 var className = RequireString(row, "class");
                 switch (className)
@@ -262,16 +290,19 @@ namespace Sv.Rules
                     case "stat":
                     {
                         var id = LaneId(row);
+                        var scale = OptionalScale(row);
                         var fallback = row.Find("default");
-                        var value = fallback == null ? 0f : RequireFloat(fallback, "a stat default");
-                        statRows.Add(new ValueDef(id, name, ValueClass.Stat, IntrinsicRole.Plain, 0, value, false, false, -1, row.Offset));
+                        var value = fallback == null ? 0 : RequireScaled(fallback, scale, "a stat default");
+                        statRows.Add(new ValueDef(id, name, ValueClass.Stat, IntrinsicRole.Plain, value, scale, false, false, -1, row.Offset));
                         break;
                     }
 
                     case "intrinsic":
                     {
                         var id = LaneId(row);
-                        var value = OptionalInt(row, "default", 0);
+                        var scale = OptionalScale(row);
+                        var fallback = row.Find("default");
+                        var value = fallback == null ? 0 : RequireScaled(fallback, scale, "an intrinsic default");
                         var role = IntrinsicRole.Plain;
                         var roleRow = row.Find("role");
                         if (roleRow != null)
@@ -286,7 +317,7 @@ namespace Sv.Rules
                             }
                         }
 
-                        intrinsicRows.Add(new ValueDef(id, name, ValueClass.Intrinsic, role, value, 0f, false, false, -1, row.Offset));
+                        intrinsicRows.Add(new ValueDef(id, name, ValueClass.Intrinsic, role, value, scale, false, false, -1, row.Offset));
                         break;
                     }
 
@@ -317,7 +348,7 @@ namespace Sv.Rules
                             }
                         }
 
-                        eventRows.Add(new ValueDef(id, name, ValueClass.Event, IntrinsicRole.Plain, 0, 0f, OptionalBool(row, "default", false), false, -1, row.Offset));
+                        eventRows.Add(new ValueDef(id, name, ValueClass.Event, IntrinsicRole.Plain, 0, 1, OptionalBool(row, "default", false), false, -1, row.Offset));
                         break;
                     }
 
@@ -336,7 +367,7 @@ namespace Sv.Rules
                             intoRows.Add(intoRow);
                         }
 
-                        channelRows.Add(new ValueDef(id, name, ValueClass.Channel, IntrinsicRole.Plain, 0, 0f, false, OptionalBool(row, "timeline", false), intoRow == null ? -1 : -2 - (intoNames.Count - 1), row.Offset));
+                        channelRows.Add(new ValueDef(id, name, ValueClass.Channel, IntrinsicRole.Plain, 0, 1, false, OptionalBool(row, "timeline", false), intoRow == null ? -1 : -2 - (intoNames.Count - 1), row.Offset));
                         break;
                     }
 
@@ -348,7 +379,7 @@ namespace Sv.Rules
                             Error(DiagnosticCode.TooManyKinds, row, "a kind id is 0..255");
                         }
 
-                        kindRows.Add(new ValueDef(id, name, ValueClass.Kind, IntrinsicRole.Plain, 0, 0f, false, false, -1, row.Offset));
+                        kindRows.Add(new ValueDef(id, name, ValueClass.Kind, IntrinsicRole.Plain, 0, 1, false, false, -1, row.Offset));
                         break;
                     }
 
@@ -375,7 +406,7 @@ namespace Sv.Rules
                         Error(DiagnosticCode.UnknownName, intoRows[index], "\"into\" names no intrinsic: " + intoNames[index]);
                     }
 
-                    channelArray[i] = new ValueDef(c.Id, c.Name, c.Class, c.Role, 0, 0f, false, c.Timeline, target == null ? -1 : target.Id, c.Offset);
+                    channelArray[i] = new ValueDef(c.Id, c.Name, c.Class, c.Role, 0, 1, false, c.Timeline, target == null ? -1 : target.Id, c.Offset);
                 }
             }
 
@@ -573,7 +604,7 @@ namespace Sv.Rules
                                 continue;
                             }
 
-                            if (ShapeOf(item, out var kind, out var amount))
+                            if (ShapeOf(item, stat.Scale, out var kind, out var amount))
                             {
                                 modifiers.Add(new StatModifier(stat.Id, kind, amount));
                             }
@@ -607,10 +638,10 @@ namespace Sv.Rules
             cards = array;
         }
 
-        bool ShapeOf(JsonValue item, out ShapeKind kind, out float amount)
+        bool ShapeOf(JsonValue item, int scale, out ShapeKind kind, out int amount)
         {
             kind = ShapeKind.Added;
-            amount = 0f;
+            amount = 0;
             var found = 0;
             var names = new[] { "added", "additive", "multi", "cap" };
             for (var k = 0; k < names.Length; k++)
@@ -619,13 +650,16 @@ namespace Sv.Rules
                 if (value != null)
                 {
                     kind = (ShapeKind)k;
-                    amount = RequireFloat(value, names[k]);
+                    amount = ShapeAmount(value, kind, scale, names[k]);
                     found++;
                 }
             }
 
             return found == 1;
         }
+
+        int ShapeAmount(JsonValue value, ShapeKind kind, int scale, string what) =>
+            RequireScaled(value, kind == ShapeKind.Additive || kind == ShapeKind.Multi ? StatLaw.Whole : scale, what);
 
         TemplateDef[] ReadTemplates(JsonValue[] rows)
         {
@@ -664,7 +698,7 @@ namespace Sv.Rules
                             continue;
                         }
 
-                        settings.Add(new ValueSetting(ValueClass.Intrinsic, card, count, 0f, false));
+                        settings.Add(new ValueSetting(ValueClass.Intrinsic, card, count, false));
                     }
                 }
 
@@ -728,26 +762,21 @@ namespace Sv.Rules
             var stat = FindName(stats, name);
             if (stat != null)
             {
-                settings.Add(new ValueSetting(ValueClass.Stat, stat.Id, 0, RequireFloat(value, name), false));
+                settings.Add(new ValueSetting(ValueClass.Stat, stat.Id, RequireScaled(value, stat.Scale, name), false));
                 return;
             }
 
             var intrinsic = FindName(intrinsics, name);
             if (intrinsic != null)
             {
-                if (!value.TryInt(out var number))
-                {
-                    Error(DiagnosticCode.WrongType, value, name + " is an intrinsic and takes an integer");
-                }
-
-                settings.Add(new ValueSetting(ValueClass.Intrinsic, intrinsic.Id, number, 0f, false));
+                settings.Add(new ValueSetting(ValueClass.Intrinsic, intrinsic.Id, RequireScaled(value, intrinsic.Scale, name), false));
                 return;
             }
 
             var raised = FindName(events, name);
             if (raised != null && value.IsBool)
             {
-                settings.Add(new ValueSetting(ValueClass.Event, raised.Id, 0, 0f, value.Kind == JsonKind.True));
+                settings.Add(new ValueSetting(ValueClass.Event, raised.Id, 0, value.Kind == JsonKind.True));
                 return;
             }
 
@@ -1030,16 +1059,16 @@ namespace Sv.Rules
                         admit = key == "deny" ? AdmitVerdict.Deny : AdmitVerdict.Allow;
                         break;
                     case "added":
-                        shapes.Add(new ShapeEffect(ShapeKind.Added, RequireFloat(body, key)));
+                        shapes.Add(new ShapeEffect(ShapeKind.Added, ShapeAmount(body, ShapeKind.Added, StatLaw.MinScale, key)));
                         break;
                     case "additive":
-                        shapes.Add(new ShapeEffect(ShapeKind.Additive, RequireFloat(body, key)));
+                        shapes.Add(new ShapeEffect(ShapeKind.Additive, ShapeAmount(body, ShapeKind.Additive, StatLaw.MinScale, key)));
                         break;
                     case "multi":
-                        shapes.Add(new ShapeEffect(ShapeKind.Multi, RequireFloat(body, key)));
+                        shapes.Add(new ShapeEffect(ShapeKind.Multi, ShapeAmount(body, ShapeKind.Multi, StatLaw.MinScale, key)));
                         break;
                     case "cap":
-                        shapes.Add(new ShapeEffect(ShapeKind.Cap, RequireFloat(body, key)));
+                        shapes.Add(new ShapeEffect(ShapeKind.Cap, ShapeAmount(body, ShapeKind.Cap, StatLaw.MinScale, key)));
                         break;
                     case "absorb":
                         absorbs.Add(ReadAbsorb(body));

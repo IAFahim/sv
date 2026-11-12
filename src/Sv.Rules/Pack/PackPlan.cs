@@ -586,14 +586,6 @@ namespace Sv.Rules
                 }
             }
 
-            for (var i = 0; i < gate.Shapes.Length; i++)
-            {
-                if (float.IsNaN(gate.Shapes[i].Value) || float.IsInfinity(gate.Shapes[i].Value))
-                {
-                    Error(DiagnosticCode.BadValue, gate, null, Named(gate) + ": a shape value is finite");
-                }
-            }
-
             return facts.ReadsOnlyChannelOfRecord;
         }
 

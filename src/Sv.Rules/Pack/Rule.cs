@@ -103,9 +103,9 @@ namespace Sv.Rules
     {
         public ShapeKind Kind { get; }
 
-        public float Value { get; }
+        public int Value { get; }
 
-        public ShapeEffect(ShapeKind kind, float value)
+        public ShapeEffect(ShapeKind kind, int value)
         {
             Kind = kind;
             Value = value;

@@ -151,7 +151,7 @@ namespace Sv.Rules
 
         public static Expression Cell(Subject subject, int via, ValueClass valueClass, int id)
         {
-            var type = valueClass == ValueClass.Stat ? ExprType.Float : valueClass == ValueClass.Event ? ExprType.Bool : ExprType.Int;
+            var type = valueClass == ValueClass.Event ? ExprType.Bool : ExprType.Int;
             return Leaf(Op.Cell, type, id: id, via: via, subject: subject, valueClass: valueClass);
         }
 

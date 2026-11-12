@@ -42,6 +42,8 @@ namespace Sv.Rules
         BadValue = 30,
         LaneReused = 31,
         LaneMoved = 32,
+        BadScale = 33,
+        NotExact = 34,
     }
 
     public readonly struct Diagnostic

@@ -132,6 +132,8 @@ namespace Sv
             return ScaleOrOne(fromScale) >= ScaleOrOne(toScale) ? value / ratio : Saturate((long)value * ratio);
         }
 
+        public static int ScaleBy(int amount, int value, int scale) => Saturate((long)amount * value / ScaleOrOne(scale));
+
         public static int Derived(int source, int coefficient, int sourceScale, int targetScale)
         {
             var wide = (long)source * coefficient;

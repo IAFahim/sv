@@ -103,6 +103,105 @@ namespace Sv.Rules
             return true;
         }
 
+        public bool TryScaled(int scale, out int value)
+        {
+            value = 0;
+            if (Kind != JsonKind.Number || scale < 1)
+            {
+                return false;
+            }
+
+            var text = Text;
+            var at = 0;
+            var negative = false;
+            if (at < text.Length && (text[at] == '-' || text[at] == '+'))
+            {
+                negative = text[at] == '-';
+                at++;
+            }
+
+            var digits = new StringBuilder();
+            var fraction = 0;
+            var seenPoint = false;
+            while (at < text.Length && (char.IsDigit(text[at]) || (text[at] == '.' && !seenPoint)))
+            {
+                if (text[at] == '.')
+                {
+                    seenPoint = true;
+                }
+                else
+                {
+                    digits.Append(text[at]);
+                    fraction += seenPoint ? 1 : 0;
+                }
+
+                at++;
+            }
+
+            var exponent = 0;
+            if (at < text.Length && (text[at] == 'e' || text[at] == 'E'))
+            {
+                if (!int.TryParse(text.Substring(at + 1), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out exponent) || exponent > 64 || exponent < -64)
+                {
+                    return false;
+                }
+
+                at = text.Length;
+            }
+
+            if (at != text.Length || digits.Length == 0)
+            {
+                return false;
+            }
+
+            var shift = exponent - fraction;
+            for (var power = scale; power > 1; power /= 10)
+            {
+                if (power % 10 != 0)
+                {
+                    return false;
+                }
+
+                shift++;
+            }
+
+            if (shift >= 0)
+            {
+                digits.Append('0', shift);
+            }
+            else
+            {
+                for (var cut = 0; cut < -shift; cut++)
+                {
+                    if (digits.Length == 0 || digits[digits.Length - 1] != '0')
+                    {
+                        return false;
+                    }
+
+                    digits.Length--;
+                }
+            }
+
+            var whole = 0L;
+            for (var d = 0; d < digits.Length; d++)
+            {
+                whole = whole * 10 + (digits[d] - '0');
+                if (whole > 2147483648L)
+                {
+                    return false;
+                }
+            }
+
+            whole = negative ? -whole : whole;
+            if (whole < int.MinValue || whole > int.MaxValue)
+            {
+                return false;
+            }
+
+            value = (int)whole;
+            return true;
+        }
+
         public bool TryFloat(out float value)
         {
             value = 0f;
@@ -574,6 +673,39 @@ namespace Sv.Rules
             BeforeValue();
             builder.Append(FloatText(value));
             return this;
+        }
+
+        public JsonWriter Scaled(int value, int scale)
+        {
+            BeforeValue();
+            builder.Append(ScaledText(value, scale));
+            return this;
+        }
+
+        public static string ScaledText(int value, int scale)
+        {
+            if (scale <= 1)
+            {
+                return value.ToString(CultureInfo.InvariantCulture);
+            }
+
+            var magnitude = value < 0 ? -(long)value : value;
+            var whole = magnitude / scale;
+            var part = magnitude % scale;
+            var text = (value < 0 ? "-" : string.Empty) + whole.ToString(CultureInfo.InvariantCulture);
+            if (part == 0)
+            {
+                return text;
+            }
+
+            var places = 0;
+            for (var power = scale; power > 1; power /= 10)
+            {
+                places++;
+            }
+
+            var digits = part.ToString(CultureInfo.InvariantCulture).PadLeft(places, '0').TrimEnd('0');
+            return text + "." + digits;
         }
 
         public JsonWriter Bool(bool value)

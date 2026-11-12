@@ -34,14 +34,25 @@ namespace Sv.Rules
             {
                 var row = schema.Stats[i];
                 writer.Line().BeginObject().Key("id").Int(row.Id).KeyDone().Key("name").String(row.Name).KeyDone().Key("class").String("stat").KeyDone()
-                    .Key("default").Float(row.StatDefault).KeyDone().EndObject();
+                    .Key("default").Scaled(row.IntDefault, row.Scale).KeyDone();
+                if (row.Scale != StatLaw.MinScale)
+                {
+                    writer.Key("scale").Int(row.Scale).KeyDone();
+                }
+
+                writer.EndObject();
             }
 
             for (var i = 0; i < schema.Intrinsics.Length; i++)
             {
                 var row = schema.Intrinsics[i];
                 writer.Line().BeginObject().Key("id").Int(row.Id).KeyDone().Key("name").String(row.Name).KeyDone().Key("class").String("intrinsic").KeyDone()
-                    .Key("default").Int(row.IntDefault).KeyDone();
+                    .Key("default").Scaled(row.IntDefault, row.Scale).KeyDone();
+                if (row.Scale != StatLaw.MinScale)
+                {
+                    writer.Key("scale").Int(row.Scale).KeyDone();
+                }
+
                 if (row.Role != IntrinsicRole.Plain)
                 {
                     writer.Key("role").String(RoleName(row.Role)).KeyDone();
@@ -96,6 +107,10 @@ namespace Sv.Rules
 
         static readonly string[] ShapeNames = { "added", "additive", "multi", "cap" };
 
+        static int ShapeScale(ShapeKind kind, int scale) => kind == ShapeKind.Additive || kind == ShapeKind.Multi ? StatLaw.Whole : scale;
+
+        static int ScaleOf(PackSchema schema, ValueClass valueClass, int id) => schema.Find(valueClass, id)?.Scale ?? StatLaw.MinScale;
+
         public static string Cards(PackSchema schema)
         {
             var writer = Begin(0, false);
@@ -111,7 +126,7 @@ namespace Sv.Rules
                     {
                         var modifier = card.Modifiers[m];
                         writer.BeginObject().Key("stat").String(schema.NameOf(ValueClass.Stat, modifier.Stat)).KeyDone()
-                            .Key(ShapeNames[(int)modifier.Kind]).Float(modifier.Value).KeyDone().EndObject();
+                            .Key(ShapeNames[(int)modifier.Kind]).Scaled(modifier.Value, ShapeScale(modifier.Kind, ScaleOf(schema, ValueClass.Stat, modifier.Stat))).KeyDone().EndObject();
                     }
 
                     writer.EndArray().KeyDone();
@@ -139,9 +154,8 @@ namespace Sv.Rules
                         writer.Key(schema.NameOf(setting.Class, setting.Id));
                         switch (setting.Class)
                         {
-                            case ValueClass.Stat: writer.Float(setting.Real); break;
                             case ValueClass.Event: writer.Bool(setting.Level); break;
-                            default: writer.Int(setting.Int); break;
+                            default: writer.Scaled(setting.Int, ScaleOf(schema, setting.Class, setting.Id)); break;
                         }
 
                         writer.KeyDone();
@@ -272,7 +286,7 @@ namespace Sv.Rules
 
                     for (var i = 0; i < gate.Shapes.Length; i++)
                     {
-                        writer.BeginObject().Key(ShapeNames[(int)gate.Shapes[i].Kind]).Float(gate.Shapes[i].Value).KeyDone().EndObject();
+                        writer.BeginObject().Key(ShapeNames[(int)gate.Shapes[i].Kind]).Scaled(gate.Shapes[i].Value, ShapeScale(gate.Shapes[i].Kind, StatLaw.MinScale)).KeyDone().EndObject();
                     }
 
                     for (var i = 0; i < gate.Absorbs.Length; i++)

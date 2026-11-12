@@ -18,9 +18,9 @@ namespace Sv.Rules.Reference
 
         public ShapeKind Shape { get; }
 
-        public float Value { get; }
+        public int Value { get; }
 
-        public HeldModifier(long handle, int stat, ShapeKind shape, float value)
+        public HeldModifier(long handle, int stat, ShapeKind shape, int value)
         {
             Handle = handle;
             Stat = stat;
@@ -37,8 +37,8 @@ namespace Sv.Rules.Reference
         public bool PendingCheck;
         public bool HadTotals;
         public readonly int[] Intrinsics;
-        public readonly float[] StatBase;
-        public readonly float[] Stats;
+        public readonly int[] StatBase;
+        public readonly int[] Stats;
         public readonly bool[] Events;
         public readonly List<HeldModifier> Modifiers;
 
@@ -46,8 +46,8 @@ namespace Sv.Rules.Reference
         {
             Template = -1;
             Intrinsics = new int[intrinsics];
-            StatBase = new float[stats];
-            Stats = new float[stats];
+            StatBase = new int[stats];
+            Stats = new int[stats];
             Events = new bool[events];
             Modifiers = new List<HeldModifier>();
         }
@@ -126,8 +126,8 @@ namespace Sv.Rules.Reference
 
             for (var i = 0; i < schema.Stats.Length; i++)
             {
-                entity.StatBase[i] = schema.Stats[i].StatDefault;
-                entity.Stats[i] = schema.Stats[i].StatDefault;
+                entity.StatBase[i] = schema.Stats[i].IntDefault;
+                entity.Stats[i] = schema.Stats[i].IntDefault;
             }
 
             for (var i = 0; i < schema.Events.Length; i++)
@@ -157,15 +157,21 @@ namespace Sv.Rules.Reference
             return IsSlot(slot) && Slots[slot].Status != SlotStatus.Free ? Slots[slot].Intrinsics[index] : Schema.Intrinsics[index].IntDefault;
         }
 
-        public float Stat(int slot, int stat)
+        public int Stat(int slot, int stat)
         {
             var index = Schema.IndexOf(ValueClass.Stat, stat);
             if (index < 0)
             {
-                return 0f;
+                return 0;
             }
 
-            return IsSlot(slot) && Slots[slot].Status != SlotStatus.Free ? Slots[slot].Stats[index] : Schema.Stats[index].StatDefault;
+            return IsSlot(slot) && Slots[slot].Status != SlotStatus.Free ? Slots[slot].Stats[index] : Schema.Stats[index].IntDefault;
+        }
+
+        public int ScaleOf(ValueClass valueClass, int id)
+        {
+            var row = Schema.Find(valueClass, id);
+            return row == null ? 1 : row.Scale;
         }
 
         public bool Event(int slot, int raised)

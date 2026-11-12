@@ -292,8 +292,8 @@ namespace Sv.Rules.Reference
                 switch (setting.Class)
                 {
                     case ValueClass.Stat:
-                        entity.StatBase[index] = setting.Real;
-                        entity.Stats[index] = setting.Real;
+                        entity.StatBase[index] = setting.Int;
+                        entity.Stats[index] = setting.Int;
                         break;
                     case ValueClass.Intrinsic:
                         entity.Intrinsics[index] = setting.Int;
@@ -495,7 +495,7 @@ namespace Sv.Rules.Reference
             for (var i = 0; i < sorted.Count; i++)
             {
                 var op = sorted[i];
-                if (!world.IsLive(op.Slot) || schema.IndexOf(ValueClass.Stat, op.Stat) < 0 || float.IsNaN(op.Value) || float.IsInfinity(op.Value))
+                if (!world.IsLive(op.Slot) || schema.IndexOf(ValueClass.Stat, op.Stat) < 0)
                 {
                     faults.StatOpFault++;
                     continue;
@@ -567,10 +567,10 @@ namespace Sv.Rules.Reference
                     var before = entity.Stats[s];
                     var after = ReferenceLaw.StatFold(entity.StatBase[s], entries);
                     entity.Stats[s] = after;
-                    if (!ReferenceLaw.SameBits(before, after))
+                    if (before != after)
                     {
                         flags[s] = true;
-                        Note("stat " + Trace.Slot(slot) + " " + schema.Stats[s].Name + " " + Trace.Real(before) + " -> " + Trace.Real(after));
+                        Note("stat " + Trace.Slot(slot) + " " + schema.Stats[s].Name + " " + Trace.Number(before) + " -> " + Trace.Number(after));
                     }
                 }
             }
@@ -940,7 +940,7 @@ namespace Sv.Rules.Reference
 
             if (action.ScaleStat >= 0)
             {
-                amount = ReferenceLaw.BoundOf(ReferenceLaw.FloatMultiply(amount, world.Stat(self, action.ScaleStat)));
+                amount = ReferenceLaw.ScaleBy(amount, world.Stat(self, action.ScaleStat), world.ScaleOf(ValueClass.Stat, action.ScaleStat));
             }
 
             return amount != 0 && hits != 0;
@@ -1145,12 +1145,12 @@ namespace Sv.Rules.Reference
                 + " -> " + (admitted ? "allow" : "deny") + (decider == null ? " by default" : " by " + Trace.Rule(decider)) + " taken " + Trace.Number(shaped));
         }
 
-        int BoundValue(Bound bound, int slot, int fallback)
+        int BoundValue(Bound bound, int slot, int intrinsicScale, int fallback)
         {
             switch (bound.Kind)
             {
                 case BoundKind.Constant: return bound.Constant;
-                case BoundKind.Stat: return ReferenceLaw.BoundOf(world.Stat(slot, bound.Stat));
+                case BoundKind.Stat: return ReferenceLaw.Rescale(world.Stat(slot, bound.Stat), world.ScaleOf(ValueClass.Stat, bound.Stat), intrinsicScale);
                 default: return fallback;
             }
         }
@@ -1190,8 +1190,8 @@ namespace Sv.Rules.Reference
                         continue;
                     }
 
-                    var floor = fold == null ? int.MinValue : BoundValue(fold.Floor, slot, int.MinValue);
-                    var ceiling = fold == null ? int.MaxValue : BoundValue(fold.Ceiling, slot, int.MaxValue);
+                    var floor = fold == null ? int.MinValue : BoundValue(fold.Floor, slot, schema.Intrinsics[i].Scale, int.MinValue);
+                    var ceiling = fold == null ? int.MaxValue : BoundValue(fold.Ceiling, slot, schema.Intrinsics[i].Scale, int.MaxValue);
                     var before = entity.Intrinsics[i];
                     var after = ReferenceLaw.Step(before, ReferenceLaw.Saturate(delta), floor, ceiling);
                     entity.Intrinsics[i] = after;
@@ -1284,7 +1284,7 @@ namespace Sv.Rules.Reference
                     var amount = action.Constant;
                     if (action.ScaleStat >= 0)
                     {
-                        amount = ReferenceLaw.BoundOf(ReferenceLaw.FloatMultiply(amount, world.Stat(slot, action.ScaleStat)));
+                        amount = ReferenceLaw.ScaleBy(amount, world.Stat(slot, action.ScaleStat), world.ScaleOf(ValueClass.Stat, action.ScaleStat));
                     }
 
                     var to = Destination(slot, RefRecord.NoSource, action);
@@ -1548,7 +1548,7 @@ namespace Sv.Rules.Reference
             var target = world.IsSlot(slot) ? (int)slot : -1;
             switch (e.Class)
             {
-                case ValueClass.Stat: return Value.Of(world.Stat(target, e.Id));
+                case ValueClass.Stat: return Value.Of((long)ReferenceLaw.Rescale(world.Stat(target, e.Id), world.ScaleOf(ValueClass.Stat, e.Id), 1));
                 case ValueClass.Event: return Value.Of(world.Event(target, e.Id));
                 default: return Value.Of((long)world.Intrinsic(target, e.Id));
             }

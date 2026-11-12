@@ -17,14 +17,6 @@ namespace Sv.Rules
         Reference = 3,
     }
 
-    public enum ShapeKind : byte
-    {
-        Added = 0,
-        Additive = 1,
-        Multi = 2,
-        Cap = 3,
-    }
-
     public static class LaneNumbers
     {
         public const int EventWords = 32;
@@ -53,7 +45,7 @@ namespace Sv.Rules
 
         public int IntDefault { get; }
 
-        public float StatDefault { get; }
+        public int Scale { get; }
 
         public bool EventDefault { get; }
 
@@ -63,14 +55,14 @@ namespace Sv.Rules
 
         public int Offset { get; }
 
-        public ValueDef(int id, string name, ValueClass valueClass, IntrinsicRole role, int intDefault, float statDefault, bool eventDefault, bool timeline, int into, int offset)
+        public ValueDef(int id, string name, ValueClass valueClass, IntrinsicRole role, int intDefault, int scale, bool eventDefault, bool timeline, int into, int offset)
         {
             Id = id;
             Name = name;
             Class = valueClass;
             Role = role;
             IntDefault = intDefault;
-            StatDefault = statDefault;
+            Scale = scale;
             EventDefault = eventDefault;
             Timeline = timeline;
             Into = into;
@@ -86,9 +78,9 @@ namespace Sv.Rules
 
         public ShapeKind Kind { get; }
 
-        public float Value { get; }
+        public int Value { get; }
 
-        public StatModifier(int stat, ShapeKind kind, float value)
+        public StatModifier(int stat, ShapeKind kind, int value)
         {
             Stat = stat;
             Kind = kind;
@@ -126,16 +118,13 @@ namespace Sv.Rules
 
         public int Int { get; }
 
-        public float Real { get; }
-
         public bool Level { get; }
 
-        public ValueSetting(ValueClass valueClass, int id, int intValue, float real, bool level)
+        public ValueSetting(ValueClass valueClass, int id, int intValue, bool level)
         {
             Class = valueClass;
             Id = id;
             Int = intValue;
-            Real = real;
             Level = level;
         }
     }

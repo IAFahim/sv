@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Numerics;
 
 namespace Sv.Rules.Reference
 {
@@ -6,9 +7,9 @@ namespace Sv.Rules.Reference
     {
         public ShapeKind Kind { get; }
 
-        public float Value { get; }
+        public int Value { get; }
 
-        public ShapeEntry(ShapeKind kind, float value)
+        public ShapeEntry(ShapeKind kind, int value)
         {
             Kind = kind;
             Value = value;
@@ -108,50 +109,60 @@ namespace Sv.Rules.Reference
 
         public static float FloatMultiply(float left, float right) => (float)(left * right);
 
-        public static float StatFold(float start, List<ShapeEntry> entries)
+        public const int Whole = 10000;
+
+        static int Clamp32(BigInteger value) =>
+            value > int.MaxValue ? int.MaxValue : value < int.MinValue ? int.MinValue : (int)value;
+
+        static int Times(int value, int factor, int divisor) => Clamp32(BigInteger.Divide((BigInteger)value * factor, divisor));
+
+        public static int StatFold(int start, List<ShapeEntry> entries)
         {
-            var value = start;
-            var additive = 1f;
-            for (var i = 0; i < entries.Count; i++)
+            var sorted = new List<ShapeEntry>(entries);
+            sorted.Sort(ShapeOrder);
+            var added = (BigInteger)start;
+            var additive = (BigInteger)Whole;
+            for (var i = 0; i < sorted.Count; i++)
             {
-                if (entries[i].Kind == ShapeKind.Added)
+                added += sorted[i].Kind == ShapeKind.Added ? sorted[i].Value : 0;
+                additive += sorted[i].Kind == ShapeKind.Additive ? sorted[i].Value : 0;
+            }
+
+            var value = Times(Clamp32(added), Clamp32(additive), Whole);
+            for (var i = 0; i < sorted.Count; i++)
+            {
+                if (sorted[i].Kind == ShapeKind.Multi)
                 {
-                    value = FloatAdd(value, entries[i].Value);
+                    value = Times(value, Clamp32((BigInteger)Whole + sorted[i].Value), Whole);
                 }
             }
 
-            for (var i = 0; i < entries.Count; i++)
+            for (var i = 0; i < sorted.Count; i++)
             {
-                if (entries[i].Kind == ShapeKind.Additive)
+                if (sorted[i].Kind == ShapeKind.Cap && value > sorted[i].Value)
                 {
-                    additive = FloatAdd(additive, entries[i].Value);
-                }
-            }
-
-            value = FloatMultiply(value, additive);
-            for (var i = 0; i < entries.Count; i++)
-            {
-                if (entries[i].Kind == ShapeKind.Multi)
-                {
-                    value = FloatMultiply(value, FloatAdd(1f, entries[i].Value));
-                }
-            }
-
-            for (var i = 0; i < entries.Count; i++)
-            {
-                if (entries[i].Kind == ShapeKind.Cap)
-                {
-                    value = value > entries[i].Value ? entries[i].Value : value;
+                    value = sorted[i].Value;
                 }
             }
 
             return value;
         }
 
-        public static int ShapeAmount(int amount, List<ShapeEntry> entries) =>
-            entries.Count == 0 ? amount : BoundOf(StatFold(amount, entries));
+        static int ShapeOrder(ShapeEntry first, ShapeEntry second) =>
+            first.Kind != second.Kind ? first.Kind.CompareTo(second.Kind) : first.Value.CompareTo(second.Value);
 
-        public static bool SameBits(float left, float right) =>
-            System.BitConverter.SingleToInt32Bits(left) == System.BitConverter.SingleToInt32Bits(right);
+        public static int ShapeAmount(int amount, List<ShapeEntry> entries) => StatFold(amount, entries);
+
+        static int ScaleStep(int scale) =>
+            scale == 1 || scale == 10 || scale == 100 || scale == 1000 || scale == 10000 || scale == 100000 || scale == 1000000 ? scale : 1;
+
+        public static int Rescale(int value, int fromScale, int toScale)
+        {
+            var from = ScaleStep(fromScale);
+            var to = ScaleStep(toScale);
+            return from >= to ? Clamp32(BigInteger.Divide(value, from / to)) : Clamp32((BigInteger)value * (to / from));
+        }
+
+        public static int ScaleBy(int amount, int value, int scale) => Times(amount, value, ScaleStep(scale));
     }
 }
