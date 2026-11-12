@@ -122,3 +122,11 @@ our priority-number gates are more powerful and riskier. Where we differ: they r
    early trace viewer) before the test phase; apply them as plan/code changes via agents.
 4. Test phase (health 95 first), then benchmark phase, then M8-M11.
 5. Keep the skill repo updated (dense, no secrets); close/reopen repo issues myself with receipts; tell the owner exact refs before any push.
+
+## 10. Added late on 2026-11-12 (owner said "you may")
+
+Acceptance test for the brick set ("Lego test"): write about 20 real mechanics as rule rows in `packs/reference` (poison over time, shield, lifesteal,
+thorns, immunity bit mask, stun, double jump, cooldown, crit, execute, revive, reflect with immunity, heal over time, stacking buffs, DoT snapshot,
+core versus external stacking, ...). A mechanic that cannot be written is a missing brick; two bricks that can express the same thing are a candidate
+for deletion. Time (timers, ticks) is tl's job, space (areas, auras) is grid-influence's, AI and movement are not sv's. Run it on the reference
+interpreter first. Start it AFTER C1 and C2 report (not part of the 01:51 cron prompt). Owner is out of usage limit tonight; nothing else starts before 01:51.
