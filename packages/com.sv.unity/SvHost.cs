@@ -207,9 +207,19 @@ namespace Sv.Unity
 
         internal int* EdgeCountPtr(int intrinsic) => EdgeCount + intrinsic * (Line / 4);
 
+        public long ExpireTicks { get; private set; }
+
+        public long ApplyTicks { get; private set; }
+
+        public long RecalcTicks { get; private set; }
+
+        public long TakeTicks { get; private set; }
+
         internal void Sparse()
         {
+            var t0 = SvClock.Now;
             LastExpired = Board.ExpireModifiers(Tick);
+            var t1 = SvClock.Now;
             if (opCount > 0)
             {
                 StatOps.Canonicalize(new Span<StatOp>(ops, 0, opCount), new Span<StatOp>(scratch, 0, opCount));
@@ -221,7 +231,9 @@ namespace Sv.Unity
                 LastApplied = 0;
             }
 
+            var t2 = SvClock.Now;
             Board.Recalculate();
+            var t3 = SvClock.Now;
             var pending = Board.PendingBroadcast;
             if (pending > WriteCapacity)
             {
@@ -229,6 +241,11 @@ namespace Sv.Unity
             }
 
             *WriteCount = Board.TakeBroadcast(new Span<StatWrite>(Writes, WriteCapacity));
+            var t4 = SvClock.Now;
+            ExpireTicks = t1 - t0;
+            ApplyTicks = t2 - t1;
+            RecalcTicks = t3 - t2;
+            TakeTicks = t4 - t3;
         }
 
         internal void ClearEdges()
