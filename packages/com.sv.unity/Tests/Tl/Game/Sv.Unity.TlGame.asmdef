@@ -1,0 +1,31 @@
+{
+    "name": "Sv.Unity.TlGame",
+    "rootNamespace": "SvTlGame",
+    "references": [
+        "Tl.Core",
+        "Tl.Unity",
+        "Unity.Burst",
+        "Unity.Collections",
+        "Unity.Entities"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS",
+        "SV_TL"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.tl.unity",
+            "expression": "0.0.0",
+            "define": "SV_TL"
+        }
+    ],
+    "noEngineReferences": false
+}

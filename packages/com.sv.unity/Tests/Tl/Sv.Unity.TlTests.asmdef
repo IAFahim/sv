@@ -1,0 +1,43 @@
+{
+    "name": "Sv.Unity.TlTests",
+    "rootNamespace": "Sv.Unity.TlTests",
+    "references": [
+        "Sv.Core",
+        "Sv.Unity",
+        "Sv.Unity.TlGame",
+        "Tl.Core",
+        "Tl.Unity",
+        "Tl.Unity.Bake",
+        "Tl.Unity.Editor",
+        "Tl.Unity.Tracks",
+        "Unity.Burst",
+        "Unity.Collections",
+        "Unity.Entities",
+        "Unity.Entities.Hybrid",
+        "Unity.Timeline",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS",
+        "SV_TL"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.tl.unity",
+            "expression": "0.0.0",
+            "define": "SV_TL"
+        }
+    ],
+    "noEngineReferences": false
+}
