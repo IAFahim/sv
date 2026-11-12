@@ -88,6 +88,7 @@ internal static class Program
         failures += DayToDay.Run(scenario, ms);
         failures += Fold1m.Run(scenario, ms);
         failures += Statop10k.Run(scenario, ms);
+        failures += Derive.Run(scenario, ms);
         if (!Markdown)
         {
             Console.WriteLine(failures == 0 ? "all scenarios ok" : $"{failures} scenario(s) failed");
