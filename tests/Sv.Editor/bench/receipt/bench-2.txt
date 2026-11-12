@@ -1,0 +1,64 @@
+settings tag=bench-2 burst=True safety=False jobDebugger=False leak=Disabled workers=11 unity=7000.0.0a16 Iw=2 digestEvery=8 kinds=stand-in
+shape=P1 rows=1048576 timelines=1 chunks=21400 setupMs=293.7 boardBytes=13155948
+cell shape=P1 W=1.0 cross=0% window=sv+kinds statOps=350 svMain=0.100 scatter=0.037 fold=2.150 kinds=2.102 derive=0.013 digest=0.108 total=4.507 expire=0.001 apply=0.055 recalc=0.031 take=0.015 mainBytes=0 allBytes=856 svProbeManaged=0 kindProbeManaged=0 events=0 dense=0
+shape=P1 rows=1048576 timelines=1 chunks=21400 setupMs=126.2 boardBytes=13155948
+cell shape=P1 W=1.0 cross=10% window=sv+kinds statOps=350 svMain=0.105 scatter=0.038 fold=2.224 kinds=2.468 derive=0.029 digest=0.109 total=4.980 expire=0.001 apply=0.057 recalc=0.030 take=0.015 mainBytes=0 allBytes=856 svProbeManaged=0 kindProbeManaged=0 events=102 dense=0
+shape=P1 rows=1048576 timelines=1 chunks=21400 setupMs=128.2 boardBytes=13155948
+cell shape=P1 W=1.0 cross=50% window=sv+kinds statOps=350 svMain=0.100 scatter=0.040 fold=2.058 kinds=3.287 derive=0.042 digest=0.116 total=5.650 expire=0.001 apply=0.054 recalc=0.030 take=0.015 mainBytes=0 allBytes=0 svProbeManaged=0 kindProbeManaged=0 events=703 dense=0
+shape=P1 rows=1048576 timelines=1 chunks=21400 setupMs=154.3 boardBytes=13155948
+cell shape=P1 W=2.5 cross=0% window=sv+kinds statOps=874 svMain=0.201 scatter=0.067 fold=2.139 kinds=2.164 derive=0.012 digest=0.110 total=4.699 expire=0.001 apply=0.113 recalc=0.061 take=0.029 mainBytes=0 allBytes=0 svProbeManaged=0 kindProbeManaged=0 events=0 dense=0
+shape=P1 rows=1048576 timelines=1 chunks=21400 setupMs=157.5 boardBytes=13155948
+cell shape=P1 W=2.5 cross=10% window=sv+kinds statOps=874 svMain=0.203 scatter=0.067 fold=2.219 kinds=2.756 derive=0.035 digest=0.104 total=5.387 expire=0.001 apply=0.112 recalc=0.059 take=0.028 mainBytes=0 allBytes=0 svProbeManaged=0 kindProbeManaged=0 events=218 dense=0
+shape=P1 rows=1048576 timelines=1 chunks=21400 setupMs=179.9 boardBytes=13155948
+cell shape=P1 W=2.5 cross=50% window=sv+kinds statOps=874 svMain=0.204 scatter=0.069 fold=2.082 kinds=3.926 derive=0.048 digest=0.109 total=6.493 expire=0.001 apply=0.112 recalc=0.061 take=0.031 mainBytes=0 allBytes=136 svProbeManaged=0 kindProbeManaged=0 events=972 dense=0
+shape=P1 rows=1048576 timelines=1 chunks=21400 setupMs=163.4 boardBytes=13155948
+cell shape=P1 W=4.0 cross=0% window=sv+kinds statOps=1398 svMain=0.295 scatter=0.093 fold=2.147 kinds=2.176 derive=0.012 digest=0.110 total=4.836 expire=0.001 apply=0.164 recalc=0.084 take=0.044 mainBytes=0 allBytes=0 svProbeManaged=0 kindProbeManaged=0 events=0 dense=0
+shape=P1 rows=1048576 timelines=1 chunks=21400 setupMs=122.3 boardBytes=13155948
+cell shape=P1 W=4.0 cross=10% window=sv+kinds statOps=1398 svMain=0.302 scatter=0.101 fold=2.243 kinds=3.054 derive=0.036 digest=0.116 total=5.850 expire=0.001 apply=0.170 recalc=0.086 take=0.043 mainBytes=0 allBytes=0 svProbeManaged=0 kindProbeManaged=0 events=352 dense=0
+shape=P1 rows=1048576 timelines=1 chunks=21400 setupMs=127.3 boardBytes=13155948
+cell shape=P1 W=4.0 cross=50% window=sv+kinds statOps=1398 svMain=0.307 scatter=0.102 fold=2.157 kinds=4.313 derive=0.045 digest=0.114 total=7.038 expire=0.001 apply=0.171 recalc=0.090 take=0.043 mainBytes=0 allBytes=0 svProbeManaged=0 kindProbeManaged=0 events=1235 dense=0
+shape=P1 rows=1048576 timelines=1 chunks=21400 setupMs=123.1 boardBytes=13155948
+cell shape=P1 W=2.5 cross=10%-hot1 window=sv+kinds statOps=874 svMain=0.213 scatter=0.069 fold=2.200 kinds=3.850 derive=0.031 digest=0.108 total=6.475 expire=0.001 apply=0.119 recalc=0.061 take=0.030 mainBytes=0 allBytes=0 svProbeManaged=0 kindProbeManaged=0 events=1 dense=0
+shape=P1 rows=1048576 timelines=1 chunks=21400 setupMs=126.9 boardBytes=13155948
+cell shape=P1 W=2.5 cross=0% window=null(kinds-only) statOps=0 svMain=0.000 scatter=0.000 fold=0.000 kinds=2.161 derive=0.000 digest=0.000 total=2.161 expire=0.000 apply=0.000 recalc=0.000 take=0.000 mainBytes=0 allBytes=0 svProbeManaged=0 kindProbeManaged=0 events=0 dense=0
+shape=P2 rows=262144 timelines=4 chunks=5350 setupMs=35.5 boardBytes=3299052
+cell shape=P2 W=1.0 cross=0% window=sv+kinds statOps=350 svMain=0.090 scatter=0.027 fold=0.309 kinds=1.447 derive=0.010 digest=0.026 total=1.905 expire=0.001 apply=0.051 recalc=0.022 take=0.012 mainBytes=0 allBytes=0 svProbeManaged=0 kindProbeManaged=0 events=0 dense=0
+shape=P2 rows=262144 timelines=4 chunks=5350 setupMs=67.4 boardBytes=3299052
+cell shape=P2 W=1.0 cross=10% window=sv+kinds statOps=350 svMain=0.093 scatter=0.028 fold=0.435 kinds=1.656 derive=0.017 digest=0.028 total=2.262 expire=0.001 apply=0.054 recalc=0.025 take=0.012 mainBytes=0 allBytes=0 svProbeManaged=0 kindProbeManaged=0 events=84 dense=0
+shape=P2 rows=262144 timelines=4 chunks=5350 setupMs=50.1 boardBytes=3299052
+cell shape=P2 W=1.0 cross=50% window=sv+kinds statOps=350 svMain=0.086 scatter=0.027 fold=0.493 kinds=2.336 derive=0.022 digest=0.029 total=3.008 expire=0.001 apply=0.050 recalc=0.023 take=0.012 mainBytes=0 allBytes=0 svProbeManaged=0 kindProbeManaged=0 events=568 dense=0
+shape=P2 rows=262144 timelines=4 chunks=5350 setupMs=38.0 boardBytes=3299052
+cell shape=P2 W=2.5 cross=0% window=sv+kinds statOps=874 svMain=0.185 scatter=0.057 fold=0.452 kinds=1.311 derive=0.010 digest=0.025 total=2.051 expire=0.001 apply=0.112 recalc=0.050 take=0.028 mainBytes=0 allBytes=0 svProbeManaged=0 kindProbeManaged=0 events=0 dense=0
+shape=P2 rows=262144 timelines=4 chunks=5350 setupMs=55.9 boardBytes=3299052
+cell shape=P2 W=2.5 cross=10% window=sv+kinds statOps=874 svMain=0.205 scatter=0.063 fold=0.526 kinds=1.828 derive=0.019 digest=0.028 total=2.658 expire=0.001 apply=0.124 recalc=0.054 take=0.029 mainBytes=0 allBytes=0 svProbeManaged=0 kindProbeManaged=0 events=197 dense=0
+shape=P2 rows=262144 timelines=4 chunks=5350 setupMs=31.1 boardBytes=3299052
+cell shape=P2 W=2.5 cross=50% window=sv+kinds statOps=874 svMain=0.192 scatter=0.060 fold=0.517 kinds=2.780 derive=0.023 digest=0.027 total=3.617 expire=0.001 apply=0.109 recalc=0.053 take=0.027 mainBytes=0 allBytes=0 svProbeManaged=0 kindProbeManaged=0 events=799 dense=0
+shape=P2 rows=262144 timelines=4 chunks=5350 setupMs=54.8 boardBytes=3299052
+cell shape=P2 W=4.0 cross=0% window=sv+kinds statOps=1398 svMain=0.291 scatter=0.083 fold=0.327 kinds=1.441 derive=0.010 digest=0.024 total=2.193 expire=0.001 apply=0.163 recalc=0.080 take=0.041 mainBytes=0 allBytes=0 svProbeManaged=0 kindProbeManaged=0 events=0 dense=0
+shape=P2 rows=262144 timelines=4 chunks=5350 setupMs=52.4 boardBytes=3299052
+cell shape=P2 W=4.0 cross=10% window=sv+kinds statOps=1398 svMain=0.292 scatter=0.080 fold=0.488 kinds=2.115 derive=0.018 digest=0.029 total=3.032 expire=0.001 apply=0.166 recalc=0.084 take=0.041 mainBytes=0 allBytes=0 svProbeManaged=0 kindProbeManaged=0 events=452 dense=0
+shape=P2 rows=262144 timelines=4 chunks=5350 setupMs=57.3 boardBytes=3299052
+cell shape=P2 W=4.0 cross=50% window=sv+kinds statOps=1398 svMain=0.300 scatter=0.081 fold=0.509 kinds=3.375 derive=0.025 digest=0.028 total=4.315 expire=0.001 apply=0.174 recalc=0.085 take=0.041 mainBytes=0 allBytes=0 svProbeManaged=0 kindProbeManaged=0 events=1069 dense=0
+shape=P2 rows=262144 timelines=4 chunks=5350 setupMs=34.9 boardBytes=3299052
+cell shape=P2 W=2.5 cross=0% window=null(kinds-only) statOps=0 svMain=0.000 scatter=0.000 fold=0.000 kinds=1.290 derive=0.000 digest=0.000 total=1.290 expire=0.000 apply=0.000 recalc=0.000 take=0.000 mainBytes=0 allBytes=0 svProbeManaged=0 kindProbeManaged=0 events=0 dense=0
+shape=P3 rows=10000 timelines=150 chunks=205 setupMs=2.7 boardBytes=157292
+cell shape=P3 W=1.0 cross=0% window=sv+kinds statOps=500 svMain=0.308 scatter=0.023 fold=0.035 kinds=1.844 derive=0.007 digest=0.003 total=2.214 expire=0.000 apply=0.186 recalc=0.103 take=0.014 mainBytes=0 allBytes=11280 svProbeManaged=0 kindProbeManaged=0 events=0 dense=0
+shape=P3 rows=10000 timelines=150 chunks=205 setupMs=2.6 boardBytes=157292
+cell shape=P3 W=1.0 cross=10% window=sv+kinds statOps=500 svMain=0.259 scatter=0.022 fold=0.039 kinds=2.049 derive=0.008 digest=0.003 total=2.366 expire=0.000 apply=0.147 recalc=0.085 take=0.014 mainBytes=0 allBytes=0 svProbeManaged=0 kindProbeManaged=0 events=139 dense=0
+shape=P3 rows=10000 timelines=150 chunks=205 setupMs=2.5 boardBytes=157292
+cell shape=P3 W=1.0 cross=50% window=sv+kinds statOps=500 svMain=0.274 scatter=0.024 fold=0.042 kinds=2.953 derive=0.009 digest=0.004 total=3.303 expire=0.000 apply=0.162 recalc=0.089 take=0.014 mainBytes=0 allBytes=0 svProbeManaged=0 kindProbeManaged=0 events=423 dense=0
+shape=P3 rows=10000 timelines=150 chunks=205 setupMs=3.5 boardBytes=157292
+cell shape=P3 W=2.5 cross=0% window=sv+kinds statOps=1250 svMain=1.062 scatter=0.035 fold=0.087 kinds=1.697 derive=0.039 digest=0.004 total=2.925 expire=0.000 apply=0.578 recalc=0.461 take=0.029 mainBytes=0 allBytes=0 svProbeManaged=0 kindProbeManaged=0 events=10000 dense=0
+shape=P3 rows=10000 timelines=150 chunks=205 setupMs=3.3 boardBytes=157292
+cell shape=P3 W=2.5 cross=10% window=sv+kinds statOps=1250 svMain=1.084 scatter=0.036 fold=0.084 kinds=2.274 derive=0.038 digest=0.004 total=3.483 expire=0.000 apply=0.624 recalc=0.430 take=0.029 mainBytes=0 allBytes=0 svProbeManaged=0 kindProbeManaged=0 events=9126 dense=0
+shape=P3 rows=10000 timelines=150 chunks=205 setupMs=2.7 boardBytes=157292
+cell shape=P3 W=2.5 cross=50% window=sv+kinds statOps=1250 svMain=0.862 scatter=0.029 fold=0.079 kinds=3.640 derive=0.035 digest=0.004 total=4.669 expire=0.000 apply=0.436 recalc=0.397 take=0.029 mainBytes=0 allBytes=0 svProbeManaged=0 kindProbeManaged=0 events=8421 dense=0
+shape=P3 rows=10000 timelines=150 chunks=205 setupMs=2.4 boardBytes=157292
+cell shape=P3 W=4.0 cross=0% window=sv+kinds statOps=2000 svMain=2.256 scatter=0.040 fold=0.040 kinds=1.815 derive=0.007 digest=0.003 total=4.170 expire=0.000 apply=1.160 recalc=1.053 take=0.040 mainBytes=0 allBytes=0 svProbeManaged=0 kindProbeManaged=0 events=0 dense=0
+shape=P3 rows=10000 timelines=150 chunks=205 setupMs=2.0 boardBytes=157292
+cell shape=P3 W=4.0 cross=10% window=sv+kinds statOps=2000 svMain=1.912 scatter=0.045 fold=0.045 kinds=2.704 derive=0.010 digest=0.003 total=4.653 expire=0.000 apply=1.057 recalc=0.812 take=0.041 mainBytes=0 allBytes=0 svProbeManaged=0 kindProbeManaged=0 events=385 dense=0
+shape=P3 rows=10000 timelines=150 chunks=205 setupMs=3.3 boardBytes=157292
+cell shape=P3 W=4.0 cross=50% window=sv+kinds statOps=2000 svMain=1.630 scatter=0.041 fold=0.048 kinds=4.541 derive=0.011 digest=0.004 total=6.277 expire=0.001 apply=0.770 recalc=0.817 take=0.042 mainBytes=0 allBytes=0 svProbeManaged=0 kindProbeManaged=0 events=682 dense=0
+shape=P3 rows=10000 timelines=150 chunks=205 setupMs=2.2 boardBytes=157292
+cell shape=P3 W=2.5 cross=0% window=null(kinds-only) statOps=0 svMain=0.000 scatter=0.000 fold=0.000 kinds=1.694 derive=0.000 digest=0.000 total=1.694 expire=0.000 apply=0.000 recalc=0.000 take=0.000 mainBytes=0 allBytes=0 svProbeManaged=0 kindProbeManaged=0 events=0 dense=0
+done tag=bench-2
