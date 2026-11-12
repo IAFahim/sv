@@ -1,0 +1,10 @@
+statfold host=dotnet10 sets=1048576 raw=B92436E15A0DE4CF canonical=1420F6ADDA0DE4CF nan=63744
+statfold host=dotnet10-nohw sets=1048576 raw=B92436E15A0DE4CF canonical=1420F6ADDA0DE4CF nan=63744
+statfold host=mono-jit sets=1048576 raw=5FF874FA7FA87BB8 canonical=703F5466FFA87BB8 nan=63744
+statfold host=mono-noopt sets=1048576 raw=5FF874FA7FA87BB8 canonical=703F5466FFA87BB8 nan=63744
+statfold host=mono-float32 sets=1048576 raw=5FF874FA7FA87BB8 canonical=703F5466FFA87BB8 nan=63744
+statfold host=mono-llvm sets=1048576 raw=5FF874FA7FA87BB8 canonical=703F5466FFA87BB8 nan=63744
+statfold host=mono-cast sets=1048576 raw=5B4645875A0DE4CF canonical=1420F6ADDA0DE4CF nan=63744
+mono --interpreter: segmentation fault (no result)
+dotnet10 vs mono-jit: 62332 sets differ, 62328 non-NaN (1-2 ulp); python strict float32 reference: dotnet10 3000/3000, mono 2819/3000
+dotnet10 vs burst-strict: 6 sets differ, all NaN-vs-NaN payload/sign (0x7fc00000 vs 0xffc00000)
