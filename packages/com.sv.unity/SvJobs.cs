@@ -483,8 +483,19 @@ namespace Sv.Unity
             }
 
             var effects = (int*)NativeArrayUnsafeUtility.GetUnsafePtr(chunk.GetDynamicComponentDataArrayReinterpret<int>(ref Effect, 4));
-            var targets = (int*)NativeArrayUnsafeUtility.GetUnsafeReadOnlyPtr(chunk.GetDynamicComponentDataArrayReinterpret<int>(ref Target, 4));
             var rows = chunk.Count;
+            var any = 0;
+            for (var row = 0; row < rows; row++)
+            {
+                any |= effects[row];
+            }
+
+            if (any == 0)
+            {
+                return;
+            }
+
+            var targets = (int*)NativeArrayUnsafeUtility.GetUnsafeReadOnlyPtr(chunk.GetDynamicComponentDataArrayReinterpret<int>(ref Target, 4));
             for (var row = 0; row < rows; row++)
             {
                 var amount = effects[row];
