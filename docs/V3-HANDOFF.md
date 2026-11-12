@@ -130,3 +130,9 @@ thorns, immunity bit mask, stun, double jump, cooldown, crit, execute, revive, r
 core versus external stacking, ...). A mechanic that cannot be written is a missing brick; two bricks that can express the same thing are a candidate
 for deletion. Time (timers, ticks) is tl's job, space (areas, auras) is grid-influence's, AI and movement are not sv's. Run it on the reference
 interpreter first. Start it AFTER C1 and C2 report (not part of the 01:51 cron prompt). Owner is out of usage limit tonight; nothing else starts before 01:51.
+
+## 11. Update 2026-11-13 02:15 (code phase complete for M4/M5)
+
+C1 (v3/c1-compiler 8d91ef2, 8791693) and C2 (v3/c2-host 03dcd7f..ae935f1) are merged into v3/int; integration commit 63b3b33 aligns Decide (capacity, per-part 32 B per record scratch) and EdgeEmits (capacity, chunk scratch) between host and emitter. Sv.Core, Sv.Rules, Sv.Host, Sv.Pack, Sv.Bench build in Release with 0 warnings and 0 errors. `sv pack packs/reference` emits Values/Kernels/HostKernels/pack.svb (PackHash BD70627B1C671888). `sv run` on the reference interpreter gives P health 95, S2 75 next frame. Nothing is a test yet: compiled == interpreted not checked.
+Next: test phase (compile generated kernels, `sv run --host compiled` vs reference, laws, permutation, digests at 1/2/4/7/11 workers, 0 B warm), then the brick-set acceptance test, then benchmarks.
+Open owner decisions: rewind carry vs journal derived records; stat-op model (issue 0210 item 1); float literals only for ExprType.Float; template numbering assumption (world template index == pack order); IPackKernels is net10-only (Unity binding in M8).
