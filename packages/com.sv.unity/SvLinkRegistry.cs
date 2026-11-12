@@ -107,7 +107,7 @@ namespace Sv.Unity
             return intrinsics.Count - 1;
         }
 
-        public ushort Condition<TGate>(int intrinsic, int enterNumerator, int enterDenominator, int stayNumerator, int stayDenominator, int capacity = 65536)
+        public ushort Condition<TGate>(int intrinsic, int enterNumerator, int enterDenominator, int stayNumerator, int stayDenominator, int capacity = EventDerive.DefaultCapacity)
             where TGate : unmanaged, IComponentData, IEnableableComponent
         {
             var spec = intrinsics[intrinsic];

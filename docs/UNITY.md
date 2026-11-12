@@ -40,7 +40,7 @@ add `SvSlot`, the value and stat columns in the same `ComponentTypeSet` as tl's 
 var links = new SvLinkRegistry();
 links.Stat<MaxHp>(schema.Stat("max_hp"));
 var hp = links.Intrinsic<Hp, HpDelta>(schema.Intrinsic("hp"), SvBound.Of(0), SvBound.OfStat<MaxHp>(), remote: true);
-links.Condition<LowHp>(hp, 30, 100, 40, 100, capacity: 65536);      // enter below 30 %, leave at 40 %
+links.Condition<LowHp>(hp, 30, 100, 40, 100, capacity: 16384);      // enter below 30 %, leave at 40 %
 links.Link<HpDelta>(kindId, LinkMode.Delta);                          // one line per use, for Validate and Hash
 var host = SvHost.Install(world, board, links);                      // throws on a LinkFault
 ```
