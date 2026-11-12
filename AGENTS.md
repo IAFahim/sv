@@ -7,6 +7,9 @@ every public signature; read it before touching anything.
 - The contract changes only through the agent-bus merge point
   (`agent-bus/contract/CONTRACT.md`): bus message first, then vendor the bumped copy
   here verbatim.
+- Owner-approved (2026-11-12): while the agent-bus is unreachable, the owner replaces
+  the bus as contract approver; approved texts land as new files in `contract/`
+  (first: `contract/CONTRACT-v2.1.0.md`).
 - Atoms are short: green build + tests, committed, receipts recorded in the issue file
   (`issues/`) before the next atom starts. File the issue files on GitHub verbatim
   once the remote exists.

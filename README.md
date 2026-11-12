@@ -14,6 +14,9 @@ edges, replay ring). Entity-free at the core; ECS hosts adapt through one chunk 
   `agent-bus/contract/CONTRACT.md`). Negotiated under the name "board"; shipped as
   `sv` — same library, owner's pick. Changes are bus messages first, then a version
   bump at the merge point; the full changelog lives in the vendored header.
+- Contract v2.1.0 amendments (owner-approved, bus unreachable, 2026-11-12): vendored as
+  [contract/CONTRACT-v2.1.0.md](contract/CONTRACT-v2.1.0.md) — clauses 3, 4, 7, 12, 13,
+  17, new 19 (intrinsic fold) and 20 (connections are data), and the portable-surface rule.
 - Verification: clause conformance is proven by the north-star fused test
   (`contract/NORTH-STAR.md`, seated as [issues/0002](issues/0002-north-star.md)) plus
   this repo's own suite; mask/run semantics by `contract/mask-fixtures.json`
