@@ -1,0 +1,9 @@
+{"schema":1,"name":"r9_not_taken_goes_to_them","frames":3,
+"entities":[{"name":"P","template":"player"},{"name":"R","template":"rifleman"}],
+"sends":[
+{"frame":0,"target":"P","channel":"GiveSpite","amount":1},
+{"frame":0,"target":"P","channel":"GiveNoPhysical","amount":1},
+{"frame":1,"target":"P","source":"R","channel":"Physical","amount":20},
+{"frame":1,"target":"P","source":"R","channel":"Poison","amount":5}
+],
+"expect":[{"frame":1,"entity":"P","value":"Health","equals":95},{"frame":2,"entity":"R","value":"Health","equals":80}]}

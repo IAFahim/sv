@@ -1,0 +1,13 @@
+{"schema":1,"name":"r9_mutual_reflection_terminates","frames":5,
+"entities":[{"name":"P","template":"player"},{"name":"Q","template":"player"}],
+"sends":[
+{"frame":0,"target":"P","channel":"GiveThorns","amount":1},
+{"frame":0,"target":"Q","channel":"GiveThorns","amount":1},
+{"frame":1,"target":"Q","source":"P","channel":"Physical","amount":10}
+],
+"expect":[
+{"frame":1,"entity":"Q","value":"Health","equals":90},
+{"frame":2,"entity":"P","value":"Health","equals":90},
+{"frame":4,"entity":"P","value":"Health","equals":90},
+{"frame":4,"entity":"Q","value":"Health","equals":90}
+]}

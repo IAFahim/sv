@@ -1,0 +1,8 @@
+{"schema":1,"name":"r8_no_physical","frames":2,
+"entities":[{"name":"P","template":"player"},{"name":"R","template":"rifleman"}],
+"sends":[
+{"frame":0,"target":"P","channel":"GiveNoPhysical","amount":1},
+{"frame":1,"target":"P","source":"R","channel":"Physical","amount":30},
+{"frame":1,"target":"P","source":"R","channel":"Poison","amount":10}
+],
+"expect":[{"frame":1,"entity":"P","value":"Health","equals":90}]}

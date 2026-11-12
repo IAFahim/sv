@@ -1,0 +1,15 @@
+{"schema":1,"name":"r8_heal_priority_while_jumping","frames":3,
+"entities":[{"name":"P","template":"player"},{"name":"R","template":"rifleman"}],
+"sends":[
+{"frame":0,"target":"P","source":"R","channel":"Physical","amount":60},
+{"frame":0,"target":"P","channel":"GiveDoubleJumping","amount":1},
+{"frame":0,"target":"P","channel":"GiveJumping","amount":1},
+{"frame":1,"target":"P","channel":"Healing","amount":10},
+{"frame":1,"target":"P","channel":"GiveJumpHealer","amount":1},
+{"frame":2,"target":"P","channel":"Healing","amount":10}
+],
+"expect":[
+{"frame":0,"entity":"P","value":"Health","equals":40},
+{"frame":1,"entity":"P","value":"Health","equals":40},
+{"frame":2,"entity":"P","value":"Health","equals":60}
+]}

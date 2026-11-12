@@ -1,0 +1,14 @@
+{"schema":1,"name":"r8_immune_charges","frames":3,
+"entities":[{"name":"P","template":"player"},{"name":"R","template":"rifleman"}],
+"sends":[
+{"frame":0,"target":"P","channel":"GiveChargeWard","amount":1},
+{"frame":0,"target":"P","channel":"GiveCharges","amount":2},
+{"frame":1,"target":"P","source":"R","channel":"Physical","amount":10,"hits":3},
+{"frame":2,"target":"P","source":"R","channel":"Physical","amount":10}
+],
+"expect":[
+{"frame":0,"entity":"P","value":"ImmuneCharges","equals":2},
+{"frame":1,"entity":"P","value":"Health","equals":90},
+{"frame":1,"entity":"P","value":"ImmuneCharges","equals":0},
+{"frame":2,"entity":"P","value":"Health","equals":80}
+]}
