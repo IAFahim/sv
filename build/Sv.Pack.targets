@@ -16,7 +16,7 @@
           Inputs="@(SvPackInput);$(SvPackTool)"
           Outputs="$(SvPackOutput).svpack.key">
     <Error Condition="!Exists('$(SvPackTool)')" Text="sv: the pack tool $(SvPackTool) is missing; build src/Sv.Pack first or set SvPackTool" />
-    <Exec Command="dotnet &quot;$(SvPackTool)&quot; pack &quot;$(SvPackFolder)&quot; --out &quot;$(SvPackOutput)&quot; --namespace $(SvPackNamespace) --diagnostics $(SvPackDiagnostics)" />
+    <Exec Command="dotnet &quot;$(SvPackTool)&quot; pack &quot;$(SvPackFolder)&quot; --out &quot;$(SvPackOutput).&quot; --namespace $(SvPackNamespace) --diagnostics $(SvPackDiagnostics)" />
     <Touch Files="$(SvPackOutput).svpack.key" AlwaysCreate="true" />
   </Target>
 
