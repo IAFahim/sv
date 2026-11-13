@@ -33,7 +33,7 @@ namespace Sv.Rules.Emit
                     }
                 }
 
-                return true;
+                return schema.Channels.Length > 0;
             }
         }
 
