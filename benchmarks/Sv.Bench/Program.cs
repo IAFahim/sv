@@ -91,6 +91,7 @@ internal static class Program
         failures += Derive.Run(scenario, ms);
         failures += Frame1m.Run(scenario, ms);
         failures += SvV3Bench.V3.Run(scenario, ms);
+        failures += SvV3Bench.Lego1m.Run(scenario, ms);
         if (!Markdown)
         {
             Console.WriteLine(failures == 0 ? "all scenarios ok" : $"{failures} scenario(s) failed");
