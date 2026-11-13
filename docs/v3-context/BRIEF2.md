@@ -1,0 +1,30 @@
+# sv phase 2: "production test ready" (all agents read BRIEF.md first, then this)
+
+State: sv main = ac0e065 (pushed 2026-11-12, owner said "Push to main"). Phase 1 delivered the fold, the Unity adapter and docs; VERIFY.md has the independent check. The owner now says: "keep going and complete and make it production test ready". Meaning: close the gaps below so the owner can run sv with tl in a real project test without hitting a documented trap. Everything in BRIEF.md still holds (no comments in production code, no FMA, C# 9, 0 B warm, contract/ verbatim, new tests only, pinned digests never move, atoms + issue files `issues/0128+`, commit trailer `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`). Still not approved: tags, releases, force push, history rewrite. Do NOT push to origin main; push your branch only if the manager says so. Report under 400 words.
+
+Owner-approved defaults from phase 1 stand. Open owner decisions (manager will ask): none are blocking; pick the plan's default and note it.
+
+Places
+- Your worktree is given in your task. Phase-1 worktrees (a-core, b-portable, c-unity, d-frame, int, verify, tl) are read-only history. tl detached worktree at `D:\GitHub\_work\sv-proto\tl` (ca1c3309) is for NorthStar2.
+- Unity work: take `bench.lock` then `unity.lock` (see unity-cli-skill SKILL.md). Only the Unity agent touches Unity. Newest Unity 7 on this PC only.
+- Two agents run at once on different files. Unity agent owns `packages/com.sv.unity/**`, `docs/UNITY.md`, `tests/Sv.Unity.*`, `tests/Sv.Editor`. Core agent owns `src/Sv/**`, `tests/Sv.Tests`, `tests/Sv.Portable.Tests`, `tests/Sv.NorthStar*`, other docs. The public `Inbox`/`SvInboxWriter` Send API and `Board`/`StatOp` signatures stay stable unless the manager approves; if you must change one, stop and message the manager. After the core agent's changes land, `eng/unity-sync.sh sync` must be re-run and committed by whoever last changed src/Sv (the core agent runs it and commits the package copy; the Unity agent re-syncs only when told).
+
+Gap list
+Unity agent (branch proto2/unity, worktree p2-unity):
+ U1 Ship the cross-row send pass: a Burst job/system (`SvSendSystem` or helper) the user configures with an effect column and a target-slot column, runs after tl's systems, calls the inbox with integers only. Test: deterministic digest at 1 and 11 workers, matches a .NET twin.
+ U2 SvHost hardening, each with a new test: rows that exist before Install get scattered (or Install binds them via a query); Unbind removes SvSlot and cancels a same-frame Bind; destroyed entities free their slot automatically (cleanup component or system) so no leak; limit of 65,536 StatOps/stat writes per frame becomes chunked or growing (no throw) or a documented configurable capacity with a clear error; more than one SvHost per world either supported or a clear error at Install; `DigestEvery` configurable (1 = every tick, default 8) and `host.Digest` documented fresh on the ticks it updates.
+ U3 Real tl kinds: replace the 30-tick hook test with a test where tl's generated Burst kind job (Damage/Heal style from docs/UNITY.md) runs between SvBegin and SvEnd on 1,048,576 rows, W 2.5, with a digest check against the .NET NorthStar2 twin for the first N ticks, plus a timing run (3 fresh processes, tag + settings, probes read 1). Gate stays 8.3 ms per tick at P1. Report numbers honestly, including if tl's job pushes it over.
+ U4 Re-run P2 and P3 gate cells and P1 at 2, 4, 7 and 11 workers; RAM per entity and per modifier (plan V11) with real numbers; FMA grep of the Burst assembly (or the nearest Burst-inspector evidence) for the fold and scatter jobs. Record in `docs/UNITY.md` a short "Measured" table with tags.
+ U5 Mono player check: build the Mono2x test player only if it is cheap (one build + one run of the digest test); otherwise record exactly why not. Mono float bits must equal CoreCLR's pinned digest.
+ U6 Update docs/UNITY.md "Sharp edges" to match reality (remove what is fixed, keep what is not), update the learnings in unity-cli-skill (dense, no secrets, pull --rebase, no force).
+
+Core agent (branch proto2/core, worktree p2-core):
+ C1 Baseline: run all test projects on this machine, record exact counts, and explain the old "442/446 with 4 path-artefact failures" vs the 495/495 seen in phase 1 (which tests were added, which failures were environmental). Put the answer in issues/.
+ C2 Keyframe load refills a bound sink (so load after rollback keeps stat modifiers consistent), with a test; a public Bounds helper over a float stat column (so min/max can come from a host stat, not only a constant), with a test and digest check.
+ C3 Hot-target inbox: implement the per-worker partial-sum fallback (integer adds, deterministic combine order) selected automatically or by option when many sends hit few slots; the digest must stay identical to the serial path at 1, 2, 4, 11 workers; benchmark 10% to one slot at 1M rows; kill rule: if the fallback costs the normal path more than 3% at 0% cross-row, make it opt-in.
+ C4 Event cap: per-channel cap configurable at schema or host build, default 16,384; test that 65,536 works when asked and the fallback Dense record still triggers above it.
+ C5 Debug-build digest every tick option at the core level (host reads it); `SvHost` wiring is the Unity agent's, expose a clean core API.
+ C6 Soak: a long deterministic soak test (e.g. 50,000 ticks of churn: spawn/despawn, add/remove modifiers, damage/heal, rollback of keyframes) on .NET at modest row count, checking 0 B warm, flat memory, stable digest across two runs and 1/4/11 workers. The four ISA legs (`eng/isa-legs.sh`) all green; ns2.1 leg green; `eng/unity-sync.sh check` green after sync.
+ C7 A one-page `docs/PRODUCTION-CHECKLIST.md`: what to enable in a real tl project test, expected numbers, how to read a digest mismatch, failure modes and what each means. Keep it short and true.
+
+Stop-and-report: a pinned digest moves; Mono float bits differ; any change needed in tl; a public API break; a kill rule above trips and you cannot satisfy it by the rule's own fallback.
