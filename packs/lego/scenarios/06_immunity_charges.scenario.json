@@ -1,0 +1,11 @@
+{"schema":1,"name":"immunity_charges","frames":2,
+"entities":[{"name":"W","template":"ward_charges"},{"name":"X","template":"dummy"}],
+"sends":[
+{"frame":0,"target":"W","source":"X","channel":"Physical","amount":10,"hits":3},
+{"frame":1,"target":"W","source":"X","channel":"Physical","amount":10}
+],
+"expect":[
+{"frame":0,"entity":"W","value":"Health","equals":90},
+{"frame":0,"entity":"W","value":"ImmuneCharges","equals":0},
+{"frame":1,"entity":"W","value":"Health","equals":80}
+]}

@@ -1,0 +1,11 @@
+{"schema":1,"name":"heal_5_per_damage","frames":2,
+"entities":[{"name":"B","template":"bloodmage"},{"name":"X","template":"dummy"}],
+"sends":[
+{"frame":0,"target":"B","source":"X","channel":"Physical","amount":10,"hits":3},
+{"frame":0,"target":"B","source":"X","channel":"Poison","amount":4},
+{"frame":1,"target":"B","source":"X","channel":"Physical","amount":2}
+],
+"expect":[
+{"frame":0,"entity":"B","value":"Health","equals":86},
+{"frame":1,"entity":"B","value":"Health","equals":89}
+]}

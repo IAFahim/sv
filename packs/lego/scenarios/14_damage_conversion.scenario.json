@@ -1,0 +1,12 @@
+{"schema":1,"name":"damage_conversion","frames":1,
+"entities":[{"name":"C","template":"converter"},{"name":"X","template":"dummy"},{"name":"F","template":"converter_fireproof"}],
+"sends":[
+{"frame":0,"target":"C","source":"X","channel":"Physical","amount":20},
+{"frame":0,"target":"F","source":"X","channel":"Physical","amount":20}
+],
+"expect":[
+{"frame":0,"entity":"C","value":"Health","equals":80},
+{"frame":0,"entity":"C","value":"FireTaken","equals":10},
+{"frame":0,"entity":"F","value":"Health","equals":90},
+{"frame":0,"entity":"F","value":"FireTaken","equals":0}
+]}

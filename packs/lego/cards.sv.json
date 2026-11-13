@@ -1,0 +1,6 @@
+{"schema":1,"rows":[
+{"id":1,"name":"sniper_ward","value":"SniperWard"},
+{"id":2,"name":"thorns","value":"Thorns"},
+{"id":3,"name":"leech","value":"Leech"},
+{"id":4,"name":"core_training","value":"CoreTraining","modifiers":[{"stat":"Strength","added":20},{"stat":"Strength","additive":0.5}]}
+]}
