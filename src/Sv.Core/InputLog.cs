@@ -97,12 +97,6 @@ namespace Sv
                 var records = canonical + first;
                 if (external != end - first)
                 {
-                    if (end - first > scan.PartCapacity[part])
-                    {
-                        scan.PartScratch[part] = (LoggedRecord*)Memory.Realloc(scan.PartScratch[part], (nuint)(end - first) * (nuint)sizeof(LoggedRecord));
-                        scan.PartCapacity[part] = end - first;
-                    }
-
                     records = scan.PartScratch[part];
                     var kept = 0;
                     for (var record = first; record < end; record++)
@@ -380,6 +374,20 @@ namespace Sv
             scan.PartCapacity = partCapacity;
             scan.ChunkCapacity = chunkCapacity;
             return scan;
+        }
+
+        public void ReservePart(int part, int records)
+        {
+            if ((uint)part >= (uint)partCount)
+            {
+                throw new ArgumentOutOfRangeException(nameof(part), "sv: reserve a part after Scan sized the parts");
+            }
+
+            if (records > partCapacity[part])
+            {
+                partScratch[part] = (LoggedRecord*)Memory.Realloc(partScratch[part], (nuint)records * (nuint)sizeof(LoggedRecord));
+                partCapacity[part] = records;
+            }
         }
 
         public void RecordScanned(long frame, LoggedRecord* canonical, int* start, int* active, int runs)

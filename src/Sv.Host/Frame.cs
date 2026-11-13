@@ -164,7 +164,7 @@ namespace Sv.Host
             var kernels = default(TKernels);
             var keptBytes = (nuint)(context->ScratchInts - context->DeltaInts) * sizeof(int);
             var totals = context->Totals + (long)part * context->TotalLongs;
-            ref var buffer = ref context->Buffers[part];
+            var records = context->Buffers[part].Pointer;
             for (var index = from; index < to; index++)
             {
                 var chunk = context->Active[index];
@@ -188,14 +188,7 @@ namespace Sv.Host
                     continue;
                 }
 
-                var need = (long)count * RecordScratchBytes;
-                if (need > buffer.Bytes)
-                {
-                    buffer.Pointer = (byte*)Memory.Realloc(buffer.Pointer, (nuint)need);
-                    buffer.Bytes = need;
-                }
-
-                context->Touched[index] = kernels.Decide(context->World, chunk, context->Capacity, context->Records + first, count, scratch, written, totals, buffer.Pointer, ref context->NextWriters[part]);
+                context->Touched[index] = kernels.Decide(context->World, chunk, context->Capacity, context->Records + first, count, scratch, written, totals, records, ref context->NextWriters[part]);
             }
         }
 
@@ -303,7 +296,7 @@ namespace Sv.Host
         readonly CanonicalArena canonical;
         readonly InputLog log;
         readonly EventLog published;
-        readonly Workers workers;
+        readonly IPhaseRunner runner;
         readonly int parts;
         readonly int chunkCapacity;
         readonly int chunkWords;
@@ -347,6 +340,11 @@ namespace Sv.Host
         bool replaying;
 
         public FrameLoop(HostPack pack, HostOptions? hostOptions = null)
+            : this(pack, hostOptions, null)
+        {
+        }
+
+        public FrameLoop(HostPack pack, HostOptions? hostOptions, IPhaseRunner? phaseRunner)
         {
             options = hostOptions ?? new HostOptions();
             var kernels = default(TKernels);
@@ -373,7 +371,7 @@ namespace Sv.Host
             canonical = new CanonicalArena(chunkCapacity, parts, Math.Max(1, options.CanonicalLimit), options.Arena == ArenaPolicy.HardCap ? ArenaPolicy.HardCap : ArenaPolicy.Grow);
             log = new InputLog(InputLog.SpanOf(world), chunkCapacity, sizeof(StatOp));
             published = new EventLog(InputLog.SpanOf(world));
-            workers = new Workers(Math.Max(1, options.Workers), options.SpinMicroseconds);
+            runner = phaseRunner ?? new WorkerRunner<TKernels>(Math.Max(1, options.Workers), options.SpinMicroseconds);
             Allocate();
             stats.MarkEpoch(world.Epoch);
             earliestLate = long.MaxValue;
@@ -660,9 +658,9 @@ namespace Sv.Host
         {
             var route = new RouteTable(live, forwarding, chunkCapacity);
             context->Seal = canonical.Begin(raw, route);
-            workers.Run(&Phases<TKernels>.SealCount, context, parts);
+            runner.Run(FramePhase.SealCount, context, parts);
             var planParts = WorkRange.PartsFor(chunkCapacity, parts);
-            workers.Run(&Phases<TKernels>.SealPlanTotals, context, planParts);
+            runner.Run(FramePhase.SealPlanTotals, context, planParts);
             var planned = 0;
             for (var part = 0; part < planParts; part++)
             {
@@ -671,13 +669,13 @@ namespace Sv.Host
                 planned += sum;
             }
 
-            workers.Run(&Phases<TKernels>.SealPlanOffsets, context, planParts);
-            workers.Run(&Phases<TKernels>.SealScatter, context, parts);
-            workers.Run(&Phases<TKernels>.SealOrder, context, WorkRange.PartsFor(chunkCapacity, parts));
+            runner.Run(FramePhase.SealPlanOffsets, context, planParts);
+            runner.Run(FramePhase.SealScatter, context, parts);
+            runner.Run(FramePhase.SealOrder, context, WorkRange.PartsFor(chunkCapacity, parts));
             Seal.Finish(context->Seal);
             if (context->Seal.Totals[Seal.TotalShifted] != 0)
             {
-                workers.Run(&Phases<TKernels>.SealCompact, context, WorkRange.PartsFor(context->Seal.Totals[Seal.TotalActive], parts));
+                runner.Run(FramePhase.SealCompact, context, WorkRange.PartsFor(context->Seal.Totals[Seal.TotalActive], parts));
             }
 
             canonical.End(context->Seal, raw);
@@ -691,7 +689,14 @@ namespace Sv.Host
             context->Log = log.Scan(runs, parts);
             context->LogActive = canonical.Active;
             context->LogRuns = runs;
-            workers.Run(&Phases<TKernels>.LogExamine, context, WorkRange.PartsFor(runs, parts));
+            var used = WorkRange.PartsFor(runs, parts);
+            for (var part = 0; part < used; part++)
+            {
+                WorkRange.Of(runs, part, parts, out var from, out var to);
+                log.ReservePart(part, LongestRun(canonical.Active, canonical.Start, from, to));
+            }
+
+            runner.Run(FramePhase.LogExamine, context, used);
             log.RecordScanned(frame, (LoggedRecord*)canonical.Records, canonical.Start, canonical.Active, runs);
         }
 
@@ -745,13 +750,38 @@ namespace Sv.Host
             return count;
         }
 
+        static int LongestRun(int* chunks, int* start, int from, int to)
+        {
+            var longest = 0;
+            for (var index = from; index < to; index++)
+            {
+                var chunk = chunks[index];
+                var run = start[chunk + 1] - start[chunk];
+                longest = run > longest ? run : longest;
+            }
+
+            return longest;
+        }
+
         void DecidePhase(int active)
         {
             var used = WorkRange.PartsFor(active, parts);
+            for (var part = 0; part < used; part++)
+            {
+                WorkRange.Of(active, part, parts, out var from, out var to);
+                var need = (long)LongestRun(context->Active, context->Start, from, to) * Phases<TKernels>.RecordScratchBytes;
+                ref var buffer = ref context->Buffers[part];
+                if (need > buffer.Bytes)
+                {
+                    buffer.Pointer = (byte*)Memory.Realloc(buffer.Pointer, (nuint)need);
+                    buffer.Bytes = need;
+                }
+            }
+
             while (true)
             {
                 var mark = raw.Mark();
-                workers.Run(&Phases<TKernels>.Decide, context, used);
+                runner.Run(FramePhase.Decide, context, used);
                 if (raw.EndLayer(mark) != LayerVerdict.Rerun)
                 {
                     return;
@@ -768,7 +798,7 @@ namespace Sv.Host
                 world.Reserve(ref laneWriters[part], (to - from) * lanesWritten + 1);
             }
 
-            workers.Run(&Phases<TKernels>.Commit, context, used);
+            runner.Run(FramePhase.Commit, context, used);
             for (var part = 0; part < used; part++)
             {
                 world.Absorb(ref laneWriters[part]);
@@ -808,7 +838,7 @@ namespace Sv.Host
             while (true)
             {
                 var mark = raw.Mark();
-                workers.Run(&Phases<TKernels>.EdgeEmits, context, used);
+                runner.Run(FramePhase.EdgeEmits, context, used);
                 if (raw.EndLayer(mark) != LayerVerdict.Rerun)
                 {
                     return;
@@ -937,7 +967,7 @@ namespace Sv.Host
             context->World = world.View;
             context->ChunkCount = world.ChunkCount;
             var used = WorkRange.PartsFor(world.ChunkCount, parts);
-            workers.Run(&Phases<TKernels>.Digest, context, used);
+            runner.Run(FramePhase.Digest, context, used);
             var sum = 0ul;
             unchecked
             {
@@ -1161,7 +1191,7 @@ namespace Sv.Host
                 return;
             }
 
-            workers.Dispose();
+            runner.Dispose();
             for (var part = 0; part < parts; part++)
             {
                 world.DisposeWriter(ref laneWriters[part]);

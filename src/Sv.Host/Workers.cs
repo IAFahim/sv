@@ -116,7 +116,7 @@ namespace Sv.Host
             var spinner = default(SpinWait);
             while (Volatile.Read(ref finished.Value) != threads.Length)
             {
-                spinner.SpinOnce(-1);
+                Spin(ref spinner);
             }
 
             body = null;
@@ -183,7 +183,7 @@ namespace Sv.Host
 
                 if (Stopwatch.GetTimestamp() - started < spinTicks)
                 {
-                    spinner.SpinOnce(-1);
+                    Spin(ref spinner);
                     continue;
                 }
 
@@ -199,6 +199,15 @@ namespace Sv.Host
                 started = Stopwatch.GetTimestamp();
                 spinner = default(SpinWait);
             }
+        }
+
+        static void Spin(ref SpinWait spinner)
+        {
+#if NET
+            spinner.SpinOnce(-1);
+#else
+            spinner.SpinOnce();
+#endif
         }
 
         public void Dispose()
