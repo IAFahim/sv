@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Sv.Host.Net;
 
@@ -21,6 +22,21 @@ namespace Sv.Host
         public LatePolicy Late = LatePolicy.Clamp;
         public Width? Width;
         public double SpinMicroseconds = Sv.Host.Workers.DefaultSpinMicroseconds;
+    }
+
+    public static class FrameMarks
+    {
+        public const int Begin = 0;
+        public const int Sealed = 1;
+        public const int Logged = 2;
+        public const int Stats = 3;
+        public const int Collected = 4;
+        public const int Decided = 5;
+        public const int Committed = 6;
+        public const int Evented = 7;
+        public const int Digested = 8;
+        public const int Ended = 9;
+        public const int Count = 10;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -251,6 +267,7 @@ namespace Sv.Host
         readonly int eventCount;
         readonly int scratchInts;
         readonly int lanesWritten;
+        readonly long[] marks = new long[FrameMarks.Count];
         FrameContext* context;
         LaneWriter* laneWriters;
         ulong* live;
@@ -332,6 +349,8 @@ namespace Sv.Host
         public long Frame => world.Frame;
 
         public ulong LastDigest { get; private set; }
+
+        public ReadOnlySpan<long> Marks => marks;
 
         public long ReplayFaults { get; private set; }
 
@@ -543,29 +562,38 @@ namespace Sv.Host
         public void Step()
         {
             stepping = true;
+            marks[FrameMarks.Begin] = Stopwatch.GetTimestamp();
             var frame = world.Frame;
             var phase = context;
             phase->World = world.View;
             SealPhase();
+            marks[FrameMarks.Sealed] = Stopwatch.GetTimestamp();
             if (!replaying)
             {
                 log.Record(frame, (LoggedRecord*)canonical.Records, canonical.Count);
             }
 
+            marks[FrameMarks.Logged] = Stopwatch.GetTimestamp();
             StatsPhase(frame);
             phase->World = world.View;
+            marks[FrameMarks.Stats] = Stopwatch.GetTimestamp();
             var active = CollectPhase();
+            marks[FrameMarks.Collected] = Stopwatch.GetTimestamp();
             DecidePhase(active);
+            marks[FrameMarks.Decided] = Stopwatch.GetTimestamp();
             CommitPhase(active);
+            marks[FrameMarks.Committed] = Stopwatch.GetTimestamp();
             CardPhase(active);
             EdgePhase(active);
             Publish(frame, active);
             Remember(active);
+            marks[FrameMarks.Evented] = Stopwatch.GetTimestamp();
             if (options.DigestEvery > 0 && frame % options.DigestEvery == 0L)
             {
                 LastDigest = DigestPhase();
             }
 
+            marks[FrameMarks.Digested] = Stopwatch.GetTimestamp();
             var epoch = world.Epoch;
             world.EndFrame();
             if (world.Epoch != epoch)
@@ -574,6 +602,7 @@ namespace Sv.Host
                 Carry(world.Epoch);
             }
 
+            marks[FrameMarks.Ended] = Stopwatch.GetTimestamp();
             stepping = false;
         }
 
