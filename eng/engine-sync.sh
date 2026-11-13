@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+export LC_ALL=C  # byte order, so SHA256SUMS is identical on every machine
 root=$(cd "$(dirname "$0")/.." && pwd)
 mode=${1:-}
 dest=${2:-$root/packages/com.sv.engine}

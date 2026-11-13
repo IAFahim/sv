@@ -1,7 +1,12 @@
-U="C:/Program Files/Unity/Hub/Editor/7000.0.0a16/Editor/Unity.exe"
-R=${R:-D:/GitHub/_work/sv-proto/m8-unity}
-P=${P:-D:/GitHub/_work/sv-proto/m8-harness}
-O=${O:-D:/GitHub/_work/sv-proto/m8-out}
+# Paths: Windows defaults, or Linux when the editor is under ~/Unity. Override with U, R, P, O.
+if [ -x "$HOME/Unity/Hub/Editor/7000.0.0a16/Editor/Unity" ]; then
+  U=${U:-$HOME/Unity/Hub/Editor/7000.0.0a16/Editor/Unity}; B=${B:-$HOME/sv-proto}
+else
+  U=${U:-C:/Program Files/Unity/Hub/Editor/7000.0.0a16/Editor/Unity.exe}; B=${B:-D:/GitHub/_work/sv-proto}
+fi
+R=${R:-$B/m8-unity}
+P=${P:-$B/m8-harness}
+O=${O:-$B/m8-out}
 T=${T:-gate}
 MODES=${MODES:-EditMode}
 mkdir -p "$O"

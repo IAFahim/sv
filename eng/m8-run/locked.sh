@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-W=D:/GitHub/_work
+if [ -d "$HOME/sv-proto/_work" ]; then W=${W:-$HOME/sv-proto/_work}; else W=${W:-D:/GitHub/_work}; fi
 token="m8u-$$-$RANDOM"
 take() { while ! mkdir "$W/$1" 2>/dev/null; do sleep 15; done; echo "$token" > "$W/$1/m8u-owner"; }
 drop() { [ -f "$W/$1/m8u-owner" ] && [ "$(cat "$W/$1/m8u-owner")" = "$token" ] && rm -f "$W/$1/m8u-owner" && rmdir "$W/$1"; }
