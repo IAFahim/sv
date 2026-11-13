@@ -153,3 +153,8 @@ Owner readings still to confirm: per-Hit counts offered hits (heal 5 per hit giv
 
 Bench (docs/BENCH-REPORT.md, v3/int d68abde): A 5.07 ms pass; B 24.21, C 49.74, D 68.94 fail the 8.3 ms gate; Decide is 68 percent of B (75 ns per record at one worker, plan 4-8). Memory at rest 41-46 B per entity, 0 B warm, rewind and 10k-rule compile pass. Open: 0360 Decide kernel, 0361 scratch, 0362 Seal over M2 gate (kill rule: stop and report, reported to owner), 0363 input log memory, 0364 emitter empty forward switch, 0365 raw arena intervals.
 K1 (Opus, branch v3/k1-decide) is the last big agent: Decide kernel restructure plus 0361 and 0364. Remaining work is written as briefs for smaller agents in D:\GitHub\_work\sv-proto: BRIEF-small-1-seal.md, BRIEF-small-2-stat-layers.md, BRIEF-small-3-remaining.md (order, readings to confirm, push is the owner's call).
+
+## 15. Update 2026-11-13 (K1 merged)
+
+v3/int 123ad3a: Decide kernel restructured (K1). Bench totals ms before to after: A 6.83 to 3.07, B 31.36 to 10.65, C 58.01 to 30.80, D 77.13 to 43.06; digests unchanged; suites Laws 516, Scenario 80, Diff 18, Host 27, Lego 119 green. Gate 8.3 ms: A passes, B 10.65 close, C and D fail. Floor and causes in issue 0370 (random source reads miss cache: needs source attributes at Seal or a per-frame source table). Issues 0361, 0364 closed.
+Gotcha: after the host/kernel surface changes, kernel test projects keep stale generated files: build src/Sv.Pack first and delete tests/Sv.Kernels.*/obj/SvPack, then rebuild.
