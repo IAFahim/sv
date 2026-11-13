@@ -113,7 +113,8 @@ namespace Sv.Pack
                             modifier.Stat,
                             modifier.Source,
                             modifier.Shape,
-                            modifier.Value));
+                            modifier.Value,
+                            modifier.Layer));
                     }
                 }
 
@@ -275,7 +276,7 @@ namespace Sv.Pack
                     var slot = scenario.SlotOf(modifier.Entity);
                     host.Modify(modifier.Remove
                         ? StatOp.RemoveSource(slot, modifier.Source)
-                        : StatOp.Add(slot, modifier.Stat, modifier.Shape, modifier.Value, modifier.Source));
+                        : StatOp.Add(slot, modifier.Stat, modifier.Shape, modifier.Value, modifier.Source, long.MaxValue, modifier.Layer));
                 }
 
                 for (var s = 0; s < scenario.Sends.Count; s++)

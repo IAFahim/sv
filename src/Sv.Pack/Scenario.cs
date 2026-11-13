@@ -41,6 +41,7 @@ namespace Sv.Pack
         public int Value;
         public int Source;
         public bool Remove;
+        public StatLayer Layer;
     }
 
     public sealed class ScenarioExpect
@@ -86,7 +87,7 @@ namespace Sv.Pack
         static readonly string[] EntityKeys = { "name", "template", "frame" };
         static readonly string[] SendKeys = { "frame", "target", "source", "kind", "channel", "amount", "hits", "origin" };
         static readonly string[] KillKeys = { "frame", "entity" };
-        static readonly string[] ModifierKeys = { "frame", "entity", "stat", "shape", "value", "source", "op" };
+        static readonly string[] ModifierKeys = { "frame", "entity", "stat", "shape", "value", "source", "op", "layer" };
         static readonly string[] ExpectKeys = { "frame", "entity", "value", "equals" };
 
         public static Scenario Read(string file, string text, PackSchema schema)
@@ -158,6 +159,7 @@ namespace Sv.Pack
                 var remove = op != null && reader.TextOf(op) == "remove";
                 var shape = row.Find("shape");
                 var value = row.Find("value");
+                var layer = row.Find("layer");
                 scenario.Modifiers.Add(new ScenarioModifier
                 {
                     Frame = reader.Int(row, "frame"),
@@ -167,6 +169,7 @@ namespace Sv.Pack
                     Value = value == null ? 0 : reader.IntOf(value),
                     Source = reader.Int(row, "source"),
                     Remove = remove,
+                    Layer = layer == null ? StatLayer.Core : reader.LayerOf(layer),
                 });
             }
 
@@ -329,6 +332,16 @@ namespace Sv.Pack
                     case "Multi": return ShapeKind.Multi;
                     case "Cap": return ShapeKind.Cap;
                     default: throw new ScenarioError(file, value.Offset, "shape is Added, Additive, Multi or Cap");
+                }
+            }
+
+            public StatLayer LayerOf(JsonValue value)
+            {
+                switch (TextOf(value))
+                {
+                    case "core": return StatLayer.Core;
+                    case "external": return StatLayer.External;
+                    default: throw new ScenarioError(file, value.Offset, "layer is core or external");
                 }
             }
 

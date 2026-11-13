@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Sv.Rules;
 
 namespace Sv.Host
@@ -15,15 +16,26 @@ namespace Sv.Host
 
         public CardTerm[] Cards { get; }
 
+        public StatSource[] Sources { get; }
+
+        public int[] CurveValues { get; }
+
         public ulong PackHash { get; }
 
         public HostPack(LaneClass[] classes, int channels, StatDef[] stats, int[][] templateValues, CardTerm[] cards, ulong packHash)
+            : this(classes, channels, stats, templateValues, cards, Array.Empty<StatSource>(), Array.Empty<int>(), packHash)
+        {
+        }
+
+        public HostPack(LaneClass[] classes, int channels, StatDef[] stats, int[][] templateValues, CardTerm[] cards, StatSource[] sources, int[] curveValues, ulong packHash)
         {
             Classes = classes;
             Channels = channels;
             Stats = stats;
             TemplateValues = templateValues;
             Cards = cards;
+            Sources = sources ?? Array.Empty<StatSource>();
+            CurveValues = curveValues ?? Array.Empty<int>();
             PackHash = packHash;
         }
 
@@ -85,7 +97,46 @@ namespace Sv.Host
                 templates[t] = values;
             }
 
-            return new HostPack(classes, schema.Channels.Length, stats, templates, CardsOf(schema), plan.Hash);
+            SourcesOf(schema, out var sources, out var curves);
+            return new HostPack(classes, schema.Channels.Length, stats, templates, CardsOf(schema), sources, curves, plan.Hash);
+        }
+
+        static void SourcesOf(PackSchema schema, out StatSource[] sources, out int[] curveValues)
+        {
+            var sourceList = new List<StatSource>();
+            var curveList = new List<int>();
+            for (var i = 0; i < schema.Stats.Length; i++)
+            {
+                var stat = schema.Stats[i];
+                for (var d = 0; d < stat.Derive.Length; d++)
+                {
+                    var derive = stat.Derive[d];
+                    var fromIndex = schema.IndexOf(ValueClass.Stat, derive.From);
+                    if (fromIndex < 0)
+                    {
+                        continue;
+                    }
+
+                    var fromLane = schema.Stats[fromIndex].Lane;
+                    if (derive.IsCurve)
+                    {
+                        var start = curveList.Count;
+                        for (var c = 0; c < derive.Curve.Length; c++)
+                        {
+                            curveList.Add(derive.Curve[c]);
+                        }
+
+                        sourceList.Add(StatSource.Curve(stat.Lane, fromLane, start, derive.Curve.Length, derive.CurveMin, derive.CurveStep));
+                    }
+                    else
+                    {
+                        sourceList.Add(StatSource.Linear(stat.Lane, fromLane, derive.Coefficient));
+                    }
+                }
+            }
+
+            sources = sourceList.Count == 0 ? Array.Empty<StatSource>() : sourceList.ToArray();
+            curveValues = curveList.Count == 0 ? Array.Empty<int>() : curveList.ToArray();
         }
 
         static CardTerm[] CardsOf(PackSchema schema)
@@ -110,7 +161,7 @@ namespace Sv.Host
                     var modifier = card.Modifiers[m];
                     if (Holds(schema, card, modifier))
                     {
-                        cards[at++] = new CardTerm(schema.Stats[schema.IndexOf(ValueClass.Stat, modifier.Stat)].Lane, schema.Intrinsics[schema.IndexOf(ValueClass.Intrinsic, card.Intrinsic)].Lane, modifier.Kind, modifier.Value, modifier.PerCount);
+                        cards[at++] = new CardTerm(schema.Stats[schema.IndexOf(ValueClass.Stat, modifier.Stat)].Lane, schema.Intrinsics[schema.IndexOf(ValueClass.Intrinsic, card.Intrinsic)].Lane, modifier.Kind, modifier.Value, modifier.PerCount, modifier.Layer);
                     }
                 }
             }

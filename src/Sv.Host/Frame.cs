@@ -361,7 +361,7 @@ namespace Sv.Host
             }
 
             world = World.Create(pack.Classes, pack.Channels, options.EntityCapacity, options.Policy, options.RingEpochs, options.FramesPerEpoch);
-            stats = new StatMachine(world, pack.Stats, ReadOnlySpan<StatSource>.Empty, ReadOnlySpan<int>.Empty, pack.Cards, options.RingEpochs);
+            stats = new StatMachine(world, pack.Stats, pack.Sources, pack.CurveValues, pack.Cards, options.RingEpochs);
             AddTemplates(pack);
             parts = options.Parts;
             chunkCapacity = world.ChunkCapacity;
