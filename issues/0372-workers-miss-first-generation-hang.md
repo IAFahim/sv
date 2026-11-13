@@ -1,6 +1,6 @@
 # 0372 Workers.Run hangs when a worker thread starts after the first Run: the worker takes that generation as seen
 
-Status: open (fix in the P3 branch, closes after a second run of the full suites on it)
+Status: closed (03edc9e)
 
 Found by P3 (2026-11-14, worktree branch from v3/m8-unity 6c219e2) while running the suites with other agents loading the box
 (load average 8-10).
@@ -20,3 +20,8 @@ More likely under load and slow JIT (HWIntrinsic=0), when thread start is late.
 Fix: the constructor reads `generation` once before it starts the threads and passes it to `Loop(worker, born)`; a worker can no
 longer treat an unseen generation as seen. No behaviour change otherwise (Unity runs phases through its job system, not this pool).
 No test added: a regression would hang rather than fail.
+
+Receipt for closing: two full suite sequences on trees that contain 03edc9e (77b0129 and f8b53af): Laws 569, Scenario 80, Diff 20,
+Lego 120, Host 29 under default, AVX2=0 and HWIntrinsic=0, plus Twin 32, NorthStar3 18, NorthStar2 13, NorthStar 27, Web 6,
+Portable 390; no hang (hw0 Diff 33-34 s). The hang was intermittent, so this shows absence in two runs, not a proof; the
+argument is the code: a worker's first awaited generation is now fixed before any Run can start.

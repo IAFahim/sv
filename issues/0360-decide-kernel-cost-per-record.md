@@ -41,3 +41,9 @@ Progress (P2, branch v3/p2-perf, 15560e6; median of 5 x 50 frames, interleaved w
 - `Target<Lone{c}>`: a target whose records share one channel runs a generic copy with constant present/channel, so the gate
   switch, ChannelIndex, the assign set test and every presence guard fold. Decide B 4.04 -> 3.22, C 13.87 -> 13.39, D 19.47 ->
   19.00 ms. decide-shape Tick 64x1 1,115 -> 822 ns, Physical 64x1 2,864 -> 2,360 ns (3ddf93e -> 152bee6).
+
+Progress (P3, 2026-11-14, see issue 0370 for the receipts): cross-entity reads through a per-frame source-chunk table with template
+value rows. Decide r 10.18 -> 8.42 ms (1M random records, 1,165,758 canonical), C 13.11 -> 11.41, D 18.73 -> 16.36 (6c219e2 ->
+f8b53af, one session). Still about 7.2 ns per record wall at 11 workers, roughly 40 ns of core time (11 threads on 6 SMT cores); the rest is per-target scalar work (dispatch on the lone channel
+and, in Mixed targets, per record; 10-argument rule-method calls; settle and delta fold per target). The plan's 4-8 ns per record
+needs a different execution shape, not more emitter trims.

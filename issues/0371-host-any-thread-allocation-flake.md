@@ -17,6 +17,13 @@ Receipts on the pristine 1aa315e build (git archive, built in a scratch folder):
 - default: 1 failed in 1 of 4 runs.
 On v3/p2-perf the same tests fail with the same 168 B in some default, AVX2=0 and HWIntrinsic=0 runs and pass in others.
 
+P3 (2026-11-14, worktree branch from v3/m8-unity 6c219e2): a third intermittent allocation test,
+`Sv.Laws.Tests.InputLogCapLaws.PerFrameByteCapBoundsBlocksPerFrameAndAllocatesNothingWarm`, failed in the first
+`DOTNET_EnableHWIntrinsic=0` Laws run of 2 of 5 full suite sequences (default, AVX2=0, HWIntrinsic=0, one after the other, with
+other agents loading the box to load average 8-10). Isolated reruns: 7 of 7 green on the P3 trees, 5 of 5 green on pristine 6c219e2
+(git archive, fresh build). The P3 commits do not touch InputLog; same class as the two Host tests (warm-allocation reads that depend
+on JIT tier-up timing, suspected, not proven).
+
 Not investigated: which thread allocates. With workers:1 sv starts no worker threads, so the 168 B comes from a runtime or
 test-host thread (tiered-compilation background work is the first suspect). The Sv.Bench warm frames read 0 B on the main thread
 in every P2 run and 0 B on all threads in most (6,192 B appears in about one process in ten, on both builds).

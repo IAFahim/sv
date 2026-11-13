@@ -40,3 +40,14 @@ the chunks a part touched, are layout/algorithm changes.
   block starting at its base; Order skips Shape when clear): B Seal 2.13 -> 2.01 but Decide 3.83 -> 3.94, total unchanged
   (8.77 -> 8.78); C 29.38 -> 29.86, D 41.67 -> 42.15, A 3.21 -> 3.34. Reverted. In B the record passes are bandwidth-bound: the
   canonical records are read once by someone, and skipping Shape moves the misses into Log and Decide.
+
+## P3 (2026-11-14, worktree branch from v3/m8-unity 6c219e2)
+
+- Split for r (1M random, temporary probes, means incl. warm frames): count 0.98, plan+scatter 1.46, order 2.96 ms.
+- Kept 77b0129: Order returns at the first descent instead of scanning the whole chunk, and merges each sorted row straight into
+  the segment (no separate Merge pass). Order step r 2.96 -> 2.48 (-16 %), C 4.62 -> 3.81 (-18 %); Seal phase r 4.66 -> 4.32,
+  C 7.94 -> 7.13, D 12.15 -> 11.14 ms; A, B unchanged.
+- Tried and reverted: prefetching the segments of the chunk two ahead in Order (r seal 4.31 -> 4.36, total 18.26 -> 18.35);
+  Count/Scatter on 2 x workers parts instead of 64 (A -9.5 %, B -2.7 %, r +1.2 %, C +1.3 %: issue 0373).
+- Gate: still above (1M random: Seal 4.3 ms vs 3; B 2.1 ms vs 0.4). What is left is memory traffic: the scattered lines are
+  written by one core and read by another in Order (cross-core transfers), and Count and Scatter both read the raw blocks.
