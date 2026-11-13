@@ -5,3 +5,5 @@ packages/com.sv.engine/** text eol=lf
 packages/com.sv.unity.v4/** text eol=lf
 packs/**/*.sv.json text eol=lf
 packs/**/*.scenario.json text eol=lf
+tests/Sv.NorthStar3/Glue.g.cs text eol=lf
+tests/Sv.Kernels.NorthStar3/pack/*.sv.json text eol=lf
