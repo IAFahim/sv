@@ -73,6 +73,7 @@ namespace SvV3Bench
             {
                 EntityCapacity = Entities + 2 * Slot.Rows,
                 Workers = Workers,
+                Parts = int.TryParse(Environment.GetEnvironmentVariable("SV_BENCH_PARTS"), out var parts) && parts > 0 ? parts : 64,
                 ExternalWriters = Workers,
                 RawCapacity = rawCapacity,
                 DigestEvery = digestEvery,
@@ -380,42 +381,74 @@ namespace SvV3Bench
     {
         public static void Run()
         {
+            foreach (var rotate in new[] { 1, 3 })
+            {
+                Variant(rotate);
+            }
+        }
+
+        static void Variant(int rotate)
+        {
             var before = Settle();
             var world = new LegoWorld(1, 1 << 16);
             var rest = Settle();
             var w = world.Host.World;
-            var pool = w.Pool;
-            var usedLanes = pool.Usable - pool.Available;
+            var bench = (long)world.Slots.Length * sizeof(int) + world.KindOfSlot.Length;
             Console.WriteLine(string.Format(CultureInfo.InvariantCulture,
-                "v3-lego-memory at rest: private {0:0.0} MB = {1:0.0} B/entity; table {2:0.0} MB, pool segments {3:0.0} MB, lanes in use {4} ({5:0.0} MB), lanes per chunk {6}, journal entries {7}",
-                (rest - before) / 1e6, (rest - before) / (double)LegoWorld.Entities, w.TableBytes / 1e6, pool.Bytes / 1e6, usedLanes, usedLanes * 256 / 1e6,
-                w.View.LanesPerChunk, w.Journal.Count(w.Epoch)));
-            var shape = new LegoShape { Name = "history", Random = 100_000, ActiveEvery = 10 };
-            using (var records = new LegoRecords(world, shape, 777))
+                "v3-lego-memory at rest: private {0:0.0} MB, minus {1:0.0} MB bench arrays = {2:0.0} B/entity; {3}",
+                (rest - before) / 1e6, bench / 1e6, (rest - before - bench) / (double)LegoWorld.Entities, Parts(world)));
+            var sets = new LegoRecords[rotate];
+            for (var at = 0; at < rotate; at++)
             {
-                world.Load(records.Lists, records.Counts);
-                var frames = w.RingEpochs * w.FramesPerEpoch + 4;
-                for (var f = 0; f < frames; f++)
-                {
-                    world.Send();
-                    world.Host.Step();
-                }
+                sets[at] = new LegoRecords(world, new LegoShape { Name = "history", Random = 100_000, ActiveEvery = 10 }, 777 + at);
+            }
 
-                var history = Settle();
-                var entries = 0L;
-                for (var e = w.OldestEpoch; e <= w.Epoch; e++)
-                {
-                    entries += w.Journal.Count(e);
-                }
+            var frames = w.RingEpochs * w.FramesPerEpoch + 4;
+            for (var f = 0; f < frames; f++)
+            {
+                world.Load(sets[f % rotate].Lists, sets[f % rotate].Counts);
+                world.Send();
+                world.Host.Step();
+            }
 
-                usedLanes = pool.Usable - pool.Available;
-                Console.WriteLine(string.Format(CultureInfo.InvariantCulture,
-                    "v3-lego-memory with history (ring {0} epochs x {1} frames, 10% chunks active, 100,000 records/frame): private {2:0.0} MB = {3:0.0} B/entity; pool segments {4:0.0} MB, lanes in use {5} ({6:0.0} MB), journal entries over ring {7}, raw capacity {8}",
-                    w.RingEpochs, w.FramesPerEpoch, (history - before) / 1e6, (history - before) / (double)LegoWorld.Entities, pool.Bytes / 1e6, usedLanes, usedLanes * 256 / 1e6, entries,
-                    world.Host.Raw.Capacity));
+            var recordBytes = 0L;
+            foreach (var set in sets)
+            {
+                recordBytes += (long)set.Total * sizeof(Effect);
+            }
+
+            var history = Settle();
+            var entries = 0L;
+            for (var e = w.OldestEpoch; e <= w.Epoch; e++)
+            {
+                entries += w.Journal.Count(e);
+            }
+
+            Console.WriteLine(string.Format(CultureInfo.InvariantCulture,
+                "v3-lego-memory with history (ring {0} epochs x {1} frames, 10% chunks active, 100,000 records/frame, {2} rotating record set(s)): private {3:0.0} MB, minus {4:0.0} MB bench = {5:0.0} B/entity; journal entries over ring {6} ({7:0.0} MB of old lanes); {8}",
+                w.RingEpochs, w.FramesPerEpoch, rotate, (history - before) / 1e6, (bench + recordBytes) / 1e6, (history - before - bench - recordBytes) / (double)LegoWorld.Entities,
+                entries, entries * 256 / 1e6, Parts(world)));
+            foreach (var set in sets)
+            {
+                set.Dispose();
             }
 
             world.Dispose();
+        }
+
+        static string Parts(LegoWorld world)
+        {
+            var host = world.Host;
+            var w = host.World;
+            var pool = w.Pool;
+            var usedLanes = pool.Usable - pool.Available;
+            var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+            var activeCapacity = (int)typeof(FrameLoop<LegoKernels>).GetField("activeCapacity", flags)!.GetValue(host)!;
+            var scratchInts = (int)typeof(FrameLoop<LegoKernels>).GetField("scratchInts", flags)!.GetValue(host)!;
+            return string.Format(CultureInfo.InvariantCulture,
+                "table {0:0.0} MB ({1} lanes per chunk), pool segments {2:0.0} MB with {3} lanes in use ({4:0.0} MB), input log {5:0.0} MB, raw arena {6:0.0} MB, canonical arena {7:0.0} MB, decide scratch {8} active chunks x {9} B = {10:0.0} MB",
+                w.TableBytes / 1e6, w.View.LanesPerChunk, pool.Bytes / 1e6, usedLanes, usedLanes * 256 / 1e6, host.Log.Bytes / 1e6, host.Raw.Capacity * sizeof(Effect) / 1e6,
+                host.Canonical.Capacity * 2L * sizeof(Effect) / 1e6, activeCapacity, scratchInts * 4, (long)activeCapacity * scratchInts * 4 / 1e6);
         }
 
         static long Settle()
