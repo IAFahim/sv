@@ -24,7 +24,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\..\packages\com.sv.unity\Tests\Editor\SvTwinScenario.cs" Link="SvTwinScenario.cs" />
+    <Compile Include="..\..\packages\com.sv.core.tests\Tests\SvTwinScenario.cs" Link="SvTwinScenario.cs" />
   </ItemGroup>
 
 </Project>

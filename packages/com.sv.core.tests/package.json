@@ -1,0 +1,13 @@
+{
+  "name": "com.sv.core.tests",
+  "version": "1.0.0",
+  "displayName": "sv core pin tests",
+  "description": "Unity legs of the legacy sv core pins: fold scenario (plain and Burst job), NorthStar2 link table hash, twin scenario.",
+  "unity": "7000.0",
+  "dependencies": {
+    "com.sv.core": "2.1.0",
+    "com.unity.burst": "2.0.0",
+    "com.unity.collections": "7.0.0",
+    "com.unity.test-framework": "1.9.0"
+  }
+}

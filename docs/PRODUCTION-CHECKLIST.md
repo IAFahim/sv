@@ -17,8 +17,7 @@ For a first real-project test of sv 2.1.0 with tl on .NET 10 or Unity 7. Frame o
    and less when many sends hit few slots.
 6. **Events**: one `EventDerive` per channel, cap at host build (default 16,384, max 16,777,216). Every
    handler must accept the `DenseEvent` + edge-word form; above the cap no per-row event exists.
-7. **Digest**: `SvHost.Install` defaults to `digestEvery: 8` in every build; pass `digestEvery: 1` in a development player (`DigestCadence.Default` is the core-level default: every tick in debug, every 8 in release). `digestEvery: 0` turns the digest off. Log
-   `(tick, Board.Digest, CellDigest sums per intrinsic column)` on due ticks.
+7. **Digest**: `HostOptions.DigestEvery` (default 1, every frame); `0` turns the digest off. Log `(frame, LastDigest)` on due frames.
 8. **Test builds**: run once with `-p:DefineConstants=SV_CHECKED` (Unity: add `SV_CHECKED` to Scripting Define Symbols) (range guards throw; after `InvalidateBindings` a bound column parks instead of throwing, see issue 0151), and run
    `sh eng/isa-legs.sh` on each machine you compare.
 9. **Unity**: `eng/unity-sync.sh sync <project>/Packages/com.sv.core`, then `check` in CI (the sums need LF files: `.gitattributes` pins that); the repo copy
