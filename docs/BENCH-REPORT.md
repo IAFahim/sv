@@ -19,6 +19,63 @@ nothing else on the CPU, Vector256 on. Every frame number is the median of 5 pro
   1,500,000 random (3,248,724). Random = Physical 50 %, Healing 25 %, Fire, Poison; amount 1-8, hits 1-2, source random, kind of source.
 - Phase times come from `FrameLoop.Marks` (commit 4372554: ten timestamps per Step, no other change).
 
+## Update P2 (2026-11-13, branch v3/p2-perf from v3/m8-unity 1aa315e)
+
+Ryzen 5 8500G, Linux 7.2, .NET SDK 10.0.403, Release, 11 workers, 64 parts, digest every frame. Every number is the median of
+5 processes x 50 frames; spread is min..max of the 5 medians. Every comparison ran interleaved (base, new, base, new, ...) in one
+session against a pristine build of the previous commit, because the CPU drifts 0.3-0.5 ms between sessions. Digests unchanged
+everywhere (A DAF3A1D9BD73BA10, B 6E7618BF0900D3F8, C D3C714D46555B7CE, D 7413F619472566C4, worked example E0F445186E2C3672);
+0 B allocated on the main thread in every run.
+
+Final table, 1aa315e against 152bee6 in the same session (ms):
+
+| Scenario | Send | Seal | Log | Decide | Commit | Events | Digest | **Total** | Before P2 (1aa315e) | What limits it now |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| A | 0.10 | 0.76 | 0.15 | 1.02 | 0.17 | 0.06 | 0.50 | **2.82** (2.80-3.18) | 3.23 (3.19-3.24) | Decide and Seal fixed cost per chunk; digest's per-lane template compare over all 15,625 chunks |
+| B | 0.74 | 2.09 | 1.12 | 3.14 | 0.20 | 0.13 | 0.14 | **7.69** (7.62-7.76) | 9.68 (9.58-9.84) | Decide per target (12.8 ns per single-Tick target L1-hot); Seal and Log stream the 16 MB of records three more times and are bandwidth-bound |
+| C | 1.52 | 7.89 | 1.87 | 13.20 | 1.24 | 0.14 | 2.28 | **28.53** (28.09-28.60) | 30.63 (30.54-30.75) | Decide on mixed-channel targets (cross-entity reads), Seal sort of random records (order 4.7, scatter 2.3), digest of changed cells |
+| D | 2.50 | 12.33 | 2.54 | 19.06 | 1.27 | 0.17 | 2.88 | **41.23** (40.52-46.11) | 43.04 (42.52-56.34) | as C, 3.2M records |
+
+Gate (B <= 8.3 ms): met in this harness, 7.69 ms, worst of the 5 medians 7.76 ms. A passes. C and D do not.
+
+How it was found: `perf record` with `DOTNET_PerfMapEnabled=1` and `DOTNET_EnableWriteXorExecute=0` (with W^X on, JIT code runs
+from `memfd:doublemapper` and perf shows no symbols), jitdump plus `perf inject --jit` for per-instruction annotation,
+`DOTNET_JitDisasm` for Tier1 code, temporary Stopwatch probes for the Seal steps. First profile of B: `Kernels.Events` was 10.5 %
+of samples; a measurement-only build that skipped Events took B commit 1.23 -> 0.12 ms, so Events cost about 1.1 ms (every Tick
+touches all 1M rows, and the low-health event ran four inlined saturating multiplies per row). Decide is compute-bound (the
+in-frame cost is the L1-hot `v3-lego-decide-shape` cost over about 4.6 workers); Seal, Log and Send are bandwidth-bound.
+
+Kept (each its own commit, every suite green, before -> after against the previous commit, ms):
+
+| Commit | Change | B | C | D | A |
+|---|---|---|---|---|---|
+| da8f278 | `Below` with operands provably within 2^31 compiles to plain 64-bit products | 11.14 -> 10.40 (commit 1.41 -> 0.67) | 32.42 -> 31.97 | 45.09 -> 43.62 | 3.44 -> 3.39 |
+| 3ddf93e | event conditions over own-row lanes compile to whole-chunk row masks; new `Mask.Below` (AVX2 + scalar law) | 9.23 -> 8.71 (commit 0.63 -> 0.22) | 32.31 -> 30.73 | 45.82 -> 42.99 | 3.26 -> 3.19 |
+| 15560e6 | `Target<Lone{c}>`: a target whose records share one channel runs a copy where present, the gate switch and every presence guard are constants; settle reads the channel once | 9.11 -> 8.23 (decide 4.04 -> 3.22) | 30.05 -> 29.55 | 41.98 -> 41.52 | 3.25 -> 3.23 |
+| 152bee6 | digest phase caches each chunk's liveness sum by (live mask, template) | 8.05 -> 7.81 (digest 0.44 -> 0.14) | 28.79 -> 28.51 | 41.12 -> 40.95 | 3.28 -> 2.97 (digest 0.81 -> 0.49) |
+
+`v3-lego-decide-shape` (one chunk, L1-hot), 3ddf93e -> 152bee6: Tick 64x1 1,115 -> 822 ns, 1x64 613 -> 468 ns; Physical 64x1
+2,864 -> 2,360 ns, 1x64 1,519 -> 1,310 ns. Tier1 `Target<Lone4>` is 5,745 bytes against 13,251 for the generic Target. The
+10k-rule pack emits 14.42 MB of C# (14.40 before), two emissions equal.
+
+Seal split now (means over all frames, temporary probes, not committed), B / C: count 0.79 / 1.55, plan 0.43 / 0.31, scatter
+0.72 / 2.26, order 0.47 / 4.67, finish 0.05 / 0.04.
+
+Tried and reverted (same A/B method): input log compare word-wise with Vector256 (B log 1.12 vs 1.14, C 1.89 -> 1.75, totals in
+noise: the compare waits on old log blocks, not on instructions); software prefetch of the next chunks' previous log segment
+(each 1 KB segment starts its own 4 KB block, so every chunk is a new page for the stream prefetcher; B log 1.12 -> 1.02, total
+8.72 -> 8.60, 1.4 %, C unchanged); skipping Seal's order check for chunks that received one repeat-free run of an ordered block
+(B seal 2.13 -> 2.01 but decide 3.83 -> 3.94, total 8.77 -> 8.78; C 29.38 -> 29.86, D 41.67 -> 42.15, A 3.21 -> 3.34: the misses
+move to Log and Decide and the flag store in the unordered scatter costs); initializing `a.Assign` only before its first use
+(B decide 3.42 vs 3.45, C 31.63 -> 31.33, D 41.33 -> 41.35, inside noise); Vector256 mixes for digest lanes with at least 16
+changed rows (C 28.53 -> 28.19, digest 2.27 -> 2.08; D 40.37 -> 40.23; under 3 %).
+
+Suites at every kept commit: Laws 556, Scenario 80, Diff 20, Host 29, Lego 120 under default, `DOTNET_EnableAVX2=0` and
+`DOTNET_EnableHWIntrinsic=0`, except the two workers:1 "allocate nothing on any thread" Host tests, which read 168 B in some runs
+on 1aa315e as well (issue 0371). Twin 32, NorthStar3 17, NorthStar2 13, NorthStar 27, Web 6. `eng/engine-sync.sh check` passes;
+the Unity test packs under `packages/com.sv.unity.v4/Tests/Packs` were regenerated with `sv pack --host unity` after each emitter
+change (PackHash unchanged). Unity/Burst was not run.
+
 ## Update P1 (2026-11-13, branch v3/p1-perf from v3/int 5c81210)
 
 Same set-up, Release, median of 5 processes x 50 frames, digests unchanged (A DAF3A1D9BD73BA10, B 6E7618BF0900D3F8,
