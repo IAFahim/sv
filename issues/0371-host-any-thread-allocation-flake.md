@@ -27,3 +27,7 @@ on JIT tier-up timing, suspected, not proven).
 Not investigated: which thread allocates. With workers:1 sv starts no worker threads, so the 168 B comes from a runtime or
 test-host thread (tiered-compilation background work is the first suspect). The Sv.Bench warm frames read 0 B on the main thread
 in every P2 run and 0 B on all threads in most (6,192 B appears in about one process in ten, on both builds).
+
+## 2026-11-14 (merge verification of P3 + 0400)
+
+`AllocationLaws.WritesEpochMarksDigestAndRewindAllocateNothingWarm(policy: Dense)` failed once, in the first Laws run under `DOTNET_EnableAVX2=0` right after a rebuild, on a box with load average about 5 (a nice-19 `localsearch` indexer at 100 percent). It then passed 6 of 6 full Laws runs and 5 of 5 isolated runs under the same setting. Same family as the Host any-thread tests and `InputLogCapLaws...AllocatesNothingWarm`: first run after a build, tiering JIT allocation on a loaded machine. Not fixed; if it recurs on an idle box, look at JIT tiering (`TieredPGO=0`, `TieredCompilation` quick jit) in the test host rather than the engine.
