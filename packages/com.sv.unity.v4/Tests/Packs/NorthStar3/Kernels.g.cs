@@ -38,8 +38,6 @@ namespace Sv.Kernels.NorthStar3
     public unsafe struct ChunkView
     {
         public int Chunk;
-        public int* L0;
-        public int* L2;
         public int* L3;
         public int* L15;
         public int* L16;
@@ -226,6 +224,78 @@ namespace Sv.Kernels.NorthStar3
             }
         }
 
+        public interface ILone
+        {
+            bool Lone { get; }
+
+            int Channel { get; }
+
+            ulong Bits { get; }
+        }
+
+        public struct Mixed : ILone
+        {
+            public bool Lone => false;
+
+            public int Channel => -1;
+
+            public ulong Bits => ulong.MaxValue;
+        }
+
+        public struct Lone0 : ILone
+        {
+            public bool Lone => true;
+
+            public int Channel => 0;
+
+            public ulong Bits => 0x0000000000000001ul;
+        }
+
+        public struct Lone1 : ILone
+        {
+            public bool Lone => true;
+
+            public int Channel => 1;
+
+            public ulong Bits => 0x0000000000000002ul;
+        }
+
+        public struct Lone2 : ILone
+        {
+            public bool Lone => true;
+
+            public int Channel => 2;
+
+            public ulong Bits => 0x0000000000000004ul;
+        }
+
+        public struct Lone3 : ILone
+        {
+            public bool Lone => true;
+
+            public int Channel => 3;
+
+            public ulong Bits => 0x0000000000000008ul;
+        }
+
+        public struct Lone4 : ILone
+        {
+            public bool Lone => true;
+
+            public int Channel => 4;
+
+            public ulong Bits => 0x0000000000000010ul;
+        }
+
+        public struct Lone5 : ILone
+        {
+            public bool Lone => true;
+
+            public int Channel => 5;
+
+            public ulong Bits => 0x0000000000000020ul;
+        }
+
         public static ulong Decide(in WorldView world, int chunk, int capacity, Effect* effects, int count, int* scratch, ulong* written, long* totals, byte* records, ref EffectWriter next)
         {
             var v = View(world, chunk);
@@ -249,14 +319,24 @@ namespace Sv.Kernels.NorthStar3
 
                 var row = target & 63;
                 var self = 1ul << row;
-                totalled |= Target(world, ref v, a, ref next, target, row, self, first, at, present, terms);
+                switch ((present & (present - 1ul)) == 0ul ? Bits.Tzcnt(present) : -1)
+                {
+                    case 0: totalled |= Target<Lone0>(world, ref v, a, ref next, target, row, self, first, at, present, terms); break;
+                    case 1: totalled |= Target<Lone1>(world, ref v, a, ref next, target, row, self, first, at, present, terms); break;
+                    case 2: totalled |= Target<Lone2>(world, ref v, a, ref next, target, row, self, first, at, present, terms); break;
+                    case 3: totalled |= Target<Lone3>(world, ref v, a, ref next, target, row, self, first, at, present, terms); break;
+                    case 4: totalled |= Target<Lone4>(world, ref v, a, ref next, target, row, self, first, at, present, terms); break;
+                    case 5: totalled |= Target<Lone5>(world, ref v, a, ref next, target, row, self, first, at, present, terms); break;
+                    default: totalled |= Target<Mixed>(world, ref v, a, ref next, target, row, self, first, at, present, terms); break;
+                }
             }
 
             return totalled;
         }
 
-        static ulong Target(in WorldView world, ref ChunkView v, in DecideArgs a, ref EffectWriter next, int target, int row, ulong self, int first, int end, ulong present, ShapeTerm* terms)
+        static ulong Target<TPresent>(in WorldView world, ref ChunkView v, in DecideArgs a, ref EffectWriter next, int target, int row, ulong self, int first, int end, ulong present, ShapeTerm* terms) where TPresent : struct, ILone
         {
+            present = default(TPresent).Lone ? default(TPresent).Bits : present;
             var untaken = -1;
             untaken = (v.C17 & self) != 0ul && untaken < 0 ? 0 : untaken;
             untaken = (v.C18 & self) != 0ul && untaken < 0 ? 0 : untaken;
@@ -267,14 +347,15 @@ namespace Sv.Kernels.NorthStar3
             a.Assign[0] = v.L21[row];
             for (var r = first; r < end; r++)
             {
-                Gate(world, ref v, a, row, self, r, terms);
+                Gate<TPresent>(world, ref v, a, row, self, r, terms);
                 if (!reshaped)
                 {
+                    var channel = default(TPresent).Lone ? default(TPresent).Channel : EffectKey.Channel(a.Effects[r].Key);
                     var survives = RuleMath.Taken(a.Outcomes[r]) != 0L || EffectKey.Depth(a.Effects[r].Key) <= untaken;
                     a.Outcomes[r].Survives = survives ? 1 : 0;
                     if (survives)
                     {
-                        var index = ChannelIndex(EffectKey.Channel(a.Effects[r].Key));
+                        var index = ChannelIndex(channel);
                         if (index >= 0)
                         {
                             var at = (index << 6) + row;
@@ -282,11 +363,11 @@ namespace Sv.Kernels.NorthStar3
                         }
                     }
 
-                    if (In0((long)EffectKey.Channel(a.Effects[r].Key)) && RuleMath.Taken(a.Outcomes[r]) != 0L)
+                    if (In0((long)channel) && RuleMath.Taken(a.Outcomes[r]) != 0L)
                     {
                         RuleMath.PerHit(a.Effects[r], a.Outcomes[r], 1, out var perHit, out _);
                         var from = EffectKey.Source(a.Effects[r].Key);
-                        Assign(a, EffectKey.Channel(a.Effects[r].Key), perHit, from == EffectKey.NoSource ? -1L : from);
+                        Assign(a, channel, perHit, from == EffectKey.NoSource ? -1L : from);
                         assigned = true;
                     }
                 }
@@ -373,11 +454,12 @@ namespace Sv.Kernels.NorthStar3
 
                 for (var r = first; r < end; r++)
                 {
+                    var channel = default(TPresent).Lone ? default(TPresent).Channel : EffectKey.Channel(a.Effects[r].Key);
                     var survives = RuleMath.Taken(a.Outcomes[r]) != 0L || EffectKey.Depth(a.Effects[r].Key) <= untaken;
                     a.Outcomes[r].Survives = survives ? 1 : 0;
                     if (survives)
                     {
-                        var index = ChannelIndex(EffectKey.Channel(a.Effects[r].Key));
+                        var index = ChannelIndex(channel);
                         if (index >= 0)
                         {
                             var at = (index << 6) + row;
@@ -385,11 +467,11 @@ namespace Sv.Kernels.NorthStar3
                         }
                     }
 
-                    if (In0((long)EffectKey.Channel(a.Effects[r].Key)) && RuleMath.Taken(a.Outcomes[r]) != 0L)
+                    if (In0((long)channel) && RuleMath.Taken(a.Outcomes[r]) != 0L)
                     {
                         RuleMath.PerHit(a.Effects[r], a.Outcomes[r], 1, out var perHit, out _);
                         var from = EffectKey.Source(a.Effects[r].Key);
-                        Assign(a, EffectKey.Channel(a.Effects[r].Key), perHit, from == EffectKey.NoSource ? -1L : from);
+                        Assign(a, channel, perHit, from == EffectKey.NoSource ? -1L : from);
                         assigned = true;
                     }
                 }
@@ -507,11 +589,11 @@ namespace Sv.Kernels.NorthStar3
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        static void Gate(in WorldView world, ref ChunkView v, in DecideArgs a, int row, ulong self, int r, ShapeTerm* terms)
+        static void Gate<TPresent>(in WorldView world, ref ChunkView v, in DecideArgs a, int row, ulong self, int r, ShapeTerm* terms) where TPresent : struct, ILone
         {
             var effect = a.Effects[r];
             var state = default(GateState);
-            var channel = (int)EffectKey.Channel(effect.Key);
+            var channel = default(TPresent).Lone ? default(TPresent).Channel : (int)EffectKey.Channel(effect.Key);
             switch (channel)
             {
                 case 0: AdmitChannel0(world, ref v, a, row, self, effect, channel, ref state, terms); break;
@@ -1347,20 +1429,11 @@ namespace Sv.Kernels.NorthStar3
         {
             var any = 0ul;
             var dirty = recheck;
-            var v = View(world, chunk);
 
             {
                 var state = Lanes.WordsOf(world, chunk, 8)[0];
-                var enter = 0ul;
-                var stay = 0ul;
-                var rows = dirty;
-                while (rows != 0ul)
-                {
-                    var row = Bits.Tzcnt(rows);
-                    rows &= rows - 1ul;
-                    enter |= RuleMath.Below(((long)v.L2[row]), ((long)StatLaw.Rescale(v.L0[row], 1, 1)), 30L, 100L) ? 1ul << row : 0ul;
-                    stay |= RuleMath.Below(((long)v.L2[row]), ((long)StatLaw.Rescale(v.L0[row], 1, 1)), 40L, 100L) ? 1ul << row : 0ul;
-                }
+                var enter = Mask.Below(Lanes.Ints(world, chunk, 2), Lanes.Ints(world, chunk, 0), 30, 100);
+                var stay = Mask.Below(Lanes.Ints(world, chunk, 2), Lanes.Ints(world, chunk, 0), 40, 100);
 
                 var next = (state & ~dirty) | (((~state & enter) | (state & stay)) & dirty);
                 var edge = state ^ next;
@@ -1431,8 +1504,6 @@ namespace Sv.Kernels.NorthStar3
         {
             var v = default(ChunkView);
             v.Chunk = chunk;
-            v.L0 = Lanes.Ints(world, chunk, 0);
-            v.L2 = Lanes.Ints(world, chunk, 2);
             v.L3 = Lanes.Ints(world, chunk, 3);
             v.L15 = Lanes.Ints(world, chunk, 15);
             v.L16 = Lanes.Ints(world, chunk, 16);
