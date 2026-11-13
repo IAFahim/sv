@@ -59,6 +59,9 @@ namespace Sv.Pack
 
         public static EmittedFile Emit(string rootNamespace) => new EmittedFile(FileName, Sv.Rules.Emit.HostEmitter.Kernels(rootNamespace));
 
+        public static EmittedFile EmitTl(PackPlan plan, string rootNamespace) =>
+            new EmittedFile(Sv.Rules.Emit.TlGlueEmitter.FileName, Sv.Rules.Emit.TlGlueEmitter.Emit(plan, rootNamespace));
+
         public static void EmitUnity(PackPlan plan, string rootNamespace, List<EmittedFile> files)
         {
             files.Add(new EmittedFile(Sv.Rules.Emit.HostEmitter.PackFile, Sv.Rules.Emit.HostEmitter.Pack(PackTables.Of(plan), rootNamespace)));

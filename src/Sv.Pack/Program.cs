@@ -53,7 +53,7 @@ namespace Sv.Pack
         static int Help()
         {
             Console.Error.WriteLine("usage:");
-            Console.Error.WriteLine("  sv pack <folder> [--out <dir>] [--namespace <ns>] [--diagnostics text|json] [--host dotnet|unity]");
+            Console.Error.WriteLine("  sv pack <folder> [--out <dir>] [--namespace <ns>] [--diagnostics text|json] [--host dotnet|unity] [--glue tl]");
             Console.Error.WriteLine("  sv run <pack> <scenario|folder> [--host reference|compiled] [--kernels <dll>] [--workers <n>] [--parts <n>] [--policy shared|dense]");
             Console.Error.WriteLine("  sv trace <pack> <scenario> [--entity <name>] [--frame <n>]");
             return Usage;
@@ -121,7 +121,8 @@ namespace Sv.Pack
             var format = arguments.Option("--diagnostics") ?? "text";
             var source = PackFolder.Read(folder);
             var unity = arguments.Option("--host") == "unity";
-            var key = PackFolder.InputKey(source, rootNamespace, unity ? ToolVersion + "+unity" : ToolVersion);
+            var glue = arguments.Option("--glue") == "tl";
+            var key = PackFolder.InputKey(source, rootNamespace, (unity ? ToolVersion + "+unity" : ToolVersion) + (glue ? "+glue" : string.Empty));
             var keyPath = Path.Combine(output, KeyFile);
             if (File.Exists(keyPath) && File.ReadAllText(keyPath) == key)
             {
@@ -146,6 +147,11 @@ namespace Sv.Pack
             if (unity)
             {
                 HostGlue.EmitUnity(plan, rootNamespace, files);
+            }
+
+            if (glue)
+            {
+                files.Add(HostGlue.EmitTl(plan, rootNamespace));
             }
 
             Directory.CreateDirectory(output);
