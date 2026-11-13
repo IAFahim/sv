@@ -23,3 +23,19 @@ What limits it:
    chain; not done.
 3. Tried and reverted: gating the per-chunk card and row masks by the channels present in the chunk (B Decide 4.74 vs
    4.34/4.70 ms, A 1.25 vs 1.27 ms: no measurable gain).
+
+## P1 findings (branch v3/p1-perf, not merged: all reverted)
+
+- Per-frame source table (mark distinct sources of canonical records in a slot bitmap, rank per word, gather the 6 source lanes
+  the Lego gates read in slot order, gates read `row[column]` through a `SourceTable` with fallback to the world read when a
+  slot is unmarked): exact (digests unchanged) but slower. C: Decide 13.0 -> 14.8 ms, total 30.1 -> 33.9 ms (build phase about
+  2 ms, mostly contended bitmap marking). The table is about 17 MB for 630k distinct sources, so its one random row read is an
+  L3/DRAM miss.
+- Why: most source lanes the gates read (RageStacks, Execute, CritCard, CritRoll, RageBonus) are still template lanes
+  (copy-on-write), so they hit cache; the real misses are the per-chunk `LaneOf` row and the meta word, about 2-3 L3 lines per
+  record, not 5 lanes.
+- A warm pass per chunk that touches each record's source meta and lanes before the gates: Decide C 15.9 ms (worse).
+- Upper bound: with every source read returning its fallback (semantics changed, measurement only) Decide C is 11.0 ms, so
+  all source reads together cost at most 2 ms of C's 13.
+- What could still pay: a table smaller than L2 (for example a per-slot 16-bit id into deduplicated rows, ids rebuilt only for
+  chunks whose source lanes changed), or carrying the read values in the record at send time (contract change).

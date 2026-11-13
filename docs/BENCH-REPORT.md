@@ -19,6 +19,28 @@ nothing else on the CPU, Vector256 on. Every frame number is the median of 5 pro
   1,500,000 random (3,248,724). Random = Physical 50 %, Healing 25 %, Fire, Poison; amount 1-8, hits 1-2, source random, kind of source.
 - Phase times come from `FrameLoop.Marks` (commit 4372554: ten timestamps per Step, no other change).
 
+## Update P1 (2026-11-13, branch v3/p1-perf from v3/int 5c81210)
+
+Same set-up, Release, median of 5 processes x 50 frames, digests unchanged (A DAF3A1D9BD73BA10, B 6E7618BF0900D3F8,
+C D3C714D46555B7CE, D 7413F619472566C4). The CPU drifts by about 0.3-0.5 ms in B between sessions, so every atom was measured
+against a baseline run in the same session.
+
+| Scenario | Send | Seal | Log | Decide | Commit + Events | Digest + End | **Total** | Before P1 (same day) | What limits it now |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| A | 0.08 | 0.74 | 0.14 | 1.03 | 0.28 | 0.81 | **3.1** | 3.17 | digest (whole world each frame), Decide fixed cost per chunk; passes the gate |
+| B | 0.69 | 2.05 | 1.08 | 3.98 | 1.32 | 0.46 | **9.6** (9.4-9.8) | 11.21 | Decide per-target fixed cost (about 27 ns per target), Seal count matrix + route + one copy, input log compare |
+| C | 1.43 | 7.82 | 1.88 | 13.25 | 2.66 | 2.73 | **30.0** | 31.08 | Decide on cross-entity records, Seal sort of random records (order 4.0 ms, scatter 2.3 ms) |
+| D | 2.19 | 12.24 | 2.55 | 18.48 | 2.64 | 3.35 | **41.7** | 43.28 | as C, 3.2M records |
+
+Kept (each its own commit, five suites green): 74b8239 Seal scatters straight into the canonical buffer, merges in place and
+compacts (Records to Scratch, then swaps) only when a merge moved a chunk start: Seal B 3.15 -> 2.06, C 9.17 -> 7.95 ms, Log B
+1.36 -> 1.02 ms (records stay hot). 915e3cb route leaves a kept record in place: Seal B 2.13 -> 2.03, C 8.14 -> 7.85 ms.
+Seal split after both (probes, B / C): count 0.68 / 1.45, plan 0.41 / 0.32, scatter 0.72 / 2.32, order 0.39 / 4.0, compact 0.
+
+Tried and reverted: chunk-local sort buffer in Order (C Seal 7.95 -> 7.80, inside noise); fewer Seal parts (16 / 32 / 64: B Seal
+1.90 / 1.91 / 2.04 but C Seal 8.99 / 8.10 / 7.78, totals best at 64); per-frame source table for gates (issue 0370: Decide C
+13.0 -> 14.8 ms); a warm pass over each chunk's sources before Decide (Decide C 15.9 ms).
+
 ## Frame time at 1M entities, 11 workers, after the fixes (ms)
 
 | Scenario | Collect | Seal | Log | Decide | Commit + Events | Digest + Stats + End | **Total** | Projected total | Gate 8.3 ms |

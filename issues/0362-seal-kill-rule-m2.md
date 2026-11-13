@@ -19,3 +19,16 @@ Receipts (median of 5 runs x 50 frames, after commit d45b099 moved Seal.Plan ont
 What a fix needs (design): pre-bucketed blocks still pay route + count + scatter copy + ascending check + merge copy + compact
 copy (four passes over 16 MB); a pre-bucketed fast path that seals a writer's ordered blocks in place, and a count matrix sized by
 the chunks a part touched, are layout/algorithm changes.
+
+## Progress (P1, branch v3/p1-perf)
+
+- 74b8239: scatter writes the canonical buffer directly; Order sorts with Scratch as temp and merges back; a strictly ascending
+  chunk needs no copy; Compact runs only when a merge moved a chunk start (then Records -> Scratch and the buffers swap).
+  `Seal.Settle` is the new last step for every driver. Seal B 3.15 -> 2.06 ms, C 9.17 -> 7.95 ms (median of 5).
+- 915e3cb: Count writes a record back only when it moved or an earlier record was dropped. Seal B 2.13 -> 2.03, C 8.14 -> 7.85 ms.
+- Split now (B / C, ms): count 0.68 / 1.45, plan 0.41 / 0.32, scatter 0.72 / 2.32, order 0.39 / 4.0.
+- Not done: count matrix sized by touched chunks. In B a part's blocks come from all 11 writers, so a part's chunk span is
+  the whole world; a touched-chunk list needs a per-chunk part order for the plan (deterministic order rule), measured upper
+  bound of the gain 0.15-0.4 ms in B (16 parts vs 64). Pre-bucketed blocks still pay route + one copy + ascending check;
+  skipping the check needs per-(part, chunk) "single ordered run" flags.
+- Gate: still above (B Seal 2.0 ms vs 0.4; 1M random 4.6 ms vs 3).
