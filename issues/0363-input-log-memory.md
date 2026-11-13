@@ -1,6 +1,12 @@
 # 0363 input log memory: 16 B per external record x 66 frames x up to 2 for 256-record blocks; 4.2 GB at 2M records/frame
 
-Status: open (design: plan 15.3 budgets the input log at 10-100 MB "capped by the host"; nothing caps it)
+Status: closed (per-frame deterministic cap landed on branch `v3/s3-remaining`, commit `a3f2445`).
+
+Update (`v3/s3-remaining`):
+- Added `frameRecordLimit` and `frameByteLimit` (`FrameBlockLimit`) per-frame caps to `InputLog` (`src/Sv.Core/InputLog.cs`) and `HostOptions.InputLogFrameLimit` / `HostOptions.InputLogFrameBytes` (`src/Sv.Host/Frame.cs`, defaulting to `int.MaxValue` / `long.MaxValue` matching `CanonicalLimit`).
+- Capping applies deterministically in ascending canonical chunk/record order across `Record`, `RecordScanned` (`StoreRun`), and `Insert`, tracking `DroppedRecords` and `CappedFrames` with 0 B warm managed allocation.
+- Note: shared sub-block packing (`256`-record blocks) and cross-frame oldest-eviction were not taken here; uncapped `HostOptions` keeps existing lossless rewind behavior (default `v3-lego-memory` 3 rotating sets still prints `288.1 MB` unless capped by the host).
+- Verified by `Sv.Laws.Tests` (`InputLogCapLaws`, including `Record`/`LogScan.Examine`/`RecordScanned` equivalence across parts, sparse & dense byte-cap stability across ring rollover with `0 B` warm allocation, and `Insert`) and `Sv.Host.Tests` (`InputLogCapHostTests`).
 
 Found by BM1 (branch v3/bench). Lego pack, 1,000,000 entities, ring 32 epochs x 2 frames (log span 66 frames).
 
