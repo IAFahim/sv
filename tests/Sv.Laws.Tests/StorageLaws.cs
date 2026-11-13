@@ -60,6 +60,7 @@ public sealed unsafe class StorageLaws
         using var world = TestWorlds.Create(policy);
         var live = new List<int>();
         var table = (SourceChunk*)Memory.AllocZeroed((nuint)world.ChunkCapacity, (nuint)sizeof(SourceChunk));
+        var values = (int*)Memory.AllocZeroed((nuint)(world.TemplateCount * world.Layout.ValueLanes), sizeof(int));
         try
         {
             for (var round = 0; round < 6; round++)
@@ -68,7 +69,8 @@ public sealed unsafe class StorageLaws
                 world.EndFrame();
                 var direct = world.View;
                 var tabled = world.View;
-                SourceChunks.Build(tabled, table, 0, world.ChunkCount);
+                SourceChunks.TemplateValues(tabled, values);
+                SourceChunks.Build(tabled, values, table, 0, world.ChunkCount);
                 tabled.Sources = table;
                 var capacity = world.ChunkCapacity * Slot.Rows;
                 for (var slot = -2; slot < capacity + 2; slot++)
@@ -84,6 +86,7 @@ public sealed unsafe class StorageLaws
         finally
         {
             Memory.Free(table);
+            Memory.Free(values);
         }
     }
 

@@ -18,17 +18,17 @@ namespace Sv
     }
 
     [StructLayout(LayoutKind.Sequential, Size = 24)]
-    public readonly struct SourceChunk
+    public readonly unsafe struct SourceChunk
     {
         public readonly ulong Present;
         public readonly ulong OnTemplate;
-        public readonly int Template;
+        public readonly int* Values;
 
-        public SourceChunk(ulong present, ulong onTemplate, int template)
+        public SourceChunk(ulong present, ulong onTemplate, int* values)
         {
             Present = present;
             OnTemplate = onTemplate;
-            Template = template;
+            Values = values;
         }
     }
 
@@ -36,14 +36,39 @@ namespace Sv
     {
         public const int TrackedLanes = 64;
 
-        public static SourceChunk Of(in WorldView world, int chunk)
+        public static void TemplateValues(in WorldView world, int* values)
+        {
+            var lanes = world.Layout.ValueLanes;
+            for (var template = 0; template < world.TemplateCount; template++)
+            {
+                var row = Lanes.TemplateRow(world, template);
+                for (var lane = 0; lane < lanes; lane++)
+                {
+                    values[(long)template * lanes + lane] = ((int*)Lanes.At(world, row[lane]))[0];
+                }
+            }
+        }
+
+        public static ulong UniformLanes(in WorldView world)
+        {
+            var lanes = world.Layout.ValueLanes < TrackedLanes ? world.Layout.ValueLanes : TrackedLanes;
+            var uniform = 0ul;
+            for (var lane = 0; lane < lanes; lane++)
+            {
+                uniform |= world.Layout.Classes[lane] != LaneClass.Event ? 1ul << lane : 0ul;
+            }
+
+            return uniform;
+        }
+
+        public static SourceChunk Of(in WorldView world, int* values, ulong uniform, int chunk)
         {
             var meta = Lanes.WordsOf(world, chunk, world.Layout.MetaLane);
             var present = meta[ChunkMeta.Live] | meta[ChunkMeta.Dying];
             var template = ChunkMeta.TemplateOf(meta[ChunkMeta.Template]);
             if ((uint)template >= (uint)world.TemplateCount)
             {
-                return new SourceChunk(present, 0ul, -1);
+                return new SourceChunk(present, 0ul, null);
             }
 
             var lanes = world.Layout.ValueLanes < TrackedLanes ? world.Layout.ValueLanes : TrackedLanes;
@@ -55,14 +80,15 @@ namespace Sv
                 onTemplate |= current[lane] == defaults[lane] ? 1ul << lane : 0ul;
             }
 
-            return new SourceChunk(present, onTemplate, template);
+            return new SourceChunk(present, onTemplate & uniform, values + (long)template * world.Layout.ValueLanes);
         }
 
-        public static void Build(in WorldView world, SourceChunk* table, int chunkFrom, int chunkTo)
+        public static void Build(in WorldView world, int* values, SourceChunk* table, int chunkFrom, int chunkTo)
         {
+            var uniform = UniformLanes(world);
             for (var chunk = chunkFrom; chunk < chunkTo; chunk++)
             {
-                table[chunk] = Of(world, chunk);
+                table[chunk] = Of(world, values, uniform, chunk);
             }
         }
 
@@ -103,7 +129,7 @@ namespace Sv
 
                 if ((uint)lane < TrackedLanes && ((source->OnTemplate >> lane) & 1ul) != 0ul)
                 {
-                    return ((int*)Lanes.At(world, Lanes.TemplateRow(world, source->Template)[lane]))[at & Slot.RowMask];
+                    return source->Values[lane];
                 }
 
                 return Lanes.Read(world, at, lane);

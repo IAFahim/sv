@@ -108,6 +108,7 @@ namespace Sv.Host
         public int ChunkCount;
         public Width Width;
         public SourceChunk* SourceTable;
+        public int* SourceValues;
     }
 
     public static unsafe class Phases<TKernels>
@@ -202,7 +203,7 @@ namespace Sv.Host
         {
             var context = (FrameContext*)state;
             WorkRange.Of(context->ChunkCount, part, context->Parts, out var from, out var to);
-            SourceChunks.Build(context->World, context->SourceTable, from, to);
+            SourceChunks.Build(context->World, context->SourceValues, context->SourceTable, from, to);
         }
 
         public static void Commit(void* state, int part)
@@ -343,6 +344,7 @@ namespace Sv.Host
         int* pairFrom;
         int* pairTo;
         int activeCapacity;
+        int sourceTemplates;
         StatOp* ops;
         int opCount;
         int opCapacity;
@@ -813,6 +815,13 @@ namespace Sv.Host
             if (active == 0 || !canonical.Sourced)
             {
                 return;
+            }
+
+            if (sourceTemplates != world.TemplateCount)
+            {
+                sourceTemplates = world.TemplateCount;
+                context->SourceValues = (int*)Memory.Realloc(context->SourceValues, (nuint)Math.Max(1, sourceTemplates * world.Layout.ValueLanes) * sizeof(int));
+                SourceChunks.TemplateValues(world.View, context->SourceValues);
             }
 
             context->ChunkCount = world.ChunkCount;
@@ -1290,6 +1299,7 @@ namespace Sv.Host
             Memory.Free(context->DigestTemplate);
             Memory.Free(context->DigestLiveness);
             Memory.Free(context->SourceTable);
+            Memory.Free(context->SourceValues);
             Memory.Free(context->PlanSums);
             Memory.Free(context);
             Memory.Free(laneWriters);
