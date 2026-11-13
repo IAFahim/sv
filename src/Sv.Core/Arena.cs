@@ -288,7 +288,6 @@ namespace Sv
             var records = Sent;
             if (!Overflows(records, interval, core->Blocks) && Missed == 0)
             {
-                interval++;
                 return LayerVerdict.Fits;
             }
 
