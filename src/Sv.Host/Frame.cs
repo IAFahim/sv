@@ -82,6 +82,10 @@ namespace Sv.Host
         public int ScratchInts;
         public long* Totals;
         public int TotalLongs;
+        public ulong* Written;
+        public int WrittenWords;
+        public int DeltaInts;
+        public int* ZeroDelta;
         public int EventCount;
         public LaneWriter* LaneWriters;
         public EffectWriter* NextWriters;
@@ -158,14 +162,24 @@ namespace Sv.Host
             var context = (FrameContext*)state;
             WorkRange.Of(context->ActiveCount, part, context->Parts, out var from, out var to);
             var kernels = default(TKernels);
-            var bytes = (nuint)context->ScratchInts * sizeof(int);
+            var keptBytes = (nuint)(context->ScratchInts - context->DeltaInts) * sizeof(int);
             var totals = context->Totals + (long)part * context->TotalLongs;
             ref var buffer = ref context->Buffers[part];
             for (var index = from; index < to; index++)
             {
                 var chunk = context->Active[index];
                 var scratch = context->Scratch + (long)index * context->ScratchInts;
-                Memory.Clear(scratch, bytes);
+                var written = context->Written + (long)index * context->WrittenWords;
+                for (var word = 0; word < context->WrittenWords; word++)
+                {
+                    written[word] = 0ul;
+                }
+
+                if (keptBytes != 0)
+                {
+                    Memory.Clear(scratch + context->DeltaInts, keptBytes);
+                }
+
                 var first = context->Start[chunk];
                 var count = context->Start[chunk + 1] - first;
                 if (count == 0)
@@ -181,7 +195,7 @@ namespace Sv.Host
                     buffer.Bytes = need;
                 }
 
-                context->Touched[index] = kernels.Decide(context->World, chunk, context->Capacity, context->Records + first, count, scratch, totals, buffer.Pointer, ref context->NextWriters[part]);
+                context->Touched[index] = kernels.Decide(context->World, chunk, context->Capacity, context->Records + first, count, scratch, written, totals, buffer.Pointer, ref context->NextWriters[part]);
             }
         }
 
@@ -200,7 +214,7 @@ namespace Sv.Host
                 var scratch = context->Scratch + (long)index * context->ScratchInts;
                 var touched = context->Touched[index];
                 var statRows = context->StatRows[index];
-                var hasRecords = context->Start[chunk + 1] != context->Start[chunk];
+                var written = context->Written + (long)index * context->WrittenWords;
                 var cardRows = context->CardRows + (long)index * context->CardLanes;
                 for (var card = 0; card < context->CardLanes; card++)
                 {
@@ -210,8 +224,9 @@ namespace Sv.Host
                 var changed = 0ul;
                 for (var lane = 0; lane < deltaLanes; lane++)
                 {
-                    var delta = scratch + (lane << Slot.RowBits);
-                    var rows = hasRecords ? LaneScan.NonZero(context->Width, delta) : 0ul;
+                    var wrote = ((written[lane >> 6] >> (lane & 63)) & 1ul) != 0ul;
+                    var delta = wrote ? scratch + (lane << Slot.RowBits) : context->ZeroDelta;
+                    var rows = wrote ? LaneScan.NonZero(context->Width, delta) : 0ul;
                     if (statRows != 0ul)
                     {
                         var floorStat = kernels.FloorStat(lane);
@@ -447,6 +462,9 @@ namespace Sv.Host
             context->ScratchInts = scratchInts;
             context->TotalLongs = default(TKernels).TotalLanes << Slot.RowBits;
             context->Totals = (long*)Memory.AllocZeroed((nuint)parts * (nuint)Math.Max(1, context->TotalLongs), sizeof(long));
+            context->DeltaInts = default(TKernels).DeltaLanes << Slot.RowBits;
+            context->WrittenWords = Math.Max(1, (default(TKernels).DeltaLanes + 63) >> 6);
+            context->ZeroDelta = (int*)Memory.AllocZeroed(Slot.Rows, sizeof(int));
             context->LaneWriters = laneWriters;
             context->NextWriters = raw.Writer(options.ExternalWriters);
             context->Width = options.Width ?? Widths.FromEnvironment();
@@ -485,6 +503,7 @@ namespace Sv.Host
             context->EdgeAny = (ulong*)Memory.Realloc(context->EdgeAny, (nuint)grown * sizeof(ulong));
             context->Edges = (ulong*)Memory.Realloc(context->Edges, (nuint)grown * (nuint)Math.Max(1, eventCount) * sizeof(ulong));
             context->Scratch = (int*)Memory.Realloc(context->Scratch, (nuint)grown * (nuint)scratchInts * sizeof(int));
+            context->Written = (ulong*)Memory.Realloc(context->Written, (nuint)grown * (nuint)context->WrittenWords * sizeof(ulong));
             context->CardRows = (ulong*)Memory.Realloc(context->CardRows, (nuint)grown * (nuint)Math.Max(1, context->CardLanes) * sizeof(ulong));
             activeCapacity = grown;
         }
@@ -1165,6 +1184,8 @@ namespace Sv.Host
             Memory.Free(context->Edges);
             Memory.Free(context->Scratch);
             Memory.Free(context->Totals);
+            Memory.Free(context->Written);
+            Memory.Free(context->ZeroDelta);
             Memory.Free(context->CardRows);
             Memory.Free(context->CardOfDelta);
             for (var part = 0; part < parts; part++)

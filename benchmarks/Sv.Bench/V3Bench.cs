@@ -51,8 +51,10 @@ namespace SvV3Bench
 
         public int Forward(in WorldView world, int slot, int channel) => -1;
 
-        public ulong Decide(in WorldView world, int chunk, int capacity, Effect* effects, int count, int* scratch, long* totals, byte* records, ref EffectWriter next)
+        public ulong Decide(in WorldView world, int chunk, int capacity, Effect* effects, int count, int* scratch, ulong* written, long* totals, byte* records, ref EffectWriter next)
         {
+            LaneMath.Fill(scratch, 0);
+            written[0] = 1ul;
             var touched = 0ul;
             var at = 0;
             while (at < count)
@@ -219,6 +221,7 @@ namespace SvV3Bench
     {
         readonly Seal1m seal = new Seal1m();
         readonly int* scratch = (int*)Memory.AllocZeroed((nuint)Slot.Rows, sizeof(int));
+        readonly ulong* written = (ulong*)Memory.AllocZeroed(1, sizeof(ulong));
         readonly RawArena next = new RawArena(1 << 12, 1, ArenaPolicy.Grow);
         readonly CanonicalArena canonical;
 
@@ -240,7 +243,7 @@ namespace SvV3Bench
             {
                 var chunk = canonical.Active[index];
                 var first = canonical.Start[chunk];
-                touched += Bits(kernels.Decide(view, chunk, 0, canonical.Records + first, canonical.Start[chunk + 1] - first, scratch, null, null, ref *writer));
+                touched += Bits(kernels.Decide(view, chunk, 0, canonical.Records + first, canonical.Start[chunk + 1] - first, scratch, written, null, null, ref *writer));
             }
 
             return touched;
@@ -253,6 +256,7 @@ namespace SvV3Bench
             seal.Dispose();
             next.Dispose();
             Memory.Free(scratch);
+            Memory.Free(written);
         }
     }
 

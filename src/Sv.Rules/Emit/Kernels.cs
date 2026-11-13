@@ -47,6 +47,7 @@ namespace Sv.Rules.Emit
             WriteCounts();
             WriteDecide();
             WriteTarget();
+            WriteTouch();
             WriteAssign();
             WriteGate();
             WriteDispatch(kernel.Admit, kernel.AdmitAny, "Admit");
@@ -162,7 +163,7 @@ namespace Sv.Rules.Emit
         void WriteDecide()
         {
             body.Blank();
-            body.Open("public static ulong Decide(in WorldView world, int chunk, int capacity, Effect* effects, int count, int* scratch, long* totals, byte* records, ref EffectWriter next)");
+            body.Open("public static ulong Decide(in WorldView world, int chunk, int capacity, Effect* effects, int count, int* scratch, ulong* written, long* totals, byte* records, ref EffectWriter next)");
             body.Line("var v = View(world, chunk);");
             body.Line("Masks(world, ref v);");
             if (Assigns)
@@ -170,7 +171,7 @@ namespace Sv.Rules.Emit
                 body.Line("var assign = stackalloc long[" + Text(layers.AssignIntrinsics.Count) + "];");
             }
 
-            body.Line("var a = new DecideArgs { Effects = effects, Outcomes = (Outcome*)records, Order = (int*)(records + (long)count * sizeof(Outcome)), Totals = " + (TotalsOutliveDecide ? "(long*)(scratch + " + Text(layers.DeltaIntrinsics.Count * Rows) + ")" : "totals") + ", Delta = scratch, Capacity = capacity"
+            body.Line("var a = new DecideArgs { Effects = effects, Outcomes = (Outcome*)records, Order = (int*)(records + (long)count * sizeof(Outcome)), Totals = " + (TotalsOutliveDecide ? "(long*)(scratch + " + Text(layers.DeltaIntrinsics.Count * Rows) + ")" : "totals") + ", Delta = scratch, Written = written, Capacity = capacity"
                 + (Assigns ? ", Assign = assign" : string.Empty) + " };");
             body.Line("var terms = stackalloc ShapeTerm[" + Text(ShapeCapacity) + "];");
             body.Line("var totalled = 0ul;");
@@ -403,7 +404,10 @@ namespace Sv.Rules.Emit
 
             for (var s = 0; s < layers.DeltaIntrinsics.Count; s++)
             {
+                body.Open("if (delta" + Text(s) + " != 0L)");
+                body.Line("Touch(a, " + Text(s) + ");");
                 body.Line("a.Delta[" + Text(s * Rows) + " + row] = EffectLaw.Saturate32(delta" + Text(s) + ");");
+                body.Close();
             }
 
             body.Close();
@@ -465,6 +469,19 @@ namespace Sv.Rules.Emit
                 case AssignMode.Min: return "RuleMath.Min(" + held + ", " + value + ")";
                 default: return value;
             }
+        }
+
+        void WriteTouch()
+        {
+            body.Blank();
+            body.Open("static void Touch(in DecideArgs a, int lane)");
+            body.Line("var word = a.Written + (lane >> 6);");
+            body.Line("var bit = 1ul << (lane & 63);");
+            body.Open("if ((*word & bit) == 0ul)");
+            body.Line("*word |= bit;");
+            body.Line("LaneMath.Fill(a.Delta + (lane << 6), 0);");
+            body.Close();
+            body.Close();
         }
 
         void WriteAssign()

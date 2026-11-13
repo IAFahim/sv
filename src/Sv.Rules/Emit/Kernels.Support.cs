@@ -163,6 +163,7 @@ namespace Sv.Rules.Emit
             file.Line("public int* Order;");
             file.Line("public long* Totals;");
             file.Line("public int* Delta;");
+            file.Line("public ulong* Written;");
             file.Line("public long* Faults;");
             if (Assigns)
             {
