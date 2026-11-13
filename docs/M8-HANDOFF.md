@@ -88,3 +88,22 @@ then item 3 (.NET twin fixtures), then item 4 (EditMode tests; the first one pro
 
 `eng/m8-run/gate.sh` and `eng/m8-run/locked.sh` were only on the first PC; they are now in the repo. They expect to be run from the sv-proto parent folder as `m8-run/...` and a scratch project `m8-harness` next to the repo: copy them to `<parent>/m8-run/`, rebuild the scratch project as described above, check the Unity editor path inside them for this PC, then run the first command: `COMPILE_ONLY=1 T=c2 bash m8-run/locked.sh m8-run/gate.sh`.
 Status at handoff: Unity 7000.0.0a16 batch compile gives error CS 0 and error BC 0 (6 nullable warnings); Burst has not compiled any job yet (it compiles on first schedule), so Buffer.MemoryCopy and Span.Clear in jobs are the first thing to test; no web search was done on that yet.
+
+## Third session (Linux PC, 2026-11-13): items 2 to 5 done, item 6 partly
+
+Environment here: Unity 7000.0.0a16 at ~/Unity/Hub/Editor/7000.0.0a16/Editor/Unity, scratch layout under ~/sv-proto (`m8-unity` symlink to the repo, `m8-harness` project, `m8-run` copies of eng/m8-run, `m8-out` logs, `_work` locks). A project needs an `Assets` folder or Unity says "Couldn't set project path". `eng/m8-run/*.sh` now pick Linux or Windows paths themselves (override with U, B, R, P, O, W). Rebuild: copy eng/m8-run/*.sh to `<parent>/m8-run/`, create `<parent>/m8-harness/{Assets,Packages,ProjectSettings}`, ProjectVersion.txt with `m_EditorVersion: 7000.0.0a16`, manifest as listed above, then `COMPILE_ONLY=1 T=c1 bash m8-run/locked.sh m8-run/gate.sh`.
+
+Fixed:
+- `eng/engine-sync.sh` pins `LC_ALL=C`. SHA256SUMS order depended on the locale, so check failed on any non-C locale.
+- `.gitattributes` pins `packs/**/*.sv.json` and scenario files to LF. `Rules.map.txt` holds character offsets into rules.sv.json, so a CRLF checkout changed committed output. The two committed maps under Tests/Packs were regenerated from LF files (PackHash unchanged).
+- csc.rsp with `-nullable:enable` next to the adapter, editor and test asmdefs: Unity compile is 0 error CS, 0 warning CS, 0 error BC.
+
+Burst: proven. Every phase runs as a Burst job (SvProbe 1, never 2) at 1 and 11 job workers, so Buffer.MemoryCopy and Span.Clear need no replacement. The probe itself is checked by a test that calls SvProbe.Mark from managed code and expects 2.
+
+Twin fixtures (item 3): `tests/Sv.Twin.Fixtures` records every scenario of packs/reference and packs/lego (main, bricks, layers) plus one synthetic case on the compiled .NET host as `Tests/Editor/Twin/<pack>/<set>/<name>.twin.txt`: spawn with slot, kill, stat op, send with resolved kind, and LastDigest after every frame, final Digest last. It asserts the journal is identical at 1 and 11 workers and equals the committed file. `SV_UPDATE_TWIN=1 dotnet test tests/Sv.Twin.Fixtures` rewrites the files. The synthetic case `reference/synthetic/seal_compact_shift` exists because SealCompact only runs when duplicate records merge in an early chunk and shift the chunks after it, which no scenario does.
+
+Unity EditMode tests (item 4, 76 in total, all green): TwinReplayTests (every journal at 1 and 11 workers, per-frame digests equal, all 11 phases seen as Burst across the set), BurstSmokeTests, HostBehaviourTests (main thread 0 B over 32 warm frames, SvStepSystem on a manual World including kill of released slots, reload hook disposes worlds), PackAuthoringTests.
+
+Authoring window (item 5): `Editor/SvPackAuthoring.cs` (load, edit, Validate with PackCompiler diagnostics, AddValue taking the next number from nextLane, Save, Generate via HostEmitter.Unity) and `Editor/SvPackWindow.cs` (Window > sv > Pack Authoring, IMGUI). Test: editor output equals the committed generated files for both packs.
+
+Item 6: a fresh copy of the working tree with a new project and no Library passes 76 of 76, 0 warnings after the test csc.rsp. Not done: a real `git clone` after these changes are committed, and the AGENTS.md layer table row for the Unity host beyond the note added there. Known and left alone: `Sv.Portable.Tests` GuardPageFuzz_PinsTodaysDefectSet fails on this PC and is not part of the five M8 suites.
