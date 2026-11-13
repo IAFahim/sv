@@ -53,7 +53,7 @@ namespace Sv.Pack
         static int Help()
         {
             Console.Error.WriteLine("usage:");
-            Console.Error.WriteLine("  sv pack <folder> [--out <dir>] [--namespace <ns>] [--diagnostics text|json]");
+            Console.Error.WriteLine("  sv pack <folder> [--out <dir>] [--namespace <ns>] [--diagnostics text|json] [--host dotnet|unity]");
             Console.Error.WriteLine("  sv run <pack> <scenario|folder> [--host reference|compiled] [--kernels <dll>] [--workers <n>] [--parts <n>] [--policy shared|dense]");
             Console.Error.WriteLine("  sv trace <pack> <scenario> [--entity <name>] [--frame <n>]");
             return Usage;
@@ -120,7 +120,8 @@ namespace Sv.Pack
             var rootNamespace = arguments.Option("--namespace") ?? "Game.Sv";
             var format = arguments.Option("--diagnostics") ?? "text";
             var source = PackFolder.Read(folder);
-            var key = PackFolder.InputKey(source, rootNamespace, ToolVersion);
+            var unity = arguments.Option("--host") == "unity";
+            var key = PackFolder.InputKey(source, rootNamespace, unity ? ToolVersion + "+unity" : ToolVersion);
             var keyPath = Path.Combine(output, KeyFile);
             if (File.Exists(keyPath) && File.ReadAllText(keyPath) == key)
             {
@@ -142,6 +143,11 @@ namespace Sv.Pack
             }
 
             files.Add(HostGlue.Emit(rootNamespace));
+            if (unity)
+            {
+                HostGlue.EmitUnity(plan, rootNamespace, files);
+            }
+
             Directory.CreateDirectory(output);
             var written = 0;
             for (var i = 0; i < files.Count; i++)
