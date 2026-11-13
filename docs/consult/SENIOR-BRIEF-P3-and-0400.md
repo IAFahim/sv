@@ -36,6 +36,25 @@ bits 19..12 kind (8), 11..4 channel (8), 3..2 origin (2), 1..0 depth (2)
 ```
 So inside one target the records are ordered by **source slot** first. That ordering is part of the definition (it decides fold order for non-commutative saturating arithmetic).
 
+## 1.0 UPDATE 2026-11-14 (read this first, it supersedes the numbers below where they differ)
+
+A third pass (branch merged into v3/m8-unity) took `r` from **20.88 to 17.64 ms**; the gate (8.3 ms) is still NOT met. Same-session interleaved, median of 5 x 50 frames, ms:
+
+| | send | seal | log | decide | commit | events | digest | end | total |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| r before | 0.76 | 4.64 | 1.19 | 10.18 | 1.23 | 0.15 | 2.32 | 0.26 | 20.88 |
+| r after | 0.77 | 4.28 | 1.22 | 8.42 | 1.29 | 0.15 | 1.13 | 0.27 | 17.64 |
+
+A 2.78 -> 2.36, B 7.66 -> 7.76 (unchanged, noise), C 28.45 -> 24.91, D 40.32 -> 35.45. All digests unchanged.
+
+What worked: (1) digest: event cells read only non-zero event words of a lane (digest 2.34 -> 1.16); (2) a per-frame **source-chunk table** (24 B per chunk, 375 KB, one parallel `Sources` phase of 0.17 ms: presence, mask of lanes still on the template, and the template's value row), so a cross-entity read of a lane still on the template is one load instead of three dependent loads (Decide 10.13 -> 8.96, then 8.42 with the value-row pointer); (3) Seal Order returns at the first descent and merges each row as it is sorted (Order -16%, total -1.7%). A real bug found on the way: the `Workers` pool read its generation counter on the worker thread, so a late-starting worker skipped the first Run and the pool hung (fixed, issue 0372).
+
+What did NOT work (so my earlier idea (6) is dead): software prefetch of source rows from Decide (r decide 10.36 -> 10.66), prefetch of the next chunk's table entries (9.76 -> 10.05), prefetch two chunks ahead in Seal Order (18.26 -> 18.35), Seal Count/Scatter with 22 parts instead of 64 (A -9.5%, B -2.7% but r +1.2%, C +1.3%), checking Shape every 8 records. Vector256 table build: bandwidth-bound at 0.17 ms.
+
+My current floor analysis (estimates, not counter-measured): about 120 MB of record traffic per frame over Send, Seal (3 passes), the input log and Decide, roughly 4 ms of bandwidth alone at ~30 GB/s; Decide about **40 ns of core time per record** (8.42 ms x ~5.5 effective cores / 1.17M records), compute and branch bound (per-record channel switch in mixed targets, 10-argument rule method calls, per-target settle and 18-lane delta fold) with source misses gone; Commit and Digest touch all 15,625 chunks every frame. Ideas NOT tried: carry source values in the record (contract change), run splitting (r has ~1.2 records per target so M12b does not apply), writer-side bucketing, fusing Seal and the input-log examine into one pass per chunk, Decide per channel in column-wise batches over a chunk instead of per target, per-chunk M12a (the lego pack cannot use it pack-wide because `immune_by_kind_mask` tells every channel apart, so it needs a per-chunk proof that no KindMask is set), an incremental digest. Rough estimate for more trims of the current shape: 15-16 ms, so a design change is needed.
+
+Because of this, the questions that matter most now are **A1 (what is Decide's 40 ns/record made of), A3 (Seal order and fusing passes), A5/A7 (batched, column-wise Decide), A8 (incremental digest) and A9 (floor and the smallest contract change)**. A2 is now answered by experiment (prefetch loops cost more than they save at this scale); you may still explain why.
+
 ## 1. The problem (Part A)
 
 The performance gate is: **frame total <= 8.3 ms at 1,000,000 entities with up to 1,000,000 records per frame, 11 workers (main thread + 10), digest every frame, 0 B managed allocation warm.**
