@@ -45,6 +45,7 @@ namespace Sv.Rules.Emit
         string Write()
         {
             WriteCounts();
+            WriteLone();
             WriteDecide();
             WriteTarget();
             WriteTouch();
@@ -160,6 +161,51 @@ namespace Sv.Rules.Emit
             body.Close();
         }
 
+        SortedSet<int> LoneChannels()
+        {
+            var channels = new SortedSet<int>();
+            for (var c = 0; c < schema.Channels.Length; c++)
+            {
+                channels.Add(schema.Channels[c].Id);
+            }
+
+            return channels;
+        }
+
+        void WriteLone()
+        {
+            body.Blank();
+            body.Open("public interface ILone");
+            body.Line("bool Lone { get; }");
+            body.Blank();
+            body.Line("int Channel { get; }");
+            body.Blank();
+            body.Line("ulong Bits { get; }");
+            body.Close();
+            WriteLoneStruct("Mixed", "false", "-1", "ulong.MaxValue");
+            if (!ChannelBits)
+            {
+                return;
+            }
+
+            foreach (var channel in LoneChannels())
+            {
+                WriteLoneStruct("Lone" + Text(channel), "true", Text(channel), Names.Hex(1ul << channel));
+            }
+        }
+
+        void WriteLoneStruct(string name, string lone, string channel, string bits)
+        {
+            body.Blank();
+            body.Open("public struct " + name + " : ILone");
+            body.Line("public bool Lone => " + lone + ";");
+            body.Blank();
+            body.Line("public int Channel => " + channel + ";");
+            body.Blank();
+            body.Line("public ulong Bits => " + bits + ";");
+            body.Close();
+        }
+
         void WriteDecide()
         {
             body.Blank();
@@ -192,7 +238,23 @@ namespace Sv.Rules.Emit
             body.Blank();
             body.Line("var row = target & 63;");
             body.Line("var self = 1ul << row;");
-            body.Line("totalled |= Target(world, ref v, a, ref next, target, row, self, first, at, present, terms);");
+            const string arguments = "(world, ref v, a, ref next, target, row, self, first, at, present, terms);";
+            if (ChannelBits)
+            {
+                body.Open("switch ((present & (present - 1ul)) == 0ul ? Bits.Tzcnt(present) : -1)");
+                foreach (var channel in LoneChannels())
+                {
+                    body.Line("case " + Text(channel) + ": totalled |= Target<Lone" + Text(channel) + ">" + arguments + " break;");
+                }
+
+                body.Line("default: totalled |= Target<Mixed>" + arguments + " break;");
+                body.Close();
+            }
+            else
+            {
+                body.Line("totalled |= Target<Mixed>" + arguments);
+            }
+
             body.Close();
             body.Blank();
             body.Line("return totalled;");
@@ -204,7 +266,8 @@ namespace Sv.Rules.Emit
         void WriteTarget()
         {
             body.Blank();
-            body.Open("static ulong Target(in WorldView world, ref ChunkView v, in DecideArgs a, ref EffectWriter next, int target, int row, ulong self, int first, int end, ulong present, ShapeTerm* terms)");
+            body.Open("static ulong Target<TPresent>(in WorldView world, ref ChunkView v, in DecideArgs a, ref EffectWriter next, int target, int row, ulong self, int first, int end, ulong present, ShapeTerm* terms) where TPresent : struct, ILone");
+            body.Line("present = default(TPresent).Lone ? default(TPresent).Bits : present;");
             body.Line("var untaken = -1;");
             for (var i = 0; i < layers.Emits.Count; i++)
             {
@@ -248,7 +311,7 @@ namespace Sv.Rules.Emit
             }
 
             body.Open("for (var r = first; r < end; r++)");
-            body.Line("Gate(world, ref v, a, row, self, r, terms);");
+            body.Line("Gate<TPresent>(world, ref v, a, row, self, r, terms);");
             if (reshapes.Count > 0)
             {
                 body.Open("if (!reshaped)");
@@ -440,10 +503,11 @@ namespace Sv.Rules.Emit
 
         void WriteSettle()
         {
+            body.Line("var channel = default(TPresent).Lone ? default(TPresent).Channel : EffectKey.Channel(a.Effects[r].Key);");
             body.Line("var survives = RuleMath.Taken(a.Outcomes[r]) != 0L || EffectKey.Depth(a.Effects[r].Key) <= untaken;");
             body.Line("a.Outcomes[r].Survives = survives ? 1 : 0;");
             body.Open("if (survives)");
-            body.Line("var index = ChannelIndex(EffectKey.Channel(a.Effects[r].Key));");
+            body.Line("var index = ChannelIndex(channel);");
             body.Open("if (index >= 0)");
             body.Line("var at = (index << 6) + row;");
             body.Line("a.Totals[at] = RuleMath.Add(a.Totals[at], RuleMath.Taken(a.Outcomes[r]));");
@@ -452,10 +516,10 @@ namespace Sv.Rules.Emit
             if (Assigns)
             {
                 body.Blank();
-                body.Open("if (" + InSet(AssignChannels(), "(long)EffectKey.Channel(a.Effects[r].Key)") + " && RuleMath.Taken(a.Outcomes[r]) != 0L)");
+                body.Open("if (" + InSet(AssignChannels(), "(long)channel") + " && RuleMath.Taken(a.Outcomes[r]) != 0L)");
                 body.Line("RuleMath.PerHit(a.Effects[r], a.Outcomes[r], 1, out var perHit, out _);");
                 body.Line("var from = EffectKey.Source(a.Effects[r].Key);");
-                body.Line("Assign(a, EffectKey.Channel(a.Effects[r].Key), perHit, from == EffectKey.NoSource ? -1L : from);");
+                body.Line("Assign(a, channel, perHit, from == EffectKey.NoSource ? -1L : from);");
                 body.Line("assigned = true;");
                 body.Close();
             }
@@ -600,10 +664,10 @@ namespace Sv.Rules.Emit
         {
             body.Blank();
             body.Line(Inline);
-            body.Open("static void Gate(in WorldView world, ref ChunkView v, in DecideArgs a, int row, ulong self, int r, ShapeTerm* terms)");
+            body.Open("static void Gate<TPresent>(in WorldView world, ref ChunkView v, in DecideArgs a, int row, ulong self, int r, ShapeTerm* terms) where TPresent : struct, ILone");
             body.Line("var effect = a.Effects[r];");
             body.Line("var state = default(GateState);");
-            body.Line("var channel = (int)EffectKey.Channel(effect.Key);");
+            body.Line("var channel = default(TPresent).Lone ? default(TPresent).Channel : (int)EffectKey.Channel(effect.Key);");
             WriteSwitch(kernel.Admit, kernel.AdmitAny, "effect");
             body.Line("var admitted = state.Decided == 0 || state.Admit != 0;");
             body.Line("var taken = 0;");

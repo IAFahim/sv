@@ -254,6 +254,276 @@ namespace Sv.Kernels.Lego
             }
         }
 
+        public interface ILone
+        {
+            bool Lone { get; }
+
+            int Channel { get; }
+
+            ulong Bits { get; }
+        }
+
+        public struct Mixed : ILone
+        {
+            public bool Lone => false;
+
+            public int Channel => -1;
+
+            public ulong Bits => ulong.MaxValue;
+        }
+
+        public struct Lone0 : ILone
+        {
+            public bool Lone => true;
+
+            public int Channel => 0;
+
+            public ulong Bits => 0x0000000000000001ul;
+        }
+
+        public struct Lone1 : ILone
+        {
+            public bool Lone => true;
+
+            public int Channel => 1;
+
+            public ulong Bits => 0x0000000000000002ul;
+        }
+
+        public struct Lone2 : ILone
+        {
+            public bool Lone => true;
+
+            public int Channel => 2;
+
+            public ulong Bits => 0x0000000000000004ul;
+        }
+
+        public struct Lone3 : ILone
+        {
+            public bool Lone => true;
+
+            public int Channel => 3;
+
+            public ulong Bits => 0x0000000000000008ul;
+        }
+
+        public struct Lone4 : ILone
+        {
+            public bool Lone => true;
+
+            public int Channel => 4;
+
+            public ulong Bits => 0x0000000000000010ul;
+        }
+
+        public struct Lone5 : ILone
+        {
+            public bool Lone => true;
+
+            public int Channel => 5;
+
+            public ulong Bits => 0x0000000000000020ul;
+        }
+
+        public struct Lone6 : ILone
+        {
+            public bool Lone => true;
+
+            public int Channel => 6;
+
+            public ulong Bits => 0x0000000000000040ul;
+        }
+
+        public struct Lone7 : ILone
+        {
+            public bool Lone => true;
+
+            public int Channel => 7;
+
+            public ulong Bits => 0x0000000000000080ul;
+        }
+
+        public struct Lone8 : ILone
+        {
+            public bool Lone => true;
+
+            public int Channel => 8;
+
+            public ulong Bits => 0x0000000000000100ul;
+        }
+
+        public struct Lone9 : ILone
+        {
+            public bool Lone => true;
+
+            public int Channel => 9;
+
+            public ulong Bits => 0x0000000000000200ul;
+        }
+
+        public struct Lone10 : ILone
+        {
+            public bool Lone => true;
+
+            public int Channel => 10;
+
+            public ulong Bits => 0x0000000000000400ul;
+        }
+
+        public struct Lone11 : ILone
+        {
+            public bool Lone => true;
+
+            public int Channel => 11;
+
+            public ulong Bits => 0x0000000000000800ul;
+        }
+
+        public struct Lone12 : ILone
+        {
+            public bool Lone => true;
+
+            public int Channel => 12;
+
+            public ulong Bits => 0x0000000000001000ul;
+        }
+
+        public struct Lone13 : ILone
+        {
+            public bool Lone => true;
+
+            public int Channel => 13;
+
+            public ulong Bits => 0x0000000000002000ul;
+        }
+
+        public struct Lone14 : ILone
+        {
+            public bool Lone => true;
+
+            public int Channel => 14;
+
+            public ulong Bits => 0x0000000000004000ul;
+        }
+
+        public struct Lone15 : ILone
+        {
+            public bool Lone => true;
+
+            public int Channel => 15;
+
+            public ulong Bits => 0x0000000000008000ul;
+        }
+
+        public struct Lone16 : ILone
+        {
+            public bool Lone => true;
+
+            public int Channel => 16;
+
+            public ulong Bits => 0x0000000000010000ul;
+        }
+
+        public struct Lone17 : ILone
+        {
+            public bool Lone => true;
+
+            public int Channel => 17;
+
+            public ulong Bits => 0x0000000000020000ul;
+        }
+
+        public struct Lone18 : ILone
+        {
+            public bool Lone => true;
+
+            public int Channel => 18;
+
+            public ulong Bits => 0x0000000000040000ul;
+        }
+
+        public struct Lone19 : ILone
+        {
+            public bool Lone => true;
+
+            public int Channel => 19;
+
+            public ulong Bits => 0x0000000000080000ul;
+        }
+
+        public struct Lone20 : ILone
+        {
+            public bool Lone => true;
+
+            public int Channel => 20;
+
+            public ulong Bits => 0x0000000000100000ul;
+        }
+
+        public struct Lone21 : ILone
+        {
+            public bool Lone => true;
+
+            public int Channel => 21;
+
+            public ulong Bits => 0x0000000000200000ul;
+        }
+
+        public struct Lone22 : ILone
+        {
+            public bool Lone => true;
+
+            public int Channel => 22;
+
+            public ulong Bits => 0x0000000000400000ul;
+        }
+
+        public struct Lone23 : ILone
+        {
+            public bool Lone => true;
+
+            public int Channel => 23;
+
+            public ulong Bits => 0x0000000000800000ul;
+        }
+
+        public struct Lone24 : ILone
+        {
+            public bool Lone => true;
+
+            public int Channel => 24;
+
+            public ulong Bits => 0x0000000001000000ul;
+        }
+
+        public struct Lone25 : ILone
+        {
+            public bool Lone => true;
+
+            public int Channel => 25;
+
+            public ulong Bits => 0x0000000002000000ul;
+        }
+
+        public struct Lone26 : ILone
+        {
+            public bool Lone => true;
+
+            public int Channel => 26;
+
+            public ulong Bits => 0x0000000004000000ul;
+        }
+
+        public struct Lone27 : ILone
+        {
+            public bool Lone => true;
+
+            public int Channel => 27;
+
+            public ulong Bits => 0x0000000008000000ul;
+        }
+
         public static ulong Decide(in WorldView world, int chunk, int capacity, Effect* effects, int count, int* scratch, ulong* written, long* totals, byte* records, ref EffectWriter next)
         {
             var v = View(world, chunk);
@@ -277,14 +547,46 @@ namespace Sv.Kernels.Lego
 
                 var row = target & 63;
                 var self = 1ul << row;
-                totalled |= Target(world, ref v, a, ref next, target, row, self, first, at, present, terms);
+                switch ((present & (present - 1ul)) == 0ul ? Bits.Tzcnt(present) : -1)
+                {
+                    case 0: totalled |= Target<Lone0>(world, ref v, a, ref next, target, row, self, first, at, present, terms); break;
+                    case 1: totalled |= Target<Lone1>(world, ref v, a, ref next, target, row, self, first, at, present, terms); break;
+                    case 2: totalled |= Target<Lone2>(world, ref v, a, ref next, target, row, self, first, at, present, terms); break;
+                    case 3: totalled |= Target<Lone3>(world, ref v, a, ref next, target, row, self, first, at, present, terms); break;
+                    case 4: totalled |= Target<Lone4>(world, ref v, a, ref next, target, row, self, first, at, present, terms); break;
+                    case 5: totalled |= Target<Lone5>(world, ref v, a, ref next, target, row, self, first, at, present, terms); break;
+                    case 6: totalled |= Target<Lone6>(world, ref v, a, ref next, target, row, self, first, at, present, terms); break;
+                    case 7: totalled |= Target<Lone7>(world, ref v, a, ref next, target, row, self, first, at, present, terms); break;
+                    case 8: totalled |= Target<Lone8>(world, ref v, a, ref next, target, row, self, first, at, present, terms); break;
+                    case 9: totalled |= Target<Lone9>(world, ref v, a, ref next, target, row, self, first, at, present, terms); break;
+                    case 10: totalled |= Target<Lone10>(world, ref v, a, ref next, target, row, self, first, at, present, terms); break;
+                    case 11: totalled |= Target<Lone11>(world, ref v, a, ref next, target, row, self, first, at, present, terms); break;
+                    case 12: totalled |= Target<Lone12>(world, ref v, a, ref next, target, row, self, first, at, present, terms); break;
+                    case 13: totalled |= Target<Lone13>(world, ref v, a, ref next, target, row, self, first, at, present, terms); break;
+                    case 14: totalled |= Target<Lone14>(world, ref v, a, ref next, target, row, self, first, at, present, terms); break;
+                    case 15: totalled |= Target<Lone15>(world, ref v, a, ref next, target, row, self, first, at, present, terms); break;
+                    case 16: totalled |= Target<Lone16>(world, ref v, a, ref next, target, row, self, first, at, present, terms); break;
+                    case 17: totalled |= Target<Lone17>(world, ref v, a, ref next, target, row, self, first, at, present, terms); break;
+                    case 18: totalled |= Target<Lone18>(world, ref v, a, ref next, target, row, self, first, at, present, terms); break;
+                    case 19: totalled |= Target<Lone19>(world, ref v, a, ref next, target, row, self, first, at, present, terms); break;
+                    case 20: totalled |= Target<Lone20>(world, ref v, a, ref next, target, row, self, first, at, present, terms); break;
+                    case 21: totalled |= Target<Lone21>(world, ref v, a, ref next, target, row, self, first, at, present, terms); break;
+                    case 22: totalled |= Target<Lone22>(world, ref v, a, ref next, target, row, self, first, at, present, terms); break;
+                    case 23: totalled |= Target<Lone23>(world, ref v, a, ref next, target, row, self, first, at, present, terms); break;
+                    case 24: totalled |= Target<Lone24>(world, ref v, a, ref next, target, row, self, first, at, present, terms); break;
+                    case 25: totalled |= Target<Lone25>(world, ref v, a, ref next, target, row, self, first, at, present, terms); break;
+                    case 26: totalled |= Target<Lone26>(world, ref v, a, ref next, target, row, self, first, at, present, terms); break;
+                    case 27: totalled |= Target<Lone27>(world, ref v, a, ref next, target, row, self, first, at, present, terms); break;
+                    default: totalled |= Target<Mixed>(world, ref v, a, ref next, target, row, self, first, at, present, terms); break;
+                }
             }
 
             return totalled;
         }
 
-        static ulong Target(in WorldView world, ref ChunkView v, in DecideArgs a, ref EffectWriter next, int target, int row, ulong self, int first, int end, ulong present, ShapeTerm* terms)
+        static ulong Target<TPresent>(in WorldView world, ref ChunkView v, in DecideArgs a, ref EffectWriter next, int target, int row, ulong self, int first, int end, ulong present, ShapeTerm* terms) where TPresent : struct, ILone
         {
+            present = default(TPresent).Lone ? default(TPresent).Bits : present;
             var untaken = -1;
             untaken = (v.C29 & self) != 0ul && untaken < 3 ? 3 : untaken;
             var used13 = 0L;
@@ -298,14 +600,15 @@ namespace Sv.Kernels.Lego
             a.Assign[3] = v.L32[row];
             for (var r = first; r < end; r++)
             {
-                Gate(world, ref v, a, row, self, r, terms);
+                Gate<TPresent>(world, ref v, a, row, self, r, terms);
                 if (!reshaped)
                 {
+                    var channel = default(TPresent).Lone ? default(TPresent).Channel : EffectKey.Channel(a.Effects[r].Key);
                     var survives = RuleMath.Taken(a.Outcomes[r]) != 0L || EffectKey.Depth(a.Effects[r].Key) <= untaken;
                     a.Outcomes[r].Survives = survives ? 1 : 0;
                     if (survives)
                     {
-                        var index = ChannelIndex(EffectKey.Channel(a.Effects[r].Key));
+                        var index = ChannelIndex(channel);
                         if (index >= 0)
                         {
                             var at = (index << 6) + row;
@@ -313,11 +616,11 @@ namespace Sv.Kernels.Lego
                         }
                     }
 
-                    if (In0((long)EffectKey.Channel(a.Effects[r].Key)) && RuleMath.Taken(a.Outcomes[r]) != 0L)
+                    if (In0((long)channel) && RuleMath.Taken(a.Outcomes[r]) != 0L)
                     {
                         RuleMath.PerHit(a.Effects[r], a.Outcomes[r], 1, out var perHit, out _);
                         var from = EffectKey.Source(a.Effects[r].Key);
-                        Assign(a, EffectKey.Channel(a.Effects[r].Key), perHit, from == EffectKey.NoSource ? -1L : from);
+                        Assign(a, channel, perHit, from == EffectKey.NoSource ? -1L : from);
                         assigned = true;
                     }
                 }
@@ -421,11 +724,12 @@ namespace Sv.Kernels.Lego
 
                 for (var r = first; r < end; r++)
                 {
+                    var channel = default(TPresent).Lone ? default(TPresent).Channel : EffectKey.Channel(a.Effects[r].Key);
                     var survives = RuleMath.Taken(a.Outcomes[r]) != 0L || EffectKey.Depth(a.Effects[r].Key) <= untaken;
                     a.Outcomes[r].Survives = survives ? 1 : 0;
                     if (survives)
                     {
-                        var index = ChannelIndex(EffectKey.Channel(a.Effects[r].Key));
+                        var index = ChannelIndex(channel);
                         if (index >= 0)
                         {
                             var at = (index << 6) + row;
@@ -433,11 +737,11 @@ namespace Sv.Kernels.Lego
                         }
                     }
 
-                    if (In0((long)EffectKey.Channel(a.Effects[r].Key)) && RuleMath.Taken(a.Outcomes[r]) != 0L)
+                    if (In0((long)channel) && RuleMath.Taken(a.Outcomes[r]) != 0L)
                     {
                         RuleMath.PerHit(a.Effects[r], a.Outcomes[r], 1, out var perHit, out _);
                         var from = EffectKey.Source(a.Effects[r].Key);
-                        Assign(a, EffectKey.Channel(a.Effects[r].Key), perHit, from == EffectKey.NoSource ? -1L : from);
+                        Assign(a, channel, perHit, from == EffectKey.NoSource ? -1L : from);
                         assigned = true;
                     }
                 }
@@ -765,11 +1069,11 @@ namespace Sv.Kernels.Lego
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        static void Gate(in WorldView world, ref ChunkView v, in DecideArgs a, int row, ulong self, int r, ShapeTerm* terms)
+        static void Gate<TPresent>(in WorldView world, ref ChunkView v, in DecideArgs a, int row, ulong self, int r, ShapeTerm* terms) where TPresent : struct, ILone
         {
             var effect = a.Effects[r];
             var state = default(GateState);
-            var channel = (int)EffectKey.Channel(effect.Key);
+            var channel = default(TPresent).Lone ? default(TPresent).Channel : (int)EffectKey.Channel(effect.Key);
             switch (channel)
             {
                 case 0: AdmitChannel0(world, ref v, a, row, self, effect, channel, ref state, terms); break;
