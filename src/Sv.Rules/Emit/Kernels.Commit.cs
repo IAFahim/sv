@@ -95,6 +95,7 @@ namespace Sv.Rules.Emit
                 body.Line("break;");
             }
 
+            body.Line("default: break;");
             body.Close();
             body.Blank();
             body.Open("if (via < 0)");
