@@ -1265,8 +1265,8 @@ namespace Sv.Kernels.Reference
                 {
                     var row = Bits.Tzcnt(rows);
                     rows &= rows - 1ul;
-                    enter |= RuleMath.Below(((long)v.L2[row]), ((long)StatLaw.Rescale(v.L0[row], 1, 1)), 30L, 100L) ? 1ul << row : 0ul;
-                    stay |= RuleMath.Below(((long)v.L2[row]), ((long)StatLaw.Rescale(v.L0[row], 1, 1)), 40L, 100L) ? 1ul << row : 0ul;
+                    enter |= ((((long)v.L2[row]) * 100L) < (((long)StatLaw.Rescale(v.L0[row], 1, 1)) * 30L)) ? 1ul << row : 0ul;
+                    stay |= ((((long)v.L2[row]) * 100L) < (((long)StatLaw.Rescale(v.L0[row], 1, 1)) * 40L)) ? 1ul << row : 0ul;
                 }
 
                 var next = (state & ~dirty) | (((~state & enter) | (state & stay)) & dirty);

@@ -932,7 +932,7 @@ namespace Sv.Kernels.Lego
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         static void AdmitChannel0Group3(in WorldView world, ref ChunkView v, in DecideArgs a, int row, ulong self, in Effect effect, int channel, ref GateState state, ShapeTerm* terms)
         {
-            if (((((long)RuleMath.Read(world, a.Capacity, (long)EffectKey.Source(effect.Key), 27, 0)) > 0L) && RuleMath.Below(((long)v.L8[row]), ((long)StatLaw.Rescale(v.L0[row], 1, 1)), 20L, 100L)))
+            if (((((long)RuleMath.Read(world, a.Capacity, (long)EffectKey.Source(effect.Key), 27, 0)) > 0L) && ((((long)v.L8[row]) * 100L) < (((long)StatLaw.Rescale(v.L0[row], 1, 1)) * 20L))))
             {
                 terms[state.Terms] = new ShapeTerm(ShapeKind.Added, 100000);
                 state.Terms++;
@@ -3597,8 +3597,8 @@ namespace Sv.Kernels.Lego
                 {
                     var row = Bits.Tzcnt(rows);
                     rows &= rows - 1ul;
-                    enter |= RuleMath.Below(((long)v.L8[row]), ((long)StatLaw.Rescale(v.L0[row], 1, 1)), 30L, 100L) ? 1ul << row : 0ul;
-                    stay |= RuleMath.Below(((long)v.L8[row]), ((long)StatLaw.Rescale(v.L0[row], 1, 1)), 40L, 100L) ? 1ul << row : 0ul;
+                    enter |= ((((long)v.L8[row]) * 100L) < (((long)StatLaw.Rescale(v.L0[row], 1, 1)) * 30L)) ? 1ul << row : 0ul;
+                    stay |= ((((long)v.L8[row]) * 100L) < (((long)StatLaw.Rescale(v.L0[row], 1, 1)) * 40L)) ? 1ul << row : 0ul;
                 }
 
                 var next = (state & ~dirty) | (((~state & enter) | (state & stay)) & dirty);
