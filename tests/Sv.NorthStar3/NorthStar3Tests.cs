@@ -12,6 +12,8 @@ namespace Sv.NorthStar3
         const int Frames = 9;
         const int Amount = 3;
         const int Ticks = 4;
+        const ulong PinnedHurt = 0xA566FAEC8837BA57ul;
+        const ulong PinnedHealed = 0x2D6A06776AE25DCBul;
         readonly ITestOutputHelper output;
 
         public NorthStar3Tests(ITestOutputHelper output) => this.output = output;
@@ -166,11 +168,16 @@ namespace Sv.NorthStar3
             Assert.Equal(live.Ticks, rig.Ticks);
         }
 
-        static Run Hurt(int damage, int workers)
+        static Run Hurt(int damage, int workers, int healAt = -1)
         {
             using var rig = new Rig(Plan, workers);
             var victim = rig.Spawn("player");
             var causes = new List<Cause> { new Cause(0, Rig.Hit, victim, damage) };
+            if (healAt >= 0)
+            {
+                causes.Add(new Cause(healAt, Rig.Heal, victim, 40));
+            }
+
             var digests = new List<ulong>();
             for (var frame = 0L; frame < Frames; frame++)
             {
@@ -270,6 +277,17 @@ namespace Sv.NorthStar3
             }
 
             return folder!.FullName;
+        }
+
+        [Fact]
+        public void Leaving_the_event_stops_the_requested_timeline_and_the_run_is_pinned()
+        {
+            var healed = Hurt(75, 1, 2);
+            output.WriteLine(string.Join(" ", healed.Digests.Select(d => d.ToString("X16"))));
+            Assert.True(healed.Ticks.Count < Ticks, "the heal should leave LowHealth and stop the poison before its fourth tick, got " + healed.Ticks.Count);
+            Assert.Equal(Hurt(75, 1, 2).Digests, Hurt(75, 11, 2).Digests);
+            Assert.Equal(PinnedHealed, healed.Digests[^1]);
+            Assert.Equal(PinnedHurt, Hurt(75, 1).Digests[^1]);
         }
     }
 }

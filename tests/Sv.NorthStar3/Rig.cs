@@ -20,6 +20,7 @@ namespace Sv.NorthStar3
         public const int Aim = 0;
         public const int Start = 1;
         public const int Hit = 2;
+        public const int Heal = 3;
         public const ushort PoisonTimeline = 1;
 
         static byte[]? library;
@@ -73,6 +74,10 @@ namespace Sv.NorthStar3
             if (cause.Kind == Aim)
             {
                 Host.Send(cause.Slot, EffectKey.NoSource, 0, (int)Channel.Aim, cause.Value, 1, Origin.Direct);
+            }
+            else if (cause.Kind == Heal)
+            {
+                Host.Send(cause.Slot, EffectKey.NoSource, 0, (int)Channel.Healing, cause.Value, 1, Origin.Direct);
             }
             else if (cause.Kind == Hit)
             {
