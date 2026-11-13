@@ -116,7 +116,14 @@ namespace Sv.Rules.Reference
 
         public int Value { get; }
 
+        public StatLayer Layer { get; }
+
         public RefStatOp(StatOpKind kind, int slot, int stat, long handle, ShapeKind shape, int value)
+            : this(kind, slot, stat, handle, shape, value, StatLayer.Core)
+        {
+        }
+
+        public RefStatOp(StatOpKind kind, int slot, int stat, long handle, ShapeKind shape, int value, StatLayer layer)
         {
             Kind = kind;
             Slot = slot;
@@ -124,6 +131,7 @@ namespace Sv.Rules.Reference
             Handle = handle;
             Shape = shape;
             Value = value;
+            Layer = layer;
         }
 
         public static int Compare(RefStatOp first, RefStatOp second)
@@ -138,7 +146,27 @@ namespace Sv.Rules.Reference
                 return first.Handle < second.Handle ? -1 : 1;
             }
 
-            return first.Kind < second.Kind ? -1 : first.Kind > second.Kind ? 1 : 0;
+            if (first.Kind != second.Kind)
+            {
+                return first.Kind < second.Kind ? -1 : 1;
+            }
+
+            if (first.Layer != second.Layer)
+            {
+                return first.Layer < second.Layer ? -1 : 1;
+            }
+
+            if (first.Stat != second.Stat)
+            {
+                return first.Stat < second.Stat ? -1 : 1;
+            }
+
+            if (first.Shape != second.Shape)
+            {
+                return first.Shape < second.Shape ? -1 : 1;
+            }
+
+            return first.Value < second.Value ? -1 : first.Value > second.Value ? 1 : 0;
         }
     }
 

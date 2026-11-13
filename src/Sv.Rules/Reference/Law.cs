@@ -148,6 +148,33 @@ namespace Sv.Rules.Reference
             return value;
         }
 
+        public static int StatFold(int start, List<ShapeEntry> core, List<ShapeEntry> external)
+        {
+            var afterCore = StatFold(start, core);
+            return external.Count == 0 ? afterCore : StatFold(afterCore, external);
+        }
+
+        public static int Derived(int source, int coefficient, int sourceScale, int targetScale)
+        {
+            var from = ScaleStep(sourceScale);
+            var to = ScaleStep(targetScale);
+            var wide = (BigInteger)source * coefficient;
+            return from >= to
+                ? Clamp32(BigInteger.Divide(wide, (BigInteger)Whole * (from / to)))
+                : Clamp32(BigInteger.Divide(wide * (to / from), Whole));
+        }
+
+        public static int CurveBucket(int value, int min, int step, int length)
+        {
+            if (length <= 1 || step <= 0 || value <= min)
+            {
+                return 0;
+            }
+
+            var index = ((long)value - min) / step;
+            return index >= length ? length - 1 : (int)index;
+        }
+
         static int ShapeOrder(ShapeEntry first, ShapeEntry second) =>
             first.Kind != second.Kind ? first.Kind.CompareTo(second.Kind) : first.Value.CompareTo(second.Value);
 

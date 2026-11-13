@@ -45,6 +45,38 @@ namespace Sv.Rules
                     writer.Key("scale").Int(row.Scale).KeyDone();
                 }
 
+                if (row.Derive.Length > 0)
+                {
+                    writer.Key("derive").BeginArray();
+                    for (var d = 0; d < row.Derive.Length; d++)
+                    {
+                        var source = row.Derive[d];
+                        var from = schema.Find(ValueClass.Stat, source.From);
+                        writer.BeginObject().Key("from").String(from == null ? string.Empty : from.Name).KeyDone();
+                        if (source.IsCurve)
+                        {
+                            var fromScale = from == null ? StatLaw.MinScale : from.Scale;
+                            writer.Key("min").Scaled(source.CurveMin, fromScale).KeyDone()
+                                .Key("step").Scaled(source.CurveStep, fromScale).KeyDone()
+                                .Key("curve").BeginArray();
+                            for (var k = 0; k < source.Curve.Length; k++)
+                            {
+                                writer.Scaled(source.Curve[k], row.Scale);
+                            }
+
+                            writer.EndArray().KeyDone();
+                        }
+                        else
+                        {
+                            writer.Key("coefficient").Scaled(source.Coefficient, StatLaw.Whole).KeyDone();
+                        }
+
+                        writer.EndObject();
+                    }
+
+                    writer.EndArray().KeyDone();
+                }
+
                 writer.EndObject();
             }
 
@@ -140,6 +172,11 @@ namespace Sv.Rules
                         if (modifier.PerCount)
                         {
                             writer.Key("perCount").Bool(true).KeyDone();
+                        }
+
+                        if (modifier.Layer != StatLayer.Core)
+                        {
+                            writer.Key("layer").String("external").KeyDone();
                         }
 
                         writer.EndObject();

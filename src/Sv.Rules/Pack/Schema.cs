@@ -33,6 +33,36 @@ namespace Sv.Rules
         public static int EventId(int lane, int word) => (lane << EventWordShift) | (word & (EventWords - 1));
     }
 
+    public readonly struct StatDerive
+    {
+        public int From { get; }
+
+        public int Coefficient { get; }
+
+        public int[] Curve { get; }
+
+        public int CurveMin { get; }
+
+        public int CurveStep { get; }
+
+        public bool IsCurve => Curve.Length > 0;
+
+        StatDerive(int from, int coefficient, int[] curve, int curveMin, int curveStep)
+        {
+            From = from;
+            Coefficient = coefficient;
+            Curve = curve;
+            CurveMin = curveMin;
+            CurveStep = curveStep;
+        }
+
+        public static StatDerive CreateLinear(int from, int coefficient) =>
+            new StatDerive(from, coefficient, System.Array.Empty<int>(), 0, 1);
+
+        public static StatDerive CreateCurve(int from, int[] curve, int curveMin, int curveStep) =>
+            new StatDerive(from, 0, curve, curveMin, curveStep);
+    }
+
     public sealed class ValueDef
     {
         public int Id { get; }
@@ -57,14 +87,22 @@ namespace Sv.Rules
 
         public AssignMode IntoMode { get; }
 
+        public StatDerive[] Derive { get; }
+
         public ValueDef(int id, string name, ValueClass valueClass, IntrinsicRole role, int intDefault, int scale, bool eventDefault, bool timeline, int into, int offset)
-            : this(id, name, valueClass, role, intDefault, scale, eventDefault, timeline, into, offset, AssignMode.Add)
+            : this(id, name, valueClass, role, intDefault, scale, eventDefault, timeline, into, offset, AssignMode.Add, System.Array.Empty<StatDerive>())
         {
         }
 
         public ValueDef(int id, string name, ValueClass valueClass, IntrinsicRole role, int intDefault, int scale, bool eventDefault, bool timeline, int into, int offset, AssignMode intoMode)
+            : this(id, name, valueClass, role, intDefault, scale, eventDefault, timeline, into, offset, intoMode, System.Array.Empty<StatDerive>())
+        {
+        }
+
+        public ValueDef(int id, string name, ValueClass valueClass, IntrinsicRole role, int intDefault, int scale, bool eventDefault, bool timeline, int into, int offset, AssignMode intoMode, StatDerive[]? derive)
         {
             IntoMode = intoMode;
+            Derive = derive ?? System.Array.Empty<StatDerive>();
             Id = id;
             Name = name;
             Class = valueClass;
@@ -92,17 +130,25 @@ namespace Sv.Rules
 
         public bool PerCount { get; }
 
+        public StatLayer Layer { get; }
+
         public StatModifier(int stat, ShapeKind kind, int value)
-            : this(stat, kind, value, false)
+            : this(stat, kind, value, false, StatLayer.Core)
         {
         }
 
         public StatModifier(int stat, ShapeKind kind, int value, bool perCount)
+            : this(stat, kind, value, perCount, StatLayer.Core)
+        {
+        }
+
+        public StatModifier(int stat, ShapeKind kind, int value, bool perCount, StatLayer layer)
         {
             Stat = stat;
             Kind = kind;
             Value = value;
             PerCount = perCount;
+            Layer = layer;
         }
     }
 

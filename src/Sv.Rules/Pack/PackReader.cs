@@ -272,9 +272,22 @@ namespace Sv.Rules
             return StatLaw.MinScale;
         }
 
+        readonly struct PendingDerive
+        {
+            public readonly ValueDef Row;
+            public readonly JsonValue Node;
+
+            public PendingDerive(ValueDef row, JsonValue node)
+            {
+                Row = row;
+                Node = node;
+            }
+        }
+
         void ReadValues(JsonValue[] rows)
         {
             var statRows = new Rows<ValueDef>();
+            var pendingDerives = new Rows<PendingDerive>();
             var intrinsicRows = new Rows<ValueDef>();
             var eventRows = new Rows<ValueDef>();
             var channelRows = new Rows<ValueDef>();
@@ -290,9 +303,15 @@ namespace Sv.Rules
                     continue;
                 }
 
-                CheckKeys(row, new[] { "id", "lane", "word", "name", "class", "default", "scale", "role", "timeline", "into", "mode" });
+                CheckKeys(row, new[] { "id", "lane", "word", "name", "class", "default", "scale", "role", "timeline", "into", "mode", "derive" });
                 var name = RequireString(row, "name");
                 var className = RequireString(row, "class");
+                var deriveNode = row.Find("derive");
+                if (deriveNode != null && string.CompareOrdinal(className, "stat") != 0)
+                {
+                    Error(DiagnosticCode.BadValue, deriveNode, "\"derive\" is only for stats");
+                }
+
                 switch (className)
                 {
                     case "stat":
@@ -301,7 +320,13 @@ namespace Sv.Rules
                         var scale = OptionalScale(row);
                         var fallback = row.Find("default");
                         var value = fallback == null ? 0 : RequireScaled(fallback, scale, "a stat default");
-                        statRows.Add(new ValueDef(id, name, ValueClass.Stat, IntrinsicRole.Plain, value, scale, false, false, -1, row.Offset));
+                        var statRow = new ValueDef(id, name, ValueClass.Stat, IntrinsicRole.Plain, value, scale, false, false, -1, row.Offset);
+                        statRows.Add(statRow);
+                        if (deriveNode != null)
+                        {
+                            pendingDerives.Add(new PendingDerive(statRow, deriveNode));
+                        }
+
                         break;
                     }
 
@@ -399,6 +424,20 @@ namespace Sv.Rules
             }
 
             stats = Sorted(statRows);
+            for (var i = 0; i < stats.Length; i++)
+            {
+                for (var p = 0; p < pendingDerives.Count; p++)
+                {
+                    if (ReferenceEquals(pendingDerives[p].Row, stats[i]))
+                    {
+                        var derives = ReadDerives(stats[i], pendingDerives[p].Node, stats);
+                        var s = stats[i];
+                        stats[i] = new ValueDef(s.Id, s.Name, s.Class, s.Role, s.IntDefault, s.Scale, s.EventDefault, s.Timeline, s.Into, s.Offset, s.IntoMode, derives);
+                        break;
+                    }
+                }
+            }
+
             intrinsics = Sorted(intrinsicRows);
             events = Sorted(eventRows);
             kinds = Sorted(kindRows);
@@ -444,6 +483,128 @@ namespace Sv.Rules
             }
 
             return mode;
+        }
+
+        StatDerive[] ReadDerives(ValueDef target, JsonValue node, ValueDef[] allStats)
+        {
+            if (node.Kind == JsonKind.Object)
+            {
+                return ReadSingleDerive(target, node, allStats, out var item) ? new[] { item } : System.Array.Empty<StatDerive>();
+            }
+
+            if (node.Kind != JsonKind.Array)
+            {
+                Error(DiagnosticCode.WrongType, node, "\"derive\" must be an object or array");
+                return System.Array.Empty<StatDerive>();
+            }
+
+            if (node.Items.Length == 0)
+            {
+                Error(DiagnosticCode.BadValue, node, "\"derive\" array must not be empty");
+                return System.Array.Empty<StatDerive>();
+            }
+
+            var list = new Rows<StatDerive>();
+            for (var i = 0; i < node.Items.Length; i++)
+            {
+                if (ReadSingleDerive(target, node.Items[i], allStats, out var item))
+                {
+                    list.Add(item);
+                }
+            }
+
+            return list.ToArray();
+        }
+
+        bool ReadSingleDerive(ValueDef target, JsonValue entry, ValueDef[] allStats, out StatDerive derive)
+        {
+            derive = default;
+            if (entry.Kind != JsonKind.Object)
+            {
+                Error(DiagnosticCode.WrongType, entry, "a derive entry must be an object");
+                return false;
+            }
+
+            CheckKeys(entry, new[] { "from", "coefficient", "curve", "min", "step" });
+            var fromName = RequireString(entry, "from");
+            var fromStat = FindName(allStats, fromName);
+            if (fromStat == null && fromName.Length > 0)
+            {
+                Error(DiagnosticCode.UnknownName, entry.Find("from") ?? entry, "\"from\" names no stat: " + fromName);
+            }
+
+            var coeffNode = entry.Find("coefficient");
+            var curveNode = entry.Find("curve");
+            var minNode = entry.Find("min");
+            var stepNode = entry.Find("step");
+            if (curveNode != null)
+            {
+                if (coeffNode != null)
+                {
+                    Error(DiagnosticCode.BadValue, coeffNode, "a curve derive cannot also set \"coefficient\"");
+                }
+
+                var curveValues = System.Array.Empty<int>();
+                if (curveNode.Kind != JsonKind.Array)
+                {
+                    Error(DiagnosticCode.WrongType, curveNode, "\"curve\" must be an array");
+                }
+                else if (curveNode.Items.Length == 0)
+                {
+                    Error(DiagnosticCode.BadValue, curveNode, "\"curve\" must not be empty");
+                }
+                else
+                {
+                    curveValues = new int[curveNode.Items.Length];
+                    for (var i = 0; i < curveValues.Length; i++)
+                    {
+                        curveValues[i] = RequireScaled(curveNode.Items[i], target.Scale, "a curve value");
+                    }
+                }
+
+                var fromScale = fromStat == null ? StatLaw.MinScale : fromStat.Scale;
+                var min = 0;
+                var step = 1;
+                if (minNode == null)
+                {
+                    Error(DiagnosticCode.MissingKey, entry, "a curve derive requires \"min\"");
+                }
+                else
+                {
+                    min = RequireScaled(minNode, fromScale, "a curve min");
+                }
+
+                if (stepNode == null)
+                {
+                    Error(DiagnosticCode.MissingKey, entry, "a curve derive requires \"step\"");
+                }
+                else
+                {
+                    step = RequireScaled(stepNode, fromScale, "a curve step");
+                    if (step <= 0)
+                    {
+                        Error(DiagnosticCode.BadValue, stepNode, "a curve step must be positive");
+                    }
+                }
+
+                derive = StatDerive.CreateCurve(fromStat == null ? -1 : fromStat.Id, curveValues, min, step);
+                return true;
+            }
+
+            if (minNode != null || stepNode != null)
+            {
+                Error(DiagnosticCode.BadValue, minNode ?? stepNode, "\"min\" and \"step\" require \"curve\"");
+            }
+
+            if (coeffNode == null)
+            {
+                Error(DiagnosticCode.MissingKey, entry, "a derive entry requires \"coefficient\" or \"curve\"");
+                return false;
+            }
+
+            var coeff = RequireScaled(coeffNode, StatLaw.Whole, "a derive coefficient");
+            derive = StatDerive.CreateLinear(fromStat == null ? -1 : fromStat.Id, coeff);
+            return true;
         }
 
         int LaneId(JsonValue row)
@@ -628,7 +789,7 @@ namespace Sv.Rules
                         for (var m = 0; m < list.Items.Length; m++)
                         {
                             var item = list.Items[m];
-                            CheckKeys(item, new[] { "stat", "added", "additive", "multi", "cap", "perCount" });
+                            CheckKeys(item, new[] { "stat", "added", "additive", "multi", "cap", "perCount", "layer" });
                             var stat = FindName(stats, item.Find("stat")?.Text ?? string.Empty);
                             if (stat == null)
                             {
@@ -636,9 +797,10 @@ namespace Sv.Rules
                                 continue;
                             }
 
+                            var layer = LayerOf(item);
                             if (ShapeOf(item, stat.Scale, out var kind, out var amount))
                             {
-                                modifiers.Add(new StatModifier(stat.Id, kind, amount, OptionalBool(item, "perCount", false)));
+                                modifiers.Add(new StatModifier(stat.Id, kind, amount, OptionalBool(item, "perCount", false), layer));
                             }
                             else
                             {
@@ -668,6 +830,30 @@ namespace Sv.Rules
             }
 
             cards = array;
+        }
+
+        StatLayer LayerOf(JsonValue item)
+        {
+            var layerRow = item.Find("layer");
+            if (layerRow == null)
+            {
+                return StatLayer.Core;
+            }
+
+            if (layerRow.Kind != JsonKind.String)
+            {
+                Error(DiagnosticCode.WrongType, layerRow, "\"layer\" must be \"core\" or \"external\"");
+                return StatLayer.Core;
+            }
+
+            switch (layerRow.Text)
+            {
+                case "core": return StatLayer.Core;
+                case "external": return StatLayer.External;
+                default:
+                    Error(DiagnosticCode.BadValue, layerRow, "layer is core or external");
+                    return StatLayer.Core;
+            }
         }
 
         bool ShapeOf(JsonValue item, int scale, out ShapeKind kind, out int amount)

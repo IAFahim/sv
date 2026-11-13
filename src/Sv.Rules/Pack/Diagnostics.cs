@@ -45,6 +45,7 @@ namespace Sv.Rules
         BadScale = 33,
         NotExact = 34,
         AssignConflict = 35,
+        CyclicStat = 36,
     }
 
     public readonly struct Diagnostic

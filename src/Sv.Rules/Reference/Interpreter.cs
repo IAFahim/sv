@@ -141,6 +141,7 @@ namespace Sv.Rules.Reference
         readonly PackSchema schema;
         readonly ContentPack pack;
         readonly AssignMode[] assignModes;
+        readonly int[] statOrder;
         RefState world;
         Trace? trace;
         StepFaults faults;
@@ -152,6 +153,7 @@ namespace Sv.Rules.Reference
             Options = options ?? new InterpreterOptions();
             schema = plan.Schema;
             pack = plan.Pack;
+            statOrder = plan.StatOrder;
             world = new RefState(schema, 0);
             faults = new StepFaults();
             assignModes = new AssignMode[schema.Intrinsics.Length];
@@ -269,6 +271,7 @@ namespace Sv.Rules.Reference
                         ApplyTemplate(entity, template);
                     }
 
+                    FoldDerived(entity);
                     entity.Status = SlotStatus.Live;
                     entity.Template = command.Template;
                     entity.PendingCheck = true;
@@ -313,6 +316,44 @@ namespace Sv.Rules.Reference
                         entity.Events[index] = setting.Level;
                         break;
                 }
+            }
+        }
+
+        void FoldDerived(RefEntity entity)
+        {
+            List<ShapeEntry>? core = null;
+            for (var o = 0; o < statOrder.Length; o++)
+            {
+                var s = statOrder[o];
+                var target = schema.Stats[s];
+                if (target.Derive.Length == 0)
+                {
+                    continue;
+                }
+
+                core ??= new List<ShapeEntry>();
+                core.Clear();
+                GatherDerived(entity, target, core);
+                entity.Stats[s] = ReferenceLaw.StatFold(entity.StatBase[s], core);
+            }
+        }
+
+        void GatherDerived(RefEntity entity, ValueDef target, List<ShapeEntry> core)
+        {
+            for (var d = 0; d < target.Derive.Length; d++)
+            {
+                var source = target.Derive[d];
+                var fromIndex = schema.IndexOf(ValueClass.Stat, source.From);
+                if (fromIndex < 0)
+                {
+                    continue;
+                }
+
+                var fromValue = entity.Stats[fromIndex];
+                var added = source.IsCurve
+                    ? source.Curve[ReferenceLaw.CurveBucket(fromValue, source.CurveMin, source.CurveStep, source.Curve.Length)]
+                    : ReferenceLaw.Derived(fromValue, source.Coefficient, schema.Stats[fromIndex].Scale, target.Scale);
+                core.Add(new ShapeEntry(ShapeKind.Added, added));
             }
         }
 
@@ -506,7 +547,7 @@ namespace Sv.Rules.Reference
             for (var i = 0; i < sorted.Count; i++)
             {
                 var op = sorted[i];
-                if (!world.IsLive(op.Slot) || schema.IndexOf(ValueClass.Stat, op.Stat) < 0)
+                if (!world.IsLive(op.Slot) || schema.IndexOf(ValueClass.Stat, op.Stat) < 0 || op.Layer > StatLayer.External)
                 {
                     faults.StatOpFault++;
                     continue;
@@ -527,7 +568,7 @@ namespace Sv.Rules.Reference
                         at++;
                     }
 
-                    modifiers.Insert(at, new HeldModifier(op.Handle, op.Stat, op.Shape, op.Value));
+                    modifiers.Insert(at, new HeldModifier(op.Handle, op.Stat, op.Shape, op.Value, op.Layer));
                 }
                 else if (op.Kind == StatOpKind.Remove && present)
                 {
@@ -543,7 +584,8 @@ namespace Sv.Rules.Reference
             }
 
             var changed = new List<bool[]>(world.Capacity);
-            var entries = new List<ShapeEntry>();
+            var coreEntries = new List<ShapeEntry>();
+            var externalEntries = new List<ShapeEntry>();
             for (var slot = 0; slot < world.Capacity; slot++)
             {
                 var flags = new bool[schema.Stats.Length];
@@ -554,10 +596,18 @@ namespace Sv.Rules.Reference
                     continue;
                 }
 
-                for (var s = 0; s < schema.Stats.Length; s++)
+                for (var o = 0; o < statOrder.Length; o++)
                 {
-                    var stat = schema.Stats[s].Id;
-                    entries.Clear();
+                    var s = statOrder[o];
+                    var statDef = schema.Stats[s];
+                    var stat = statDef.Id;
+                    coreEntries.Clear();
+                    externalEntries.Clear();
+                    if (statDef.Derive.Length > 0)
+                    {
+                        GatherDerived(entity, statDef, coreEntries);
+                    }
+
                     for (var c = 0; c < schema.Cards.Length; c++)
                     {
                         var card = schema.Cards[c];
@@ -572,7 +622,8 @@ namespace Sv.Rules.Reference
                             var modifier = card.Modifiers[m];
                             if (modifier.Stat == stat)
                             {
-                                entries.Add(new ShapeEntry(modifier.Kind, ReferenceLaw.CardTerm(modifier.Value, count, modifier.PerCount)));
+                                var targetList = modifier.Layer == StatLayer.Core ? coreEntries : externalEntries;
+                                targetList.Add(new ShapeEntry(modifier.Kind, ReferenceLaw.CardTerm(modifier.Value, count, modifier.PerCount)));
                             }
                         }
                     }
@@ -581,17 +632,18 @@ namespace Sv.Rules.Reference
                     {
                         if (entity.Modifiers[m].Stat == stat)
                         {
-                            entries.Add(new ShapeEntry(entity.Modifiers[m].Shape, entity.Modifiers[m].Value));
+                            var targetList = entity.Modifiers[m].Layer == StatLayer.Core ? coreEntries : externalEntries;
+                            targetList.Add(new ShapeEntry(entity.Modifiers[m].Shape, entity.Modifiers[m].Value));
                         }
                     }
 
                     var before = entity.Stats[s];
-                    var after = ReferenceLaw.StatFold(entity.StatBase[s], entries);
+                    var after = ReferenceLaw.StatFold(entity.StatBase[s], coreEntries, externalEntries);
                     entity.Stats[s] = after;
                     if (before != after)
                     {
                         flags[s] = true;
-                        Note("stat " + Trace.Slot(slot) + " " + schema.Stats[s].Name + " " + Trace.Number(before) + " -> " + Trace.Number(after));
+                        Note("stat " + Trace.Slot(slot) + " " + statDef.Name + " " + Trace.Number(before) + " -> " + Trace.Number(after));
                     }
                 }
             }

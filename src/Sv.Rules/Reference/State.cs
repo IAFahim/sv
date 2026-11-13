@@ -20,12 +20,20 @@ namespace Sv.Rules.Reference
 
         public int Value { get; }
 
+        public StatLayer Layer { get; }
+
         public HeldModifier(long handle, int stat, ShapeKind shape, int value)
+            : this(handle, stat, shape, value, StatLayer.Core)
+        {
+        }
+
+        public HeldModifier(long handle, int stat, ShapeKind shape, int value, StatLayer layer)
         {
             Handle = handle;
             Stat = stat;
             Shape = shape;
             Value = value;
+            Layer = layer;
         }
     }
 

@@ -55,6 +55,8 @@ namespace Sv.Rules
 
         public Diagnostic[] Warnings { get; }
 
+        public int[] StatOrder { get; }
+
         public PackPlan(ContentPack pack, ulong hash, GateRule[] gateOrder, bool[] gateIsChannelState, bool[] emitWantsUntaken, int[] emitStratum, EmitRule[] selfOrder, Diagnostic[] warnings)
         {
             Pack = pack;
@@ -65,6 +67,87 @@ namespace Sv.Rules
             EmitStratum = emitStratum;
             SelfOrder = selfOrder;
             Warnings = warnings;
+            StatOrder = ComputeStatOrder(pack.Schema, out _);
+        }
+
+        public static int[] ComputeStatOrder(PackSchema schema, out int cycleStat)
+        {
+            var stats = schema.Stats;
+            var count = stats.Length;
+            cycleStat = -1;
+            if (count == 0)
+            {
+                return Array.Empty<int>();
+            }
+
+            var waiting = new int[count];
+            for (var i = 0; i < count; i++)
+            {
+                var derives = stats[i].Derive;
+                for (var d = 0; d < derives.Length; d++)
+                {
+                    if (schema.IndexOf(ValueClass.Stat, derives[d].From) >= 0)
+                    {
+                        waiting[i]++;
+                    }
+                }
+            }
+
+            var order = new int[count];
+            var done = new bool[count];
+            var placed = 0;
+            while (placed < count)
+            {
+                var next = -1;
+                for (var i = 0; i < count; i++)
+                {
+                    if (!done[i] && waiting[i] == 0)
+                    {
+                        next = i;
+                        break;
+                    }
+                }
+
+                if (next < 0)
+                {
+                    for (var i = 0; i < count; i++)
+                    {
+                        if (!done[i])
+                        {
+                            if (cycleStat < 0)
+                            {
+                                cycleStat = i;
+                            }
+
+                            order[placed++] = i;
+                        }
+                    }
+
+                    break;
+                }
+
+                order[placed++] = next;
+                done[next] = true;
+                var nextId = stats[next].Id;
+                for (var i = 0; i < count; i++)
+                {
+                    if (done[i])
+                    {
+                        continue;
+                    }
+
+                    var derives = stats[i].Derive;
+                    for (var d = 0; d < derives.Length; d++)
+                    {
+                        if (derives[d].From == nextId)
+                        {
+                            waiting[i]--;
+                        }
+                    }
+                }
+            }
+
+            return order;
         }
 
         public PackSchema Schema => Pack.Schema;
@@ -260,6 +343,7 @@ namespace Sv.Rules
                 CheckFlow(pack.Flows[i]);
             }
 
+            CheckStats();
             CheckFolds();
             CheckEvents();
             CheckAssignModes();
@@ -943,6 +1027,34 @@ namespace Sv.Rules
                 {
                     Error(DiagnosticCode.UnknownName, flow, null, Named(flow) + ": a term names a missing intrinsic or channel");
                 }
+            }
+        }
+
+        void CheckStats()
+        {
+            for (var i = 0; i < schema.Stats.Length; i++)
+            {
+                var stat = schema.Stats[i];
+                for (var d = 0; d < stat.Derive.Length; d++)
+                {
+                    var derive = stat.Derive[d];
+                    if (schema.IndexOf(ValueClass.Stat, derive.From) < 0)
+                    {
+                        Diagnostics.Error(DiagnosticCode.UnknownName, PackSource.ValuesFile, stat.Offset, -1, -1, stat.Name + " derives from unknown stat id " + Text(derive.From));
+                    }
+
+                    if (derive.IsCurve && derive.CurveStep <= 0)
+                    {
+                        Diagnostics.Error(DiagnosticCode.BadValue, PackSource.ValuesFile, stat.Offset, -1, -1, stat.Name + " curve step must be positive");
+                    }
+                }
+            }
+
+            PackPlan.ComputeStatOrder(schema, out var cycleStat);
+            if (cycleStat >= 0)
+            {
+                var stat = schema.Stats[cycleStat];
+                Diagnostics.Error(DiagnosticCode.CyclicStat, PackSource.ValuesFile, stat.Offset, -1, -1, "stat " + stat.Name + " forms a derived-stat cycle");
             }
         }
 
