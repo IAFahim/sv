@@ -1,0 +1,15 @@
+twin 1
+pack lego 9A043301EA06000E
+scenario immunity_masks
+capacity 65536
+frames 1
+frame 0
+spawn 10 0
+spawn 2 64
+spawn 3 128
+send 0 64 2 0 10 1 0
+send 0 64 2 1 10 1 0
+send 0 128 3 0 10 1 0
+send 0 128 3 2 5 1 0
+digest 92A70B00E559B25D
+final 92A70B00E559B25D

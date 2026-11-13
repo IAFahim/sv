@@ -1,0 +1,25 @@
+twin 1
+pack lego 9A043301EA06000E
+scenario cooldown
+capacity 65536
+frames 5
+frame 0
+spawn 12 0
+send 0 4194303 0 11 1 1 0
+send 0 4194303 0 4 1 1 1
+digest 8AD4C3D3887D4F06
+frame 1
+send 0 4194303 0 11 1 1 0
+send 0 4194303 0 4 1 1 1
+digest AA434C9BF50B937A
+frame 2
+send 0 4194303 0 4 1 1 1
+digest 8924C5E927F2F96A
+frame 3
+send 0 4194303 0 4 1 1 1
+digest E7D97CBB21DC4BA2
+frame 4
+send 0 4194303 0 11 1 1 0
+send 0 4194303 0 4 1 1 1
+digest 5FD5ADA96A3585E5
+final 5FD5ADA96A3585E5

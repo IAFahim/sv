@@ -1,0 +1,24 @@
+twin 1
+pack lego 9A043301EA06000E
+scenario stun_counter
+capacity 65536
+frames 4
+frame 0
+spawn 0 0
+spawn 0 1
+send 0 1 0 6 2 1 0
+send 0 4194303 0 4 1 1 1
+send 0 4194303 0 7 1 1 0
+digest 4F2F428CF6D8B5F9
+frame 1
+send 0 4194303 0 4 1 1 1
+send 0 4194303 0 7 1 1 0
+digest 61F4BF03C7057934
+frame 2
+send 0 4194303 0 4 1 1 1
+send 0 4194303 0 7 1 1 0
+digest BC7AE99B09F928A0
+frame 3
+send 0 4194303 0 7 1 1 0
+digest 47FA18613A92379B
+final 47FA18613A92379B

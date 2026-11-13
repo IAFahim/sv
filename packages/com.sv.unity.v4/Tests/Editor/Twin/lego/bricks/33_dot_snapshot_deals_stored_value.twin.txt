@@ -1,0 +1,25 @@
+twin 1
+pack lego 9A043301EA06000E
+scenario dot_snapshot_deals_stored_value
+capacity 65536
+frames 5
+frame 0
+spawn 20 0
+spawn 0 64
+send 0 64 0 25 1 1 0
+digest CB0696C3DA0B286D
+frame 1
+add 0 1 0 8 1 0
+send 64 4194303 0 4 1 1 1
+digest B14ED1D22CC928F7
+frame 2
+send 64 4194303 0 4 1 1 1
+send 0 64 0 25 1 1 0
+digest 8595CB80D265DC15
+frame 3
+send 64 4194303 0 4 1 1 1
+digest A6CB5CA82F88D051
+frame 4
+send 64 4194303 0 4 1 1 1
+digest 54DD3B5C7C2DB1B0
+final 54DD3B5C7C2DB1B0

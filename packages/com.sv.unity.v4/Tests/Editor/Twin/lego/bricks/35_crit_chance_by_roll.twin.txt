@@ -1,0 +1,32 @@
+twin 1
+pack lego 9A043301EA06000E
+scenario crit_chance_by_roll
+capacity 65536
+frames 8
+frame 0
+spawn 28 0
+spawn 19 64
+send 64 0 0 0 10 1 0
+digest DAB28A01B3B7D5FC
+frame 1
+send 64 0 0 0 10 1 0
+digest D1BB9B7CEC96FF65
+frame 2
+send 64 0 0 0 10 1 0
+digest 5F68A1DC6B844638
+frame 3
+send 64 0 0 0 10 1 0
+digest 99E4FD44CFA02249
+frame 4
+send 64 0 0 0 10 1 0
+digest 316FB380EC4A0C7F
+frame 5
+send 64 0 0 0 10 1 0
+digest 90254B9A9E1ABBD0
+frame 6
+send 64 0 0 0 10 1 0
+digest 18D0C59E3E47E034
+frame 7
+send 64 0 0 0 10 1 0
+digest CC7C73D9032C7BA9
+final CC7C73D9032C7BA9

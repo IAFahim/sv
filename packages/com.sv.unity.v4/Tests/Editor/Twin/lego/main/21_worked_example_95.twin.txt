@@ -1,0 +1,19 @@
+twin 1
+pack lego 9A043301EA06000E
+scenario worked_example_95
+capacity 65536
+frames 2
+frame 0
+spawn 26 0
+spawn 1 64
+spawn 2 128
+spawn 2 129
+send 0 64 1 0 40 1 0
+send 0 64 1 1 10 1 0
+send 0 128 2 0 20 1 0
+send 0 128 2 1 5 1 0
+send 0 129 2 3 15 1 0
+digest E88E5DB959C6BB23
+frame 1
+digest 6C423C98D55FF65D
+final 6C423C98D55FF65D

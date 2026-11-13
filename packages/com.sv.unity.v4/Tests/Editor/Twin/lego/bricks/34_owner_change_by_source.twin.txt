@@ -1,0 +1,19 @@
+twin 1
+pack lego 9A043301EA06000E
+scenario owner_change_by_source
+capacity 65536
+frames 3
+frame 0
+spawn 22 0
+spawn 22 1
+spawn 23 64
+send 64 0 0 24 1 1 0
+digest A450635A065C72E0
+frame 1
+send 64 4194303 0 3 10 1 0
+send 64 1 0 24 1 1 0
+digest 373B23BEAEA3ECB3
+frame 2
+send 64 4194303 0 3 10 1 0
+digest 6E94EC4288CAB6E9
+final 6E94EC4288CAB6E9

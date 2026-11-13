@@ -1,0 +1,20 @@
+twin 1
+pack lego 9A043301EA06000E
+scenario stack_buff_per_count_card
+capacity 65536
+frames 4
+frame 0
+spawn 0 0
+spawn 19 64
+send 0 4194303 0 27 3 1 0
+digest DD8FD9B47EAA9124
+frame 1
+send 64 0 0 0 100 1 0
+digest 931B466FC2F117B4
+frame 2
+send 0 4194303 0 27 4 1 0
+digest 9B2660E26B3B9C08
+frame 3
+send 64 0 0 0 100 1 0
+digest D26533DB57082930
+final D26533DB57082930

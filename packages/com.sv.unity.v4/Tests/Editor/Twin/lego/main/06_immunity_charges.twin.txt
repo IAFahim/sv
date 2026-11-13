@@ -1,0 +1,14 @@
+twin 1
+pack lego 9A043301EA06000E
+scenario immunity_charges
+capacity 65536
+frames 2
+frame 0
+spawn 9 0
+spawn 0 64
+send 0 64 0 0 10 3 0
+digest 6B9434E86E0AA242
+frame 1
+send 0 64 0 0 10 1 0
+digest D8D9FF5C8AFE1A66
+final D8D9FF5C8AFE1A66

@@ -1,0 +1,13 @@
+twin 1
+pack lego 9A043301EA06000E
+scenario lifesteal
+capacity 65536
+frames 2
+frame 0
+spawn 7 0
+spawn 0 64
+send 64 0 0 0 40 1 0
+digest 84E4ADDA06DFBDF7
+frame 1
+digest 86B23FDD3E7BE8CF
+final 86B23FDD3E7BE8CF

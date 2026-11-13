@@ -1,0 +1,31 @@
+twin 1
+pack lego 9A043301EA06000E
+scenario poison_over_time
+capacity 65536
+frames 5
+frame 0
+spawn 0 0
+spawn 0 1
+spawn 10 64
+send 0 1 0 5 3 1 0
+send 64 1 0 5 3 1 0
+send 0 4194303 0 4 1 1 1
+send 64 4194303 0 4 1 1 1
+digest C166CE31E9BCFF02
+frame 1
+send 0 4194303 0 4 1 1 1
+send 64 4194303 0 4 1 1 1
+digest B17B5C77C52E98C8
+frame 2
+send 0 4194303 0 4 1 1 1
+send 64 4194303 0 4 1 1 1
+digest 69997548D72FBAFA
+frame 3
+send 0 4194303 0 4 1 1 1
+send 64 4194303 0 4 1 1 1
+digest 05B6700700D82B42
+frame 4
+send 0 4194303 0 4 1 1 1
+send 64 4194303 0 4 1 1 1
+digest 05B6700700D82B42
+final 05B6700700D82B42
