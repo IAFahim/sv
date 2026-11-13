@@ -1,3 +1,5 @@
 src/Sv/*.cs text eol=lf
 packages/com.sv.core/** text eol=lf
 eng/*.sh text eol=lf
+packages/com.sv.engine/** text eol=lf
+packages/com.sv.unity.v4/** text eol=lf
