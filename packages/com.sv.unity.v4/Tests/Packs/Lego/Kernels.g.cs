@@ -3540,20 +3540,11 @@ namespace Sv.Kernels.Lego
         {
             var any = 0ul;
             var dirty = recheck;
-            var v = View(world, chunk);
 
             {
                 var state = Lanes.WordsOf(world, chunk, 38)[0];
-                var enter = 0ul;
-                var stay = 0ul;
-                var rows = dirty;
-                while (rows != 0ul)
-                {
-                    var row = Bits.Tzcnt(rows);
-                    rows &= rows - 1ul;
-                    enter |= (((long)v.L19[row]) > 0L) ? 1ul << row : 0ul;
-                    stay |= (((long)v.L19[row]) > 0L) ? 1ul << row : 0ul;
-                }
+                var enter = Mask.Positive(Lanes.Ints(world, chunk, 19));
+                var stay = enter;
 
                 var next = (state & ~dirty) | (((~state & enter) | (state & stay)) & dirty);
                 var edge = state ^ next;
@@ -3567,16 +3558,8 @@ namespace Sv.Kernels.Lego
 
             {
                 var state = Lanes.WordsOf(world, chunk, 38)[1];
-                var enter = 0ul;
-                var stay = 0ul;
-                var rows = dirty;
-                while (rows != 0ul)
-                {
-                    var row = Bits.Tzcnt(rows);
-                    rows &= rows - 1ul;
-                    enter |= (((long)v.L8[row]) <= 0L) ? 1ul << row : 0ul;
-                    stay |= (((long)v.L8[row]) <= 0L) ? 1ul << row : 0ul;
-                }
+                var enter = (~Mask.Positive(Lanes.Ints(world, chunk, 8)));
+                var stay = enter;
 
                 var next = (state & ~dirty) | (((~state & enter) | (state & stay)) & dirty);
                 var edge = state ^ next;
@@ -3590,16 +3573,8 @@ namespace Sv.Kernels.Lego
 
             {
                 var state = Lanes.WordsOf(world, chunk, 38)[2];
-                var enter = 0ul;
-                var stay = 0ul;
-                var rows = dirty;
-                while (rows != 0ul)
-                {
-                    var row = Bits.Tzcnt(rows);
-                    rows &= rows - 1ul;
-                    enter |= ((((long)v.L8[row]) * 100L) < (((long)StatLaw.Rescale(v.L0[row], 1, 1)) * 30L)) ? 1ul << row : 0ul;
-                    stay |= ((((long)v.L8[row]) * 100L) < (((long)StatLaw.Rescale(v.L0[row], 1, 1)) * 40L)) ? 1ul << row : 0ul;
-                }
+                var enter = Mask.Below(Lanes.Ints(world, chunk, 8), Lanes.Ints(world, chunk, 0), 30, 100);
+                var stay = Mask.Below(Lanes.Ints(world, chunk, 8), Lanes.Ints(world, chunk, 0), 40, 100);
 
                 var next = (state & ~dirty) | (((~state & enter) | (state & stay)) & dirty);
                 var edge = state ^ next;

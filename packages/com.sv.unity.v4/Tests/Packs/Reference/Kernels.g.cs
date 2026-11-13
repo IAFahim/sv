@@ -37,8 +37,6 @@ namespace Sv.Kernels.Reference
     public unsafe struct ChunkView
     {
         public int Chunk;
-        public int* L0;
-        public int* L2;
         public int* L3;
         public int* L15;
         public int* L16;
@@ -1254,20 +1252,11 @@ namespace Sv.Kernels.Reference
         {
             var any = 0ul;
             var dirty = recheck;
-            var v = View(world, chunk);
 
             {
                 var state = Lanes.WordsOf(world, chunk, 8)[0];
-                var enter = 0ul;
-                var stay = 0ul;
-                var rows = dirty;
-                while (rows != 0ul)
-                {
-                    var row = Bits.Tzcnt(rows);
-                    rows &= rows - 1ul;
-                    enter |= ((((long)v.L2[row]) * 100L) < (((long)StatLaw.Rescale(v.L0[row], 1, 1)) * 30L)) ? 1ul << row : 0ul;
-                    stay |= ((((long)v.L2[row]) * 100L) < (((long)StatLaw.Rescale(v.L0[row], 1, 1)) * 40L)) ? 1ul << row : 0ul;
-                }
+                var enter = Mask.Below(Lanes.Ints(world, chunk, 2), Lanes.Ints(world, chunk, 0), 30, 100);
+                var stay = Mask.Below(Lanes.Ints(world, chunk, 2), Lanes.Ints(world, chunk, 0), 40, 100);
 
                 var next = (state & ~dirty) | (((~state & enter) | (state & stay)) & dirty);
                 var edge = state ^ next;
@@ -1335,8 +1324,6 @@ namespace Sv.Kernels.Reference
         {
             var v = default(ChunkView);
             v.Chunk = chunk;
-            v.L0 = Lanes.Ints(world, chunk, 0);
-            v.L2 = Lanes.Ints(world, chunk, 2);
             v.L3 = Lanes.Ints(world, chunk, 3);
             v.L15 = Lanes.Ints(world, chunk, 15);
             v.L16 = Lanes.Ints(world, chunk, 16);

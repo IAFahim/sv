@@ -178,7 +178,17 @@ namespace Sv.Rules.Emit
                 }
 
                 body.Line("var dirty = recheck;");
-                body.Line("var v = View(world, chunk);");
+                var looped = false;
+                for (var i = 0; i < layers.Events.Count; i++)
+                {
+                    looped |= EventMask(layers.Events[i].Enter) == null || EventMask(layers.Events[i].Stay) == null;
+                }
+
+                if (looped)
+                {
+                    body.Line("var v = View(world, chunk);");
+                }
+
                 var scope = new ExprScope { Totals = TotalsOutliveDecide ? "totals" : null, FreshEvents = true, Capacity = "0" };
                 for (var i = 0; i < layers.Events.Count; i++)
                 {
@@ -199,15 +209,26 @@ namespace Sv.Rules.Emit
             body.Blank();
             body.Block();
             body.Line("var state = Lanes.WordsOf(world, chunk, " + lane + ")[" + word + "];");
-            body.Line("var enter = 0ul;");
-            body.Line("var stay = 0ul;");
-            body.Line("var rows = dirty;");
-            body.Open("while (rows != 0ul)");
-            body.Line("var row = Bits.Tzcnt(rows);");
-            body.Line("rows &= rows - 1ul;");
-            body.Line("enter |= " + Bool(raised.Enter, scope) + " ? 1ul << row : 0ul;");
-            body.Line("stay |= " + Bool(raised.Stay, scope) + " ? 1ul << row : 0ul;");
-            body.Close();
+            var enterMask = EventMask(raised.Enter);
+            var stayMask = EventMask(raised.Stay);
+            if (enterMask != null && stayMask != null)
+            {
+                body.Line("var enter = " + enterMask + ";");
+                body.Line("var stay = " + (stayMask == enterMask ? "enter" : stayMask) + ";");
+            }
+            else
+            {
+                body.Line("var enter = 0ul;");
+                body.Line("var stay = 0ul;");
+                body.Line("var rows = dirty;");
+                body.Open("while (rows != 0ul)");
+                body.Line("var row = Bits.Tzcnt(rows);");
+                body.Line("rows &= rows - 1ul;");
+                body.Line("enter |= " + Bool(raised.Enter, scope) + " ? 1ul << row : 0ul;");
+                body.Line("stay |= " + Bool(raised.Stay, scope) + " ? 1ul << row : 0ul;");
+                body.Close();
+            }
+
             body.Blank();
             body.Line("var next = (state & ~dirty) | (((~state & enter) | (state & stay)) & dirty);");
             body.Line("var edge = state ^ next;");
@@ -217,6 +238,144 @@ namespace Sv.Rules.Emit
             body.Line("((ulong*)Lanes.Writable(world, ref writer, chunk, " + lane + "))[" + word + "] = next;");
             body.Close();
             body.Close();
+        }
+
+        string? EventMask(Expression e)
+        {
+            switch (e.Op)
+            {
+                case Op.BoolConst:
+                    return e.Integer != 0 ? "ulong.MaxValue" : "0ul";
+                case Op.And:
+                case Op.Or:
+                {
+                    if (e.Args.Length == 0)
+                    {
+                        return e.Op == Op.And ? "ulong.MaxValue" : "0ul";
+                    }
+
+                    var parts = new string[e.Args.Length];
+                    for (var i = 0; i < parts.Length; i++)
+                    {
+                        var part = EventMask(e.Args[i]);
+                        if (part == null)
+                        {
+                            return null;
+                        }
+
+                        parts[i] = part;
+                    }
+
+                    return "(" + string.Join(e.Op == Op.And ? " & " : " | ", parts) + ")";
+                }
+
+                case Op.Not:
+                {
+                    var inner = EventMask(e.Args[0]);
+                    return inner == null ? null : "(~" + inner + ")";
+                }
+
+                case Op.Cell:
+                    return e.Subject == Subject.Self && e.Class == ValueClass.Event
+                        ? "Lanes.WordsOf(world, chunk, " + Text(LaneNumbers.LaneOfEvent(e.Id)) + ")[" + Text(LaneNumbers.WordOfEvent(e.Id)) + "]"
+                        : null;
+                case Op.Eq:
+                case Op.Ne:
+                case Op.Lt:
+                case Op.Le:
+                case Op.Gt:
+                case Op.Ge:
+                    return CompareMask(e.Op, e.Args[0], e.Args[1]);
+                case Op.Below:
+                {
+                    var value = PlainLane(e.Args[0]);
+                    var whole = PlainLane(e.Args[1]);
+                    if (value == null || whole == null || !IntConstant(e.Args[2], out var numerator) || !IntConstant(e.Args[3], out var denominator))
+                    {
+                        return null;
+                    }
+
+                    return "Mask.Below(" + value + ", " + whole + ", " + Names.Int(numerator) + ", " + Names.Int(denominator) + ")";
+                }
+
+                default:
+                    return null;
+            }
+        }
+
+        string? CompareMask(Op op, Expression left, Expression right)
+        {
+            if (left.Type != ExprType.Int || right.Type != ExprType.Int)
+            {
+                return null;
+            }
+
+            var first = PlainLane(left);
+            var second = PlainLane(right);
+            if (first != null && second != null)
+            {
+                switch (op)
+                {
+                    case Op.Lt: return "Mask.Less(" + first + ", " + second + ")";
+                    case Op.Gt: return "Mask.Greater(" + first + ", " + second + ")";
+                    case Op.Le: return "(~Mask.Greater(" + first + ", " + second + "))";
+                    case Op.Ge: return "(~Mask.Less(" + first + ", " + second + "))";
+                    case Op.Eq: return "(~Mask.Differ(" + first + ", " + second + "))";
+                    default: return "Mask.Differ(" + first + ", " + second + ")";
+                }
+            }
+
+            int constant;
+            if (first != null && IntConstant(right, out constant))
+            {
+                return LaneAgainst(op, first, constant);
+            }
+
+            if (second != null && IntConstant(left, out constant))
+            {
+                var mirrored = op == Op.Lt ? Op.Gt : op == Op.Gt ? Op.Lt : op == Op.Le ? Op.Ge : op == Op.Ge ? Op.Le : op;
+                return LaneAgainst(mirrored, second, constant);
+            }
+
+            return null;
+        }
+
+        static string? LaneAgainst(Op op, string lane, int constant)
+        {
+            var positive = "Mask.Positive(" + lane + ")";
+            var nonZero = "Mask.NonZero(" + lane + ")";
+            switch (op)
+            {
+                case Op.Eq: return constant == 0 ? "(~" + nonZero + ")" : "Mask.EqualTo(" + lane + ", " + Names.Int(constant) + ")";
+                case Op.Ne: return constant == 0 ? nonZero : "(~Mask.EqualTo(" + lane + ", " + Names.Int(constant) + "))";
+                case Op.Gt: return constant == 0 ? positive : constant == -1 ? "((~" + nonZero + ") | " + positive + ")" : null;
+                case Op.Le: return constant == 0 ? "(~" + positive + ")" : constant == -1 ? "(" + nonZero + " & (~" + positive + "))" : null;
+                case Op.Ge: return constant == 1 ? positive : constant == 0 ? "((~" + nonZero + ") | " + positive + ")" : null;
+                default: return constant == 1 ? "(~" + positive + ")" : constant == 0 ? "(" + nonZero + " & (~" + positive + "))" : null;
+            }
+        }
+
+        string? PlainLane(Expression e)
+        {
+            if (e.Op != Op.Cell || e.Subject != Subject.Self)
+            {
+                return null;
+            }
+
+            var plain = e.Class == ValueClass.Intrinsic || (e.Class == ValueClass.Stat && ScaleOfStat(e.Id) == 1);
+            return plain ? "Lanes.Ints(world, chunk, " + Text(e.Id) + ")" : null;
+        }
+
+        static bool IntConstant(Expression e, out int value)
+        {
+            value = 0;
+            if ((e.Op != Op.IntConst && e.Op != Op.KindConst && e.Op != Op.ChannelConst) || e.Integer < int.MinValue || e.Integer > int.MaxValue)
+            {
+                return false;
+            }
+
+            value = (int)e.Integer;
+            return true;
         }
 
         void WriteEdgeEmits()
