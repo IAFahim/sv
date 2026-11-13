@@ -110,7 +110,7 @@ namespace Sv.Host
                     var modifier = card.Modifiers[m];
                     if (Holds(schema, card, modifier))
                     {
-                        cards[at++] = new CardTerm(schema.Stats[schema.IndexOf(ValueClass.Stat, modifier.Stat)].Lane, schema.Intrinsics[schema.IndexOf(ValueClass.Intrinsic, card.Intrinsic)].Lane, modifier.Kind, modifier.Value);
+                        cards[at++] = new CardTerm(schema.Stats[schema.IndexOf(ValueClass.Stat, modifier.Stat)].Lane, schema.Intrinsics[schema.IndexOf(ValueClass.Intrinsic, card.Intrinsic)].Lane, modifier.Kind, modifier.Value, modifier.PerCount);
                     }
                 }
             }

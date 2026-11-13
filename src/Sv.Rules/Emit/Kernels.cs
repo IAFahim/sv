@@ -36,11 +36,16 @@ namespace Sv.Rules.Emit
 
         string Held(int guard) => guard < 0 ? "true" : "(v.C" + Text(guard) + " & self) != 0ul";
 
+        bool Assigns => layers.AssignIntrinsics.Count > 0;
+
+        int AssignSlot(int intrinsic) => layers.AssignIntrinsics.IndexOf(intrinsic);
+
         string Write()
         {
             WriteCounts();
             WriteDecide();
             WriteTarget();
+            WriteAssign();
             WriteGate();
             WriteDispatch(kernel.Admit, kernel.AdmitAny, "Admit");
             WriteSelfAdmit();
@@ -141,7 +146,13 @@ namespace Sv.Rules.Emit
             body.Open("public static ulong Decide(in WorldView world, int chunk, int capacity, Effect* effects, int count, int* scratch, byte* records, ref EffectWriter next)");
             body.Line("var v = View(world, chunk);");
             body.Line("Masks(world, ref v);");
-            body.Line("var a = new DecideArgs { Effects = effects, Outcomes = (Outcome*)records, Order = (int*)(records + (long)count * sizeof(Outcome)), Totals = (long*)(scratch + " + Text(layers.DeltaIntrinsics.Count * Rows) + "), Delta = scratch, Capacity = capacity };");
+            if (Assigns)
+            {
+                body.Line("var assign = stackalloc long[" + Text(layers.AssignIntrinsics.Count) + "];");
+            }
+
+            body.Line("var a = new DecideArgs { Effects = effects, Outcomes = (Outcome*)records, Order = (int*)(records + (long)count * sizeof(Outcome)), Totals = (long*)(scratch + " + Text(layers.DeltaIntrinsics.Count * Rows) + "), Delta = scratch, Capacity = capacity"
+                + (Assigns ? ", Assign = assign" : string.Empty) + " };");
             body.Line("var terms = stackalloc ShapeTerm[" + Text(ShapeCapacity) + "];");
             body.Line("var totalled = 0ul;");
             body.Line("var at = 0;");
@@ -187,6 +198,11 @@ namespace Sv.Rules.Emit
                 {
                     WriteAbsorb(gate, gate.Rule.Absorbs[e]);
                 }
+
+                for (var e = 0; e < gate.Rule.Spends.Length; e++)
+                {
+                    WriteSpend(gate, gate.Rule.Spends[e]);
+                }
             }
 
             body.Blank();
@@ -231,6 +247,23 @@ namespace Sv.Rules.Emit
             body.Close();
             body.Close();
             body.Close();
+            if (Assigns)
+            {
+                body.Blank();
+                for (var k = 0; k < layers.AssignIntrinsics.Count; k++)
+                {
+                    body.Line("a.Assign[" + Text(k) + "] = " + Lane(layers.AssignIntrinsics[k]) + "[row];");
+                }
+
+                body.Open("for (var r = first; r < end; r++)");
+                body.Open("if (RuleMath.Taken(a.Outcomes[r]) != 0L)");
+                body.Line("RuleMath.PerHit(a.Effects[r], a.Outcomes[r], 1, out var perHit, out _);");
+                body.Line("var from = EffectKey.Source(a.Effects[r].Key);");
+                body.Line("Assign(a, EffectKey.Channel(a.Effects[r].Key), perHit, from == EffectKey.NoSource ? -1L : from);");
+                body.Close();
+                body.Close();
+            }
+
             for (var i = 0; i < layers.SelfOrder.Count; i++)
             {
                 var emit = layers.SelfOrder[i];
@@ -258,7 +291,17 @@ namespace Sv.Rules.Emit
                     var term = flow.Rule.Terms[t];
                     var slot = Text(layers.DeltaIntrinsics.IndexOf(term.Intrinsic));
                     var from = ChannelIndex(term.Channel);
-                    body.Line("delta" + slot + " = RuleMath.Add(delta" + slot + ", " + (term.Sign > 0 ? "" : "RuleMath.Negate(") + "a.Totals[" + Text(from * Rows) + " + row]" + (term.Sign > 0 ? "" : ")") + ");");
+                    var total = "a.Totals[" + Text(from * Rows) + " + row]";
+                    if (term.Assigns)
+                    {
+                        var held = "a.Assign[" + Text(AssignSlot(term.Intrinsic)) + "]";
+                        body.Open("if (" + total + " != 0L)");
+                        body.Line(held + " = " + AssignText(term.Mode, held, total) + ";");
+                        body.Close();
+                        continue;
+                    }
+
+                    body.Line("delta" + slot + " = RuleMath.Add(delta" + slot + ", " + (term.Sign > 0 ? "" : "RuleMath.Negate(") + total + (term.Sign > 0 ? "" : ")") + ");");
                 }
 
                 body.Close();
@@ -266,7 +309,7 @@ namespace Sv.Rules.Emit
 
             for (var c = 0; c < schema.Channels.Length; c++)
             {
-                var into = schema.Channels[c].Into;
+                var into = schema.Channels[c].Assigns ? -1 : schema.Channels[c].Into;
                 var slot = into >= 0 ? layers.DeltaIntrinsics.IndexOf(into) : -1;
                 if (slot < 0)
                 {
@@ -283,11 +326,79 @@ namespace Sv.Rules.Emit
                 body.Line("delta" + slot + " = RuleMath.Add(delta" + slot + ", -used" + Text(budget) + ");");
             }
 
+            for (var k = 0; k < layers.AssignIntrinsics.Count; k++)
+            {
+                var intrinsic = layers.AssignIntrinsics[k];
+                var slot = Text(layers.DeltaIntrinsics.IndexOf(intrinsic));
+                body.Line("delta" + slot + " = RuleMath.Add(delta" + slot + ", RuleMath.Subtract(a.Assign[" + Text(k) + "], " + Lane(intrinsic) + "[row]));");
+            }
+
             for (var s = 0; s < layers.DeltaIntrinsics.Count; s++)
             {
                 body.Line("a.Delta[" + Text(s * Rows) + " + row] = EffectLaw.Saturate32(delta" + Text(s) + ");");
             }
 
+            body.Close();
+        }
+
+        static string AssignText(AssignMode mode, string held, string value)
+        {
+            switch (mode)
+            {
+                case AssignMode.Max: return "RuleMath.Max(" + held + ", " + value + ")";
+                case AssignMode.Min: return "RuleMath.Min(" + held + ", " + value + ")";
+                default: return value;
+            }
+        }
+
+        void WriteAssign()
+        {
+            if (!Assigns)
+            {
+                return;
+            }
+
+            body.Blank();
+            body.Open("static void Assign(in DecideArgs a, int channel, int amount, long source)");
+            body.Open("switch (channel)");
+            for (var c = 0; c < schema.Channels.Length; c++)
+            {
+                var row = schema.Channels[c];
+                var k = row.Assigns ? AssignSlot(row.Into) : -1;
+                if (k < 0)
+                {
+                    continue;
+                }
+
+                var held = "a.Assign[" + Text(k) + "]";
+                var value = row.IntoMode == AssignMode.Source ? "source" : "(long)amount";
+                body.Line("case " + Text(row.Id) + ": " + held + " = " + AssignText(row.IntoMode, held, value) + "; return;");
+            }
+
+            body.Line("default: return;");
+            body.Close();
+            body.Close();
+        }
+
+        void WriteSpend(GateIr gate, int budgetLane)
+        {
+            var budget = Text(budgetLane);
+            unit.EmittedRules.Add(gate.Rule.Id);
+            body.Blank();
+            body.Open("if (" + Held(gate.When.Guard) + ")");
+            body.Line("var budget = (long)" + Lane(budgetLane) + "[row];");
+            body.Open("for (var r = first; r < end; r++)");
+            body.Line("var effect = a.Effects[r];");
+            var scope = RecordScope(null);
+            scope.RuleId = gate.Rule.Id;
+            body.Open("if (a.Outcomes[r].Admitted != 0 && " + Condition(gate.When, scope, false) + ")");
+            body.Line("var remaining = (budget < 0L ? 0L : budget) - used" + budget + ";");
+            body.Line("var outcome = a.Outcomes + r;");
+            body.Line("var take = remaining <= 0L ? 0L : remaining < outcome->TakenHits ? remaining : outcome->TakenHits;");
+            body.Line("outcome->TakenHits = (int)take;");
+            body.Line("used" + budget + " += take;");
+            body.Close();
+            body.Close();
             body.Close();
         }
 
@@ -300,7 +411,9 @@ namespace Sv.Rules.Emit
             body.Line("var candidates = 0;");
             body.Open("for (var r = first; r < end; r++)");
             body.Line("var effect = a.Effects[r];");
-            body.Open("if (a.Outcomes[r].Admitted != 0 && " + Condition(gate.When, RecordScope(null), false) + ")");
+            var scope = RecordScope(null);
+            scope.RuleId = gate.Rule.Id;
+            body.Open("if (a.Outcomes[r].Admitted != 0 && " + Condition(gate.When, scope, false) + ")");
             body.Line("a.Order[candidates] = r;");
             body.Line("candidates++;");
             body.Close();
@@ -492,6 +605,7 @@ namespace Sv.Rules.Emit
         {
             var gate = gateCase.Gate;
             unit.EmittedRules.Add(gate.Rule.Id);
+            scope.RuleId = gate.Rule.Id;
             var condition = Condition(gateCase.When, scope, false);
             if (spaced)
             {
@@ -527,7 +641,8 @@ namespace Sv.Rules.Emit
             for (var s = 0; s < gate.Rule.Shapes.Length; s++)
             {
                 var shape = gate.Rule.Shapes[s];
-                body.Line("terms[state.Terms] = new ShapeTerm(ShapeKind." + shape.Kind.ToString() + ", " + Names.Int(shape.Value) + ");");
+                var value = shape.Cell == null ? Names.Int(shape.Value) : ScaledCell(shape.Cell, scope, shape.UnitScale);
+                body.Line("terms[state.Terms] = new ShapeTerm(ShapeKind." + shape.Kind.ToString() + ", " + value + ");");
                 body.Line("state.Terms++;");
             }
 
@@ -565,7 +680,7 @@ namespace Sv.Rules.Emit
                 body.Line("return;");
                 body.Close();
                 body.Blank();
-                var scope = new ExprScope { Source = "EffectKey.NoSource", GroupFrom = "first", GroupTo = "end", GroupLimit = limit, FrameFrom = "first", FrameTo = "end", Totals = selfPart ? "a.Totals" : null };
+                var scope = new ExprScope { Source = "EffectKey.NoSource", GroupFrom = "first", GroupTo = "end", GroupLimit = limit, FrameFrom = "first", FrameTo = "end", Totals = selfPart ? "a.Totals" : null, RuleId = rule.Id };
                 body.Open("if (" + Condition(emit.When, scope, false) + ")");
                 WriteActions(emit, selfPart, scope, false, "first", "end");
                 body.Close();
@@ -589,7 +704,7 @@ namespace Sv.Rules.Emit
                 body.Line("depth = a.Outcomes[r].Survives != 0 && at <= " + limit + " && at > depth ? at : depth;");
                 body.Close();
                 body.Blank();
-                var scope = new ExprScope { Source = "source", GroupFrom = "groupFrom", GroupTo = "groupTo", GroupLimit = limit, FrameFrom = "first", FrameTo = "end", Totals = selfPart ? "a.Totals" : null };
+                var scope = new ExprScope { Source = "source", GroupFrom = "groupFrom", GroupTo = "groupTo", GroupLimit = limit, FrameFrom = "first", FrameTo = "end", Totals = selfPart ? "a.Totals" : null, RuleId = rule.Id };
                 body.Open("if (depth >= 0 && " + Condition(emit.When, scope, false) + ")");
                 WriteActions(emit, selfPart, scope, false, "groupFrom", "groupTo");
                 body.Close();
@@ -607,6 +722,7 @@ namespace Sv.Rules.Emit
                     FrameFrom = "first",
                     FrameTo = "end",
                     Totals = selfPart ? "a.Totals" : null,
+                    RuleId = rule.Id,
                 };
                 body.Open("for (var r = groupFrom; r < groupTo; r++)");
                 body.Line("var effect = a.Effects[r];");
@@ -647,9 +763,9 @@ namespace Sv.Rules.Emit
             body.Line("var channel = " + (action.SameChannel ? "(int)EffectKey.Channel(effect.Key)" : Text(action.Channel)) + ";");
             body.Line("var amount = 0;");
             body.Line("var hits = 1;");
-            if (action.Amount == AmountKind.Constant)
+            if (action.Amount == AmountKind.Constant || action.Amount == AmountKind.Cell)
             {
-                body.Line("amount = " + Names.Int(action.Constant) + ";");
+                body.Line("amount = " + (action.Cell == null ? Names.Int(action.Constant) : AmountCell(action.Cell, scope)) + ";");
                 if (rule.Per == EmitPer.Hit && perRecord)
                 {
                     body.Line("hits = effect.Hits;");
@@ -672,6 +788,11 @@ namespace Sv.Rules.Emit
             {
                 body.Line("amount = StatLaw.ScaleBy(amount, " + Lane(action.ScaleStat) + "[row], " + Text(ScaleOfStat(action.ScaleStat)) + ");");
             }
+            else if (action.ScaleIntrinsic >= 0)
+            {
+                var intrinsic = schema.Find(ValueClass.Intrinsic, action.ScaleIntrinsic);
+                body.Line("amount = StatLaw.ScaleBy(amount, " + Lane(action.ScaleIntrinsic) + "[row], " + Text(intrinsic == null ? 1 : intrinsic.Scale) + ");");
+            }
 
             body.Open("if (amount != 0 && hits != 0)");
             if (selfPart)
@@ -681,6 +802,13 @@ namespace Sv.Rules.Emit
                 body.Open("if (index >= 0)");
                 body.Line("var at = (index << 6) + row;");
                 body.Line("a.Totals[at] = RuleMath.Add(a.Totals[at], EffectLaw.Term(shaped, hits));");
+                if (Assigns)
+                {
+                    body.Open("if (EffectLaw.Term(shaped, hits) != 0L)");
+                    body.Line("Assign(a, channel, shaped, target);");
+                    body.Close();
+                }
+
                 body.Close();
             }
             else

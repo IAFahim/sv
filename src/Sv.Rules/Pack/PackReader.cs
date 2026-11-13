@@ -55,6 +55,7 @@ namespace Sv.Rules
         string file = string.Empty;
         int ruleId = -1;
         int nextLane;
+        ulong seed;
         ValueDef[] stats = new ValueDef[0];
         ValueDef[] intrinsics = new ValueDef[0];
         ValueDef[] events = new ValueDef[0];
@@ -86,7 +87,7 @@ namespace Sv.Rules
             file = PackSource.RulesFile;
             var ruleRows = Document(source.Rules, false, out _);
             ScanChains(ruleRows);
-            var schema = new PackSchema(nextLane, stats, intrinsics, events, channels, kinds, tags.ToArray(), cards, templates);
+            var schema = new PackSchema(nextLane, stats, intrinsics, events, channels, kinds, tags.ToArray(), cards, templates, seed);
             return ReadRules(ruleRows, schema);
         }
 
@@ -122,7 +123,7 @@ namespace Sv.Rules
                 return new JsonValue[0];
             }
 
-            CheckKeys(root, needsCounter ? new[] { "schema", "nextLane", "rows" } : new[] { "schema", "rows" });
+            CheckKeys(root, needsCounter ? new[] { "schema", "nextLane", "seed", "rows" } : new[] { "schema", "rows" });
             var schema = root.Find("schema");
             if (schema == null || !schema.TryInt(out var version) || version != PackReader.SchemaVersion)
             {
@@ -136,6 +137,13 @@ namespace Sv.Rules
                 {
                     Error(DiagnosticCode.LaneCounter, lane ?? root, "\"nextLane\" must be an integer in 0.." + Text(LaneNumbers.MaxLanes));
                     counter = 0;
+                }
+
+                var seedRow = root.Find("seed");
+                if (seedRow != null && (!seedRow.IsInteger || !ulong.TryParse(seedRow.Text, NumberStyles.None, CultureInfo.InvariantCulture, out seed)))
+                {
+                    Error(DiagnosticCode.WrongType, seedRow, "\"seed\" must be a non-negative integer that fits 64 bits");
+                    seed = 0ul;
                 }
             }
 
@@ -282,7 +290,7 @@ namespace Sv.Rules
                     continue;
                 }
 
-                CheckKeys(row, new[] { "id", "lane", "word", "name", "class", "default", "scale", "role", "timeline", "into" });
+                CheckKeys(row, new[] { "id", "lane", "word", "name", "class", "default", "scale", "role", "timeline", "into", "mode" });
                 var name = RequireString(row, "name");
                 var className = RequireString(row, "class");
                 switch (className)
@@ -361,13 +369,14 @@ namespace Sv.Rules
                         }
 
                         var intoRow = row.Find("into");
+                        var mode = IntoMode(row, intoRow);
                         if (intoRow != null)
                         {
                             intoNames.Add(intoRow.Text);
                             intoRows.Add(intoRow);
                         }
 
-                        channelRows.Add(new ValueDef(id, name, ValueClass.Channel, IntrinsicRole.Plain, 0, 1, false, OptionalBool(row, "timeline", false), intoRow == null ? -1 : -2 - (intoNames.Count - 1), row.Offset));
+                        channelRows.Add(new ValueDef(id, name, ValueClass.Channel, IntrinsicRole.Plain, 0, 1, false, OptionalBool(row, "timeline", false), intoRow == null ? -1 : -2 - (intoNames.Count - 1), row.Offset, mode));
                         break;
                     }
 
@@ -406,12 +415,35 @@ namespace Sv.Rules
                         Error(DiagnosticCode.UnknownName, intoRows[index], "\"into\" names no intrinsic: " + intoNames[index]);
                     }
 
-                    channelArray[i] = new ValueDef(c.Id, c.Name, c.Class, c.Role, 0, 1, false, c.Timeline, target == null ? -1 : target.Id, c.Offset);
+                    channelArray[i] = new ValueDef(c.Id, c.Name, c.Class, c.Role, 0, 1, false, c.Timeline, target == null ? -1 : target.Id, c.Offset, c.IntoMode);
                 }
             }
 
             channels = channelArray;
             CheckValues();
+        }
+
+        AssignMode IntoMode(JsonValue row, JsonValue? into)
+        {
+            var modeRow = row.Find("mode");
+            if (modeRow == null)
+            {
+                return AssignMode.Add;
+            }
+
+            if (into == null)
+            {
+                Error(DiagnosticCode.BadValue, modeRow, "\"mode\" needs \"into\": it says how the channel writes its intrinsic");
+                return AssignMode.Add;
+            }
+
+            if (modeRow.Kind != JsonKind.String || !AssignModes.TryParse(modeRow.Text, out var mode))
+            {
+                Error(DiagnosticCode.BadValue, modeRow, "mode is add, set, max, min or source");
+                return AssignMode.Add;
+            }
+
+            return mode;
         }
 
         int LaneId(JsonValue row)
@@ -596,7 +628,7 @@ namespace Sv.Rules
                         for (var m = 0; m < list.Items.Length; m++)
                         {
                             var item = list.Items[m];
-                            CheckKeys(item, new[] { "stat", "added", "additive", "multi", "cap" });
+                            CheckKeys(item, new[] { "stat", "added", "additive", "multi", "cap", "perCount" });
                             var stat = FindName(stats, item.Find("stat")?.Text ?? string.Empty);
                             if (stat == null)
                             {
@@ -606,7 +638,7 @@ namespace Sv.Rules
 
                             if (ShapeOf(item, stat.Scale, out var kind, out var amount))
                             {
-                                modifiers.Add(new StatModifier(stat.Id, kind, amount));
+                                modifiers.Add(new StatModifier(stat.Id, kind, amount, OptionalBool(item, "perCount", false)));
                             }
                             else
                             {
@@ -643,7 +675,7 @@ namespace Sv.Rules
             kind = ShapeKind.Added;
             amount = 0;
             var found = 0;
-            var names = new[] { "added", "additive", "multi", "cap" };
+            var names = ShapeNames;
             for (var k = 0; k < names.Length; k++)
             {
                 var value = item.Find(names[k]);
@@ -658,8 +690,39 @@ namespace Sv.Rules
             return found == 1;
         }
 
+        static readonly string[] ShapeNames = { "added", "additive", "multi", "cap" };
+
         int ShapeAmount(JsonValue value, ShapeKind kind, int scale, string what) =>
             RequireScaled(value, kind == ShapeKind.Additive || kind == ShapeKind.Multi ? StatLaw.Whole : scale, what);
+
+        ShapeEffect GateShape(JsonValue body, ShapeKind kind, string what)
+        {
+            if (body.Kind != JsonKind.Object)
+            {
+                return new ShapeEffect(kind, ShapeAmount(body, kind, StatLaw.MinScale, what));
+            }
+
+            CheckKeys(body, new[] { "cell" });
+            return new ShapeEffect(kind, 0, CellOperand(body.Find("cell"), "a Shape cell"));
+        }
+
+        Expression? CellOperand(JsonValue? text, string what)
+        {
+            if (text == null || text.Kind != JsonKind.String)
+            {
+                Error(DiagnosticCode.WrongType, text, what + " is { \"cell\": \"self.X\" | \"source.X\" | \"owner.X\" }");
+                return null;
+            }
+
+            var cell = Reference(text, NameHint.None);
+            if (cell.Op != Op.Cell || (cell.Class != ValueClass.Stat && cell.Class != ValueClass.Intrinsic))
+            {
+                Error(DiagnosticCode.UnknownName, text, what + " names a stat or an intrinsic of self, source, owner or a reference");
+                return null;
+            }
+
+            return cell;
+        }
 
         TemplateDef[] ReadTemplates(JsonValue[] rows)
         {
@@ -1035,6 +1098,7 @@ namespace Sv.Rules
             var admit = AdmitVerdict.None;
             var shapes = new Rows<ShapeEffect>();
             var absorbs = new Rows<AbsorbEffect>();
+            var spends = new Rows<int>();
             var effects = Then(row);
             for (var i = 0; i < effects.Length; i++)
             {
@@ -1059,27 +1123,40 @@ namespace Sv.Rules
                         admit = key == "deny" ? AdmitVerdict.Deny : AdmitVerdict.Allow;
                         break;
                     case "added":
-                        shapes.Add(new ShapeEffect(ShapeKind.Added, ShapeAmount(body, ShapeKind.Added, StatLaw.MinScale, key)));
+                        shapes.Add(GateShape(body, ShapeKind.Added, key));
                         break;
                     case "additive":
-                        shapes.Add(new ShapeEffect(ShapeKind.Additive, ShapeAmount(body, ShapeKind.Additive, StatLaw.MinScale, key)));
+                        shapes.Add(GateShape(body, ShapeKind.Additive, key));
                         break;
                     case "multi":
-                        shapes.Add(new ShapeEffect(ShapeKind.Multi, ShapeAmount(body, ShapeKind.Multi, StatLaw.MinScale, key)));
+                        shapes.Add(GateShape(body, ShapeKind.Multi, key));
                         break;
                     case "cap":
-                        shapes.Add(new ShapeEffect(ShapeKind.Cap, ShapeAmount(body, ShapeKind.Cap, StatLaw.MinScale, key)));
+                        shapes.Add(GateShape(body, ShapeKind.Cap, key));
                         break;
                     case "absorb":
                         absorbs.Add(ReadAbsorb(body));
                         break;
+                    case "spend":
+                    {
+                        var budget = body.Kind == JsonKind.String ? FindName(intrinsics, body.Text) : null;
+                        if (budget == null)
+                        {
+                            Error(DiagnosticCode.UnknownName, body, "\"spend\" names the intrinsic that holds the budget");
+                            break;
+                        }
+
+                        spends.Add(budget.Id);
+                        break;
+                    }
+
                     default:
-                        Error(DiagnosticCode.UnknownKey, effect, "a gate effect is deny, allow, added, additive, multi, cap or absorb");
+                        Error(DiagnosticCode.UnknownKey, effect, "a gate effect is deny, allow, added, additive, multi, cap, absorb or spend");
                         break;
                 }
             }
 
-            return new GateRule(id, name, Card(row), OptionalCondition(row, "when"), row.Offset, priority, admit, shapes.ToArray(), OptionalInt(row, "group", -1), absorbs.ToArray());
+            return new GateRule(id, name, Card(row), OptionalCondition(row, "when"), row.Offset, priority, admit, shapes.ToArray(), OptionalInt(row, "group", -1), absorbs.ToArray(), spends.ToArray());
         }
 
         AbsorbEffect ReadAbsorb(JsonValue body)
@@ -1211,10 +1288,17 @@ namespace Sv.Rules
 
             var amount = AmountKind.Constant;
             var constant = 0;
+            Expression? cell = null;
             var amountRow = body.Find("amount");
             if (amountRow == null)
             {
                 Error(DiagnosticCode.MissingKey, body, "\"amount\" is required");
+            }
+            else if (amountRow.Kind == JsonKind.Object)
+            {
+                CheckKeys(amountRow, new[] { "cell" });
+                amount = AmountKind.Cell;
+                cell = CellOperand(amountRow.Find("cell"), "an amount cell");
             }
             else if (amountRow.Kind == JsonKind.Number)
             {
@@ -1230,22 +1314,28 @@ namespace Sv.Rules
                     case "Offered": amount = AmountKind.Offered; break;
                     case "Taken": amount = AmountKind.Taken; break;
                     case "NotTaken": amount = AmountKind.NotTaken; break;
-                    default: Error(DiagnosticCode.BadValue, amountRow, "amount is an integer, Offered, Taken or NotTaken"); break;
+                    default: Error(DiagnosticCode.BadValue, amountRow, "amount is an integer, Offered, Taken, NotTaken or { \"cell\": ... }"); break;
                 }
             }
 
             var scale = -1;
+            var scaleIntrinsic = -1;
             var scaleRow = body.Find("scale");
             if (scaleRow != null)
             {
                 var stat = FindName(stats, scaleRow.Text);
-                if (stat == null)
+                var intrinsic = stat == null ? FindName(intrinsics, scaleRow.Text) : null;
+                if (stat != null)
                 {
-                    Error(DiagnosticCode.UnknownName, scaleRow, "\"scale\" names no stat");
+                    scale = stat.Id;
+                }
+                else if (intrinsic != null)
+                {
+                    scaleIntrinsic = intrinsic.Id;
                 }
                 else
                 {
-                    scale = stat.Id;
+                    Error(DiagnosticCode.UnknownName, scaleRow, "\"scale\" names no stat and no intrinsic");
                 }
             }
 
@@ -1266,7 +1356,7 @@ namespace Sv.Rules
                 }
             }
 
-            var origin = to == EmitTo.Source && amount != AmountKind.Constant ? RecordOrigin.Reflected : RecordOrigin.Triggered;
+            var origin = to == EmitTo.Source && amount != AmountKind.Constant && amount != AmountKind.Cell ? RecordOrigin.Reflected : RecordOrigin.Triggered;
             var originRow = body.Find("origin");
             if (originRow != null)
             {
@@ -1278,7 +1368,7 @@ namespace Sv.Rules
                 }
             }
 
-            return new EmitAction(to, via, channel, amount, constant, scale, Expression.SortedSet(over.ToArray()), origin);
+            return new EmitAction(to, via, channel, amount, constant, scale, Expression.SortedSet(over.ToArray()), origin, cell, scaleIntrinsic);
         }
 
         EdgeRule ReadEdge(JsonValue row, int id, string name)
@@ -1318,14 +1408,22 @@ namespace Sv.Rules
                 var item = items[i];
                 if (item.Kind != JsonKind.Object || item.Keys.Length != 1 || item.Items[0].Kind != JsonKind.Array || item.Items[0].Items.Length < 2)
                 {
-                    Error(DiagnosticCode.WrongType, item, "a flow term is { \"add\" | \"subtract\": [intrinsic, channel, ...] }");
+                    Error(DiagnosticCode.WrongType, item, "a flow term is { \"add\" | \"subtract\" | \"set\" | \"max\" | \"min\": [intrinsic, channel, ...] }");
                     continue;
                 }
 
-                var sign = item.Keys[0] == "add" ? 1 : item.Keys[0] == "subtract" ? -1 : 0;
-                if (sign == 0)
+                var key = item.Keys[0];
+                var sign = key == "subtract" ? -1 : 1;
+                var known = AssignModes.TryParse(key, out var mode) || key == "subtract";
+                if (!known)
                 {
-                    Error(DiagnosticCode.UnknownKey, item, "a flow term is add or subtract");
+                    Error(DiagnosticCode.UnknownKey, item, "a flow term is add, subtract, set, max or min");
+                    continue;
+                }
+
+                if (mode == AssignMode.Source)
+                {
+                    Error(DiagnosticCode.BadValue, item, "a flow has no record, so it cannot assign a source; use a channel with \"mode\": \"source\"");
                     continue;
                 }
 
@@ -1346,7 +1444,7 @@ namespace Sv.Rules
                         continue;
                     }
 
-                    terms.Add(new FlowTerm(target.Id, channel.Id, sign));
+                    terms.Add(new FlowTerm(target.Id, channel.Id, sign, mode));
                 }
             }
 
@@ -1835,6 +1933,17 @@ namespace Sv.Rules
 
                     Error(DiagnosticCode.UnknownName, body, "no chain carries the tag " + body.Text);
                     return Expression.False;
+                }
+
+                case "roll":
+                {
+                    if (!body.IsInteger || !body.TryInt(out var basisPoints) || basisPoints < 0 || basisPoints > Roll.Always)
+                    {
+                        Error(DiagnosticCode.BadValue, body, "\"roll\" takes basis points, an integer 0..10000 (10000 is always)");
+                        return Expression.False;
+                    }
+
+                    return Expression.Roll(basisPoints);
                 }
 
                 case "held":

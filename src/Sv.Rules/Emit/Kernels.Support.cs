@@ -156,6 +156,11 @@ namespace Sv.Rules.Emit
             file.Line("public long* Totals;");
             file.Line("public int* Delta;");
             file.Line("public long* Faults;");
+            if (Assigns)
+            {
+                file.Line("public long* Assign;");
+            }
+
             file.Line("public int Capacity;");
             file.Close();
             file.Blank();

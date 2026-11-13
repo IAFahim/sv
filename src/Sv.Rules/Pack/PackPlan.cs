@@ -10,9 +10,10 @@ namespace Sv.Rules
         public bool ReadsOfferedAggregate;
         public bool ReadsSourceRow;
         public bool ReadsOtherRow;
+        public bool ReadsRoll;
         public readonly Rows<int> Totals = new Rows<int>();
 
-        public bool ReadsRecord => RecordFields != 0;
+        public bool ReadsRecord => RecordFields != 0 || ReadsRoll;
 
         public bool Reads(RecordField field) => (RecordFields & (1u << (int)field)) != 0;
 
@@ -20,7 +21,7 @@ namespace Sv.Rules
 
         public bool ReadsUntaken => Reads(RecordField.Amount) || Reads(RecordField.NotTaken) || ReadsOfferedAggregate;
 
-        public bool ReadsOnlyChannelOfRecord => (RecordFields & ~(1u << (int)RecordField.Channel)) == 0 && !ReadsSourceRow && !ReadsAggregate;
+        public bool ReadsOnlyChannelOfRecord => (RecordFields & ~(1u << (int)RecordField.Channel)) == 0 && !ReadsSourceRow && !ReadsAggregate && !ReadsRoll;
 
         public bool TotalsMeet(long[] written, bool writesAll)
         {
@@ -261,6 +262,7 @@ namespace Sv.Rules
 
             CheckFolds();
             CheckEvents();
+            CheckAssignModes();
             var stratum = Stratify(out var selfOrder);
             var warnings = new Rows<Diagnostic>();
             for (var i = 0; i < Diagnostics.Count; i++)
@@ -327,6 +329,9 @@ namespace Sv.Rules
                 case Op.RecordField:
                     facts.RecordFields |= 1u << (int)e.Field;
                     break;
+                case Op.Roll:
+                    facts.ReadsRoll = true;
+                    break;
                 case Op.Cell:
                     facts.ReadsSourceRow |= e.Subject == Subject.Source;
                     facts.ReadsOtherRow |= e.Subject != Subject.Self;
@@ -390,6 +395,9 @@ namespace Sv.Rules
             {
                 case Op.BoolConst:
                     ok = e.Type == ExprType.Bool;
+                    break;
+                case Op.Roll:
+                    ok = e.Type == ExprType.Bool && e.Integer >= 0 && e.Integer <= Roll.Always;
                     break;
                 case Op.IntConst:
                 case Op.RecordField:
@@ -586,7 +594,95 @@ namespace Sv.Rules
                 }
             }
 
-            return facts.ReadsOnlyChannelOfRecord;
+            for (var i = 0; i < gate.Spends.Length; i++)
+            {
+                if (!IntrinsicExists(gate.Spends[i]))
+                {
+                    Error(DiagnosticCode.UnknownName, gate, null, Named(gate) + ": spend budget is no intrinsic");
+                }
+            }
+
+            if (gate.Spends.Length > 0 && gate.Absorbs.Length > 0)
+            {
+                Error(DiagnosticCode.BadValue, gate, null, Named(gate) + ": one gate rule either absorbs or spends; put the other in a second rule so gate order decides which runs first");
+            }
+
+            var shapeReadsSource = false;
+            for (var i = 0; i < gate.Shapes.Length; i++)
+            {
+                var cell = gate.Shapes[i].Cell;
+                if (cell != null)
+                {
+                    CheckValueCell(gate, cell);
+                    shapeReadsSource |= cell.Subject == Subject.Source;
+                }
+            }
+
+            return facts.ReadsOnlyChannelOfRecord && !shapeReadsSource;
+        }
+
+        void CheckValueCell(Rule rule, Expression cell)
+        {
+            if (cell.Op != Op.Cell || (cell.Class != ValueClass.Stat && cell.Class != ValueClass.Intrinsic))
+            {
+                Error(DiagnosticCode.UnknownName, rule, null, Named(rule) + ": a value cell names a stat or an intrinsic");
+                return;
+            }
+
+            CheckNode(rule, cell, 0);
+        }
+
+        void CheckAssignModes()
+        {
+            var modes = new AssignMode[schema.NextLane];
+            var owners = new string?[schema.NextLane];
+            for (var c = 0; c < schema.Channels.Length; c++)
+            {
+                var channel = schema.Channels[c];
+                if (channel.Assigns)
+                {
+                    AssignOnce(modes, owners, channel.Into, channel.IntoMode, "channel " + channel.Name, null);
+                }
+            }
+
+            for (var f = 0; f < pack.Flows.Length; f++)
+            {
+                var flow = pack.Flows[f];
+                for (var t = 0; t < flow.Terms.Length; t++)
+                {
+                    var term = flow.Terms[t];
+                    if (term.Assigns)
+                    {
+                        AssignOnce(modes, owners, term.Intrinsic, term.Mode, Named(flow), flow);
+                    }
+                }
+            }
+        }
+
+        void AssignOnce(AssignMode[] modes, string?[] owners, int intrinsic, AssignMode mode, string who, Rule? rule)
+        {
+            if (intrinsic < 0 || intrinsic >= modes.Length)
+            {
+                return;
+            }
+
+            if (owners[intrinsic] != null && modes[intrinsic] != mode)
+            {
+                var message = who + " assigns " + schema.NameOf(ValueClass.Intrinsic, intrinsic) + " by " + AssignModes.NameOf(mode) + " but " + owners[intrinsic] + " assigns it by " + AssignModes.NameOf(modes[intrinsic]) + "; one intrinsic has one assign mode";
+                if (rule == null)
+                {
+                    Diagnostics.Error(DiagnosticCode.AssignConflict, PackSource.ValuesFile, 0, -1, -1, message);
+                }
+                else
+                {
+                    Error(DiagnosticCode.AssignConflict, rule, null, message);
+                }
+
+                return;
+            }
+
+            modes[intrinsic] = mode;
+            owners[intrinsic] = who;
         }
 
         void CheckAdmitTies(GateRule[] order)
@@ -746,6 +842,11 @@ namespace Sv.Rules
                     Error(DiagnosticCode.BadEmit, emit, null, Named(emit) + ": per Frame has no single source to send to");
                 }
 
+                if (emit.Per == EmitPer.Frame && action.Cell != null && action.Cell.Subject == Subject.Source)
+                {
+                    Error(DiagnosticCode.ScopeViolation, emit, null, Named(emit) + ": per Frame has no single source to read an amount from");
+                }
+
                 if (other && emit.DepthLimit + 1 > RuleLimits.WorldDepthLimit)
                 {
                     Error(DiagnosticCode.DepthLimit, emit, null, Named(emit) + ": a record it emits could reach depth " + Text(emit.DepthLimit + 1) + ", above the world limit " + Text(RuleLimits.WorldDepthLimit));
@@ -777,9 +878,31 @@ namespace Sv.Rules
                 Error(DiagnosticCode.UnknownName, rule, null, Named(rule) + ": emit scale stat does not exist");
             }
 
+            if (action.ScaleIntrinsic >= 0 && !IntrinsicExists(action.ScaleIntrinsic))
+            {
+                Error(DiagnosticCode.UnknownName, rule, null, Named(rule) + ": emit scale intrinsic does not exist");
+            }
+
+            if (action.Amount == AmountKind.Cell)
+            {
+                if (action.Cell == null)
+                {
+                    Error(DiagnosticCode.BadEmit, rule, null, Named(rule) + ": an amount cell names nothing");
+                }
+                else
+                {
+                    CheckValueCell(rule, action.Cell);
+                }
+            }
+
             if (edge && (action.Amount != AmountKind.Constant || action.To == EmitTo.Source || action.SameChannel))
             {
                 Error(DiagnosticCode.BadEmit, rule, null, Named(rule) + ": an edge emit has a constant amount, a named channel and no source");
+            }
+
+            if (edge && action.ScaleIntrinsic >= 0)
+            {
+                Error(DiagnosticCode.BadEmit, rule, null, Named(rule) + ": an edge emit runs after Commit, so it scales only by a stat, never by an intrinsic");
             }
         }
 

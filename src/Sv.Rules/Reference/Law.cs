@@ -164,5 +164,37 @@ namespace Sv.Rules.Reference
         }
 
         public static int ScaleBy(int amount, int value, int scale) => Times(amount, value, ScaleStep(scale));
+
+        public static int CardTerm(int value, int count, bool perCount) => perCount ? Clamp32((BigInteger)value * count) : value;
+
+        const ulong Golden = 0x9E3779B97F4A7C15ul;
+        const ulong FirstMultiplier = 0xBF58476D1CE4E5B9ul;
+        const ulong SecondMultiplier = 0x94D049BB133111EBul;
+
+        public static ulong SplitMix(ulong value)
+        {
+            var z = unchecked(value + Golden);
+            z = unchecked((z ^ (z >> 30)) * FirstMultiplier);
+            z = unchecked((z ^ (z >> 27)) * SecondMultiplier);
+            return z ^ (z >> 31);
+        }
+
+        public static ulong RollHash(ulong seed, long frame, ulong key, int amount, int rule, int ordinal)
+        {
+            var inputs = new[] { unchecked((ulong)frame), key, (ulong)(uint)amount, (ulong)(uint)rule, (ulong)(uint)ordinal };
+            var hash = seed;
+            for (var i = 0; i < inputs.Length; i++)
+            {
+                hash = SplitMix(hash ^ inputs[i]);
+            }
+
+            return hash;
+        }
+
+        public static bool Rolls(ulong seed, long frame, ulong key, int amount, int rule, int ordinal, long basisPoints)
+        {
+            var share = (BigInteger)(RollHash(seed, frame, key, amount, rule, ordinal) >> 32) * 10000 / ((BigInteger)1 << 32);
+            return share < basisPoints;
+        }
     }
 }

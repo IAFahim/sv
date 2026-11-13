@@ -44,6 +44,49 @@ namespace Sv.Rules
         Offered = 1,
         Taken = 2,
         NotTaken = 3,
+        Cell = 4,
+    }
+
+    public enum AssignMode : byte
+    {
+        Add = 0,
+        Set = 1,
+        Max = 2,
+        Min = 3,
+        Source = 4,
+    }
+
+    public static class AssignModes
+    {
+        static readonly string[] Names = { "add", "set", "max", "min", "source" };
+
+        public static string NameOf(AssignMode mode) => Names[(int)mode];
+
+        public static bool TryParse(string text, out AssignMode mode)
+        {
+            for (var i = 0; i < Names.Length; i++)
+            {
+                if (string.CompareOrdinal(Names[i], text) == 0)
+                {
+                    mode = (AssignMode)i;
+                    return true;
+                }
+            }
+
+            mode = AssignMode.Add;
+            return false;
+        }
+
+        public static long Apply(AssignMode mode, long assigned, long value)
+        {
+            switch (mode)
+            {
+                case AssignMode.Max: return value > assigned ? value : assigned;
+                case AssignMode.Min: return value < assigned ? value : assigned;
+                case AssignMode.Add: return assigned;
+                default: return value;
+            }
+        }
     }
 
     public enum EmitPer : byte
@@ -105,11 +148,23 @@ namespace Sv.Rules
 
         public int Value { get; }
 
+        public Expression? Cell { get; }
+
         public ShapeEffect(ShapeKind kind, int value)
+            : this(kind, value, null)
+        {
+        }
+
+        public ShapeEffect(ShapeKind kind, int value, Expression? cell)
         {
             Kind = kind;
             Value = value;
+            Cell = cell;
         }
+
+        public bool FromCell => Cell != null;
+
+        public int UnitScale => Kind == ShapeKind.Additive || Kind == ShapeKind.Multi ? StatLaw.Whole : StatLaw.MinScale;
     }
 
     public readonly struct AbsorbEffect
@@ -140,7 +195,14 @@ namespace Sv.Rules
 
         public AbsorbEffect[] Absorbs { get; }
 
+        public int[] Spends { get; }
+
         public GateRule(int id, string name, int card, Expression when, int offset, int priority, AdmitVerdict admit, ShapeEffect[] shapes, int group, AbsorbEffect[] absorbs)
+            : this(id, name, card, when, offset, priority, admit, shapes, group, absorbs, new int[0])
+        {
+        }
+
+        public GateRule(int id, string name, int card, Expression when, int offset, int priority, AdmitVerdict admit, ShapeEffect[] shapes, int group, AbsorbEffect[] absorbs, int[] spends)
             : base(id, name, card, when, offset)
         {
             Priority = priority;
@@ -148,6 +210,7 @@ namespace Sv.Rules
             Shapes = shapes;
             Group = group;
             Absorbs = absorbs;
+            Spends = spends;
         }
 
         public override RuleLayer Layer => RuleLayer.Gate;
@@ -171,7 +234,16 @@ namespace Sv.Rules
 
         public RecordOrigin Origin { get; }
 
+        public Expression? Cell { get; }
+
+        public int ScaleIntrinsic { get; }
+
         public EmitAction(EmitTo to, int via, int channel, AmountKind amount, int constant, int scaleStat, long[] over, RecordOrigin origin)
+            : this(to, via, channel, amount, constant, scaleStat, over, origin, null, -1)
+        {
+        }
+
+        public EmitAction(EmitTo to, int via, int channel, AmountKind amount, int constant, int scaleStat, long[] over, RecordOrigin origin, Expression? cell, int scaleIntrinsic)
         {
             To = to;
             Via = via;
@@ -181,9 +253,13 @@ namespace Sv.Rules
             ScaleStat = scaleStat;
             Over = over;
             Origin = origin;
+            Cell = cell;
+            ScaleIntrinsic = scaleIntrinsic;
         }
 
         public bool SameChannel => Channel < 0;
+
+        public bool Unscaled => ScaleStat < 0 && ScaleIntrinsic < 0;
 
         public bool CoversChannel(int channel) => Over.Length == 0 || System.Array.BinarySearch(Over, (long)channel) >= 0;
     }
@@ -239,12 +315,22 @@ namespace Sv.Rules
 
         public int Sign { get; }
 
+        public AssignMode Mode { get; }
+
         public FlowTerm(int intrinsic, int channel, int sign)
+            : this(intrinsic, channel, sign, AssignMode.Add)
+        {
+        }
+
+        public FlowTerm(int intrinsic, int channel, int sign, AssignMode mode)
         {
             Intrinsic = intrinsic;
             Channel = channel;
-            Sign = sign < 0 ? -1 : 1;
+            Sign = sign < 0 && mode == AssignMode.Add ? -1 : 1;
+            Mode = mode;
         }
+
+        public bool Assigns => Mode != AssignMode.Add;
     }
 
     public sealed class FlowRule : Rule

@@ -13,6 +13,7 @@ namespace Sv
         public int TemplateCount;
         public uint Epoch;
         public StoragePolicy Policy;
+        public long Frame;
     }
 
     [StructLayout(LayoutKind.Sequential, Size = 8)]

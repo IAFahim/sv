@@ -310,6 +310,9 @@ namespace Sv.Rules.Passes
 
             switch (e.Op)
             {
+                case Op.Roll:
+                    reads.Record = true;
+                    break;
                 case Op.RecordField:
                     if (e.Field == RecordField.Channel)
                     {
@@ -455,6 +458,7 @@ namespace Sv.Rules.Passes
                 case Op.IntConst:
                 case Op.KindConst:
                 case Op.ChannelConst:
+                case Op.Roll:
                     text.Append(':').Append(e.Integer.ToString(CultureInfo.InvariantCulture));
                     break;
                 case Op.FloatConst:

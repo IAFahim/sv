@@ -182,6 +182,8 @@ namespace Sv.Rules.Passes
         public readonly List<EventIr> Events = new List<EventIr>();
         public readonly List<int> DeltaIntrinsics = new List<int>();
         public readonly List<int> AbsorbBudgets = new List<int>();
+        public readonly List<int> AssignIntrinsics = new List<int>();
+        public readonly List<AssignMode> AssignModes = new List<AssignMode>();
     }
 
     public sealed class GateCase

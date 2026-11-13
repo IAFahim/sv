@@ -440,6 +440,7 @@ namespace Sv
         public void EndFrame()
         {
             frame++;
+            view.Frame = frame;
             if (frame % framesPerEpoch == 0L)
             {
                 Mark();
@@ -476,6 +477,7 @@ namespace Sv
             journal.Rewind(epoch, view, pool);
             view.Epoch = journal.Current;
             frame = journal.BeginOf(epoch);
+            view.Frame = frame;
             for (var template = 0; template < view.TemplateCount; template++)
             {
                 cursor[template] = 0;
