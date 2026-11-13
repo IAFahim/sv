@@ -1,0 +1,9 @@
+{"schema":1,"name":"heal_per_hit_counts_absorbed_hits","frames":1,
+"entities":[{"name":"B","template":"bloodmage_warded"},{"name":"X","template":"dummy"}],
+"sends":[
+{"frame":0,"target":"B","source":"X","channel":"Physical","amount":10,"hits":3}
+],
+"expect":[
+{"frame":0,"entity":"B","value":"ImmuneCharges","equals":0},
+{"frame":0,"entity":"B","value":"Health","equals":55}
+]}
