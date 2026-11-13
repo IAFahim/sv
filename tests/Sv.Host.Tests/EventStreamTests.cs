@@ -260,6 +260,7 @@ public sealed unsafe class EventStreamTests
             }
         }
     }
+
     static string LateInputChangesTheEventStream<TKernels>(PackPlan plan)
         where TKernels : struct, IPackKernels
     {
