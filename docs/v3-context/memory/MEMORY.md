@@ -1,0 +1,8 @@
+- [Latest Unity only](feedback-latest-unity-only.md) — newest Unity 7 on the PC, never older versions or 6000.x
+- [Orchestrate and push to main](feedback-orchestrate-push-main.md) — manager role with sized agents, direct pushes to main on tl repos, CI not a priority
+- [No backward compatibility](feedback-no-backward-compat.md) — rename/move/delete freely, no shims; hashes and Force contract still hold
+- [Skill repo = generational knowledge](feedback-skill-repo-generational-knowledge.md) — push ECS/Burst/C# finds and dead ends densely, early, no secrets
+- [Own the issue lifecycle](feedback-own-issue-lifecycle.md) — open/close/reopen issues myself with receipts; owner never babysits
+- [Know the project first](feedback-know-the-project-before-working.md) — understand what it is and stores before touching or briefing agents; sv owner intent recorded
+- [Keep going, don't ask](feedback-keep-going-dont-ask.md) — start the known next step without asking; ask only for real design decisions
+- [sv v3 state](project-sv-v3-state.md) — branches, paused agents C1/C2, 01:51 resume cron, pending owner decisions; full handoff at D:\GitHub\_work\HANDOFF-sv-v3.md
