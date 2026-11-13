@@ -89,6 +89,13 @@ namespace Sv.Rules
 
         public StatDerive[] Derive { get; }
 
+        public string Starts { get; }
+
+        public ValueDef(int id, string name, ValueClass valueClass, IntrinsicRole role, int intDefault, int scale, bool eventDefault, bool timeline, int into, int offset, string starts)
+            : this(id, name, valueClass, role, intDefault, scale, eventDefault, timeline, into, offset, AssignMode.Add, System.Array.Empty<StatDerive>(), starts)
+        {
+        }
+
         public ValueDef(int id, string name, ValueClass valueClass, IntrinsicRole role, int intDefault, int scale, bool eventDefault, bool timeline, int into, int offset)
             : this(id, name, valueClass, role, intDefault, scale, eventDefault, timeline, into, offset, AssignMode.Add, System.Array.Empty<StatDerive>())
         {
@@ -100,7 +107,13 @@ namespace Sv.Rules
         }
 
         public ValueDef(int id, string name, ValueClass valueClass, IntrinsicRole role, int intDefault, int scale, bool eventDefault, bool timeline, int into, int offset, AssignMode intoMode, StatDerive[]? derive)
+            : this(id, name, valueClass, role, intDefault, scale, eventDefault, timeline, into, offset, intoMode, derive, string.Empty)
         {
+        }
+
+        public ValueDef(int id, string name, ValueClass valueClass, IntrinsicRole role, int intDefault, int scale, bool eventDefault, bool timeline, int into, int offset, AssignMode intoMode, StatDerive[]? derive, string starts)
+        {
+            Starts = starts;
             IntoMode = intoMode;
             Derive = derive ?? System.Array.Empty<StatDerive>();
             Id = id;

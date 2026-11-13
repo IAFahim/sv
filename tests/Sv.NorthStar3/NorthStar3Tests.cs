@@ -165,5 +165,111 @@ namespace Sv.NorthStar3
             Assert.Equal(live.Digests, replay);
             Assert.Equal(live.Ticks, rig.Ticks);
         }
+
+        static Run Hurt(int damage, int workers)
+        {
+            using var rig = new Rig(Plan, workers);
+            var victim = rig.Spawn("player");
+            var causes = new List<Cause> { new Cause(0, Rig.Hit, victim, damage) };
+            var digests = new List<ulong>();
+            for (var frame = 0L; frame < Frames; frame++)
+            {
+                foreach (var cause in causes)
+                {
+                    if (cause.Frame == frame)
+                    {
+                        rig.Apply(cause);
+                    }
+                }
+
+                digests.Add(rig.Step());
+            }
+
+            return new Run(victim, victim, causes, digests, rig.Ticks, rig.Health(victim));
+        }
+
+        [Fact]
+        public void An_event_that_starts_a_timeline_requests_it_on_the_entity_that_went_low()
+        {
+            var run = Hurt(75, 1);
+            output.WriteLine(string.Join(" ", run.Ticks));
+            Assert.Equal(Ticks, run.Ticks.Count);
+            Assert.All(run.Ticks, tick =>
+            {
+                Assert.Equal(run.Victim, tick.Target);
+                Assert.Equal(run.Victim, tick.Source);
+                Assert.Equal((int)Channel.Poison, tick.Channel);
+            });
+            Assert.Equal(100 - 75 - Amount * Ticks, run.Health);
+        }
+
+        [Fact]
+        public void A_healthy_entity_requests_nothing()
+        {
+            var run = Hurt(10, 1);
+            Assert.Empty(run.Ticks);
+            Assert.Equal(90, run.Health);
+        }
+
+        [Theory]
+        [InlineData(2)]
+        [InlineData(11)]
+        public void Requests_give_one_digest_per_frame_at_every_worker_count(int workers) =>
+            Assert.Equal(Hurt(75, 1).Digests, Hurt(75, workers).Digests);
+
+        [Fact]
+        public void Requests_replay_from_the_causes_alone()
+        {
+            var live = Hurt(75, 1);
+            using var rig = new Rig(Plan, 1);
+            rig.Spawn("player");
+            var replay = new List<ulong>();
+            for (var frame = 0L; frame < Frames; frame++)
+            {
+                foreach (var cause in live.Causes.Where(c => c.Frame == frame))
+                {
+                    rig.Apply(cause);
+                }
+
+                replay.Add(rig.Step());
+            }
+
+            Assert.Equal(live.Digests, replay);
+            Assert.Equal(live.Ticks, rig.Ticks);
+        }
+
+        [Fact]
+        public void Starts_round_trips_through_the_canonical_writer()
+        {
+            var plan = Plan;
+            var low = plan.Schema.FindByName(ValueClass.Event, "LowHealth")!;
+            Assert.Equal("poison", low.Starts);
+            var written = PackWriter.Write(plan.Pack);
+            Assert.Contains("\"starts\":\"poison\"", written.Values);
+            var again = PackCompiler.Compile(written);
+            Assert.NotNull(again.Value);
+            Assert.Equal(plan.Hash, again.Value!.Hash);
+        }
+
+        [Fact]
+        public void Starts_on_a_value_that_is_not_an_event_is_an_error()
+        {
+            var source = Sv.Pack.PackFolder.Read(Path.Combine(FindRoot(), "tests", "Sv.Kernels.NorthStar3", "pack"));
+            var broken = new PackSource(source.Values.Replace("\"name\":\"Shield\",\"class\":\"intrinsic\"", "\"name\":\"Shield\",\"class\":\"intrinsic\",\"starts\":\"poison\""), source.Rules, source.Cards, source.Templates);
+            var result = PackCompiler.Compile(broken);
+            Assert.Null(result.Value);
+            Assert.Contains(result.Diagnostics, d => d.Message.Contains("only for events"));
+        }
+
+        static string FindRoot()
+        {
+            var folder = new DirectoryInfo(AppContext.BaseDirectory);
+            while (folder != null && !Directory.Exists(Path.Combine(folder.FullName, "tests", "Sv.Kernels.NorthStar3", "pack")))
+            {
+                folder = folder.Parent;
+            }
+
+            return folder!.FullName;
+        }
     }
 }

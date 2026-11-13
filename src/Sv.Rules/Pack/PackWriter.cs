@@ -102,7 +102,13 @@ namespace Sv.Rules
             {
                 var row = schema.Events[i];
                 writer.Line().BeginObject().Key("lane").Int(LaneNumbers.LaneOfEvent(row.Id)).KeyDone().Key("word").Int(LaneNumbers.WordOfEvent(row.Id)).KeyDone()
-                    .Key("name").String(row.Name).KeyDone().Key("class").String("event").KeyDone().Key("default").Bool(row.EventDefault).KeyDone().EndObject();
+                    .Key("name").String(row.Name).KeyDone().Key("class").String("event").KeyDone().Key("default").Bool(row.EventDefault).KeyDone();
+                if (row.Starts.Length > 0)
+                {
+                    writer.Key("starts").String(row.Starts).KeyDone();
+                }
+
+                writer.EndObject();
             }
 
             for (var i = 0; i < schema.Channels.Length; i++)

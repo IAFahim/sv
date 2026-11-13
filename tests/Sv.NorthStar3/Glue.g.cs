@@ -1,4 +1,5 @@
 using Tl;
+using Sv.Host;
 
 namespace Sv.Kernels.NorthStar3.Glue
 {
@@ -40,5 +41,49 @@ namespace Sv.Kernels.NorthStar3.Glue
     {
         [Feeds(typeof(BleedingFeed))]
         public static int Tick(in TlFrame<BleedingClip> frame) => frame.Direction * frame.Clip.Amount;
+    }
+
+    public sealed class TimelineRequests
+    {
+        static readonly int[] Raised =
+        {
+            (int)global::Sv.Kernels.NorthStar3.Event.LowHealth,
+        };
+
+        static readonly string[] Timelines =
+        {
+            "poison",
+        };
+
+        readonly ushort[] resolved = new ushort[Raised.Length];
+
+        public TimelineRequests(TimelineWorld world)
+        {
+            for (var i = 0; i < Raised.Length; i++)
+            {
+                resolved[i] = world.Find(Timelines[i]);
+            }
+        }
+
+        public unsafe void Apply(PlaybackTable players, HostEvent* events, int count)
+        {
+            for (var at = 0; at < count; at++)
+            {
+                for (var i = 0; i < Raised.Length; i++)
+                {
+                    if (events[at].Event == Raised[i] && resolved[i] != 0)
+                    {
+                        if (events[at].Entered)
+                        {
+                            players.Start(events[at].Slot, resolved[i]);
+                        }
+                        else
+                        {
+                            players.Stop(events[at].Slot, resolved[i]);
+                        }
+                    }
+                }
+            }
+        }
     }
 }

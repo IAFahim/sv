@@ -303,9 +303,15 @@ namespace Sv.Rules
                     continue;
                 }
 
-                CheckKeys(row, new[] { "id", "lane", "word", "name", "class", "default", "scale", "role", "timeline", "into", "mode", "derive" });
+                CheckKeys(row, new[] { "id", "lane", "word", "name", "class", "default", "scale", "role", "timeline", "into", "mode", "derive", "starts" });
                 var name = RequireString(row, "name");
                 var className = RequireString(row, "class");
+                var misplaced = row.Find("starts");
+                if (misplaced != null && string.CompareOrdinal(className, "event") != 0)
+                {
+                    Error(DiagnosticCode.BadValue, misplaced, "\"starts\" is only for events");
+                }
+
                 var deriveNode = row.Find("derive");
                 if (deriveNode != null && string.CompareOrdinal(className, "stat") != 0)
                 {
@@ -381,7 +387,21 @@ namespace Sv.Rules
                             }
                         }
 
-                        eventRows.Add(new ValueDef(id, name, ValueClass.Event, IntrinsicRole.Plain, 0, 1, OptionalBool(row, "default", false), false, -1, row.Offset));
+                        var startsNode = row.Find("starts");
+                        var starts = string.Empty;
+                        if (startsNode != null)
+                        {
+                            if (startsNode.Kind != JsonKind.String || startsNode.Text.Length == 0)
+                            {
+                                Error(DiagnosticCode.WrongType, startsNode, "\"starts\" is a timeline name");
+                            }
+                            else
+                            {
+                                starts = startsNode.Text;
+                            }
+                        }
+
+                        eventRows.Add(new ValueDef(id, name, ValueClass.Event, IntrinsicRole.Plain, 0, 1, OptionalBool(row, "default", false), false, -1, row.Offset, starts));
                         break;
                     }
 

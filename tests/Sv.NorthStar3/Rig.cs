@@ -19,6 +19,7 @@ namespace Sv.NorthStar3
         public const int Capacity = 1024;
         public const int Aim = 0;
         public const int Start = 1;
+        public const int Hit = 2;
         public const ushort PoisonTimeline = 1;
 
         static byte[]? library;
@@ -26,6 +27,7 @@ namespace Sv.NorthStar3
         readonly TimelineWorld world;
         readonly PlaybackTable players;
         readonly KindStore kindStore;
+        readonly TimelineRequests requests;
         readonly TlWorkers? tlWorkers;
         readonly PoisonOut[] poison;
         readonly BleedingOut[] bleeding;
@@ -39,6 +41,7 @@ namespace Sv.NorthStar3
             world = new TimelineWorld(Library());
             players = new PlaybackTable(Capacity);
             kindStore = new KindStore(world, players);
+            requests = new TimelineRequests(world);
             tlWorkers = workers > 1 ? new TlWorkers(workers) : null;
             poison = GC.AllocateArray<PoisonOut>(Capacity, true);
             bleeding = GC.AllocateArray<BleedingOut>(Capacity, true);
@@ -71,6 +74,10 @@ namespace Sv.NorthStar3
             {
                 Host.Send(cause.Slot, EffectKey.NoSource, 0, (int)Channel.Aim, cause.Value, 1, Origin.Direct);
             }
+            else if (cause.Kind == Hit)
+            {
+                Host.Send(cause.Slot, EffectKey.NoSource, 0, (int)Channel.Physical, cause.Value, 1, Origin.Direct);
+            }
             else
             {
                 players.Start(cause.Slot, (ushort)cause.Value);
@@ -93,6 +100,7 @@ namespace Sv.NorthStar3
             Collect(MemoryMarshal.Cast<PoisonOut, int>(poison.AsSpan()), (int)Channel.Poison);
             Collect(MemoryMarshal.Cast<BleedingOut, int>(bleeding.AsSpan()), (int)Channel.Bleeding);
             Host.Step();
+            requests.Apply(players, Host.Events, Host.EventCount);
             return Host.LastDigest;
         }
 
