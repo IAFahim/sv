@@ -27,7 +27,7 @@ namespace Sv
                 var card = cards[at];
                 var valid = (uint)card.Stat < (uint)valueLanes && declared[card.Stat] != NoOrdinal
                     && (uint)card.Card < (uint)valueLanes && layout.ClassOf(card.Card) == LaneClass.Intrinsic
-                    && card.Kind <= ShapeKind.Cap;
+                    && card.Kind <= ShapeKind.Cap && card.Layer <= StatLayer.External;
                 if (!valid)
                 {
                     return false;
@@ -82,7 +82,7 @@ namespace Sv
             for (var at = 0; at < cards.Length; at++)
             {
                 var card = cards[at];
-                cardRows[fill[ordinalOfLane[card.Stat]]++] = new CardRow { Lane = card.Card, Value = card.Value, Kind = card.Kind, PerCount = card.PerCount };
+                cardRows[fill[ordinalOfLane[card.Stat]]++] = new CardRow { Lane = card.Card, Value = card.Value, Kind = card.Kind, PerCount = card.PerCount, Layer = card.Layer };
             }
 
             Memory.Free(fill);
@@ -125,16 +125,18 @@ namespace Sv
             Memory.Free(cardDependents);
         }
 
-        int GatherCards(int ordinal, int slot, int count)
+        void GatherCards(int ordinal, int slot, ref int coreCount, ref int externalCount)
         {
             var from = cardStart[ordinal];
             var to = cardStart[ordinal + 1];
             if (from == to)
             {
-                return count;
+                return;
             }
 
-            EnsureTerms(count + to - from);
+            var needed = to - from;
+            EnsureTerms(coreCount + needed);
+            EnsureExternal(externalCount + needed);
             var view = world.View;
             for (var at = from; at < to; at++)
             {
@@ -142,11 +144,17 @@ namespace Sv
                 var held = Lanes.Read(view, slot, row.Lane);
                 if (held > 0)
                 {
-                    scratchTerms[count++] = new ShapeTerm(row.Kind, CardTerm.TermValue(row.Value, held, row.PerCount));
+                    var term = new ShapeTerm(row.Kind, CardTerm.TermValue(row.Value, held, row.PerCount));
+                    if (row.Layer == StatLayer.Core)
+                    {
+                        scratchTerms[coreCount++] = term;
+                    }
+                    else
+                    {
+                        externalTerms[externalCount++] = term;
+                    }
                 }
             }
-
-            return count;
         }
 
         public void CardRowsChanged(int chunk, int card, ulong rows)

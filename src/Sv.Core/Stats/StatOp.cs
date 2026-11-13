@@ -20,11 +20,30 @@ namespace Sv
         public readonly int Value;
         public readonly ushort Stat;
         public readonly ShapeKind Kind;
-        public readonly StatOpKind Op;
+        readonly byte packedOp;
+
+        public StatOpKind Op
+        {
+            [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+            get => (StatOpKind)(packedOp & 0x0F);
+        }
+
+        public StatLayer Layer
+        {
+            [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+            get => (StatLayer)(packedOp >> 4);
+        }
 
         public StatOp(StatOpKind op, int slot, int source, int stat, ShapeKind kind, int value, long expiresAt)
+            : this(op, slot, source, stat, kind, value, expiresAt, StatLayer.Core)
         {
-            Op = op;
+        }
+
+        public StatOp(StatOpKind op, int slot, int source, int stat, ShapeKind kind, int value, long expiresAt, StatLayer layer)
+        {
+            var rawOp = (byte)op > 15 ? 15 : (byte)op;
+            var rawLayer = (byte)layer > 15 ? 15 : (byte)layer;
+            packedOp = (byte)(rawOp | (rawLayer << 4));
             Slot = slot;
             Source = source;
             Stat = stat < 0 || stat >= NoStat ? NoStat : (ushort)stat;
@@ -33,11 +52,11 @@ namespace Sv
             ExpiresAt = expiresAt;
         }
 
-        public static StatOp Add(int slot, int stat, ShapeKind kind, int value, int source, long expiresAt = long.MaxValue) =>
-            new StatOp(StatOpKind.Add, slot, source, stat, kind, value, expiresAt);
+        public static StatOp Add(int slot, int stat, ShapeKind kind, int value, int source, long expiresAt = long.MaxValue, StatLayer layer = StatLayer.Core) =>
+            new StatOp(StatOpKind.Add, slot, source, stat, kind, value, expiresAt, layer);
 
         public static StatOp RemoveSource(int slot, int source) =>
-            new StatOp(StatOpKind.RemoveSource, slot, source, NoStat, ShapeKind.Added, 0, 0L);
+            new StatOp(StatOpKind.RemoveSource, slot, source, NoStat, ShapeKind.Added, 0, 0L, StatLayer.Core);
     }
 
     public readonly struct ModifierHandle
@@ -74,6 +93,11 @@ namespace Sv
             if (first.Stat != second.Stat)
             {
                 return first.Stat < second.Stat ? -1 : 1;
+            }
+
+            if (first.Layer != second.Layer)
+            {
+                return first.Layer < second.Layer ? -1 : 1;
             }
 
             if (first.Kind != second.Kind)

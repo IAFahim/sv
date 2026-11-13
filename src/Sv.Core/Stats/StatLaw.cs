@@ -15,6 +15,12 @@ namespace Sv
         Cap = 3,
     }
 
+    public enum StatLayer : byte
+    {
+        Core = 0,
+        External = 1,
+    }
+
     [StructLayout(LayoutKind.Sequential, Size = 8)]
     public readonly struct ShapeTerm
     {
@@ -116,6 +122,12 @@ namespace Sv
             }
 
             return value;
+        }
+
+        public static int Fold(int start, ShapeTerm* core, int coreCount, ShapeTerm* external, int externalCount)
+        {
+            var value = Fold(start, core, coreCount);
+            return externalCount > 0 ? Fold(value, external, externalCount) : value;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -237,6 +249,130 @@ namespace Sv
             for (var row = 0; row < Lanes.Rows; row++)
             {
                 output[row] = Percent(value[row], factor);
+            }
+        }
+
+        public static void Added(int* value, int added, int* output)
+        {
+#if NET
+            if (Vector256.IsHardwareAccelerated)
+            {
+                if (added == 0)
+                {
+                    if (value != output)
+                    {
+                        for (var at = 0; at < Lanes.Rows; at += 8)
+                        {
+                            Vector256.Load(value + at).Store(output + at);
+                        }
+                    }
+
+                    return;
+                }
+
+                var delta = Vector256.Create(added);
+                var top = Vector256.Create(int.MaxValue);
+                for (var at = 0; at < Lanes.Rows; at += 8)
+                {
+                    var v = Vector256.Load(value + at);
+                    var sum = v + delta;
+                    var overflow = Vector256.LessThan((v ^ sum) & (delta ^ sum), Vector256<int>.Zero);
+                    Vector256.ConditionalSelect(overflow, Vector256.ShiftRightArithmetic(v, 31) ^ top, sum).Store(output + at);
+                }
+
+                return;
+            }
+#endif
+            for (var row = 0; row < Lanes.Rows; row++)
+            {
+                output[row] = Added(value[row], added);
+            }
+        }
+
+        public static void Cap(int* value, int cap, int* output)
+        {
+#if NET
+            if (Vector256.IsHardwareAccelerated)
+            {
+                var limit = Vector256.Create(cap);
+                for (var at = 0; at < Lanes.Rows; at += 8)
+                {
+                    var v = Vector256.Load(value + at);
+                    Vector256.ConditionalSelect(Vector256.GreaterThan(v, limit), limit, v).Store(output + at);
+                }
+
+                return;
+            }
+#endif
+            for (var row = 0; row < Lanes.Rows; row++)
+            {
+                output[row] = Cap(value[row], cap);
+            }
+        }
+
+        public static void Fold(int* start, ShapeTerm* terms, int count, int* output)
+        {
+            var addedSum = 0L;
+            var additiveSum = 0L;
+            var hasCap = false;
+            var minCap = int.MaxValue;
+            for (var at = 0; at < count; at++)
+            {
+                var kind = terms[at].Kind;
+                var v = terms[at].Value;
+                if (kind == ShapeKind.Added)
+                {
+                    addedSum += v;
+                }
+                else if (kind == ShapeKind.Additive)
+                {
+                    additiveSum += v;
+                }
+                else if (kind == ShapeKind.Cap && (!hasCap || v < minCap))
+                {
+                    hasCap = true;
+                    minCap = v;
+                }
+            }
+
+            if (addedSum >= int.MinValue && addedSum <= int.MaxValue)
+            {
+                Added(start, (int)addedSum, output);
+            }
+            else
+            {
+                for (var row = 0; row < Lanes.Rows; row++)
+                {
+                    output[row] = Added(start[row], addedSum);
+                }
+            }
+
+            var factor = Factor(additiveSum);
+            if (factor != Whole)
+            {
+                Percent(output, factor, output);
+            }
+
+            for (var at = 0; at < count; at++)
+            {
+                if (terms[at].Kind == ShapeKind.Multi)
+                {
+                    Percent(output, Saturate((long)Whole + terms[at].Value), output);
+                }
+            }
+
+            if (hasCap)
+            {
+                Cap(output, minCap, output);
+            }
+        }
+
+        public static void Fold(int* start, ShapeTerm* core, int coreCount, ShapeTerm* external, int externalCount, int* output)
+        {
+            Fold(start, core, coreCount, output);
+            if (externalCount > 0)
+            {
+                Fold(output, external, externalCount, output);
             }
         }
 

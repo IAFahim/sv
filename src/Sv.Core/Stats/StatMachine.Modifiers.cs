@@ -91,26 +91,26 @@ namespace Sv
                 }
 
                 var ordinal = op.Op == StatOpKind.Add ? OrdinalOf(op.Stat) : NoOrdinal;
-                if (ordinal < 0 || op.Kind > ShapeKind.Cap)
+                if (ordinal < 0 || op.Kind > ShapeKind.Cap || op.Layer > StatLayer.External)
                 {
                     rejected++;
                     continue;
                 }
 
-                AddRecord(op.Slot, ordinal, op.Kind, op.Value, op.Source, op.ExpiresAt);
+                AddRecord(op.Slot, ordinal, op.Kind, op.Value, op.Source, op.ExpiresAt, op.Layer);
             }
         }
 
-        public ModifierHandle Add(int slot, int lane, ShapeKind kind, int value, int source, long expiresAt = long.MaxValue)
+        public ModifierHandle Add(int slot, int lane, ShapeKind kind, int value, int source, long expiresAt = long.MaxValue, StatLayer layer = StatLayer.Core)
         {
             var ordinal = OrdinalOf(lane);
-            if (world.StateOf(slot) != SlotState.Live || ordinal < 0 || kind > ShapeKind.Cap)
+            if (world.StateOf(slot) != SlotState.Live || ordinal < 0 || kind > ShapeKind.Cap || layer > StatLayer.External)
             {
                 rejected++;
                 return new ModifierHandle(0L);
             }
 
-            return new ModifierHandle(AddRecord(slot, ordinal, kind, value, source, expiresAt));
+            return new ModifierHandle(AddRecord(slot, ordinal, kind, value, source, expiresAt, layer));
         }
 
         public int RemoveSource(int slot, int source)
@@ -185,7 +185,7 @@ namespace Sv
             return count;
         }
 
-        long AddRecord(int slot, int ordinal, ShapeKind kind, int value, int source, long expiresAt)
+        long AddRecord(int slot, int ordinal, ShapeKind kind, int value, int source, long expiresAt, StatLayer layer)
         {
             nextId++;
             var record = new ModifierRecord
@@ -197,6 +197,7 @@ namespace Sv
                 Slot = slot,
                 Stat = (ushort)ordinal,
                 Kind = kind,
+                Layer = layer,
             };
             var at = Insert(record);
             LogUndo(StatUndoAction.Added, records[at]);
@@ -334,7 +335,7 @@ namespace Sv
                 var key = Mix((ulong)record.Id);
                 key = Mix(key ^ (ulong)record.Expiry);
                 key = Mix(key ^ (((ulong)(uint)record.Slot << 32) | (uint)record.Value));
-                return Mix(key ^ (((ulong)(uint)record.Source << 32) | ((ulong)record.Stat << 8) | (byte)record.Kind));
+                return Mix(key ^ (((ulong)(uint)record.Source << 32) | ((ulong)record.Stat << 16) | ((ulong)record.Kind << 8) | (byte)record.Layer));
             }
         }
 

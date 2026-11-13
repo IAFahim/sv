@@ -10,6 +10,8 @@ namespace Sv
 
         ShapeTerm* scratchTerms;
         int scratchTermCapacity;
+        ShapeTerm* externalTerms;
+        int externalTermCapacity;
         ulong* dirtyScratch;
         int dirtyScratchCapacity;
         ulong* rankMask;
@@ -42,6 +44,7 @@ namespace Sv
             rankWords = Math.Max(1, (statCount + 63) >> 6);
             rankMask = (ulong*)Memory.AllocZeroed((nuint)rankWords, sizeof(ulong));
             EnsureTerms(16);
+            EnsureExternal(16);
         }
 
         void FreeRecalculate()
@@ -50,6 +53,11 @@ namespace Sv
             if (scratchTerms != null)
             {
                 Memory.Free(scratchTerms);
+            }
+
+            if (externalTerms != null)
+            {
+                Memory.Free(externalTerms);
             }
 
             if (dirtyScratch != null)
@@ -78,6 +86,14 @@ namespace Sv
             if (needed > scratchTermCapacity)
             {
                 scratchTerms = Grow(scratchTerms, scratchTermCapacity, ref scratchTermCapacity, needed);
+            }
+        }
+
+        void EnsureExternal(int needed)
+        {
+            if (needed > externalTermCapacity)
+            {
+                externalTerms = Grow(externalTerms, externalTermCapacity, ref externalTermCapacity, needed);
             }
         }
 
@@ -136,13 +152,15 @@ namespace Sv
                 return 0;
             }
 
-            var count = Gather(slot, ordinal);
-            return StatLaw.Fold(TemplateBaseOf(world.TemplateOf(Slot.Chunk(slot)), ordinal), scratchTerms, count);
+            Gather(slot, ordinal, out var coreCount, out var externalCount);
+            return StatLaw.Fold(TemplateBaseOf(world.TemplateOf(Slot.Chunk(slot)), ordinal), scratchTerms, coreCount, externalTerms, externalCount);
         }
 
-        int Gather(int slot, int ordinal)
+        void Gather(int slot, int ordinal, out int coreCount, out int externalCount)
         {
-            var count = GatherCards(ordinal, slot, GatherDerived(ordinal, null, slot));
+            coreCount = GatherDerived(ordinal, null, slot);
+            externalCount = 0;
+            GatherCards(ordinal, slot, ref coreCount, ref externalCount);
             for (var at = HeadPeek(slot); at != NoRecord; at = records[at].Next)
             {
                 if (records[at].Stat != ordinal)
@@ -150,12 +168,24 @@ namespace Sv
                     continue;
                 }
 
-                EnsureTerms(count + 1);
-                scratchTerms[count++] = new ShapeTerm(records[at].Kind, records[at].Value);
+                var term = new ShapeTerm(records[at].Kind, records[at].Value);
+                if (records[at].Layer == StatLayer.Core)
+                {
+                    EnsureTerms(coreCount + 1);
+                    scratchTerms[coreCount++] = term;
+                }
+                else
+                {
+                    EnsureExternal(externalCount + 1);
+                    externalTerms[externalCount++] = term;
+                }
             }
 
-            StatLaw.Canonicalize(scratchTerms, count);
-            return count;
+            StatLaw.Canonicalize(scratchTerms, coreCount);
+            if (externalCount > 0)
+            {
+                StatLaw.Canonicalize(externalTerms, externalCount);
+            }
         }
 
         bool Resolve(in WorldView view, int slot, int ordinal)
@@ -163,8 +193,8 @@ namespace Sv
             var chunk = Slot.Chunk(slot);
             var row = Slot.Row(slot);
             var lane = laneOf[ordinal];
-            var count = Gather(slot, ordinal);
-            var value = StatLaw.Fold(TemplateBaseOf(world.TemplateOf(chunk), ordinal), scratchTerms, count);
+            Gather(slot, ordinal, out var coreCount, out var externalCount);
+            var value = StatLaw.Fold(TemplateBaseOf(world.TemplateOf(chunk), ordinal), scratchTerms, coreCount, externalTerms, externalCount);
             if (Lanes.Ints(view, chunk, lane)[row] == value)
             {
                 return false;

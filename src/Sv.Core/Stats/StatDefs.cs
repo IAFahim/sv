@@ -55,19 +55,26 @@ namespace Sv
         public readonly ShapeKind Kind;
         public readonly int Value;
         public readonly bool PerCount;
+        public readonly StatLayer Layer;
 
         public CardTerm(int stat, int card, ShapeKind kind, int value)
-            : this(stat, card, kind, value, false)
+            : this(stat, card, kind, value, false, StatLayer.Core)
         {
         }
 
         public CardTerm(int stat, int card, ShapeKind kind, int value, bool perCount)
+            : this(stat, card, kind, value, perCount, StatLayer.Core)
+        {
+        }
+
+        public CardTerm(int stat, int card, ShapeKind kind, int value, bool perCount, StatLayer layer)
         {
             Stat = stat;
             Card = card;
             Kind = kind;
             Value = value;
             PerCount = perCount;
+            Layer = layer;
         }
 
         public static int TermValue(int value, int count, bool perCount) => perCount ? StatLaw.Saturate((long)value * count) : value;
@@ -80,6 +87,7 @@ namespace Sv
         public int Value;
         public ShapeKind Kind;
         public bool PerCount;
+        public StatLayer Layer;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -95,6 +103,7 @@ namespace Sv
         public int Heap;
         public ushort Stat;
         public ShapeKind Kind;
+        public StatLayer Layer;
     }
 
     internal enum StatUndoAction : int
