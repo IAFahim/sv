@@ -3,6 +3,8 @@ packages/com.sv.core/** text eol=lf
 eng/*.sh text eol=lf
 packages/com.sv.engine/** text eol=lf
 packages/com.sv.unity.v4/** text eol=lf
+packages/com.sv.unity.v4/**/*.dll binary
+packages/com.sv.unity.v4/**/*.bytes binary
 packs/**/*.sv.json text eol=lf
 packs/**/*.scenario.json text eol=lf
 tests/Sv.NorthStar3/Glue.g.cs text eol=lf

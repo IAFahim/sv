@@ -1,0 +1,36 @@
+{
+    "name": "Sv.Unity.V4.TlTests",
+    "rootNamespace": "Sv.Unity.TlTests",
+    "references": [
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner",
+        "Tl.Core",
+        "Sv.Engine.Core",
+        "Sv.Engine.Host",
+        "Sv.Unity.V4",
+        "Sv.Unity.V4.TestPacks",
+        "Sv.NorthStar3"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS",
+        "SV_TL_UNITY"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.tl.unity",
+            "expression": "0.0.0",
+            "define": "SV_TL_UNITY"
+        }
+    ],
+    "noEngineReferences": false
+}

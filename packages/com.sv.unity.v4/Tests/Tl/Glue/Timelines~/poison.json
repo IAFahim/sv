@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "name": "poison",
+  "duration": 4,
+  "tracks": [
+    {
+      "namespace": "Tl",
+      "type": "TlNoSettings<Sv.Kernels.NorthStar3.Glue.PoisonClip>",
+      "data": {},
+      "clips": [
+        { "namespace": "Sv.Kernels.NorthStar3.Glue", "type": "PoisonClip", "start": 0, "end": 4, "data": { "Amount": 3 } }
+      ]
+    }
+  ]
+}
