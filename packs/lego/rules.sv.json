@@ -10,6 +10,8 @@
 {"id":1009,"name":"stun_bounds","layer":"fold","value":"StunTicks","floor":0},
 {"id":1010,"name":"cooldown_bounds","layer":"fold","value":"Cooldown","floor":0},
 {"id":1011,"name":"rage_cap","layer":"fold","value":"RageStacks","floor":0,"ceiling":5},
+{"id":1012,"name":"fury_cap","layer":"fold","value":"Fury","floor":0,"ceiling":5},
+{"id":1013,"name":"leaps_count","layer":"flow","then":[{"add":["LeapsDone","Leap"]}]},
 
 {"id":2001,"name":"sniper_ward","card":"sniper_ward","layer":"gate","priority":100,"when":{"eq":["record.kind","Sniper"]},"then":[{"deny":{}}]},
 {"id":2002,"name":"immune_by_type_mask","layer":"gate","priority":90,"when":{"bit":["self.ImmuneMask","record.channel"]},"then":[{"deny":{}}]},
@@ -28,6 +30,9 @@
 {"id":2017,"name":"rage_1","layer":"gate","priority":21,"group":1,"when":{"and":[{"eq":["record.channel","Physical"]},{"ge":["source.RageStacks",1]}]},"then":[{"additive":0.1}]},
 {"id":2020,"name":"immune_charges","card":"ImmuneCharges","layer":"gate","priority":0,"when":{"in":["record.channel",["Physical","Poison","Fire"]]},"then":[{"absorb":{"budget":"ImmuneCharges","per":"Hit","order":"BySource"}}]},
 {"id":2021,"name":"shield","layer":"gate","priority":0,"when":{"and":[{"in":["record.channel",["Physical","Poison","Fire"]]},{"gt":["self.Shield",0]}]},"then":[{"absorb":{"budget":"Shield","per":"Amount","order":"ByAmountDescending"}}]},
+{"id":2031,"name":"fury_bonus_by_cell","layer":"gate","priority":0,"when":{"and":[{"eq":["record.channel","Physical"]},{"gt":["source.Fury",0]}]},"then":[{"additive":{"cell":"source.RageBonus"}}]},
+{"id":2032,"name":"leap_spends_a_jump","layer":"gate","priority":0,"when":{"eq":["record.channel","Leap"]},"then":[{"spend":"Jumps"}]},
+{"id":2033,"name":"crit_chance_quarter","layer":"gate","priority":0,"when":{"and":[{"eq":["record.channel","Physical"]},{"gt":["source.CritRoll",0]},{"roll":2500}]},"then":[{"multi":1.0}]},
 
 {"id":3001,"name":"poison_tick","layer":"emit","when":{"and":[{"eq":["record.channel","Tick"]},{"gt":["self.PoisonTicks",0]}]},"then":[{"emit":{"to":"Self","channel":"Poison","amount":4}},{"emit":{"to":"Self","channel":"PoisonTime","amount":-1}}]},
 {"id":3002,"name":"regen_tick","card":"RegenCard","layer":"emit","when":{"eq":["record.channel","Tick"]},"then":[{"emit":{"to":"Self","channel":"Healing","amount":1,"scale":"RegenRate"}}]},
@@ -44,6 +49,9 @@
 {"id":3013,"name":"cast_poison_snapshots_power","layer":"emit","depthLimit":0,"when":{"eq":["record.channel","CastPoison"]},"then":[{"emit":{"to":"Source","channel":"PoisonPower","amount":1,"scale":"Power"}}]},
 {"id":3014,"name":"heal_5_per_damage_hit","card":"HealPerHit","layer":"emit","when":{"and":[{"in":["record.channel",["Physical","Poison","Fire"]]},{"gt":["record.taken",0]}]},"then":[{"emit":{"to":"Self","channel":"Healing","amount":5,"per":"Hit"}}]},
 {"id":3015,"name":"leech","card":"leech","layer":"emit","when":{"gt":[{"taken":["Physical","Poison","Fire"]},0]},"then":[{"emit":{"to":"Self","channel":"Healing","amount":5,"per":"Source"}}]},
+{"id":3020,"name":"land_sets_jumps","layer":"emit","when":{"eq":["record.channel","Land"]},"then":[{"emit":{"to":"Self","channel":"JumpSet","amount":{"cell":"self.MaxJumps"}}}]},
+{"id":3021,"name":"cast_snap_sets_poison_power","layer":"emit","depthLimit":0,"when":{"eq":["record.channel","CastSnap"]},"then":[{"emit":{"to":"Source","channel":"PoisonSnap","amount":{"cell":"self.Power"}}}]},
+{"id":3022,"name":"snapshot_poison_tick","layer":"emit","when":{"and":[{"eq":["record.channel","Tick"]},{"gt":["self.SnapPower",0]}]},"then":[{"emit":{"to":"Self","channel":"Poison","amount":{"cell":"self.SnapPower"}}}]},
 
 {"id":4001,"name":"stunned","layer":"event","event":"Stunned","enter":{"gt":["StunTicks",0]}},
 {"id":4002,"name":"dead","layer":"event","event":"Dead","enter":{"le":["Health",0]}},

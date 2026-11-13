@@ -26,5 +26,6 @@
 {"id":25,"name":"pet","values":{"Health":50,"OwnerOnlyHeal":1}},
 {"id":26,"name":"bloodmage","values":{"HealPerHit":1}},
 {"id":27,"name":"worked_example_player","values":{"Health":100,"MaxHealth":100},"cards":{"sniper_ward":1,"thorns":1,"leech":1}},
-{"id":28,"name":"bloodmage_warded","values":{"Health":50,"HealPerHit":1,"ImmuneCharges":2}}
+{"id":28,"name":"bloodmage_warded","values":{"Health":50,"HealPerHit":1,"ImmuneCharges":2}},
+{"id":29,"name":"lucky","values":{"CritRoll":1}}
 ]}
