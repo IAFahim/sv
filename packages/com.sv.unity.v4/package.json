@@ -1,0 +1,13 @@
+{
+    "name": "com.sv.unity.v4",
+    "version": "4.0.0",
+    "displayName": "sv Unity Adapter v4",
+    "description": "sv v3 engine in Unity 7: generated Burst jobs per frame phase, slots on entities, the step system and the pack authoring window.",
+    "unity": "7000.0",
+    "dependencies": {
+        "com.sv.engine": "3.0.0",
+        "com.unity.entities": "7.0.0",
+        "com.unity.burst": "2.0.0",
+        "com.unity.collections": "7.0.0"
+    }
+}

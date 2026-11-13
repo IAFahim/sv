@@ -1,0 +1,21 @@
+{
+    "name": "Sv.Unity.V4.Editor",
+    "rootNamespace": "Sv.Unity.Editor",
+    "references": [
+        "Sv.Engine.Core",
+        "Sv.Engine.Host",
+        "Sv.Engine.Rules",
+        "Sv.Unity.V4"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

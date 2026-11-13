@@ -1,0 +1,32 @@
+{
+    "name": "Sv.Unity.V4.Tests",
+    "rootNamespace": "Sv.Unity.Tests",
+    "references": [
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner",
+        "Sv.Engine.Core",
+        "Sv.Engine.Host",
+        "Sv.Engine.Rules",
+        "Sv.Unity.V4",
+        "Sv.Unity.V4.Editor",
+        "Sv.Unity.V4.TestPacks",
+        "Unity.Entities",
+        "Unity.Burst",
+        "Unity.Collections"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
