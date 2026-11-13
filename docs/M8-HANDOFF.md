@@ -83,3 +83,8 @@ Only on the old PC (recreate on the new one):
 First command next (after recreating the project on the new PC):
   COMPILE_ONLY=1 T=c2 bash m8-run/locked.sh m8-run/gate.sh
 then item 3 (.NET twin fixtures), then item 4 (EditMode tests; the first one proves Burst on the memory helpers).
+
+## Scripts copied into the repo (2026-11-13)
+
+`eng/m8-run/gate.sh` and `eng/m8-run/locked.sh` were only on the first PC; they are now in the repo. They expect to be run from the sv-proto parent folder as `m8-run/...` and a scratch project `m8-harness` next to the repo: copy them to `<parent>/m8-run/`, rebuild the scratch project as described above, check the Unity editor path inside them for this PC, then run the first command: `COMPILE_ONLY=1 T=c2 bash m8-run/locked.sh m8-run/gate.sh`.
+Status at handoff: Unity 7000.0.0a16 batch compile gives error CS 0 and error BC 0 (6 nullable warnings); Burst has not compiled any job yet (it compiles on first schedule), so Buffer.MemoryCopy and Span.Clear in jobs are the first thing to test; no web search was done on that yet.
