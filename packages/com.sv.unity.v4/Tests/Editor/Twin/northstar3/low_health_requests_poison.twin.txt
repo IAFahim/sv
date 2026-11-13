@@ -1,0 +1,30 @@
+twin 1
+pack northstar3 1456B551FFCFA7CF
+scenario hurt_75_heal_-1
+capacity 65536
+frames 9
+spawn 0 0
+send 0 4194303 0 0 75 1 0
+frame 0
+digest 906C04DC1C40E80D
+frame 1
+send 0 0 0 1 3 1 1
+digest 3E5AD1A01AE98113
+frame 2
+send 0 0 0 1 3 1 1
+digest 3E7C43E29019073F
+frame 3
+send 0 0 0 1 3 1 1
+digest 01266285521986D0
+frame 4
+send 0 0 0 1 3 1 1
+digest A566FAEC8837BA57
+frame 5
+digest A566FAEC8837BA57
+frame 6
+digest A566FAEC8837BA57
+frame 7
+digest A566FAEC8837BA57
+frame 8
+digest A566FAEC8837BA57
+final A566FAEC8837BA57

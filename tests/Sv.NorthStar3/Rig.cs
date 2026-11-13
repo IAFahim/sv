@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Runtime.InteropServices;
+using System.Text;
 using Sv;
 using Sv.Host;
 using Sv.Kernels.NorthStar3;
@@ -54,6 +56,20 @@ namespace Sv.NorthStar3
 
         public List<Tick> Ticks { get; } = new List<Tick>();
 
+        readonly StringBuilder journal = new StringBuilder();
+
+        public string Journal(string scenario, ulong packHash, int frames) =>
+            "twin 1\npack northstar3 " + packHash.ToString("X16", CultureInfo.InvariantCulture) + "\nscenario " + scenario + "\ncapacity " + (1 << 16) + "\nframes " + frames + "\n" + journal
+            + "final " + Host.Digest().ToString("X16", CultureInfo.InvariantCulture) + "\n";
+
+        void Record(string line) => journal.Append(line).Append('\n');
+
+        void Send(int target, int source, int kind, int channel, int amount, Origin origin)
+        {
+            Host.Send(target, source, kind, channel, amount, 1, origin);
+            Record("send " + target + " " + source + " " + kind + " " + channel + " " + amount + " 1 " + (int)origin);
+        }
+
         public int Template(string name)
         {
             for (var t = 0; t < Plan.Schema.Templates.Length; t++)
@@ -67,21 +83,27 @@ namespace Sv.NorthStar3
             throw new ArgumentException("no template " + name);
         }
 
-        public int Spawn(string template) => Host.Spawn(Template(template));
+        public int Spawn(string template)
+        {
+            var index = Template(template);
+            var slot = Host.Spawn(index);
+            Record("spawn " + index + " " + slot);
+            return slot;
+        }
 
         public void Apply(Cause cause)
         {
             if (cause.Kind == Aim)
             {
-                Host.Send(cause.Slot, EffectKey.NoSource, 0, (int)Channel.Aim, cause.Value, 1, Origin.Direct);
+                Send(cause.Slot, EffectKey.NoSource, 0, (int)Channel.Aim, cause.Value, Origin.Direct);
             }
             else if (cause.Kind == Heal)
             {
-                Host.Send(cause.Slot, EffectKey.NoSource, 0, (int)Channel.Healing, cause.Value, 1, Origin.Direct);
+                Send(cause.Slot, EffectKey.NoSource, 0, (int)Channel.Healing, cause.Value, Origin.Direct);
             }
             else if (cause.Kind == Hit)
             {
-                Host.Send(cause.Slot, EffectKey.NoSource, 0, (int)Channel.Physical, cause.Value, 1, Origin.Direct);
+                Send(cause.Slot, EffectKey.NoSource, 0, (int)Channel.Physical, cause.Value, Origin.Direct);
             }
             else
             {
@@ -91,6 +113,7 @@ namespace Sv.NorthStar3
 
         public ulong Step()
         {
+            Record("frame " + Host.Frame);
             world.Tick(players, true);
             var system = new Tl.Generated.TlAuto_Sv_NorthStar3 { C0_PoisonOut = poison.AsSpan(0, Capacity), C1_BleedingOut = bleeding.AsSpan(0, Capacity) };
             if (tlWorkers != null)
@@ -106,6 +129,7 @@ namespace Sv.NorthStar3
             Collect(MemoryMarshal.Cast<BleedingOut, int>(bleeding.AsSpan()), (int)Channel.Bleeding);
             Host.Step();
             requests.Apply(players, Host.Events, Host.EventCount);
+            Record("digest " + Host.LastDigest.ToString("X16", CultureInfo.InvariantCulture));
             return Host.LastDigest;
         }
 
@@ -118,6 +142,11 @@ namespace Sv.NorthStar3
                     var aimed = Host.Read(slot, targetLane);
                     Ticks.Add(new Tick(Host.Frame, aimed <= 0 ? slot : aimed - 1, slot, Math.Clamp(Host.Read(slot, kindLane), 0, 255), channel, cells[slot]));
                 }
+            }
+
+            foreach (var tick in Ticks.Where(t => t.Frame == Host.Frame && t.Channel == channel))
+            {
+                Record("send " + tick.Target + " " + tick.Source + " " + tick.Kind + " " + tick.Channel + " " + tick.Amount + " 1 " + (int)Origin.Timeline);
             }
 
             Outbox.Send(Host, cells, channel, kindLane, targetLane);

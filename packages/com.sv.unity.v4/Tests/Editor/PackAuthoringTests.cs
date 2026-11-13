@@ -10,12 +10,15 @@ namespace Sv.Unity.Tests
     {
         static string PackageRoot => PackageInfo.FindForAssembly(typeof(PackAuthoringTests).Assembly)!.resolvedPath;
 
-        static string PackFolder(string pack) => Path.GetFullPath(Path.Combine(PackageRoot, "..", "..", "packs", pack));
+        static string PackFolder(string pack) => pack == "northstar3"
+            ? Path.GetFullPath(Path.Combine(PackageRoot, "..", "..", "tests", "Sv.Kernels.NorthStar3", "pack"))
+            : Path.GetFullPath(Path.Combine(PackageRoot, "..", "..", "packs", pack));
 
         static string Normalize(string text) => text.Replace("\r\n", "\n");
 
         [TestCase("reference", "Reference")]
         [TestCase("lego", "Lego")]
+        [TestCase("northstar3", "NorthStar3")]
         public void Editor_output_equals_the_committed_generated_files(string pack, string folder)
         {
             var authoring = new SvPackAuthoring(PackFolder(pack));

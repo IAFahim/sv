@@ -33,7 +33,7 @@ namespace Sv.NorthStar3
             }
         }
 
-        sealed record Run(int Victim, int Status, List<Cause> Causes, List<ulong> Digests, List<Tick> Ticks, int Health);
+        sealed record Run(int Victim, int Status, List<Cause> Causes, List<ulong> Digests, List<Tick> Ticks, int Health, string Journal);
 
         static Run Play(string victim, string status, int workers)
         {
@@ -55,7 +55,7 @@ namespace Sv.NorthStar3
                 digests.Add(rig.Step());
             }
 
-            return new Run(target, source, causes, digests, rig.Ticks, rig.Health(target));
+            return new Run(target, source, causes, digests, rig.Ticks, rig.Health(target), rig.Journal("status_" + victim + "_" + status, Plan.Hash, Frames));
         }
 
         [Fact]
@@ -192,7 +192,7 @@ namespace Sv.NorthStar3
                 digests.Add(rig.Step());
             }
 
-            return new Run(victim, victim, causes, digests, rig.Ticks, rig.Health(victim));
+            return new Run(victim, victim, causes, digests, rig.Ticks, rig.Health(victim), rig.Journal("hurt_" + damage + "_heal_" + healAt, Plan.Hash, Frames));
         }
 
         [Fact]
@@ -288,6 +288,31 @@ namespace Sv.NorthStar3
             Assert.Equal(Hurt(75, 1, 2).Digests, Hurt(75, 11, 2).Digests);
             Assert.Equal(PinnedHealed, healed.Digests[^1]);
             Assert.Equal(PinnedHurt, Hurt(75, 1).Digests[^1]);
+        }
+
+        static void Check(string name, string journal)
+        {
+            var file = Path.Combine(FindRoot(), "packages", "com.sv.unity.v4", "Tests", "Editor", "Twin", "northstar3", name + ".twin.txt");
+            if (Environment.GetEnvironmentVariable("SV_UPDATE_TWIN") == "1")
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+                File.WriteAllText(file, journal);
+                return;
+            }
+
+            Assert.True(File.Exists(file), "missing " + file + ", run with SV_UPDATE_TWIN=1");
+            Assert.Equal(File.ReadAllText(file).Replace("\r\n", "\n"), journal);
+        }
+
+        [Fact]
+        public void The_sends_the_glue_produced_match_the_committed_journals_that_unity_replays()
+        {
+            Check("poison_status_on_player", Play("player", "poison_status", 1).Journal);
+            Check("poison_status_on_warded_player", Play("warded_player", "poison_status", 1).Journal);
+            Check("rifle_status_on_warded_player", Play("warded_player", "rifle_status", 1).Journal);
+            Check("low_health_requests_poison", Hurt(75, 1).Journal);
+            Check("low_health_then_healed", Hurt(75, 1, 2).Journal);
+            Assert.Equal(Play("player", "poison_status", 1).Journal, Play("player", "poison_status", 11).Journal.Replace("\n", "\n"));
         }
     }
 }

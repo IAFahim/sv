@@ -50,10 +50,11 @@ namespace Sv.Unity.Tests
         {
             "reference" => Sv.Kernels.Reference.PackWorld.Create(options),
             "lego" => Sv.Kernels.Lego.PackWorld.Create(options),
+            "northstar3" => Sv.Kernels.NorthStar3.PackWorld.Create(options),
             _ => throw new ArgumentException("unknown pack " + pack),
         };
 
-        static ulong PackHash(string pack) => pack == "reference" ? Sv.Kernels.Reference.Layout.PackHash : Sv.Kernels.Lego.Layout.PackHash;
+        static ulong PackHash(string pack) => pack == "reference" ? Sv.Kernels.Reference.Layout.PackHash : pack == "lego" ? Sv.Kernels.Lego.Layout.PackHash : Sv.Kernels.NorthStar3.Layout.PackHash;
 
         [TestCaseSource(nameof(Journals))]
         public void Replay_reaches_the_twin_digest_every_frame(int jobWorkers, string journal) => Play(journal, jobWorkers, null);
