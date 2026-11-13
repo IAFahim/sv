@@ -172,3 +172,7 @@ After S2: BRIEF-small-3-remaining.md item 4 onward. Push of v3/int is the owner'
 ## 18. Update 2026-11-13 (S2 merged)
 
 S2 stat layers and derive rows merged on v3/int (1f12954, contract/CONTRACT-v3.2.0-stat-layers.md, issue 0390 readings). Mechanic 17 now gives 209. Suites: Laws 548, Scenario 80, Diff 20, Host 27, Lego 120, all green; all old digests unchanged. Next: BRIEF-small-3-remaining.md item 4 onward (redundant bricks only with owner agreement, 0363 cap, 0365, skill notes, AGENTS.md layer table). Push is the owner's call.
+
+## 19. Update 2026-11-13 (small agent merged)
+
+v3/s3-remaining merged (deb452d): sv AGENTS.md with layer table, issue 0363 (per-frame input log cap, off by default) and 0365 (raw arena counts one interval per layer) closed with pinned verdict tests. Suites: Laws 556, Scenario 80, Diff 20, Host 29, Lego 120 green; bench digests unchanged. Open: M8 Unity adapter (big agent), M9 tl glue, M10 web tool, M11 deletions; speed gate C and D; redundant bricks (owner agreement); readings to confirm.
