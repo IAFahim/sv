@@ -54,14 +54,23 @@ namespace Sv
         public readonly int Card;
         public readonly ShapeKind Kind;
         public readonly int Value;
+        public readonly bool PerCount;
 
         public CardTerm(int stat, int card, ShapeKind kind, int value)
+            : this(stat, card, kind, value, false)
+        {
+        }
+
+        public CardTerm(int stat, int card, ShapeKind kind, int value, bool perCount)
         {
             Stat = stat;
             Card = card;
             Kind = kind;
             Value = value;
+            PerCount = perCount;
         }
+
+        public static int TermValue(int value, int count, bool perCount) => perCount ? StatLaw.Saturate((long)value * count) : value;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -70,6 +79,7 @@ namespace Sv
         public int Lane;
         public int Value;
         public ShapeKind Kind;
+        public bool PerCount;
     }
 
     [StructLayout(LayoutKind.Sequential)]

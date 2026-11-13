@@ -13,6 +13,7 @@ namespace DiffTests
         public bool CardModifiers;
         public bool StatOps;
         public bool Absorb = true;
+        public bool Bricks;
     }
 
     public sealed class GeneratedCase
@@ -121,6 +122,12 @@ namespace DiffTests
 
         int EventLane => MaskLane + 1;
 
+        int PeakLane => events > 0 ? EventLane + 1 : EventLane;
+
+        static readonly string[] AssignModes = { "set", "max", "min" };
+
+        string budgetMode = "set";
+
         string Values()
         {
             var rows = new List<string>();
@@ -181,13 +188,28 @@ namespace DiffTests
             }
 
             var nextLane = events > 0 ? EventLane + 1 : EventLane;
-            return "{\"schema\":1,\"nextLane\":" + N(nextLane) + ",\"rows\":[\n" + string.Join(",\n", rows) + "\n]}";
+            var seedKey = string.Empty;
+            if (options.Bricks)
+            {
+                budgetMode = Pick(AssignModes);
+                rows.Add("{\"id\":" + N(PeakLane) + ",\"name\":\"Peak\",\"class\":\"intrinsic\",\"default\":" + N(random.Next(20) - 5) + "}");
+                grants.Add("AssignBudget");
+                rows.Add("{\"id\":" + N(channel++) + ",\"name\":\"AssignBudget\",\"class\":\"channel\",\"into\":\"Budget\",\"mode\":\"" + budgetMode + "\"}");
+                grants.Add("ClaimOwner");
+                rows.Add("{\"id\":" + N(channel++) + ",\"name\":\"ClaimOwner\",\"class\":\"channel\",\"into\":\"Owner\",\"mode\":\"source\"}");
+                nextLane = PeakLane + 1;
+                seedKey = ",\"seed\":" + N(random.Next(int.MaxValue));
+            }
+
+            return "{\"schema\":1,\"nextLane\":" + N(nextLane) + seedKey + ",\"rows\":[\n" + string.Join(",\n", rows) + "\n]}";
         }
 
         string RecordAtom()
         {
-            switch (random.Next(7))
+            switch (random.Next(options.Bricks ? 9 : 7))
             {
+                case 7:
+                case 8: return "{\"roll\":" + N(random.Next(10001)) + "}";
                 case 0: return "{\"eq\":[\"record.channel\",\"" + RandomDamage() + "\"]}";
                 case 1: return "{\"in\":[\"record.channel\",[\"" + RandomDamage() + "\",\"" + RandomDamage() + "\"]]}";
                 case 2: return "{\"eq\":[\"record.kind\",\"K" + N(random.Next(kinds)) + "\"]}";
@@ -285,6 +307,16 @@ namespace DiffTests
                 rows.Add(Rule("\"layer\":\"fold\",\"value\":\"Flag0\",\"floor\":0,\"ceiling\":5"));
             }
 
+            if (options.Bricks)
+            {
+                var peakTerms = "{\"" + Pick(AssignModes) + "\":[\"Peak\",\"" + RandomDamage() + "\"]}" + (Chance(50) ? ",{\"add\":[\"Peak\",\"" + RandomDamage() + "\"]}" : string.Empty);
+                rows.Add(Rule("\"layer\":\"flow\"" + CardKey() + (Chance(40) ? ",\"when\":" + Condition(() => SelfAtom(false, 0), 1) : string.Empty) + ",\"then\":[" + peakTerms + "]"));
+                if (Chance(50))
+                {
+                    rows.Add(Rule("\"layer\":\"fold\",\"value\":\"Peak\",\"floor\":-10,\"ceiling\":" + N(50 + random.Next(100))));
+                }
+            }
+
             for (var c = 0; c < chains; c++)
             {
                 var limit = c;
@@ -336,6 +368,11 @@ namespace DiffTests
 
         string GateEffects()
         {
+            if (options.Bricks && Chance(15))
+            {
+                return "{\"spend\":\"Budget\"}";
+            }
+
             var roll = random.Next(100);
             if (roll < 30)
             {
@@ -358,8 +395,9 @@ namespace DiffTests
                 var count = 1 + random.Next(2);
                 for (var i = 0; i < count; i++)
                 {
-                    switch (random.Next(4))
+                    switch (random.Next(options.Bricks ? 5 : 4))
                     {
+                        case 4: effects.Add("{\"" + Pick(new[] { "added", "additive", "multi", "cap" }) + "\":{\"cell\":\"" + Pick(new[] { "source.S0", "self.Flag0", "owner.Budget", "source.Peak", "self.S" + N(random.Next(stats)) }) + "\"}}"); break;
                         case 0: effects.Add("{\"added\":" + N(random.Next(16) - 5) + "}"); break;
                         case 1: effects.Add("{\"additive\":" + Pick(Percents) + "}"); break;
                         case 2: effects.Add("{\"multi\":" + Pick(Percents) + "}"); break;
@@ -395,6 +433,17 @@ namespace DiffTests
                     _ => N(1 + random.Next(10)),
                 };
                 var scale = Chance(15) ? ",\"scale\":\"S" + N(random.Next(stats)) + "\"" : string.Empty;
+                if (options.Bricks && Chance(35))
+                {
+                    var subjects = per == "Frame" ? new[] { "self", "owner" } : new[] { "self", "source", "owner" };
+                    var cells = new[] { "Health", "Flag0", "Budget", "Peak", "S" + N(random.Next(stats)) };
+                    amount = "{\"cell\":\"" + Pick(subjects) + "." + Pick(cells) + "\"}";
+                }
+
+                if (options.Bricks && Chance(15))
+                {
+                    scale = ",\"scale\":\"" + Pick(new[] { "Flag0", "Budget", "Peak" }) + "\"";
+                }
                 actions.Add("{\"emit\":{\"to\":\"" + to + "\",\"channel\":\"" + channel + "\",\"amount\":" + amount + scale + ",\"per\":\"" + per + "\"}}");
             }
 
@@ -424,7 +473,8 @@ namespace DiffTests
                         2 => "\"multi\":" + Pick(Percents),
                         _ => "\"cap\":" + Decimal((5 + random.Next(100)) * (long)statScale[stat], statScale[stat]),
                     };
-                    modifiers = ",\"modifiers\":[{\"stat\":\"S" + N(stat) + "\"," + modifier + "}]";
+                    var perCount = options.Bricks && Chance(60) ? ",\"perCount\":true" : string.Empty;
+                    modifiers = ",\"modifiers\":[{\"stat\":\"S" + N(stat) + "\"," + modifier + perCount + "}]";
                 }
 
                 rows.Add("{\"id\":" + N(c + 1) + ",\"name\":\"card" + N(c) + "\",\"value\":\"Card" + N(c) + "\"" + modifiers + "}");

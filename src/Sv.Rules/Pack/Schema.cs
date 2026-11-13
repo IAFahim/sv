@@ -55,8 +55,16 @@ namespace Sv.Rules
 
         public int Offset { get; }
 
+        public AssignMode IntoMode { get; }
+
         public ValueDef(int id, string name, ValueClass valueClass, IntrinsicRole role, int intDefault, int scale, bool eventDefault, bool timeline, int into, int offset)
+            : this(id, name, valueClass, role, intDefault, scale, eventDefault, timeline, into, offset, AssignMode.Add)
         {
+        }
+
+        public ValueDef(int id, string name, ValueClass valueClass, IntrinsicRole role, int intDefault, int scale, bool eventDefault, bool timeline, int into, int offset, AssignMode intoMode)
+        {
+            IntoMode = intoMode;
             Id = id;
             Name = name;
             Class = valueClass;
@@ -70,6 +78,8 @@ namespace Sv.Rules
         }
 
         public int Lane => Class == ValueClass.Event ? LaneNumbers.LaneOfEvent(Id) : Id;
+
+        public bool Assigns => Into >= 0 && IntoMode != AssignMode.Add;
     }
 
     public readonly struct StatModifier
@@ -80,11 +90,19 @@ namespace Sv.Rules
 
         public int Value { get; }
 
+        public bool PerCount { get; }
+
         public StatModifier(int stat, ShapeKind kind, int value)
+            : this(stat, kind, value, false)
+        {
+        }
+
+        public StatModifier(int stat, ShapeKind kind, int value, bool perCount)
         {
             Stat = stat;
             Kind = kind;
             Value = value;
+            PerCount = perCount;
         }
     }
 
@@ -188,8 +206,16 @@ namespace Sv.Rules
 
         public int OwnerIntrinsic { get; }
 
+        public ulong Seed { get; }
+
         public PackSchema(int nextLane, ValueDef[] stats, ValueDef[] intrinsics, ValueDef[] events, ValueDef[] channels, ValueDef[] kinds, string[] tags, CardDef[] cards, TemplateDef[] templates)
+            : this(nextLane, stats, intrinsics, events, channels, kinds, tags, cards, templates, 0ul)
         {
+        }
+
+        public PackSchema(int nextLane, ValueDef[] stats, ValueDef[] intrinsics, ValueDef[] events, ValueDef[] channels, ValueDef[] kinds, string[] tags, CardDef[] cards, TemplateDef[] templates, ulong seed)
+        {
+            Seed = seed;
             NextLane = nextLane;
             Stats = stats;
             Intrinsics = intrinsics;
@@ -305,6 +331,30 @@ namespace Sv.Rules
             }
 
             return -1;
+        }
+
+        public AssignMode AssignModeOf(int intrinsic, FlowRule[] flows)
+        {
+            for (var c = 0; c < Channels.Length; c++)
+            {
+                if (Channels[c].Assigns && Channels[c].Into == intrinsic)
+                {
+                    return Channels[c].IntoMode;
+                }
+            }
+
+            for (var f = 0; f < flows.Length; f++)
+            {
+                for (var t = 0; t < flows[f].Terms.Length; t++)
+                {
+                    if (flows[f].Terms[t].Assigns && flows[f].Terms[t].Intrinsic == intrinsic)
+                    {
+                        return flows[f].Terms[t].Mode;
+                    }
+                }
+            }
+
+            return AssignMode.Add;
         }
 
         public bool ChannelsFitWord => Channels.Length == 0 || Channels[Channels.Length - 1].Id < LaneNumbers.ChannelWord;

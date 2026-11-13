@@ -8,13 +8,18 @@ namespace Sv.Rules
         public static PackSource Write(ContentPack pack) =>
             new PackSource(Values(pack.Schema), Rules(pack), Cards(pack.Schema), Templates(pack.Schema));
 
-        static JsonWriter Begin(int nextLane, bool withCounter)
+        static JsonWriter Begin(int nextLane, bool withCounter, ulong seed = 0ul)
         {
             var writer = new JsonWriter();
             writer.BeginObject().Key("schema").Int(PackReader.SchemaVersion).KeyDone();
             if (withCounter)
             {
                 writer.Key("nextLane").Int(nextLane).KeyDone();
+            }
+
+            if (seed != 0ul)
+            {
+                writer.Key("seed").UInt(seed).KeyDone();
             }
 
             writer.Key("rows").BeginArray();
@@ -29,7 +34,7 @@ namespace Sv.Rules
 
         public static string Values(PackSchema schema)
         {
-            var writer = Begin(schema.NextLane, true);
+            var writer = Begin(schema.NextLane, true, schema.Seed);
             for (var i = 0; i < schema.Stats.Length; i++)
             {
                 var row = schema.Stats[i];
@@ -82,6 +87,11 @@ namespace Sv.Rules
                     writer.Key("into").String(schema.NameOf(ValueClass.Intrinsic, row.Into)).KeyDone();
                 }
 
+                if (row.Assigns)
+                {
+                    writer.Key("mode").String(AssignModes.NameOf(row.IntoMode)).KeyDone();
+                }
+
                 writer.EndObject();
             }
 
@@ -126,7 +136,13 @@ namespace Sv.Rules
                     {
                         var modifier = card.Modifiers[m];
                         writer.BeginObject().Key("stat").String(schema.NameOf(ValueClass.Stat, modifier.Stat)).KeyDone()
-                            .Key(ShapeNames[(int)modifier.Kind]).Scaled(modifier.Value, ShapeScale(modifier.Kind, ScaleOf(schema, ValueClass.Stat, modifier.Stat))).KeyDone().EndObject();
+                            .Key(ShapeNames[(int)modifier.Kind]).Scaled(modifier.Value, ShapeScale(modifier.Kind, ScaleOf(schema, ValueClass.Stat, modifier.Stat))).KeyDone();
+                        if (modifier.PerCount)
+                        {
+                            writer.Key("perCount").Bool(true).KeyDone();
+                        }
+
+                        writer.EndObject();
                     }
 
                     writer.EndArray().KeyDone();
@@ -286,7 +302,18 @@ namespace Sv.Rules
 
                     for (var i = 0; i < gate.Shapes.Length; i++)
                     {
-                        writer.BeginObject().Key(ShapeNames[(int)gate.Shapes[i].Kind]).Scaled(gate.Shapes[i].Value, ShapeScale(gate.Shapes[i].Kind, StatLaw.MinScale)).KeyDone().EndObject();
+                        var shape = gate.Shapes[i];
+                        writer.BeginObject().Key(ShapeNames[(int)shape.Kind]);
+                        if (shape.Cell != null)
+                        {
+                            writer.BeginObject().Key("cell").String(CellText(schema, shape.Cell)).KeyDone().EndObject();
+                        }
+                        else
+                        {
+                            writer.Scaled(shape.Value, ShapeScale(shape.Kind, StatLaw.MinScale));
+                        }
+
+                        writer.KeyDone().EndObject();
                     }
 
                     for (var i = 0; i < gate.Absorbs.Length; i++)
@@ -297,6 +324,11 @@ namespace Sv.Rules
                             .Key("per").String(absorb.Per == AbsorbPer.Hit ? "Hit" : "Amount").KeyDone()
                             .Key("order").String(absorb.Order == AbsorbOrder.BySource ? "BySource" : "ByAmountDescending").KeyDone()
                             .EndObject().KeyDone().EndObject();
+                    }
+
+                    for (var i = 0; i < gate.Spends.Length; i++)
+                    {
+                        writer.BeginObject().Key("spend").String(schema.NameOf(ValueClass.Intrinsic, gate.Spends[i])).KeyDone().EndObject();
                     }
 
                     writer.EndArray().KeyDone().EndObject();
@@ -338,8 +370,9 @@ namespace Sv.Rules
                     while (at < flow.Terms.Length)
                     {
                         var first = flow.Terms[at];
-                        writer.BeginObject().Key(first.Sign > 0 ? "add" : "subtract").BeginArray().String(schema.NameOf(ValueClass.Intrinsic, first.Intrinsic));
-                        while (at < flow.Terms.Length && flow.Terms[at].Intrinsic == first.Intrinsic && flow.Terms[at].Sign == first.Sign)
+                        var term = first.Assigns ? AssignModes.NameOf(first.Mode) : first.Sign > 0 ? "add" : "subtract";
+                        writer.BeginObject().Key(term).BeginArray().String(schema.NameOf(ValueClass.Intrinsic, first.Intrinsic));
+                        while (at < flow.Terms.Length && flow.Terms[at].Intrinsic == first.Intrinsic && flow.Terms[at].Sign == first.Sign && flow.Terms[at].Mode == first.Mode)
                         {
                             writer.String(schema.NameOf(ValueClass.Channel, flow.Terms[at].Channel));
                             at++;
@@ -400,6 +433,7 @@ namespace Sv.Rules
                 case AmountKind.Offered: writer.String("Offered"); break;
                 case AmountKind.Taken: writer.String("Taken"); break;
                 case AmountKind.NotTaken: writer.String("NotTaken"); break;
+                case AmountKind.Cell: writer.BeginObject().Key("cell").String(action.Cell == null ? "?" : CellText(schema, action.Cell)).KeyDone().EndObject(); break;
                 default: writer.Int(action.Constant); break;
             }
 
@@ -407,6 +441,10 @@ namespace Sv.Rules
             if (action.ScaleStat >= 0)
             {
                 writer.Key("scale").String(schema.NameOf(ValueClass.Stat, action.ScaleStat)).KeyDone();
+            }
+            else if (action.ScaleIntrinsic >= 0)
+            {
+                writer.Key("scale").String(schema.NameOf(ValueClass.Intrinsic, action.ScaleIntrinsic)).KeyDone();
             }
 
             if (!edge)
@@ -513,19 +551,11 @@ namespace Sv.Rules
                     writer.String("record." + FieldName(e.Field));
                     return;
                 case Op.Cell:
-                {
-                    string subject;
-                    switch (e.Subject)
-                    {
-                        case Subject.Self: subject = "self"; break;
-                        case Subject.Source: subject = "source"; break;
-                        case Subject.Owner: subject = "owner"; break;
-                        default: subject = schema.NameOf(ValueClass.Intrinsic, e.Via); break;
-                    }
-
-                    writer.String(subject + "." + schema.NameOf(e.Class, e.Id));
+                    writer.String(CellText(schema, e));
                     return;
-                }
+                case Op.Roll:
+                    writer.BeginObject().Key("roll").Int(e.Integer).KeyDone().EndObject();
+                    return;
 
                 case Op.ChannelTotal:
                     writer.BeginObject().Key("total").String(schema.NameOf(ValueClass.Channel, e.Id)).KeyDone().EndObject();
@@ -592,6 +622,20 @@ namespace Sv.Rules
         }
 
         static string ChainName(ContentPack pack, int id) => pack.Chain(id)?.Name ?? "?";
+
+        static string CellText(PackSchema schema, Expression e)
+        {
+            string subject;
+            switch (e.Subject)
+            {
+                case Subject.Self: subject = "self"; break;
+                case Subject.Source: subject = "source"; break;
+                case Subject.Owner: subject = "owner"; break;
+                default: subject = schema.NameOf(ValueClass.Intrinsic, e.Via); break;
+            }
+
+            return subject + "." + schema.NameOf(e.Class, e.Id);
+        }
     }
 
     public static class PackHash

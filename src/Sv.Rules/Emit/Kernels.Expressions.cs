@@ -18,6 +18,7 @@ namespace Sv.Rules.Emit
         public string? FrameTo;
         public string? Totals;
         public bool FreshEvents;
+        public int RuleId = -1;
         public string Capacity = "a.Capacity";
         public string Effects = "a.Effects";
         public string Outcomes = "a.Outcomes";
@@ -129,6 +130,10 @@ namespace Sv.Rules.Emit
                 case Op.ChannelConst: return Names.Long(e.Integer);
                 case Op.FloatConst: return Names.Float(e.Real);
                 case Op.RecordField: return Field(e.Field, scope);
+                case Op.Roll:
+                    return scope.Effect == null
+                        ? "false"
+                        : "Roll.Passes(" + Names.Hex(schema.Seed) + ", world.Frame, " + scope.Effect + ".Key, " + scope.Effect + ".Amount, " + Names.Int(scope.RuleId) + ", 0, " + Names.Int((int)e.Integer) + ")";
                 case Op.Cell: return Cell(e, scope);
                 case Op.ChannelTotal:
                 {
@@ -245,6 +250,29 @@ namespace Sv.Rules.Emit
                 default: return scope.Outcome == null ? "0L" : "RuleMath.NotTaken(" + scope.Effect + ", " + scope.Outcome + ")";
             }
         }
+
+        string RawCell(Expression e, ExprScope scope)
+        {
+            if (e.Subject == Subject.Self)
+            {
+                return Lane(e.Id) + "[row]";
+            }
+
+            var slot = e.Subject == Subject.Source ? (scope.Source == null ? "-1L" : "(long)" + scope.Source) : "(long)" + Lane(e.Via) + "[row]";
+            return "RuleMath.Read(world, " + scope.Capacity + ", " + slot + ", " + Text(e.Id) + ", " + Names.Int(DefaultOf(e.Class, e.Id)) + ")";
+        }
+
+        int ScaleOfCell(Expression e)
+        {
+            var row = schema.Find(e.Class, e.Id);
+            return row == null ? 1 : row.Scale;
+        }
+
+        string ScaledCell(Expression e, ExprScope scope, int unitScale) =>
+            "StatLaw.Rescale(" + RawCell(e, scope) + ", " + Text(ScaleOfCell(e)) + ", " + Text(unitScale) + ")";
+
+        string AmountCell(Expression e, ExprScope scope) =>
+            e.Class == ValueClass.Stat ? ScaledCell(e, scope, 1) : RawCell(e, scope);
 
         string Cell(Expression e, ExprScope scope)
         {

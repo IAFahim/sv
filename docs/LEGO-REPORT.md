@@ -55,26 +55,44 @@ None pinned in the scenario files (printed only).
 
 ## Missing bricks (what a designer cannot say, with a minimal proposal each)
 
-1. **Assign (set) an intrinsic.** Every channel `into` and flow adds. Refill to max (9), refresh a stun (8), replace a snapshot
+**Status after v3.1.0 (branch `v3/b1-bricks`, `contract/CONTRACT-v3.1.0-bricks.md`, issue 0350):** items 1, 2, 3, 5 and 6 are
+closed; 4, 7 and 8 stay open. The seven awkward mechanics are rewritten with the new bricks as `packs/lego/scenarios-bricks/`
+(the 22 originals are unchanged and keep every digest above), asserted by `tests/Sv.Lego.Tests/BrickScenarioTests.cs` on the
+reference, compiled shared x1, dense and 2/4/7/11 workers:
+
+| # | Replaces | Scenario | Bricks | Hand-computed result | Digest (printed, not pinned) |
+|---|---|---|---|---|---|
+| 31 | 9 refill | `31_double_jump_refill_by_set` | `JumpSet` mode set, amount `{"cell":"self.MaxJumps"}` | Jumps 1,0,2,1,1; Land and Jump in one frame end at 1 (set 2, then -1) | 4FEE326C66100884 |
+| 32 | 8 refresh | `32_stun_refresh_by_max` | `StunRefresh` mode max | StunTicks 2,2,1,0 (refresh 3 on 2 with a tick: max then -1; refresh 1 never lowers) | 47FA18613A92379B |
+| 33 | 16 snapshot | `33_dot_snapshot_deals_stored_value` | `PoisonSnap` mode set, Tick emit `{"cell":"self.SnapPower"}` | SnapPower 12 then 20 (replaced, not 32); Health 100,88,76,56 | 54DD3B5C7C2DB1B0 |
+| 34 | 18, 19 owner | `34_owner_change_by_source` | `OwnerSet` mode source | Owner = sender's slot 0 then 1; P1 60, P2 60 | 6E94EC4288CAB6E9 |
+| 35 | 11 crit | `35_crit_chance_by_roll` | `{"roll":2500}` | crits at frames 1, 2, 6 (basis points 1364, 2281, 2239 from the contract hash); Health 490..390 | CC7C73D9032C7BA9 |
+| 36 | 9 overspend | `36_jumps_spent_per_hit_by_spend` | gate `{"spend":"Jumps"}` | 3 leaps with 2 charges: 2 pass (LeapsDone 2, not 3); two records share the budget in canonical order | 74E5DE19D9BAD6B9 |
+| 37 | 15 stack table | `37_stack_buff_per_count_card` | card modifier `perCount`, Shape `{"additive":{"cell":"source.RageBonus"}}` | RageBonus 0.30 then 0.50; Health 370, 220 with one gate row instead of five | D26533DB57082930 |
+
+1. **Assign (set) an intrinsic.** *Closed (clause 34: `mode` set/max/min/source on `into`, set/max/min flow terms).* Every channel `into` and flow adds. Refill to max (9), refresh a stun (8), replace a snapshot
    (16), change an owner (18, 19) all become "add a computed difference" or "overshoot and clip". Proposal: a channel option
    `"into": "X", "mode": "set"` (last record in canonical order wins; or `max`/`min` modes), folded before the add terms, so it
    stays one delta per intrinsic and deterministic. `"mode": "source"` (set to the record's source slot) closes owner assignment.
-2. **Emit amount from a cell or an expression.** Amount is a constant or Offered/Taken/NotTaken, optionally `scale` by a stat of
+2. **Emit amount from a cell or an expression.** *Closed for cells (clause 35: `{"cell": ...}` amounts, `scale` by an
+   intrinsic); a general integer expression is still open.* Amount is a constant or Offered/Taken/NotTaken, optionally `scale` by a stat of
    the emitter (`PackReader.ReadAction`, "amount is an integer, Offered, Taken or NotTaken"; scale "names no stat"). So a DoT
    cannot deal its stored snapshot (16), poison cannot deal `stacks x 4` (1), a refill cannot add `MaxJumps - Jumps` (9).
    Proposal: `"amount": {"cell": "self.SnapPower"}` (integer intrinsic, or a stat rescaled by clause 33), and `scale` accepting
    an intrinsic. A general integer expression is the bigger version.
-3. **Shape and modifiers driven by a value.** Gate Shape values and card modifiers are constants; card modifiers fold once while
+3. **Shape and modifiers driven by a value.** *Closed (clause 36: `perCount` card modifiers, Shape values from a cell).
+   Rules adding stat modifiers is still not a brick.* Gate Shape values and card modifiers are constants; card modifiers fold once while
    the card is held, whatever its count (`Interpreter.Stats` and `StatMachine.Cards`: held = lane > 0). Rules cannot add stat
    modifiers at all (stat ops come only from the host). Proposal: card modifier `"perCount": true` (term x count, saturated), and
    a Shape whose value names a cell: `{"additive": {"cell": "source.RageBonus"}}` read once per record.
 4. **Two stat layers.** Clause 31 is one fold per stat; "core then external" (17) needs an ordered second fold. Proposal: a
    modifier `layer: core|external` with the law applied twice (core terms on the base, external terms on the core result), or
    the derived-stat row form that issue 0210 item 3 already asks for (a stat Core feeding stat Strength by coefficient 1.0).
-5. **Deterministic roll.** No chance brick exists, so a crit chance, dodge or proc chance cannot be written (11). Proposal:
+5. **Deterministic roll.** *Closed (clause 37: `{"roll": p}`, SplitMix64 over pack seed, frame, record key, amount, rule id;
+   one draw per record).* No chance brick exists, so a crit chance, dodge or proc chance cannot be written (11). Proposal:
    `{"roll": 2500}` true for 25 % of records, from a fixed hash of (frame, record key, amount, rule id); identical on every host
    and replayable because the key is canonical.
-6. **Running index within a frame.** Gates and emits read persistent state frozen at the frame start (clause 7, A4), so N
+6. **Running index within a frame.** *Closed for budgets (clause 38: gate `spend`); a general running index is still open.* Gates and emits read persistent state frozen at the frame start (clause 7, A4), so N
    records in one frame all see the same counter: 3 jumps pass with 2 charges (9), the 3rd hit after a reset does not crit when
    it shares a frame (11). Absorb is the only brick that spends in canonical order. Proposal: a gate effect `"spend": "Jumps"`
    that admits hits while a budget lasts and denies the rest (absorb's order with the opposite verdict), so "consume a charge"

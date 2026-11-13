@@ -668,6 +668,13 @@ namespace Sv.Rules
             return this;
         }
 
+        public JsonWriter UInt(ulong value)
+        {
+            BeforeValue();
+            builder.Append(value.ToString(CultureInfo.InvariantCulture));
+            return this;
+        }
+
         public JsonWriter Float(float value)
         {
             BeforeValue();

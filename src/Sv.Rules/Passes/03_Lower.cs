@@ -82,6 +82,12 @@ namespace Sv.Rules.Passes
                     deltas.Add(pack.Gates[g].Absorbs[a].Budget);
                     budgets.Add(pack.Gates[g].Absorbs[a].Budget);
                 }
+
+                for (var s = 0; s < pack.Gates[g].Spends.Length; s++)
+                {
+                    deltas.Add(pack.Gates[g].Spends[s]);
+                    budgets.Add(pack.Gates[g].Spends[s]);
+                }
             }
 
             for (var f = 0; f < pack.Folds.Length; f++)
@@ -104,6 +110,16 @@ namespace Sv.Rules.Passes
             foreach (var id in budgets)
             {
                 layers.AbsorbBudgets.Add(id);
+            }
+
+            foreach (var id in deltas)
+            {
+                var mode = schema.AssignModeOf(id, pack.Flows);
+                if (mode != AssignMode.Add && schema.IndexOf(ValueClass.Intrinsic, id) >= 0)
+                {
+                    layers.AssignIntrinsics.Add(id);
+                    layers.AssignModes.Add(mode);
+                }
             }
 
             for (var i = 0; i < schema.Intrinsics.Length; i++)

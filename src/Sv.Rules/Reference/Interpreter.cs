@@ -64,6 +64,7 @@ namespace Sv.Rules.Reference
         public readonly long[] Totals;
         public readonly long[] Delta;
         public readonly long[] AbsorbUsed;
+        public readonly long[] Assigned;
 
         public TargetFrame(int slot, PackSchema schema)
         {
@@ -71,6 +72,7 @@ namespace Sv.Rules.Reference
             Totals = new long[schema.Channels.Length];
             Delta = new long[schema.Intrinsics.Length];
             AbsorbUsed = new long[schema.Intrinsics.Length];
+            Assigned = new long[schema.Intrinsics.Length];
         }
 
         public bool AnyTotal
@@ -107,6 +109,7 @@ namespace Sv.Rules.Reference
         public int Source = RefRecord.NoSource;
         public long[]? Totals;
         public int VirtualChannel = -1;
+        public int RuleId = -1;
     }
 
     public readonly struct Value
@@ -137,9 +140,11 @@ namespace Sv.Rules.Reference
 
         readonly PackSchema schema;
         readonly ContentPack pack;
+        readonly AssignMode[] assignModes;
         RefState world;
         Trace? trace;
         StepFaults faults;
+        long frameIndex;
 
         public Interpreter(PackPlan plan, InterpreterOptions? options = null)
         {
@@ -149,6 +154,11 @@ namespace Sv.Rules.Reference
             pack = plan.Pack;
             world = new RefState(schema, 0);
             faults = new StepFaults();
+            assignModes = new AssignMode[schema.Intrinsics.Length];
+            for (var i = 0; i < assignModes.Length; i++)
+            {
+                assignModes[i] = schema.AssignModeOf(schema.Intrinsics[i].Id, pack.Flows);
+            }
         }
 
         public RefState NewWorld(int capacity) => new RefState(schema, capacity);
@@ -156,6 +166,7 @@ namespace Sv.Rules.Reference
         public StepResult Step(RefState state, FrameInputs inputs, Trace? frameTrace = null)
         {
             world = state.Clone();
+            frameIndex = state.Frame;
             world.Frame = state.Frame + 1;
             trace = frameTrace;
             faults = new StepFaults();
@@ -550,16 +561,18 @@ namespace Sv.Rules.Reference
                     for (var c = 0; c < schema.Cards.Length; c++)
                     {
                         var card = schema.Cards[c];
-                        if (card.Intrinsic < 0 || world.Intrinsic(slot, card.Intrinsic) <= 0)
+                        var count = card.Intrinsic < 0 ? 0 : world.Intrinsic(slot, card.Intrinsic);
+                        if (count <= 0)
                         {
                             continue;
                         }
 
                         for (var m = 0; m < card.Modifiers.Length; m++)
                         {
-                            if (card.Modifiers[m].Stat == stat)
+                            var modifier = card.Modifiers[m];
+                            if (modifier.Stat == stat)
                             {
-                                entries.Add(new ShapeEntry(card.Modifiers[m].Kind, card.Modifiers[m].Value));
+                                entries.Add(new ShapeEntry(modifier.Kind, ReferenceLaw.CardTerm(modifier.Value, count, modifier.PerCount)));
                             }
                         }
                     }
@@ -626,6 +639,7 @@ namespace Sv.Rules.Reference
                 for (var g = 0; g < gates.Length; g++)
                 {
                     var gate = gates[g];
+                    scope.RuleId = gate.Id;
                     if (!Held(target.Slot, gate.Card) || !Truth(gate.When, scope))
                     {
                         continue;
@@ -639,7 +653,7 @@ namespace Sv.Rules.Reference
                 }
 
                 outcome.Admitted = decider == null || decider.Admit == AdmitVerdict.Allow;
-                ShapeEntries(gates, outcome.ApplicableGates, entries, groups);
+                ShapeEntries(gates, outcome.ApplicableGates, entries, groups, scope);
                 outcome.TakenPerHit = outcome.Admitted ? ReferenceLaw.ShapeAmount(outcome.Record.Amount, entries) : 0;
                 Note("gate " + Trace.Record(schema, outcome.Record) + " -> " + (outcome.Admitted ? "allow" : "deny")
                     + (decider == null ? " by default" : " by " + Trace.Rule(decider)) + " taken " + Trace.Number(outcome.TakenPerHit) + " x" + Trace.Number(outcome.TakenHits));
@@ -648,7 +662,7 @@ namespace Sv.Rules.Reference
             Absorb(target, gates);
         }
 
-        static void ShapeEntries(GateRule[] gates, List<int> applicable, List<ShapeEntry> entries, List<int> groups)
+        void ShapeEntries(GateRule[] gates, List<int> applicable, List<ShapeEntry> entries, List<int> groups, Scope scope)
         {
             entries.Clear();
             groups.Clear();
@@ -672,9 +686,32 @@ namespace Sv.Rules.Reference
 
                 for (var s = 0; s < gate.Shapes.Length; s++)
                 {
-                    entries.Add(new ShapeEntry(gate.Shapes[s].Kind, gate.Shapes[s].Value));
+                    var shape = gate.Shapes[s];
+                    entries.Add(new ShapeEntry(shape.Kind, shape.Cell == null ? shape.Value : ScaledCell(scope, shape.Cell, shape.UnitScale)));
                 }
             }
+        }
+
+        int RawCell(Scope scope, Expression cell)
+        {
+            var slot = CellSlot(scope, cell);
+            return cell.Class == ValueClass.Stat ? world.Stat(slot, cell.Id) : world.Intrinsic(slot, cell.Id);
+        }
+
+        int ScaledCell(Scope scope, Expression cell, int unitScale) =>
+            ReferenceLaw.Rescale(RawCell(scope, cell), world.ScaleOf(cell.Class, cell.Id), unitScale);
+
+        int CellSlot(Scope scope, Expression e)
+        {
+            long slot;
+            switch (e.Subject)
+            {
+                case Subject.Self: slot = scope.Self; break;
+                case Subject.Source: slot = scope.Source == RefRecord.NoSource ? -1 : scope.Source; break;
+                default: slot = world.Intrinsic(scope.Self, e.Via); break;
+            }
+
+            return world.IsSlot(slot) ? (int)slot : -1;
         }
 
         void Absorb(TargetFrame target, GateRule[] gates)
@@ -738,6 +775,36 @@ namespace Sv.Rules.Reference
                         Note("absorb " + Trace.Record(schema, outcome.Record) + " by " + Trace.Rule(gate) + " " + Trace.Number(take) + (effect.Per == AbsorbPer.Hit ? " hits" : " amount"));
                     }
                 }
+
+                for (var e = 0; e < gate.Spends.Length; e++)
+                {
+                    Spend(target, gate, g, gate.Spends[e]);
+                }
+            }
+        }
+
+        void Spend(TargetFrame target, GateRule gate, int order, int budget)
+        {
+            var budgetIndex = IntrinsicIndex(budget);
+            if (budgetIndex < 0)
+            {
+                return;
+            }
+
+            var start = (long)world.Intrinsic(target.Slot, budget);
+            for (var r = 0; r < target.Records.Count; r++)
+            {
+                var outcome = target.Records[r];
+                if (!outcome.Admitted || !outcome.ApplicableGates.Contains(order))
+                {
+                    continue;
+                }
+
+                var remaining = (start < 0 ? 0 : start) - target.AbsorbUsed[budgetIndex];
+                var take = remaining <= 0 ? 0 : remaining < outcome.TakenHits ? remaining : outcome.TakenHits;
+                outcome.TakenHits = (int)take;
+                target.AbsorbUsed[budgetIndex] += take;
+                Note("spend " + Trace.Record(schema, outcome.Record) + " by " + Trace.Rule(gate) + " admits " + Trace.Number(take) + " hits");
             }
         }
 
@@ -902,7 +969,7 @@ namespace Sv.Rules.Reference
             return units;
         }
 
-        Scope UnitScope(TargetFrame target, EmitUnit unit, bool withTotals) => new Scope
+        Scope UnitScope(TargetFrame target, EmitUnit unit, bool withTotals, int ruleId) => new Scope
         {
             Self = target.Slot,
             Record = unit.Record,
@@ -910,6 +977,7 @@ namespace Sv.Rules.Reference
             Frame = target.Survivors,
             Source = unit.Source,
             Totals = withTotals ? target.Totals : null,
+            RuleId = ruleId,
         };
 
         bool UnitAmount(int self, EmitUnit unit, EmitAction action, EmitPer per, out int channel, out int amount, out int hits)
@@ -923,9 +991,9 @@ namespace Sv.Rules.Reference
             }
 
             var measure = action.Amount == AmountKind.Offered ? Measure.Offered : action.Amount == AmountKind.Taken ? Measure.Taken : Measure.NotTaken;
-            if (action.Amount == AmountKind.Constant)
+            if (action.Amount == AmountKind.Constant || action.Amount == AmountKind.Cell)
             {
-                amount = action.Constant;
+                amount = action.Cell == null ? action.Constant : CellAmount(new Scope { Self = self, Source = unit.Source }, action.Cell);
                 hits = per == EmitPer.Hit && unit.Record != null ? unit.Record.Record.Hits : 1;
             }
             else if (unit.Record != null)
@@ -950,8 +1018,18 @@ namespace Sv.Rules.Reference
             {
                 amount = ReferenceLaw.ScaleBy(amount, world.Stat(self, action.ScaleStat), world.ScaleOf(ValueClass.Stat, action.ScaleStat));
             }
+            else if (action.ScaleIntrinsic >= 0)
+            {
+                amount = ReferenceLaw.ScaleBy(amount, world.Intrinsic(self, action.ScaleIntrinsic), world.ScaleOf(ValueClass.Intrinsic, action.ScaleIntrinsic));
+            }
 
             return amount != 0 && hits != 0;
+        }
+
+        int CellAmount(Scope scope, Expression cell)
+        {
+            var raw = RawCell(scope, cell);
+            return cell.Class == ValueClass.Stat ? ReferenceLaw.Rescale(raw, world.ScaleOf(ValueClass.Stat, cell.Id), 1) : raw;
         }
 
         public static void DeliverNextFrame(List<RefRecord> next, RefRecord record) => next.Add(record);
@@ -977,7 +1055,7 @@ namespace Sv.Rules.Reference
                         hasOther |= !rule.IsSameFrameSelf(rule.Actions[a]);
                     }
 
-                    if (!hasOther || !Truth(rule.When, UnitScope(target, unit, false)))
+                    if (!hasOther || !Truth(rule.When, UnitScope(target, unit, false, rule.Id)))
                     {
                         continue;
                     }
@@ -1030,9 +1108,72 @@ namespace Sv.Rules.Reference
             }
         }
 
+        int FrameStartValue(int slot, int intrinsicIndex) => world.Slots[slot].Intrinsics[intrinsicIndex];
+
+        void Assign(TargetFrame target, int intrinsicIndex, long value, string why)
+        {
+            var mode = assignModes[intrinsicIndex];
+            var before = target.Assigned[intrinsicIndex];
+            target.Assigned[intrinsicIndex] = AssignModes.Apply(mode, before, value);
+            Note("assign " + Trace.Slot(target.Slot) + " " + schema.Intrinsics[intrinsicIndex].Name + " " + AssignModes.NameOf(mode) + " " + Trace.Number(value)
+                + " from " + why + " -> " + Trace.Number(target.Assigned[intrinsicIndex]));
+        }
+
+        void AssignFromRecords(TargetFrame target)
+        {
+            for (var i = 0; i < assignModes.Length; i++)
+            {
+                target.Assigned[i] = assignModes[i] == AssignMode.Add ? 0L : FrameStartValue(target.Slot, i);
+            }
+
+            for (var r = 0; r < target.Survivors.Count; r++)
+            {
+                var outcome = target.Survivors[r];
+                var channel = schema.Channels[ChannelIndex(outcome.Record.Channel)];
+                if (!channel.Assigns || Consumed(outcome, Measure.Taken) == 0)
+                {
+                    continue;
+                }
+
+                var into = IntrinsicIndex(channel.Into);
+                if (into < 0)
+                {
+                    continue;
+                }
+
+                long value;
+                if (channel.IntoMode == AssignMode.Source)
+                {
+                    value = outcome.Record.HasSource ? outcome.Record.Source : -1;
+                }
+                else
+                {
+                    ConsumedPerHit(outcome, Measure.Taken, out var amount, out _);
+                    value = amount;
+                }
+
+                Assign(target, into, value, "record " + Trace.Record(schema, outcome.Record));
+            }
+        }
+
+        void FinishAssign(TargetFrame target)
+        {
+            for (var i = 0; i < assignModes.Length; i++)
+            {
+                if (assignModes[i] == AssignMode.Add)
+                {
+                    continue;
+                }
+
+                var moved = ReferenceLaw.Add(target.Assigned[i], ReferenceLaw.Negate(FrameStartValue(target.Slot, i)));
+                target.Delta[i] = ReferenceLaw.Add(target.Delta[i], moved);
+            }
+        }
+
         void Flow(TargetFrame target)
         {
             FrameTotals(target, schema);
+            AssignFromRecords(target);
             var selfOrder = Plan.SelfOrder;
             for (var i = 0; i < selfOrder.Length; i++)
             {
@@ -1046,7 +1187,7 @@ namespace Sv.Rules.Reference
                 for (var u = 0; u < units.Count; u++)
                 {
                     var unit = units[u];
-                    if (!Truth(rule.When, UnitScope(target, unit, true)))
+                    if (!Truth(rule.When, UnitScope(target, unit, true, rule.Id)))
                     {
                         continue;
                     }
@@ -1092,6 +1233,12 @@ namespace Sv.Rules.Reference
                         continue;
                     }
 
+                    if (term.Assigns)
+                    {
+                        Assign(target, into, target.Totals[from], Trace.Rule(flow) + " total " + schema.Channels[from].Name);
+                        continue;
+                    }
+
                     var moved = term.Sign > 0 ? target.Totals[from] : ReferenceLaw.Negate(target.Totals[from]);
                     target.Delta[into] = ReferenceLaw.Add(target.Delta[into], moved);
                     Note("flow " + Trace.Slot(target.Slot) + " " + Trace.Rule(flow) + " " + schema.Intrinsics[into].Name + " " + (moved >= 0 ? "+" : "") + Trace.Number(moved) + " from " + schema.Channels[from].Name);
@@ -1100,7 +1247,7 @@ namespace Sv.Rules.Reference
 
             for (var c = 0; c < schema.Channels.Length; c++)
             {
-                var into = schema.Channels[c].Into >= 0 ? IntrinsicIndex(schema.Channels[c].Into) : -1;
+                var into = schema.Channels[c].Into >= 0 && !schema.Channels[c].Assigns ? IntrinsicIndex(schema.Channels[c].Into) : -1;
                 if (into >= 0 && target.Totals[c] != 0)
                 {
                     target.Delta[into] = ReferenceLaw.Add(target.Delta[into], target.Totals[c]);
@@ -1116,6 +1263,8 @@ namespace Sv.Rules.Reference
                     Note("flow " + Trace.Slot(target.Slot) + " absorb spends " + schema.Intrinsics[i].Name + " -" + Trace.Number(target.AbsorbUsed[i]));
                 }
             }
+
+            FinishAssign(target);
         }
 
         void SelfEmit(TargetFrame target, EmitRule rule, int channel, int amount, int hits)
@@ -1141,12 +1290,18 @@ namespace Sv.Rules.Reference
 
             var admitted = decider == null || decider.Admit == AdmitVerdict.Allow;
             var entries = new List<ShapeEntry>();
-            ShapeEntries(gates, applicable, entries, new List<int>());
+            ShapeEntries(gates, applicable, entries, new List<int>(), scope);
             var shaped = admitted ? ReferenceLaw.ShapeAmount(amount, entries) : 0;
             var index = ChannelIndex(channel);
             if (index >= 0)
             {
                 target.Totals[index] = ReferenceLaw.Add(target.Totals[index], ReferenceLaw.Term(shaped, hits));
+                var row = schema.Channels[index];
+                var into = row.Assigns ? IntrinsicIndex(row.Into) : -1;
+                if (into >= 0 && ReferenceLaw.Term(shaped, hits) != 0)
+                {
+                    Assign(target, into, row.IntoMode == AssignMode.Source ? target.Slot : shaped, "self " + Trace.Rule(rule));
+                }
             }
 
             Note("self " + Trace.Slot(target.Slot) + " " + Trace.Rule(rule) + " " + schema.NameOf(ValueClass.Channel, channel) + " " + Trace.Number(amount) + " x" + Trace.Number(hits)
@@ -1367,6 +1522,12 @@ namespace Sv.Rules.Reference
                 case Op.ChannelConst: return Value.Of(e.Integer);
                 case Op.FloatConst: return Value.Of(e.Real);
                 case Op.RecordField: return Value.Of(Field(scope, e.Field));
+                case Op.Roll:
+                {
+                    var outcome = scope.Record;
+                    return Value.Of(outcome != null
+                        && ReferenceLaw.Rolls(schema.Seed, frameIndex, outcome.Record.Key, outcome.Record.Amount, scope.RuleId, 0, e.Integer));
+                }
                 case Op.Cell: return Cell(scope, e);
                 case Op.ChannelTotal:
                 {

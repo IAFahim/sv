@@ -82,7 +82,7 @@ namespace Sv
             for (var at = 0; at < cards.Length; at++)
             {
                 var card = cards[at];
-                cardRows[fill[ordinalOfLane[card.Stat]]++] = new CardRow { Lane = card.Card, Value = card.Value, Kind = card.Kind };
+                cardRows[fill[ordinalOfLane[card.Stat]]++] = new CardRow { Lane = card.Card, Value = card.Value, Kind = card.Kind, PerCount = card.PerCount };
             }
 
             Memory.Free(fill);
@@ -139,9 +139,10 @@ namespace Sv
             for (var at = from; at < to; at++)
             {
                 var row = cardRows[at];
-                if (Lanes.Read(view, slot, row.Lane) > 0)
+                var held = Lanes.Read(view, slot, row.Lane);
+                if (held > 0)
                 {
-                    scratchTerms[count++] = new ShapeTerm(row.Kind, row.Value);
+                    scratchTerms[count++] = new ShapeTerm(row.Kind, CardTerm.TermValue(row.Value, held, row.PerCount));
                 }
             }
 

@@ -43,6 +43,7 @@ namespace Sv.Rules
         ToFloat = 29,
         BoundOf = 30,
         Select = 31,
+        Roll = 32,
     }
 
     public enum RecordField : byte
@@ -159,6 +160,8 @@ namespace Sv.Rules
 
         public static Expression Aggregate(Measure measure, AggregateGroup group, long[] channels) =>
             Leaf(Op.Aggregate, ExprType.Int, measure: measure, group: group, set: SortedSet(channels));
+
+        public static Expression Roll(long basisPoints) => Leaf(Op.Roll, ExprType.Bool, basisPoints);
 
         public static Expression Chain(int chainRule) => Leaf(Op.Chain, ExprType.Bool, id: chainRule);
 
