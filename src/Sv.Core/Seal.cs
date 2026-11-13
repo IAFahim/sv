@@ -93,7 +93,11 @@ namespace Sv
                     dead += verdict == Sv.Route.Dead ? 1L : 0L;
                     faults += verdict == Sv.Route.Fault ? 1L : 0L;
                     moved |= verdict == Sv.Route.Moved ? 1 : 0;
-                    records[kept] = new Effect(key, record.Amount, record.Hits);
+                    if ((verdict | (kept ^ at)) != 0)
+                    {
+                        records[kept] = new Effect(key, record.Amount, record.Hits);
+                    }
+
                     counts[keep ? EffectKey.Chunk(key) : 0] += keep ? 1 : 0;
                     kept += keep ? 1 : 0;
                 }
