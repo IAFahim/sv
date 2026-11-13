@@ -110,10 +110,16 @@ public sealed unsafe class InputLogCapLaws
                 logDirect.Record(frame, records, count);
 
                 var scan1 = logSingle.Scan(runs, 1);
+                logSingle.ReservePart(0, count);
                 LogScan.Examine(scan1, records, start, active, 0, runs, 0);
                 logSingle.RecordScanned(frame, records, start, active, runs);
 
                 var scan4 = logMulti.Scan(runs, 4);
+                for (var part = 0; part < 4; part++)
+                {
+                    logMulti.ReservePart(part, count);
+                }
+
                 Parallel.For(0, 4, part =>
                 {
                     var from = runs * part / 4;

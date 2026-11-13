@@ -1,8 +1,8 @@
 # M8 handoff (Unity adapter v4), branch v3/m8-unity, 2026-11-13
 
-Stopped at the usage limit. Nothing here ran in Unity yet.
+Second stop (owner moving to another PC), 2026-11-13. See "Where it stopped" at the end first.
 
-## Done and verified on .NET (five suites equal baseline: Laws 548, Scenario 80, Diff 20, Host 27, Lego 120)
+## Done and verified on .NET (first stop: Laws 548, Scenario 80, Diff 20, Host 27, Lego 120)
 
 - c4fc094: Sv.Host builds net10.0 + netstandard2.1 (C# 9). FrameLoop takes an IPhaseRunner (src/Sv.Host/Runner.cs:
   FramePhase enum of 11 phases, WorkerRunner = the .NET pool, still the default). Phase bodies no longer allocate:
@@ -44,3 +44,42 @@ which joins worker threads and frees native tables). Asmdefs for runtime, editor
 6. Fresh clone + fresh project gate, then handoff section in V3-HANDOFF.md and AGENTS.md layer table.
 
 Decision taken: Sv.Rules stays editor-only in Unity (plan 10); runtime gets the pack as generated PackData.
+
+## Where it stopped (second session)
+
+Done:
+- Merged origin/v3/int dba1582. Its new law InputLogCapLaws.PerFrameRecordCap... called LogScan.Examine without
+  part scratch (this branch moved the scratch sizing to the main thread); the law now calls InputLog.ReservePart(part,
+  count) after Scan. Five suites: Laws 556, Scenario 80, Diff 20, Host 29, Lego 120, all green. No src file changed this
+  session (only that law, the engine package resync and generated files), so the bench digests A..D are untouched
+  (not rerun this session).
+- engine-sync.sh sync after the merge (Arena.cs, InputLog.cs, Frame.cs came in); check passes, 76 files.
+- Item 1 done: Tests/Packs/Reference (PackHash BD70627B1C671888) and Tests/Packs/Lego (PackHash 9A043301EA06000E)
+  generated with `dotnet run --no-build -c Release --project src/Sv.Pack -- pack packs/<p> --host unity --namespace
+  Sv.Kernels.<P> --out packages/com.sv.unity.v4/Tests/Packs/<P>`; pack.svb and .svpack.key deleted.
+- Item 2, first compile: Unity 7000.0.0a16 batch mode, all assemblies build (Sv.Engine.Core/Host/Rules,
+  Sv.Unity.V4, Sv.Unity.V4.Editor, Sv.Unity.V4.TestPacks): error CS 0, error BC 0, warning CS 6 (all CS8632 nullable
+  annotations outside a #nullable context; fix with a csc.rsp `-nullable:enable` next to the engine asmdefs, verified
+  to work on a16 per the field notes).
+
+NOT verified: error BC 0 means only that Burst compiled nothing during a -quit import. Burst compiles a job when it is
+first scheduled (CompileSynchronously), so Buffer.MemoryCopy (Memory.Copy) and Span.Clear (Memory.Clear) inside
+Burst jobs are still unproven. No web search done yet. The first EditMode test that schedules a PackJobs runner
+will show it: SvProbe reads 2 (managed fallback) or a BC error in the log instead of 1. If Burst rejects them, swap in
+UnsafeUtility.MemCpy/MemClear behind `#if UNITY_2017_1_OR_NEWER` in src/Sv.Core/Memory.cs (netstandard path only),
+resync, digests stay unchanged.
+
+Only on the old PC (recreate on the new one):
+- Editor: C:/Program Files/Unity/Hub/Editor/7000.0.0a16/Editor/Unity.exe
+- Scratch project D:/GitHub/_work/sv-proto/m8-harness: ProjectSettings and Library copied from c-harness;
+  Packages/manifest.json = c-harness manifest minus com.sv.* and com.tl.unity, plus
+  "com.sv.engine": "file:<repo>/packages/com.sv.engine", "com.sv.unity.v4": "file:<repo>/packages/com.sv.unity.v4",
+  "testables": ["com.sv.unity.v4"] (entities 7.0.0, burst 2.0.0, collections 7.0.0, test-framework 1.9.0).
+- Gate script D:/GitHub/_work/sv-proto/m8-run/gate.sh (env R repo, P project, O out, T tag, COMPILE_ONLY, MODES,
+  FILTER): runs engine-sync.sh check, a -batchmode -nographics -quit compile with a log, counts error CS / warning CS /
+  error BC, then -runTests per mode. m8-run/locked.sh takes D:/GitHub/_work/unity.lock and bench.lock around it.
+  Logs in D:/GitHub/_work/sv-proto/m8-out (c1-compile.log is this session's compile).
+
+First command next (after recreating the project on the new PC):
+  COMPILE_ONLY=1 T=c2 bash m8-run/locked.sh m8-run/gate.sh
+then item 3 (.NET twin fixtures), then item 4 (EditMode tests; the first one proves Burst on the memory helpers).
