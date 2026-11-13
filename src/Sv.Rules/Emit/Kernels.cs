@@ -30,6 +30,8 @@ namespace Sv.Rules.Emit
             return emitter.Write();
         }
 
+        const string Inline = "[MethodImpl(MethodImplOptions.AggressiveInlining)]";
+
         int ShapeCapacity => kernel.ShapeCapacity < 1 ? 1 : kernel.ShapeCapacity;
 
         int ChannelIndex(int channel) => schema.IndexOf(ValueClass.Channel, channel);
@@ -69,6 +71,7 @@ namespace Sv.Rules.Emit
             WriteHelpers();
             var file = new CodeWriter();
             file.Line("using Sv;");
+            file.Line("using System.Runtime.CompilerServices;");
             file.Line("using System.Runtime.InteropServices;");
             file.Blank();
             file.Open("namespace " + unit.Options.Namespace);
@@ -545,6 +548,7 @@ namespace Sv.Rules.Emit
         void WriteGate()
         {
             body.Blank();
+            body.Line(Inline);
             body.Open("static void Gate(in WorldView world, ref ChunkView v, in DecideArgs a, int row, ulong self, int r, ShapeTerm* terms)");
             body.Line("var effect = a.Effects[r];");
             body.Line("var state = default(GateState);");
@@ -670,6 +674,7 @@ namespace Sv.Rules.Emit
             {
                 var block = dispatch.Blocks[b];
                 body.Blank();
+                body.Line(Inline);
                 body.Open("static void " + block.Method + parameters);
                 for (var i = 0; i < block.Cases.Count; i++)
                 {
