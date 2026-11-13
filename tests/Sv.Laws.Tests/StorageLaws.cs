@@ -52,6 +52,41 @@ public sealed unsafe class StorageLaws
         }
     }
 
+    [Theory]
+    [MemberData(nameof(PoliciesAndSeeds))]
+    public void SourceChunkTableReadsEqualWorldReadsForEverySlotAndLane(StoragePolicy policy, ulong seed)
+    {
+        var gen = new Gen(seed);
+        using var world = TestWorlds.Create(policy);
+        var live = new List<int>();
+        var table = (SourceChunk*)Memory.AllocZeroed((nuint)world.ChunkCapacity, (nuint)sizeof(SourceChunk));
+        try
+        {
+            for (var round = 0; round < 6; round++)
+            {
+                TestWorlds.Mutate(world, gen, live, 120);
+                world.EndFrame();
+                var direct = world.View;
+                var tabled = world.View;
+                SourceChunks.Build(tabled, table, 0, world.ChunkCount);
+                tabled.Sources = table;
+                var capacity = world.ChunkCapacity * Slot.Rows;
+                for (var slot = -2; slot < capacity + 2; slot++)
+                {
+                    Assert.True(SourceChunks.Present(direct, capacity, slot) == SourceChunks.Present(tabled, capacity, slot), $"{gen} {policy}: presence of slot {slot}");
+                    for (var lane = 0; lane < world.Layout.ValueLanes; lane++)
+                    {
+                        Assert.True(SourceChunks.Read(direct, capacity, slot, lane, -77) == SourceChunks.Read(tabled, capacity, slot, lane, -77), $"{gen} {policy}: slot {slot} lane {lane}");
+                    }
+                }
+            }
+        }
+        finally
+        {
+            Memory.Free(table);
+        }
+    }
+
     [Fact]
     public void DenseTableIsTheIdentityAndEveryChunkIsOneContiguousBlock()
     {

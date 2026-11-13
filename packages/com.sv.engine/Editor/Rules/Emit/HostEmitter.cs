@@ -15,7 +15,7 @@ namespace Sv.Rules.Emit
 
         public static readonly string[] Phases =
         {
-            "SealCount", "SealPlanTotals", "SealPlanOffsets", "SealScatter", "SealOrder", "SealCompact", "LogExamine", "Decide", "Commit", "EdgeEmits", "Digest",
+            "SealCount", "SealPlanTotals", "SealPlanOffsets", "SealScatter", "SealOrder", "SealCompact", "LogExamine", "Decide", "Commit", "EdgeEmits", "Digest", "Sources",
         };
 
         public static List<KeyValuePair<string, string>> Unity(PackPlan plan, string rootNamespace)

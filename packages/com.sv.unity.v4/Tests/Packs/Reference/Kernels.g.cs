@@ -171,20 +171,11 @@ namespace Sv.Kernels.Reference
             hits = 1;
         }
 
-        public static bool Present(in WorldView world, int capacity, long slot)
-        {
-            if ((ulong)slot >= (ulong)capacity)
-            {
-                return false;
-            }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool Present(in WorldView world, int capacity, long slot) => SourceChunks.Present(world, capacity, slot);
 
-            var at = (int)slot;
-            var meta = Lanes.WordsOf(world, at >> 6, world.Layout.MetaLane);
-            return (((meta[ChunkMeta.Live] | meta[ChunkMeta.Dying]) >> (at & 63)) & 1ul) != 0ul;
-        }
-
-        public static int Read(in WorldView world, int capacity, long slot, int lane, int fallback) =>
-            Present(world, capacity, slot) ? Lanes.Read(world, (int)slot, lane) : fallback;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int Read(in WorldView world, int capacity, long slot, int lane, int fallback) => SourceChunks.Read(world, capacity, slot, lane, fallback);
 
         public static bool Level(in WorldView world, int capacity, long slot, int lane, int word, bool fallback) =>
             Present(world, capacity, slot) ? ((Lanes.WordsOf(world, (int)slot >> 6, lane)[word] >> ((int)slot & 63)) & 1ul) != 0ul : fallback;

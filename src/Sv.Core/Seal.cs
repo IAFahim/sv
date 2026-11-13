@@ -18,6 +18,7 @@ namespace Sv
         public int* Totals;
         public long* Dead;
         public long* Faults;
+        public long* Sourced;
         public RouteTable Route;
         public int Chunks;
         public int Parts;
@@ -78,6 +79,7 @@ namespace Sv
             Range(view.Blocks, part, view.Parts, out var from, out var to);
             var dead = 0L;
             var faults = 0L;
+            var sourced = 0ul;
             for (var block = from; block < to; block++)
             {
                 var records = ArenaCore.Block(view.Raw, block);
@@ -90,6 +92,7 @@ namespace Sv
                     var key = record.Key;
                     var verdict = Sv.Route.Deliver(view.Route, ref forward, ref key);
                     var keep = verdict >= 0;
+                    sourced |= ~key & EffectKey.SourceField;
                     dead += verdict == Sv.Route.Dead ? 1L : 0L;
                     faults += verdict == Sv.Route.Fault ? 1L : 0L;
                     moved |= verdict == Sv.Route.Moved ? 1 : 0;
@@ -111,6 +114,7 @@ namespace Sv
 
             view.Dead[part] = dead;
             view.Faults[part] = faults;
+            view.Sourced[part] = sourced != 0ul ? 1L : 0L;
         }
 
         public static int Plan(in SealView view)

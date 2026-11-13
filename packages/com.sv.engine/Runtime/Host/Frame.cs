@@ -107,6 +107,7 @@ namespace Sv.Host
         public int CardLanes;
         public int ChunkCount;
         public Width Width;
+        public SourceChunk* SourceTable;
     }
 
     public static unsafe class Phases<TKernels>
@@ -195,6 +196,13 @@ namespace Sv.Host
 
                 context->Touched[index] = kernels.Decide(context->World, chunk, context->Capacity, context->Records + first, count, scratch, written, totals, records, ref context->NextWriters[part]);
             }
+        }
+
+        public static void Sources(void* state, int part)
+        {
+            var context = (FrameContext*)state;
+            WorkRange.Of(context->ChunkCount, part, context->Parts, out var from, out var to);
+            SourceChunks.Build(context->World, context->SourceTable, from, to);
         }
 
         public static void Commit(void* state, int part)
@@ -476,6 +484,7 @@ namespace Sv.Host
             pendingBits = (ulong*)Memory.AllocZeroed((nuint)chunkWords, sizeof(ulong));
             activeBits = (ulong*)Memory.AllocZeroed((nuint)chunkWords, sizeof(ulong));
             denseCounts = (int*)Memory.AllocZeroed((nuint)Math.Max(1, eventCount), sizeof(int));
+            context->SourceTable = (SourceChunk*)Memory.AllocZeroed((nuint)chunkCapacity, (nuint)sizeof(SourceChunk));
             context->DigestParts = (ulong*)Memory.AllocAligned((nuint)parts * Phases<TKernels>.DigestStride * sizeof(ulong), 128);
             context->DigestLive = (ulong*)Memory.AllocZeroed((nuint)chunkCapacity, sizeof(ulong));
             context->DigestTemplate = (int*)Memory.Alloc((nuint)chunkCapacity, sizeof(int));
@@ -660,7 +669,9 @@ namespace Sv.Host
             marks[FrameMarks.Stats] = Stopwatch.GetTimestamp();
             var active = CollectPhase();
             marks[FrameMarks.Collected] = Stopwatch.GetTimestamp();
+            SourcesPhase(active);
             DecidePhase(active);
+            phase->World.Sources = null;
             marks[FrameMarks.Decided] = Stopwatch.GetTimestamp();
             CommitPhase(active);
             marks[FrameMarks.Committed] = Stopwatch.GetTimestamp();
@@ -794,6 +805,19 @@ namespace Sv.Host
             }
 
             return longest;
+        }
+
+        void SourcesPhase(int active)
+        {
+            context->World.Sources = null;
+            if (active == 0 || !canonical.Sourced)
+            {
+                return;
+            }
+
+            context->ChunkCount = world.ChunkCount;
+            runner.Run(FramePhase.Sources, context, WorkRange.PartsFor(world.ChunkCount, parts));
+            context->World.Sources = context->SourceTable;
         }
 
         void DecidePhase(int active)
@@ -1265,6 +1289,7 @@ namespace Sv.Host
             Memory.Free(context->DigestLive);
             Memory.Free(context->DigestTemplate);
             Memory.Free(context->DigestLiveness);
+            Memory.Free(context->SourceTable);
             Memory.Free(context->PlanSums);
             Memory.Free(context);
             Memory.Free(laneWriters);

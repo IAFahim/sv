@@ -426,6 +426,8 @@ namespace Sv
 
         long* faults;
 
+        long* sourced;
+
         public CanonicalArena(int chunks, int parts, int limit, ArenaPolicy policy)
         {
             if (chunks < 1 || chunks > EffectKey.ChunkLimit)
@@ -455,6 +457,7 @@ namespace Sv
             totals = arena.AllocZeroed<int>(3);
             dead = arena.AllocAlignedZeroed<long>(parts);
             faults = arena.AllocAlignedZeroed<long>(parts);
+            sourced = arena.AllocAlignedZeroed<long>(parts);
         }
 
         public int Chunks { get; }
@@ -470,6 +473,8 @@ namespace Sv
         public int Count { get; private set; }
 
         public int ActiveCount { get; private set; }
+
+        public bool Sourced { get; private set; }
 
         public long DroppedDead { get; private set; }
 
@@ -546,12 +551,15 @@ namespace Sv
             ActiveCount = totals[Seal.TotalActive];
             var deadRecords = 0L;
             var faultRecords = 0L;
+            var sourcedRecords = 0L;
             for (var part = 0; part < Parts; part++)
             {
                 deadRecords += dead[part];
                 faultRecords += faults[part];
+                sourcedRecords |= sourced[part];
             }
 
+            Sourced = sourcedRecords != 0L;
             DroppedDead = deadRecords;
             RouteFaults = faultRecords;
             Missed = raw.Missed;
@@ -637,6 +645,7 @@ namespace Sv
             view.Totals = totals;
             view.Dead = dead;
             view.Faults = faults;
+            view.Sourced = sourced;
             view.Route = route;
             view.Chunks = Chunks;
             view.Parts = Parts;
@@ -661,6 +670,7 @@ namespace Sv
             arena.Free(totals, 2);
             arena.FreeAligned(dead, Parts);
             arena.FreeAligned(faults, Parts);
+            arena.FreeAligned(sourced, Parts);
             records = null;
             scratch = null;
             start = null;
