@@ -58,6 +58,88 @@ namespace Sv
         }
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    public unsafe struct LogScan
+    {
+        public LoggedRecord** Pages;
+        public int* Next;
+        public int* Used;
+        public int* Total;
+        public ulong* Hash;
+        public int* LastHead;
+        public int* External;
+        public ulong* Digest;
+        public byte* Same;
+        public LoggedRecord** PartScratch;
+        public int* PartCapacity;
+        public int ChunkCapacity;
+
+        public static void Examine(in LogScan scan, LoggedRecord* canonical, int* start, int* active, int from, int to, int part)
+        {
+            for (var index = from; index < to; index++)
+            {
+                var chunk = active[index];
+                var first = start[chunk];
+                var end = start[chunk + 1];
+                var external = 0;
+                for (var record = first; record < end; record++)
+                {
+                    external += LoggedRecordLaw.External(canonical[record].Key) ? 1 : 0;
+                }
+
+                scan.External[index] = external;
+                scan.Same[index] = 0;
+                if (external == 0 || chunk >= scan.ChunkCapacity)
+                {
+                    continue;
+                }
+
+                var records = canonical + first;
+                if (external != end - first)
+                {
+                    if (end - first > scan.PartCapacity[part])
+                    {
+                        scan.PartScratch[part] = (LoggedRecord*)Memory.Realloc(scan.PartScratch[part], (nuint)(end - first) * (nuint)sizeof(LoggedRecord));
+                        scan.PartCapacity[part] = end - first;
+                    }
+
+                    records = scan.PartScratch[part];
+                    var kept = 0;
+                    for (var record = first; record < end; record++)
+                    {
+                        records[kept] = canonical[record];
+                        kept += LoggedRecordLaw.External(canonical[record].Key) ? 1 : 0;
+                    }
+                }
+
+                var digest = XxHash64.Hash((byte*)records, external * sizeof(LoggedRecord));
+                scan.Digest[index] = digest;
+                var previous = scan.LastHead[chunk];
+                scan.Same[index] = previous >= 0 && scan.Total[previous] == external && scan.Hash[previous] == digest && SameContent(scan, previous, records, external) ? (byte)1 : (byte)0;
+            }
+        }
+
+        static bool SameContent(in LogScan scan, int head, LoggedRecord* records, int count)
+        {
+            var at = 0;
+            for (var block = head; block >= 0; block = scan.Next[block])
+            {
+                var cells = scan.Pages[block / InputLog.BlocksPerPage] + (block % InputLog.BlocksPerPage) * InputLog.BlockRecords;
+                for (var row = 0; row < scan.Used[block]; row++)
+                {
+                    if (at >= count || cells[row].Key != records[at].Key || cells[row].Amount != records[at].Amount || cells[row].Hits != records[at].Hits)
+                    {
+                        return false;
+                    }
+
+                    at++;
+                }
+            }
+
+            return at == count;
+        }
+    }
+
     public sealed unsafe class InputLog : IDisposable
     {
         public const int BlockRecords = 256;
@@ -102,6 +184,13 @@ namespace Sv
         int scratchCapacity;
         Segment* merged;
         int mergedCapacity;
+        int* runExternal;
+        ulong* runDigest;
+        byte* runSame;
+        int runCapacity;
+        LoggedRecord** partScratch;
+        int* partCapacity;
+        int partCount;
 
         public InputLog(int frameSpan, int chunkCapacity, int statOpBytes)
         {
@@ -250,6 +339,98 @@ namespace Sv
                 {
                     AddSegment(slot, chunk, Intern(chunk, scratch, external));
                 }
+            }
+        }
+
+        public LogScan Scan(int runs, int parts)
+        {
+            if (runs > runCapacity)
+            {
+                var grown = Math.Max(runs, runCapacity * 2);
+                runExternal = (int*)Memory.Realloc(runExternal, (nuint)grown * sizeof(int));
+                runDigest = (ulong*)Memory.Realloc(runDigest, (nuint)grown * sizeof(ulong));
+                runSame = (byte*)Memory.Realloc(runSame, (nuint)grown);
+                runCapacity = grown;
+            }
+
+            if (parts > partCount)
+            {
+                partScratch = (LoggedRecord**)Memory.Realloc(partScratch, (nuint)parts * (nuint)sizeof(LoggedRecord*));
+                partCapacity = (int*)Memory.Realloc(partCapacity, (nuint)parts * sizeof(int));
+                for (var part = partCount; part < parts; part++)
+                {
+                    partScratch[part] = null;
+                    partCapacity[part] = 0;
+                }
+
+                partCount = parts;
+            }
+
+            var scan = default(LogScan);
+            scan.Pages = pages;
+            scan.Next = next;
+            scan.Used = used;
+            scan.Total = total;
+            scan.Hash = hash;
+            scan.LastHead = lastHead;
+            scan.External = runExternal;
+            scan.Digest = runDigest;
+            scan.Same = runSame;
+            scan.PartScratch = partScratch;
+            scan.PartCapacity = partCapacity;
+            scan.ChunkCapacity = chunkCapacity;
+            return scan;
+        }
+
+        public void RecordScanned(long frame, LoggedRecord* canonical, int* start, int* active, int runs)
+        {
+            var slot = Enter(frame);
+            ReleaseSegments(slot);
+            for (var index = 0; index < runs; index++)
+            {
+                var external = runExternal[index];
+                var chunk = active[index];
+                if (external == 0 || chunk >= chunkCapacity)
+                {
+                    continue;
+                }
+
+                var previous = lastHead[chunk];
+                int head;
+                if (runSame[index] != 0)
+                {
+                    head = previous;
+                    refs[head]++;
+                }
+                else
+                {
+                    var first = start[chunk];
+                    var end = start[chunk + 1];
+                    var records = canonical + first;
+                    if (external != end - first)
+                    {
+                        EnsureScratch(end - first);
+                        var kept = 0;
+                        for (var record = first; record < end; record++)
+                        {
+                            scratch[kept] = canonical[record];
+                            kept += LoggedRecordLaw.External(canonical[record].Key) ? 1 : 0;
+                        }
+
+                        records = scratch;
+                    }
+
+                    head = Store(records, external, runDigest[index]);
+                    if (previous >= 0)
+                    {
+                        Release(previous);
+                    }
+
+                    refs[head] = 2;
+                    lastHead[chunk] = head;
+                }
+
+                AddSegment(slot, chunk, head);
             }
         }
 
@@ -598,6 +779,16 @@ namespace Sv
             Memory.Free(lastHead);
             Memory.Free(scratch);
             Memory.Free(merged);
+            Memory.Free(runExternal);
+            Memory.Free(runDigest);
+            Memory.Free(runSame);
+            for (var part = 0; part < partCount; part++)
+            {
+                Memory.Free(partScratch[part]);
+            }
+
+            Memory.Free(partScratch);
+            Memory.Free(partCapacity);
             frames = null;
             pages = null;
             pageCount = 0;

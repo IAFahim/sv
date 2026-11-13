@@ -88,6 +88,9 @@ namespace Sv.Host
         public int* PairTo;
         public ulong* DigestParts;
         public int* PlanSums;
+        public LogScan Log;
+        public int* LogActive;
+        public int LogRuns;
         public int* CardOfDelta;
         public ulong* CardRows;
         public int CardLanes;
@@ -122,6 +125,13 @@ namespace Sv.Host
             var context = (FrameContext*)state;
             WorkRange.Of(context->Seal.Chunks, part, context->Parts, out var from, out var to);
             Sv.Seal.PlanOffsets(context->Seal, from, to, context->PlanSums[part]);
+        }
+
+        public static void LogExamine(void* state, int part)
+        {
+            var context = (FrameContext*)state;
+            WorkRange.Of(context->LogRuns, part, context->Parts, out var from, out var to);
+            LogScan.Examine(context->Log, (LoggedRecord*)context->Records, context->Start, context->LogActive, from, to, part);
         }
 
         public static void SealScatter(void* state, int part) => Sv.Seal.Scatter(((FrameContext*)state)->Seal, part);
@@ -586,7 +596,7 @@ namespace Sv.Host
             marks[FrameMarks.Sealed] = Stopwatch.GetTimestamp();
             if (!replaying)
             {
-                log.Record(frame, (LoggedRecord*)canonical.Records, canonical.Count);
+                LogPhase(frame);
             }
 
             marks[FrameMarks.Logged] = Stopwatch.GetTimestamp();
@@ -645,6 +655,16 @@ namespace Sv.Host
             canonical.End(context->Seal, raw);
             context->Records = canonical.Records;
             context->Start = canonical.Start;
+        }
+
+        void LogPhase(long frame)
+        {
+            var runs = canonical.ActiveCount;
+            context->Log = log.Scan(runs, parts);
+            context->LogActive = canonical.Active;
+            context->LogRuns = runs;
+            workers.Run(&Phases<TKernels>.LogExamine, context, WorkRange.PartsFor(runs, parts));
+            log.RecordScanned(frame, (LoggedRecord*)canonical.Records, canonical.Start, canonical.Active, runs);
         }
 
         void StatsPhase(long frame)
