@@ -87,6 +87,7 @@ namespace Sv.Host
         public int* PairFrom;
         public int* PairTo;
         public ulong* DigestParts;
+        public int* PlanSums;
         public int* CardOfDelta;
         public ulong* CardRows;
         public int CardLanes;
@@ -107,6 +108,20 @@ namespace Sv.Host
             var forward = default(PackForward<TKernels>);
             forward.World = context->World;
             Sv.Seal.Count(context->Seal, ref forward, part);
+        }
+
+        public static void SealPlanTotals(void* state, int part)
+        {
+            var context = (FrameContext*)state;
+            WorkRange.Of(context->Seal.Chunks, part, context->Parts, out var from, out var to);
+            context->PlanSums[part] = Sv.Seal.PlanTotals(context->Seal, from, to);
+        }
+
+        public static void SealPlanOffsets(void* state, int part)
+        {
+            var context = (FrameContext*)state;
+            WorkRange.Of(context->Seal.Chunks, part, context->Parts, out var from, out var to);
+            Sv.Seal.PlanOffsets(context->Seal, from, to, context->PlanSums[part]);
         }
 
         public static void SealScatter(void* state, int part) => Sv.Seal.Scatter(((FrameContext*)state)->Seal, part);
@@ -411,6 +426,7 @@ namespace Sv.Host
             activeBits = (ulong*)Memory.AllocZeroed((nuint)chunkWords, sizeof(ulong));
             denseCounts = (int*)Memory.AllocZeroed((nuint)Math.Max(1, eventCount), sizeof(int));
             context->DigestParts = (ulong*)Memory.AllocAligned((nuint)parts * Phases<TKernels>.DigestStride * sizeof(ulong), 128);
+            context->PlanSums = (int*)Memory.AllocZeroed((nuint)parts, sizeof(int));
             context->Parts = parts;
             context->Capacity = options.EntityCapacity;
             context->Buffers = (RecordBuffer*)Memory.AllocZeroed((nuint)parts, (nuint)sizeof(RecordBuffer));
@@ -611,7 +627,17 @@ namespace Sv.Host
             var route = new RouteTable(live, forwarding, chunkCapacity);
             context->Seal = canonical.Begin(raw, route);
             workers.Run(&Phases<TKernels>.SealCount, context, parts);
-            Seal.Plan(context->Seal);
+            var planParts = WorkRange.PartsFor(chunkCapacity, parts);
+            workers.Run(&Phases<TKernels>.SealPlanTotals, context, planParts);
+            var planned = 0;
+            for (var part = 0; part < planParts; part++)
+            {
+                var sum = context->PlanSums[part];
+                context->PlanSums[part] = planned;
+                planned += sum;
+            }
+
+            workers.Run(&Phases<TKernels>.SealPlanOffsets, context, planParts);
             workers.Run(&Phases<TKernels>.SealScatter, context, parts);
             workers.Run(&Phases<TKernels>.SealOrder, context, WorkRange.PartsFor(chunkCapacity, parts));
             Seal.Finish(context->Seal);
@@ -1122,6 +1148,7 @@ namespace Sv.Host
 
             Memory.Free(context->Buffers);
             Memory.FreeAligned(context->DigestParts);
+            Memory.Free(context->PlanSums);
             Memory.Free(context);
             Memory.Free(laneWriters);
             Memory.Free(live);

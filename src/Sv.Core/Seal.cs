@@ -129,6 +129,42 @@ namespace Sv
             return running;
         }
 
+        public static int PlanTotals(in SealView view, int chunkFrom, int chunkTo)
+        {
+            var sum = 0;
+            for (var chunk = chunkFrom; chunk < chunkTo; chunk++)
+            {
+                var cell = view.Counts + chunk;
+                var total = 0;
+                for (var part = 0; part < view.Parts; part++)
+                {
+                    total += *cell;
+                    cell += view.Chunks;
+                }
+
+                view.Merged[chunk] = total;
+                sum += total;
+            }
+
+            return sum;
+        }
+
+        public static void PlanOffsets(in SealView view, int chunkFrom, int chunkTo, int running)
+        {
+            for (var chunk = chunkFrom; chunk < chunkTo; chunk++)
+            {
+                view.Base[chunk] = running;
+                var cell = view.Counts + chunk;
+                for (var part = 0; part < view.Parts; part++)
+                {
+                    var count = *cell;
+                    *cell = running;
+                    running += count;
+                    cell += view.Chunks;
+                }
+            }
+        }
+
         public static void Scatter(in SealView view, int part)
         {
             var cursor = view.Counts + (long)part * view.Chunks;
