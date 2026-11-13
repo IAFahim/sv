@@ -26,7 +26,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\Sv.Tests\*.cs" Exclude="..\Sv.Tests\CodecTests.cs;..\Sv.Tests\ComposeOrderTests.cs;..\Sv.Tests\ComposeRollbackTests.cs;..\Sv.Tests\StateIntegrityTests.cs;..\Sv.Tests\FrentAdapterTests.cs;..\Sv.Tests\GuardAlwaysOnTests.cs;..\Sv.Tests\MaskSpanTests.cs;..\Sv.Tests\PopulationTests.cs;..\Sv.Tests\ReconcileAtomicityTests.cs;..\Sv.Tests\SchemaGeneratorTests.cs;..\Sv.Tests\WindowGuardTests.cs;..\Sv.Tests\BulkTests.cs;..\Sv.Tests\SchemaCodegenTests.cs;..\Sv.Tests\SimdTests.cs;..\Sv.Tests\NoAllocationTests.cs;..\Sv.Tests\StructMakerTests.cs;..\Sv.Tests\CrossHostDigestTests.cs;..\Sv.Tests\EventsTests.cs;..\Sv.Tests\IsaLegTests.cs" LinkBase="Shared" />
+    <Compile Include="..\Sv.Tests\*.cs" Exclude="..\Sv.Tests\CodecTests.cs;..\Sv.Tests\ComposeOrderTests.cs;..\Sv.Tests\ComposeRollbackTests.cs;..\Sv.Tests\StateIntegrityTests.cs;..\Sv.Tests\FrentAdapterTests.cs;..\Sv.Tests\GuardAlwaysOnTests.cs;..\Sv.Tests\MaskSpanTests.cs;..\Sv.Tests\PopulationTests.cs;..\Sv.Tests\ReconcileAtomicityTests.cs;..\Sv.Tests\SchemaGeneratorTests.cs;..\Sv.Tests\WindowGuardTests.cs;..\Sv.Tests\BulkTests.cs;..\Sv.Tests\SchemaCodegenTests.cs;..\Sv.Tests\SimdTests.cs;..\Sv.Tests\NoAllocationTests.cs;..\Sv.Tests\StructMakerTests.cs;..\Sv.Tests\CrossHostDigestTests.cs;..\Sv.Tests\EventsTests.cs;..\Sv.Tests\IsaLegTests.cs;..\Sv.Tests\GuardPageFuzzTests.cs" LinkBase="Shared" />
     <None Include="..\Sv.Tests\mask-fixtures.json" Link="mask-fixtures.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
