@@ -8,6 +8,8 @@ namespace Sv.Host
 
         int ScratchLanes { get; }
 
+        int TotalLanes { get; }
+
         int DeltaLanes { get; }
 
         int EventCount { get; }
@@ -28,7 +30,7 @@ namespace Sv.Host
 
         int Forward(in WorldView world, int slot, int channel);
 
-        ulong Decide(in WorldView world, int chunk, int capacity, Effect* effects, int count, int* scratch, byte* records, ref EffectWriter next);
+        ulong Decide(in WorldView world, int chunk, int capacity, Effect* effects, int count, int* scratch, ulong* written, long* totals, byte* records, ref EffectWriter next);
 
         ulong Events(in WorldView world, ref LaneWriter writer, int chunk, ulong recheck, int* scratch, ulong* edges);
 

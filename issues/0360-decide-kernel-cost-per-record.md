@@ -1,6 +1,6 @@
 # 0360 generated Decide costs 27-87 ns per record, the plan's cost model says 4-8 ns; it is 53-68 % of every 1M frame
 
-Status: open (emitter design change; not fixed in the benchmark phase)
+Status: open (K1 cut Decide 3-7x, see below; the remaining floor is issue 0370)
 
 Found by BM1 (branch v3/bench). Lego pack (55 rules, 22 mechanics), 1,000,000 entities, 11 workers, Ryzen 5 8500G, Release.
 
@@ -29,3 +29,10 @@ Proposal (needs C1 / owner, changes the emitter, not semantics): per target comp
 records) and guard each rule call with its channel mask (most rules name one channel); fuse the per-record passes into one
 channel-dispatched pass; emit the 28-channel `totalled` scan only for channels that have totals. Target: the cost model's 4-8 ns.
 Kill rule M4 (generated method stops being optimised) is not what happens: the method is optimised, it does too much.
+
+Progress (K1, branch v3/k1-decide, 6a6597c..d390be0; median of 3 x 50 frames, 11 workers, digests unchanged):
+- Decide A 3.49 -> 1.02, B 20.82 -> 3.81, C 35.67 -> 12.91, D 47.93 -> 18.17 ms (same machine, baseline re-measured before the
+  first change). Decide-shape Tick 64x1 5,142 -> 1,044 ns, 1x64 2,194 -> 549 ns; Physical 64x1 6,769 -> 2,699 ns, 1x64 3,974 -> 1,463 ns.
+- Atoms: rule calls guarded by channels present and row masks; one settle pass per record; totalled scan over written channels;
+  gate inlined; totals per part (0361); delta section skipped when no source moved plus inlined saturating helpers; hoisted
+  repeated source reads; written-lane marks instead of a scratch clear.

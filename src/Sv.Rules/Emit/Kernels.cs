@@ -30,6 +30,8 @@ namespace Sv.Rules.Emit
             return emitter.Write();
         }
 
+        const string Inline = "[MethodImpl(MethodImplOptions.AggressiveInlining)]";
+
         int ShapeCapacity => kernel.ShapeCapacity < 1 ? 1 : kernel.ShapeCapacity;
 
         int ChannelIndex(int channel) => schema.IndexOf(ValueClass.Channel, channel);
@@ -45,6 +47,7 @@ namespace Sv.Rules.Emit
             WriteCounts();
             WriteDecide();
             WriteTarget();
+            WriteTouch();
             WriteAssign();
             WriteGate();
             WriteDispatch(kernel.Admit, kernel.AdmitAny, "Admit");
@@ -69,6 +72,7 @@ namespace Sv.Rules.Emit
             WriteHelpers();
             var file = new CodeWriter();
             file.Line("using Sv;");
+            file.Line("using System.Runtime.CompilerServices;");
             file.Line("using System.Runtime.InteropServices;");
             file.Blank();
             file.Open("namespace " + unit.Options.Namespace);
@@ -109,7 +113,9 @@ namespace Sv.Rules.Emit
             body.Blank();
             body.Line("public static readonly int DeltaLanes = " + Text(layers.DeltaIntrinsics.Count) + ";");
             body.Blank();
-            body.Line("public static readonly int ScratchLanes = " + Text(layers.DeltaIntrinsics.Count + 2 * schema.Channels.Length) + ";");
+            body.Line("public static readonly int ScratchLanes = " + Text(layers.DeltaIntrinsics.Count + (TotalsOutliveDecide ? 2 * schema.Channels.Length : 0)) + ";");
+            body.Blank();
+            body.Line("public static readonly int TotalLanes = " + Text(TotalsOutliveDecide ? 0 : schema.Channels.Length) + ";");
             body.Blank();
             body.Line("public static readonly int RecordBytes = sizeof(Outcome) + sizeof(int);");
             body.Blank();
@@ -117,16 +123,30 @@ namespace Sv.Rules.Emit
             body.Blank();
             body.Line("public static readonly int LanesWrittenPerChunk = " + Text(layers.Folds.Count + eventLanes.Count) + ";");
             body.Blank();
-            body.Open("public static int ChannelIndex(int channel)");
-            body.Open("switch (channel)");
-            for (var c = 0; c < schema.Channels.Length; c++)
+            if (IdentityChannels)
             {
-                body.Line("case " + Text(schema.Channels[c].Id) + ": return " + Text(c) + ";");
+                body.Line("public static int ChannelIndex(int channel) => (uint)channel < " + Text(schema.Channels.Length) + "u ? channel : -1;");
+            }
+            else
+            {
+                body.Open("public static int ChannelIndex(int channel)");
+                body.Open("switch (channel)");
+                for (var c = 0; c < schema.Channels.Length; c++)
+                {
+                    body.Line("case " + Text(schema.Channels[c].Id) + ": return " + Text(c) + ";");
+                }
+
+                body.Line("default: return -1;");
+                body.Close();
+                body.Close();
             }
 
-            body.Line("default: return -1;");
-            body.Close();
-            body.Close();
+            if (ChannelBits)
+            {
+                body.Blank();
+                body.Line("static ulong ChannelBit(int channel) => channel < 64 ? 1ul << channel : ulong.MaxValue;");
+            }
+
             body.Blank();
             body.Open("public static int DeltaSlotOf(int intrinsic)");
             body.Open("switch (intrinsic)");
@@ -143,7 +163,7 @@ namespace Sv.Rules.Emit
         void WriteDecide()
         {
             body.Blank();
-            body.Open("public static ulong Decide(in WorldView world, int chunk, int capacity, Effect* effects, int count, int* scratch, byte* records, ref EffectWriter next)");
+            body.Open("public static ulong Decide(in WorldView world, int chunk, int capacity, Effect* effects, int count, int* scratch, ulong* written, long* totals, byte* records, ref EffectWriter next)");
             body.Line("var v = View(world, chunk);");
             body.Line("Masks(world, ref v);");
             if (Assigns)
@@ -151,7 +171,7 @@ namespace Sv.Rules.Emit
                 body.Line("var assign = stackalloc long[" + Text(layers.AssignIntrinsics.Count) + "];");
             }
 
-            body.Line("var a = new DecideArgs { Effects = effects, Outcomes = (Outcome*)records, Order = (int*)(records + (long)count * sizeof(Outcome)), Totals = (long*)(scratch + " + Text(layers.DeltaIntrinsics.Count * Rows) + "), Delta = scratch, Capacity = capacity"
+            body.Line("var a = new DecideArgs { Effects = effects, Outcomes = (Outcome*)records, Order = (int*)(records + (long)count * sizeof(Outcome)), Totals = " + (TotalsOutliveDecide ? "(long*)(scratch + " + Text(layers.DeltaIntrinsics.Count * Rows) + ")" : "totals") + ", Delta = scratch, Written = written, Capacity = capacity"
                 + (Assigns ? ", Assign = assign" : string.Empty) + " };");
             body.Line("var terms = stackalloc ShapeTerm[" + Text(ShapeCapacity) + "];");
             body.Line("var totalled = 0ul;");
@@ -159,17 +179,20 @@ namespace Sv.Rules.Emit
             body.Open("while (at < count)");
             body.Line("var first = at;");
             body.Line("var target = EffectKey.Target(effects[at].Key);");
+            body.Line(ChannelBits ? "var present = ChannelBit(EffectKey.Channel(effects[at].Key));" : "var present = ulong.MaxValue;");
             body.Line("at++;");
             body.Open("while (at < count && EffectKey.Target(effects[at].Key) == target)");
+            if (ChannelBits)
+            {
+                body.Line("present |= ChannelBit(EffectKey.Channel(effects[at].Key));");
+            }
+
             body.Line("at++;");
             body.Close();
             body.Blank();
             body.Line("var row = target & 63;");
             body.Line("var self = 1ul << row;");
-            body.Line("Target(world, ref v, a, ref next, target, row, self, first, at, terms);");
-            body.Open("for (var index = 0; index < " + Text(schema.Channels.Length) + "; index++)");
-            body.Line("totalled |= a.Totals[(index << 6) + row] != 0L ? self : 0ul;");
-            body.Close();
+            body.Line("totalled |= Target(world, ref v, a, ref next, target, row, self, first, at, present, terms);");
             body.Close();
             body.Blank();
             body.Line("return totalled;");
@@ -181,31 +204,7 @@ namespace Sv.Rules.Emit
         void WriteTarget()
         {
             body.Blank();
-            body.Open("static void Target(in WorldView world, ref ChunkView v, in DecideArgs a, ref EffectWriter next, int target, int row, ulong self, int first, int end, ShapeTerm* terms)");
-            body.Open("for (var r = first; r < end; r++)");
-            body.Line("Gate(world, ref v, a, row, self, r, terms);");
-            body.Close();
-            for (var b = 0; b < layers.AbsorbBudgets.Count; b++)
-            {
-                body.Blank();
-                body.Line("var used" + Text(layers.AbsorbBudgets[b]) + " = 0L;");
-            }
-
-            for (var g = 0; g < layers.Gates.Count; g++)
-            {
-                var gate = layers.Gates[g];
-                for (var e = 0; e < gate.Rule.Absorbs.Length; e++)
-                {
-                    WriteAbsorb(gate, gate.Rule.Absorbs[e]);
-                }
-
-                for (var e = 0; e < gate.Rule.Spends.Length; e++)
-                {
-                    WriteSpend(gate, gate.Rule.Spends[e]);
-                }
-            }
-
-            body.Blank();
+            body.Open("static ulong Target(in WorldView world, ref ChunkView v, in DecideArgs a, ref EffectWriter next, int target, int row, ulong self, int first, int end, ulong present, ShapeTerm* terms)");
             body.Line("var untaken = -1;");
             for (var i = 0; i < layers.Emits.Count; i++)
             {
@@ -219,10 +218,74 @@ namespace Sv.Rules.Emit
                 body.Line("untaken = " + Held(emit.When.Guard) + " && untaken < " + limit + " ? " + limit + " : untaken;");
             }
 
+            for (var b = 0; b < layers.AbsorbBudgets.Count; b++)
+            {
+                body.Line("var used" + Text(layers.AbsorbBudgets[b]) + " = 0L;");
+            }
+
+            var reshapes = new List<string>();
+            for (var g = 0; g < layers.Gates.Count; g++)
+            {
+                var gate = layers.Gates[g];
+                if (gate.Rule.Absorbs.Length > 0 || gate.Rule.Spends.Length > 0)
+                {
+                    reshapes.Add("(" + CallGuard(gate.When, gate.Channels) + ")");
+                }
+            }
+
+            if (reshapes.Count > 0)
+            {
+                body.Line("var reshaped = " + string.Join(" || ", reshapes) + ";");
+            }
+
+            if (Assigns)
+            {
+                body.Line("var assigned = false;");
+                for (var k = 0; k < layers.AssignIntrinsics.Count; k++)
+                {
+                    body.Line("a.Assign[" + Text(k) + "] = " + Lane(layers.AssignIntrinsics[k]) + "[row];");
+                }
+            }
+
             body.Open("for (var r = first; r < end; r++)");
-            body.Line("var survives = RuleMath.Taken(a.Outcomes[r]) != 0L || EffectKey.Depth(a.Effects[r].Key) <= untaken;");
-            body.Line("a.Outcomes[r].Survives = survives ? 1 : 0;");
+            body.Line("Gate(world, ref v, a, row, self, r, terms);");
+            if (reshapes.Count > 0)
+            {
+                body.Open("if (!reshaped)");
+                WriteSettle();
+                body.Close();
+            }
+            else
+            {
+                WriteSettle();
+            }
+
             body.Close();
+            if (reshapes.Count > 0)
+            {
+                body.Blank();
+                body.Open("if (reshaped)");
+                for (var g = 0; g < layers.Gates.Count; g++)
+                {
+                    var gate = layers.Gates[g];
+                    for (var e = 0; e < gate.Rule.Absorbs.Length; e++)
+                    {
+                        WriteAbsorb(gate, gate.Rule.Absorbs[e]);
+                    }
+
+                    for (var e = 0; e < gate.Rule.Spends.Length; e++)
+                    {
+                        WriteSpend(gate, gate.Rule.Spends[e]);
+                    }
+                }
+
+                body.Blank();
+                body.Open("for (var r = first; r < end; r++)");
+                WriteSettle();
+                body.Close();
+                body.Close();
+            }
+
             for (var i = 0; i < layers.Emits.Count; i++)
             {
                 var emit = layers.Emits[i];
@@ -232,50 +295,51 @@ namespace Sv.Rules.Emit
                 }
 
                 body.Blank();
-                body.Open("if (" + Held(emit.When.Guard) + ")");
+                body.Open("if (" + CallGuard(emit.When, TriggerChannels(emit, false)) + ")");
                 body.Line(EmitMethod(emit, false) + "(world, ref v, a, ref next, target, row, self, first, end, terms);");
                 body.Close();
             }
 
             body.Blank();
-            body.Open("for (var r = first; r < end; r++)");
-            body.Open("if (a.Outcomes[r].Survives != 0)");
-            body.Line("var index = ChannelIndex(EffectKey.Channel(a.Effects[r].Key));");
-            body.Open("if (index >= 0)");
-            body.Line("var at = (index << 6) + row;");
-            body.Line("a.Totals[at] = RuleMath.Add(a.Totals[at], RuleMath.Taken(a.Outcomes[r]));");
-            body.Close();
-            body.Close();
-            body.Close();
-            if (Assigns)
-            {
-                body.Blank();
-                for (var k = 0; k < layers.AssignIntrinsics.Count; k++)
-                {
-                    body.Line("a.Assign[" + Text(k) + "] = " + Lane(layers.AssignIntrinsics[k]) + "[row];");
-                }
-
-                body.Open("for (var r = first; r < end; r++)");
-                body.Open("if (RuleMath.Taken(a.Outcomes[r]) != 0L)");
-                body.Line("RuleMath.PerHit(a.Effects[r], a.Outcomes[r], 1, out var perHit, out _);");
-                body.Line("var from = EffectKey.Source(a.Effects[r].Key);");
-                body.Line("Assign(a, EffectKey.Channel(a.Effects[r].Key), perHit, from == EffectKey.NoSource ? -1L : from);");
-                body.Close();
-                body.Close();
-            }
-
+            body.Line("var written = present;");
             for (var i = 0; i < layers.SelfOrder.Count; i++)
             {
                 var emit = layers.SelfOrder[i];
                 body.Blank();
-                body.Open("if (" + Held(emit.When.Guard) + ")");
+                body.Open("if (" + CallGuard(emit.When, TriggerChannels(emit, true)) + ")");
+                body.Line("written |= " + SelfWrites(emit) + ";");
+                if (Assigns && SelfMayAssign(emit))
+                {
+                    body.Line("assigned = true;");
+                }
+
                 body.Line(EmitMethod(emit, true) + "(world, ref v, a, ref next, target, row, self, first, end, terms);");
                 body.Close();
             }
 
+            body.Blank();
+            body.Line("var nonzero = 0ul;");
+            if (ChannelBits)
+            {
+                body.Line("var pending = written;");
+                body.Open("while (pending != 0ul)");
+                body.Line("var channel = Bits.Tzcnt(pending);");
+                body.Line("pending &= pending - 1ul;");
+                body.Line("var index = ChannelIndex(channel);");
+                body.Line("nonzero |= index >= 0 && a.Totals[(index << 6) + row] != 0L ? 1ul << channel : 0ul;");
+                body.Close();
+            }
+            else
+            {
+                body.Open("for (var index = 0; index < " + Text(schema.Channels.Length) + "; index++)");
+                body.Line("nonzero |= a.Totals[(index << 6) + row] != 0L ? ulong.MaxValue : 0ul;");
+                body.Close();
+            }
+
+            body.Blank();
+            body.Open("if (" + MovesCondition(reshapes.Count > 0) + ")");
             for (var s = 0; s < layers.DeltaIntrinsics.Count; s++)
             {
-                body.Blank();
                 body.Line("var delta" + Text(s) + " = 0L;");
             }
 
@@ -285,7 +349,8 @@ namespace Sv.Rules.Emit
                 var flow = layers.Flows[f];
                 unit.EmittedRules.Add(flow.Rule.Id);
                 body.Blank();
-                body.Open("if (" + Condition(flow.When, flowScope, true) + ")");
+                var when = Condition(flow.When, flowScope, true);
+                body.Open("if ((nonzero & " + (ChannelBits ? FlowChannels(flow) : "ulong.MaxValue") + ") != 0ul" + (when == "true" ? string.Empty : " && " + when) + ")");
                 for (var t = 0; t < flow.Rule.Terms.Length; t++)
                 {
                     var term = flow.Rule.Terms[t];
@@ -307,6 +372,8 @@ namespace Sv.Rules.Emit
                 body.Close();
             }
 
+            body.Blank();
+            body.Open("if ((nonzero & " + (ChannelBits ? IntoChannels() : "ulong.MaxValue") + ") != 0ul)");
             for (var c = 0; c < schema.Channels.Length; c++)
             {
                 var into = schema.Channels[c].Assigns ? -1 : schema.Channels[c].Into;
@@ -319,6 +386,8 @@ namespace Sv.Rules.Emit
                 body.Line("delta" + Text(slot) + " = RuleMath.Add(delta" + Text(slot) + ", a.Totals[" + Text(c * Rows) + " + row]);");
             }
 
+            body.Close();
+            body.Blank();
             for (var b = 0; b < layers.AbsorbBudgets.Count; b++)
             {
                 var budget = layers.AbsorbBudgets[b];
@@ -335,10 +404,61 @@ namespace Sv.Rules.Emit
 
             for (var s = 0; s < layers.DeltaIntrinsics.Count; s++)
             {
+                body.Open("if (delta" + Text(s) + " != 0L)");
+                body.Line("Touch(a, " + Text(s) + ");");
                 body.Line("a.Delta[" + Text(s * Rows) + " + row] = EffectLaw.Saturate32(delta" + Text(s) + ");");
+                body.Close();
             }
 
             body.Close();
+
+            if (!TotalsOutliveDecide)
+            {
+                body.Blank();
+                if (ChannelBits)
+                {
+                    body.Open("while (written != 0ul)");
+                    body.Line("var index = ChannelIndex(Bits.Tzcnt(written));");
+                    body.Line("written &= written - 1ul;");
+                    body.Open("if (index >= 0)");
+                    body.Line("a.Totals[(index << 6) + row] = 0L;");
+                    body.Close();
+                    body.Close();
+                }
+                else
+                {
+                    body.Open("for (var index = 0; index < " + Text(schema.Channels.Length) + "; index++)");
+                    body.Line("a.Totals[(index << 6) + row] = 0L;");
+                    body.Close();
+                }
+            }
+
+            body.Blank();
+            body.Line("return nonzero != 0ul ? self : 0ul;");
+            body.Close();
+        }
+
+        void WriteSettle()
+        {
+            body.Line("var survives = RuleMath.Taken(a.Outcomes[r]) != 0L || EffectKey.Depth(a.Effects[r].Key) <= untaken;");
+            body.Line("a.Outcomes[r].Survives = survives ? 1 : 0;");
+            body.Open("if (survives)");
+            body.Line("var index = ChannelIndex(EffectKey.Channel(a.Effects[r].Key));");
+            body.Open("if (index >= 0)");
+            body.Line("var at = (index << 6) + row;");
+            body.Line("a.Totals[at] = RuleMath.Add(a.Totals[at], RuleMath.Taken(a.Outcomes[r]));");
+            body.Close();
+            body.Close();
+            if (Assigns)
+            {
+                body.Blank();
+                body.Open("if (" + InSet(AssignChannels(), "(long)EffectKey.Channel(a.Effects[r].Key)") + " && RuleMath.Taken(a.Outcomes[r]) != 0L)");
+                body.Line("RuleMath.PerHit(a.Effects[r], a.Outcomes[r], 1, out var perHit, out _);");
+                body.Line("var from = EffectKey.Source(a.Effects[r].Key);");
+                body.Line("Assign(a, EffectKey.Channel(a.Effects[r].Key), perHit, from == EffectKey.NoSource ? -1L : from);");
+                body.Line("assigned = true;");
+                body.Close();
+            }
         }
 
         static string AssignText(AssignMode mode, string held, string value)
@@ -349,6 +469,19 @@ namespace Sv.Rules.Emit
                 case AssignMode.Min: return "RuleMath.Min(" + held + ", " + value + ")";
                 default: return value;
             }
+        }
+
+        void WriteTouch()
+        {
+            body.Blank();
+            body.Open("static void Touch(in DecideArgs a, int lane)");
+            body.Line("var word = a.Written + (lane >> 6);");
+            body.Line("var bit = 1ul << (lane & 63);");
+            body.Open("if ((*word & bit) == 0ul)");
+            body.Line("*word |= bit;");
+            body.Line("LaneMath.Fill(a.Delta + (lane << 6), 0);");
+            body.Close();
+            body.Close();
         }
 
         void WriteAssign()
@@ -385,7 +518,7 @@ namespace Sv.Rules.Emit
             var budget = Text(budgetLane);
             unit.EmittedRules.Add(gate.Rule.Id);
             body.Blank();
-            body.Open("if (" + Held(gate.When.Guard) + ")");
+            body.Open("if (" + CallGuard(gate.When, gate.Channels) + ")");
             body.Line("var budget = (long)" + Lane(budgetLane) + "[row];");
             body.Open("for (var r = first; r < end; r++)");
             body.Line("var effect = a.Effects[r];");
@@ -407,7 +540,7 @@ namespace Sv.Rules.Emit
             var budget = Text(effect.Budget);
             unit.EmittedRules.Add(gate.Rule.Id);
             body.Blank();
-            body.Open("if (" + Held(gate.When.Guard) + ")");
+            body.Open("if (" + CallGuard(gate.When, gate.Channels) + ")");
             body.Line("var candidates = 0;");
             body.Open("for (var r = first; r < end; r++)");
             body.Line("var effect = a.Effects[r];");
@@ -466,6 +599,7 @@ namespace Sv.Rules.Emit
         void WriteGate()
         {
             body.Blank();
+            body.Line(Inline);
             body.Open("static void Gate(in WorldView world, ref ChunkView v, in DecideArgs a, int row, ulong self, int r, ShapeTerm* terms)");
             body.Line("var effect = a.Effects[r];");
             body.Line("var state = default(GateState);");
@@ -591,13 +725,57 @@ namespace Sv.Rules.Emit
             {
                 var block = dispatch.Blocks[b];
                 body.Blank();
+                body.Line(Inline);
                 body.Open("static void " + block.Method + parameters);
+                HoistReads(block, scope);
                 for (var i = 0; i < block.Cases.Count; i++)
                 {
                     WriteCase(block.Cases[i], scope, i > 0);
                 }
 
+                scope.ReadLocals = null;
                 body.Close();
+            }
+        }
+
+        void HoistReads(GateBlock block, ExprScope scope)
+        {
+            scope.ReadCounts = new Dictionary<string, int>();
+            scope.ReadOrder = new List<string>();
+            for (var i = 0; i < block.Cases.Count; i++)
+            {
+                var gate = block.Cases[i].Gate;
+                scope.RuleId = gate.Rule.Id;
+                Condition(block.Cases[i].When, scope, false);
+                for (var s = 0; s < gate.Rule.Shapes.Length; s++)
+                {
+                    if (gate.Rule.Shapes[s].Cell != null)
+                    {
+                        ScaledCell(gate.Rule.Shapes[s].Cell!, scope, gate.Rule.Shapes[s].UnitScale);
+                    }
+                }
+            }
+
+            var locals = new Dictionary<string, string>();
+            for (var i = 0; i < scope.ReadOrder.Count; i++)
+            {
+                var read = scope.ReadOrder[i];
+                if (scope.ReadCounts[read] < 2)
+                {
+                    continue;
+                }
+
+                var local = "read" + Text(locals.Count);
+                locals.Add(read, local);
+                body.Line("var " + local + " = " + read + ";");
+            }
+
+            scope.ReadCounts = null;
+            scope.ReadOrder = null;
+            scope.ReadLocals = locals.Count == 0 ? null : locals;
+            if (locals.Count > 0)
+            {
+                body.Blank();
             }
         }
 

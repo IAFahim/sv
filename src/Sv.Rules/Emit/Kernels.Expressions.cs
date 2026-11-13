@@ -22,6 +22,9 @@ namespace Sv.Rules.Emit
         public string Capacity = "a.Capacity";
         public string Effects = "a.Effects";
         public string Outcomes = "a.Outcomes";
+        public Dictionary<string, int>? ReadCounts;
+        public List<string>? ReadOrder;
+        public Dictionary<string, string>? ReadLocals;
     }
 
     public sealed partial class KernelEmitter
@@ -259,7 +262,30 @@ namespace Sv.Rules.Emit
             }
 
             var slot = e.Subject == Subject.Source ? (scope.Source == null ? "-1L" : "(long)" + scope.Source) : "(long)" + Lane(e.Via) + "[row]";
-            return "RuleMath.Read(world, " + scope.Capacity + ", " + slot + ", " + Text(e.Id) + ", " + Names.Int(DefaultOf(e.Class, e.Id)) + ")";
+            return OtherRead("RuleMath.Read(world, " + scope.Capacity + ", " + slot + ", " + Text(e.Id) + ", " + Names.Int(DefaultOf(e.Class, e.Id)) + ")", scope);
+        }
+
+        static string OtherRead(string read, ExprScope scope)
+        {
+            if (scope.ReadLocals != null && scope.ReadLocals.TryGetValue(read, out var local))
+            {
+                return local;
+            }
+
+            if (scope.ReadCounts != null && scope.ReadOrder != null)
+            {
+                if (scope.ReadCounts.TryGetValue(read, out var count))
+                {
+                    scope.ReadCounts[read] = count + 1;
+                }
+                else
+                {
+                    scope.ReadCounts.Add(read, 1);
+                    scope.ReadOrder.Add(read);
+                }
+            }
+
+            return read;
         }
 
         int ScaleOfCell(Expression e)
@@ -311,9 +337,9 @@ namespace Sv.Rules.Emit
                 }
 
                 case ValueClass.Stat:
-                    return "((long)StatLaw.Rescale(RuleMath.Read(world, " + scope.Capacity + ", " + slot + ", " + Text(e.Id) + ", " + Names.Int(DefaultOf(ValueClass.Stat, e.Id)) + "), " + Text(ScaleOfStat(e.Id)) + ", 1))";
+                    return "((long)StatLaw.Rescale(" + OtherRead("RuleMath.Read(world, " + scope.Capacity + ", " + slot + ", " + Text(e.Id) + ", " + Names.Int(DefaultOf(ValueClass.Stat, e.Id)) + ")", scope) + ", " + Text(ScaleOfStat(e.Id)) + ", 1))";
                 default:
-                    return "((long)RuleMath.Read(world, " + scope.Capacity + ", " + slot + ", " + Text(e.Id) + ", " + Names.Int(DefaultOf(ValueClass.Intrinsic, e.Id)) + "))";
+                    return "((long)" + OtherRead("RuleMath.Read(world, " + scope.Capacity + ", " + slot + ", " + Text(e.Id) + ", " + Names.Int(DefaultOf(ValueClass.Intrinsic, e.Id)) + ")", scope) + ")";
             }
         }
     }

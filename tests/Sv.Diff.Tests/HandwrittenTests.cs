@@ -66,6 +66,29 @@ namespace DiffTests
         }
 
         [Fact]
+        public void An_event_that_reads_a_channel_total_sees_the_frame_total_on_both_hosts()
+        {
+            var values = "{\"schema\":1,\"nextLane\":2,\"rows\":[\n"
+                + "{\"id\":0,\"name\":\"Health\",\"class\":\"intrinsic\",\"default\":100},\n"
+                + "{\"lane\":1,\"word\":0,\"name\":\"BigHit\",\"class\":\"event\",\"default\":false},\n"
+                + "{\"id\":0,\"name\":\"Hit\",\"class\":\"channel\"}\n]}";
+            var rules = "{\"schema\":1,\"rows\":[\n"
+                + "{\"id\":1,\"name\":\"hit_flow\",\"layer\":\"flow\",\"then\":[{\"subtract\":[\"Health\",\"Hit\"]}]},\n"
+                + "{\"id\":2,\"name\":\"big_hit\",\"layer\":\"event\",\"event\":\"BigHit\",\"enter\":{\"gt\":[{\"total\":\"Hit\"},15]}}\n]}";
+            var scenario = "{\"schema\":1,\"name\":\"total\",\"frames\":3,\"entities\":[{\"name\":\"E0\",\"template\":\"base\"}],"
+                + "\"sends\":[{\"frame\":0,\"target\":\"E0\",\"channel\":\"Hit\",\"amount\":10,\"hits\":2}]}";
+            SameOnBothHosts(new GeneratedCase { Seed = -5, Namespace = "Diff.EventTotal", Values = values, Rules = rules, Cards = NoCards, Templates = OneTemplate, Scenario = scenario });
+        }
+
+        [Fact]
+        public void A_pack_without_forwarding_templates_compiles_without_warnings()
+        {
+            var item = KernelCompiler.Build(new[] { new GeneratedCase { Seed = -6, Namespace = "Diff.NoForwards", Values = AbsorbValues, Rules = AbsorbRules, Cards = NoCards, Templates = OneTemplate, Scenario = HitScenario(1) } }).Single();
+            Assert.True(item.Ready, item.Failure);
+            Assert.Equal(string.Empty, item.Warnings);
+        }
+
+        [Fact]
         public void A_card_modifier_reaches_the_stat_on_both_hosts()
         {
             var scenario = "{\"schema\":1,\"name\":\"card\",\"frames\":3,\"entities\":[{\"name\":\"E0\",\"template\":\"base\"}],"

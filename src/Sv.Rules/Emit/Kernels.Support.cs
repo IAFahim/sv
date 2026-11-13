@@ -6,14 +6,17 @@ namespace Sv.Rules.Emit
         {
             "public static unsafe class RuleMath",
             "{",
+            "    [MethodImpl(MethodImplOptions.AggressiveInlining)]",
             "    public static long Add(long left, long right)",
             "    {",
             "        var sum = unchecked(left + right);",
             "        return ((left ^ sum) & (right ^ sum)) < 0L ? (left < 0L ? long.MinValue : long.MaxValue) : sum;",
             "    }",
             "",
+            "    [MethodImpl(MethodImplOptions.AggressiveInlining)]",
             "    public static long Negate(long value) => value == long.MinValue ? long.MaxValue : -value;",
             "",
+            "    [MethodImpl(MethodImplOptions.AggressiveInlining)]",
             "    public static long Subtract(long left, long right) => Add(left, Negate(right));",
             "",
             "    public static long Multiply(long left, long right)",
@@ -43,8 +46,10 @@ namespace Sv.Rules.Emit
             "        return product / right != left ? (negative ? long.MinValue : long.MaxValue) : product;",
             "    }",
             "",
+            "    [MethodImpl(MethodImplOptions.AggressiveInlining)]",
             "    public static long Min(long left, long right) => left < right ? left : right;",
             "",
+            "    [MethodImpl(MethodImplOptions.AggressiveInlining)]",
             "    public static long Max(long left, long right) => left > right ? left : right;",
             "",
             "    public static float AddFloat(float left, float right) => (float)(left + right);",
@@ -72,10 +77,13 @@ namespace Sv.Rules.Emit
             "",
             "    public static int KindOf(int kind) => kind < 0 ? 0 : kind > 255 ? 255 : kind;",
             "",
+            "    [MethodImpl(MethodImplOptions.AggressiveInlining)]",
             "    public static long Gross(in Outcome outcome) => EffectLaw.Term(outcome.TakenPerHit, outcome.TakenHits);",
             "",
+            "    [MethodImpl(MethodImplOptions.AggressiveInlining)]",
             "    public static long Offered(in Effect effect) => EffectLaw.Term(effect.Amount, effect.Hits);",
             "",
+            "    [MethodImpl(MethodImplOptions.AggressiveInlining)]",
             "    public static long Taken(in Outcome outcome) => Gross(outcome) - outcome.Absorbed;",
             "",
             "    public static long NotTaken(in Effect effect, in Outcome outcome) => Add(Offered(effect), Negate(Taken(outcome)));",
@@ -155,6 +163,7 @@ namespace Sv.Rules.Emit
             file.Line("public int* Order;");
             file.Line("public long* Totals;");
             file.Line("public int* Delta;");
+            file.Line("public ulong* Written;");
             file.Line("public long* Faults;");
             if (Assigns)
             {

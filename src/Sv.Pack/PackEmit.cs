@@ -68,6 +68,7 @@ namespace Sv.Pack
             Line(text, "public ulong PackHash => Layout.PackHash;");
             Line(text, "public ulong CompiledAgainst => Layout.CompiledAgainst;");
             Line(text, "public int ScratchLanes => Kernels.ScratchLanes;");
+            Line(text, "public int TotalLanes => Kernels.TotalLanes;");
             Line(text, "public int DeltaLanes => Kernels.DeltaLanes;");
             Line(text, "public int EventCount => Kernels.EventCount;");
             Line(text, "public int LanesWrittenPerChunk => Kernels.LanesWrittenPerChunk;");
@@ -78,7 +79,7 @@ namespace Sv.Pack
             Line(text, "public int EventId(int ordinal) => Kernels.EventId(ordinal);");
             Line(text, "public bool Forwards(int template) => Kernels.Forwards(template);");
             Line(text, "public int Forward(in WorldView world, int slot, int channel) => Kernels.Forward(world, slot, channel);");
-            Line(text, "public ulong Decide(in WorldView world, int chunk, int capacity, Effect* effects, int count, int* scratch, byte* records, ref EffectWriter next) => Kernels.Decide(world, chunk, capacity, effects, count, scratch, records, ref next);");
+            Line(text, "public ulong Decide(in WorldView world, int chunk, int capacity, Effect* effects, int count, int* scratch, ulong* written, long* totals, byte* records, ref EffectWriter next) => Kernels.Decide(world, chunk, capacity, effects, count, scratch, written, totals, records, ref next);");
             Line(text, "public ulong Events(in WorldView world, ref LaneWriter writer, int chunk, ulong recheck, int* scratch, ulong* edges) => Kernels.Events(world, ref writer, chunk, recheck, scratch, edges);");
             Line(text, "public void EdgeEmits(in WorldView world, int chunk, int capacity, ulong* edges, int* scratch, ref EffectWriter next) => Kernels.EdgeEmits(world, chunk, capacity, edges, scratch, ref next);");
             text.Append("    }\n");
