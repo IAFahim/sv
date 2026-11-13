@@ -299,6 +299,11 @@ namespace SvV3Bench
                 Pack10k.Run();
             }
 
+            if (scenario == "v3-lego-decide-shape" || scenario == "lego")
+            {
+                LegoDecideShape.Run();
+            }
+
             if (scenario == "v3-pack-stability" || scenario == "lego")
             {
                 PackStability.Run();
@@ -368,6 +373,7 @@ namespace SvV3Bench
             line.Append(name).Append(digestEvery == 0 ? " (digest off)" : string.Empty).Append(" frames=").Append(frames);
             line.Append(string.Format(CultureInfo.InvariantCulture, " canonical={0:0} activeChunks={1:0}", Median(canonical), Median(activeChunks)));
             line.Append(" alloc(main)=").Append(allocated).Append("B alloc(all)=").Append(allocatedAll).Append('B');
+            line.Append(string.Format(CultureInfo.InvariantCulture, " rawGrows={0} rawCapacity={1} inputLog={2:0.0}MB", host.Raw.Grows, host.Raw.Capacity, host.Log.Bytes / 1e6));
             line.Append(" digest=").Append(host.LastDigest.ToString("X16", CultureInfo.InvariantCulture)).Append('\n');
             for (var p = 0; p < Phases.Length; p++)
             {
@@ -703,5 +709,84 @@ namespace SvV3Bench
             var plan = compiled.Value ?? throw new InvalidOperationException(string.Join("\n", compiled.Diagnostics.Take(5)));
             return v3::Sv.Rules.Emit.PackEmitter.Emit(plan, "Bench.Stable");
         }
+    }
+}
+
+namespace SvV3Bench
+{
+    internal static unsafe class LegoDecideShape
+    {
+        public static void Run()
+        {
+            var plan = v3::Sv.Rules.PackCompiler.Compile(LegoWorld.Read(LegoWorld.LegoFolder())).Value!;
+            var pack = HostPack.From(plan);
+            var dummy = Array.FindIndex(plan.Schema.Templates, t => t.Name == "dummy");
+            using var host = new FrameLoop<LegoKernels>(pack, new HostOptions { EntityCapacity = 4 * Slot.Rows, Workers = 1 });
+            for (var at = 0; at < 2 * Slot.Rows; at++)
+            {
+                host.Spawn(dummy);
+            }
+
+            host.Step();
+            var tick = Channel(plan, "Tick");
+            var physical = Channel(plan, "Physical");
+            using var raw = new RawArena(1 << 16, 1, ArenaPolicy.Grow);
+            var scratchInts = Math.Max(1, v3::Sv.Kernels.Lego.Kernels.ScratchLanes) << Slot.RowBits;
+            var scratch = (int*)Memory.AllocZeroed((nuint)scratchInts, sizeof(int));
+            var buffer = (byte*)Memory.AllocZeroed(64, 32);
+            var effects = (Effect*)Memory.AllocZeroed(64, (nuint)sizeof(Effect));
+            foreach (var channel in new[] { tick, physical })
+            {
+                foreach (var targets in new[] { 64, 8, 1 })
+                {
+                    var per = 64 / targets;
+                    var count = 0;
+                    for (var row = 0; row < targets; row++)
+                    {
+                        for (var r = 0; r < per; r++)
+                        {
+                            var source = channel == tick ? EffectKey.NoSource : Slot.Rows + r;
+                            effects[count++] = new Effect(EffectKey.Pack(Slot.Of(0, row), source, 0, (byte)channel, Origin.Direct, 0), 1, 1);
+                        }
+                    }
+
+                    var times = new List<double>();
+                    var clears = new List<double>();
+                    for (var sample = 0; sample < 9; sample++)
+                    {
+                        const int calls = 20_000;
+                        var clearTicks = 0L;
+                        var decideTicks = 0L;
+                        for (var call = 0; call < calls; call++)
+                        {
+                            var t0 = Stopwatch.GetTimestamp();
+                            Memory.Clear(scratch, (nuint)scratchInts * sizeof(int));
+                            var t1 = Stopwatch.GetTimestamp();
+                            var writer = raw.Writer(0);
+                            v3::Sv.Kernels.Lego.Kernels.Decide(host.World.View, 0, host.World.ChunkCapacity * Slot.Rows, effects, count, scratch, buffer, ref *writer);
+                            var t2 = Stopwatch.GetTimestamp();
+                            raw.Reset();
+                            clearTicks += t1 - t0;
+                            decideTicks += t2 - t1;
+                        }
+
+                        times.Add(decideTicks * 1e9 / Stopwatch.Frequency / calls);
+                        clears.Add(clearTicks * 1e9 / Stopwatch.Frequency / calls);
+                    }
+
+                    times.Sort();
+                    clears.Sort();
+                    Console.WriteLine(string.Format(CultureInfo.InvariantCulture,
+                        "v3-lego-decide-shape {0,-8} {1,2} targets x {2,2} records: kernel {3,8:0} ns per chunk call ({4,6:0.0} ns per record, {5,6:0.0} ns per target), scratch clear {6,6:0} ns",
+                        channel == tick ? "Tick" : "Physical", targets, per, times[4], times[4] / 64, times[4] / targets, clears[4]));
+                }
+            }
+
+            Memory.Free(scratch);
+            Memory.Free(buffer);
+            Memory.Free(effects);
+        }
+
+        static int Channel(PackPlan plan, string name) => Array.Find(plan.Schema.Channels, c => c.Name == name)!.Id;
     }
 }
