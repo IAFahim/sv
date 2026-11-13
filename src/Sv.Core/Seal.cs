@@ -31,6 +31,7 @@ namespace Sv
         public const int RunLength = 16;
         public const int TotalCount = 0;
         public const int TotalActive = 1;
+        public const int TotalShifted = 2;
 
         public static int Merge(Effect* sorted, int count, Effect* canonical)
         {
@@ -186,7 +187,7 @@ namespace Sv
                         }
 
                         var run = end - at;
-                        Memory.Copy(records + at, view.Scratch + cursor[chunk], (nuint)run * (nuint)sizeof(Effect));
+                        Memory.Copy(records + at, view.Records + cursor[chunk], (nuint)run * (nuint)sizeof(Effect));
                         cursor[chunk] += run;
                         at = end;
                     }
@@ -196,7 +197,7 @@ namespace Sv
                     for (var at = 0; at < fill; at++)
                     {
                         var chunk = EffectKey.Chunk(records[at].Key);
-                        view.Scratch[cursor[chunk]] = records[at];
+                        view.Records[cursor[chunk]] = records[at];
                         cursor[chunk]++;
                     }
                 }
@@ -215,21 +216,46 @@ namespace Sv
                 }
 
                 var offset = view.Base[chunk];
-                var segment = view.Scratch + offset;
-                var sorted = Sort(segment, view.Records + offset, count, rows);
+                var segment = view.Records + offset;
+                var shape = Shape(segment, count);
+                if (shape == 0)
+                {
+                    continue;
+                }
+
+                var sorted = shape == 1 ? segment : Unordered(segment, view.Scratch + offset, count, rows);
                 view.Merged[chunk] = Merge(sorted, count, segment);
             }
+        }
+
+        static int Shape(Effect* data, int count)
+        {
+            var descents = 0;
+            var repeats = 0;
+            for (var at = 1; at < count; at++)
+            {
+                var key = data[at].Key;
+                var previous = data[at - 1].Key;
+                var amount = data[at].Amount;
+                var before = data[at - 1].Amount;
+                descents |= key < previous | (key == previous & amount < before) ? 1 : 0;
+                repeats |= key == previous & amount == before ? 1 : 0;
+            }
+
+            return descents != 0 ? 2 : repeats;
         }
 
         public static void Finish(in SealView view)
         {
             var running = 0;
             var active = 0;
+            var shifted = 0;
             for (var chunk = 0; chunk < view.Chunks; chunk++)
             {
                 view.Start[chunk] = running;
                 var count = view.Merged[chunk];
                 view.Active[active] = chunk;
+                shifted |= count > 0 & view.Base[chunk] != running ? 1 : 0;
                 active += count > 0 ? 1 : 0;
                 running += count;
             }
@@ -237,6 +263,7 @@ namespace Sv
             view.Start[view.Chunks] = running;
             view.Totals[TotalCount] = running;
             view.Totals[TotalActive] = active;
+            view.Totals[TotalShifted] = shifted;
         }
 
         public static void Compact(in SealView view, Effect* from, Effect* to, int activeFrom, int activeTo)
@@ -248,6 +275,14 @@ namespace Sv
             }
         }
 
+        public static void Settle(in SealView view, int activeFrom, int activeTo)
+        {
+            if (view.Totals[TotalShifted] != 0)
+            {
+                Compact(view, view.Records, view.Scratch, activeFrom, activeTo);
+            }
+        }
+
         public static Effect* Sort(Effect* data, Effect* temp, int count, int* rows)
         {
             if (Ascending(data, count))
@@ -255,6 +290,11 @@ namespace Sv
                 return data;
             }
 
+            return Unordered(data, temp, count, rows);
+        }
+
+        static Effect* Unordered(Effect* data, Effect* temp, int count, int* rows)
+        {
             if (count <= SmallSort)
             {
                 Insertion(data, count);

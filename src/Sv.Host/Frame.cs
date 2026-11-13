@@ -154,7 +154,7 @@ namespace Sv.Host
             var context = (FrameContext*)state;
             var active = context->Seal.Totals[Sv.Seal.TotalActive];
             WorkRange.Of(active, part, context->Parts, out var from, out var to);
-            Sv.Seal.Compact(context->Seal, context->Seal.Scratch, context->Seal.Records, from, to);
+            Sv.Seal.Settle(context->Seal, from, to);
         }
 
         public static void Decide(void* state, int part)
@@ -675,7 +675,11 @@ namespace Sv.Host
             workers.Run(&Phases<TKernels>.SealScatter, context, parts);
             workers.Run(&Phases<TKernels>.SealOrder, context, WorkRange.PartsFor(chunkCapacity, parts));
             Seal.Finish(context->Seal);
-            workers.Run(&Phases<TKernels>.SealCompact, context, WorkRange.PartsFor(context->Seal.Totals[Seal.TotalActive], parts));
+            if (context->Seal.Totals[Seal.TotalShifted] != 0)
+            {
+                workers.Run(&Phases<TKernels>.SealCompact, context, WorkRange.PartsFor(context->Seal.Totals[Seal.TotalActive], parts));
+            }
+
             canonical.End(context->Seal, raw);
             context->Records = canonical.Records;
             context->Start = canonical.Start;

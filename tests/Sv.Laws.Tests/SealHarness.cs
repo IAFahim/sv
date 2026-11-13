@@ -161,7 +161,7 @@ public static unsafe class SealHarness
             {
                 var from = (int)((long)active * part / parts);
                 var to = (int)((long)active * (part + 1) / parts);
-                Sv.Seal.Compact(view, view.Scratch, view.Records, from, to);
+                Sv.Seal.Settle(view, from, to);
             });
             canonical.End(view, raw);
         }

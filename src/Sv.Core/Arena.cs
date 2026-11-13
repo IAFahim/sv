@@ -453,7 +453,7 @@ namespace Sv
             merged = arena.AllocZeroed<int>(chunks);
             active = arena.AllocZeroed<int>(chunks);
             counts = arena.AllocAlignedZeroed<int>(parts * chunks);
-            totals = arena.AllocZeroed<int>(2);
+            totals = arena.AllocZeroed<int>(3);
             dead = arena.AllocAlignedZeroed<long>(parts);
             faults = arena.AllocAlignedZeroed<long>(parts);
         }
@@ -536,6 +536,13 @@ namespace Sv
 
         public void End(in SealView view, RawArena raw)
         {
+            if (totals[Seal.TotalShifted] != 0)
+            {
+                var swap = records;
+                records = scratch;
+                scratch = swap;
+            }
+
             Count = totals[Seal.TotalCount];
             ActiveCount = totals[Seal.TotalActive];
             var deadRecords = 0L;
@@ -583,7 +590,7 @@ namespace Sv
 
             Seal.Order(view, 0, Chunks);
             Seal.Finish(view);
-            Seal.Compact(view, view.Scratch, view.Records, 0, totals[Seal.TotalActive]);
+            Seal.Settle(view, 0, totals[Seal.TotalActive]);
             End(view, raw);
         }
 

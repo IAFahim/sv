@@ -111,7 +111,7 @@ public sealed unsafe class SealForwardLaws
             ForParts(parts, parallel, part => Sv.Seal.Order(view, SealHarness.Chunks * part / parts, SealHarness.Chunks * (part + 1) / parts));
             Sv.Seal.Finish(view);
             var active = view.Totals[Sv.Seal.TotalActive];
-            ForParts(parts, parallel, part => Sv.Seal.Compact(view, view.Scratch, view.Records, (int)((long)active * part / parts), (int)((long)active * (part + 1) / parts)));
+            ForParts(parts, parallel, part => Sv.Seal.Settle(view, (int)((long)active * part / parts), (int)((long)active * (part + 1) / parts)));
             canonical.End(view, raw);
             var result = SealHarness.Snapshot(canonical);
             Faults = canonical.RouteFaults;
