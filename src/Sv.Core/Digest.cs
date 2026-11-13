@@ -60,11 +60,12 @@ namespace Sv
                     if (laneClass == LaneClass.Event)
                     {
                         var differ = LaneMath.DifferWords((ulong*)cells, (ulong*)expected) & live;
+                        var usedWords = differ != 0ul ? LaneMath.UsedWords((ulong*)cells) : 0u;
                         while (differ != 0ul)
                         {
                             var row = Bits.Tzcnt(differ);
                             differ &= differ - 1ul;
-                            sum += CellDigest.Key(lane, first + row, LaneMath.RowLevels((ulong*)cells, row));
+                            sum += CellDigest.Key(lane, first + row, LaneMath.RowLevels((ulong*)cells, row, usedWords));
                         }
                     }
                     else

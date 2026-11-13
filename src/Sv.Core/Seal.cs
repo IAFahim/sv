@@ -18,6 +18,7 @@ namespace Sv
         public int* Totals;
         public long* Dead;
         public long* Faults;
+        public long* Sourced;
         public RouteTable Route;
         public int Chunks;
         public int Parts;
@@ -78,6 +79,7 @@ namespace Sv
             Range(view.Blocks, part, view.Parts, out var from, out var to);
             var dead = 0L;
             var faults = 0L;
+            var sourced = 0ul;
             for (var block = from; block < to; block++)
             {
                 var records = ArenaCore.Block(view.Raw, block);
@@ -90,6 +92,7 @@ namespace Sv
                     var key = record.Key;
                     var verdict = Sv.Route.Deliver(view.Route, ref forward, ref key);
                     var keep = verdict >= 0;
+                    sourced |= ~key & EffectKey.SourceField;
                     dead += verdict == Sv.Route.Dead ? 1L : 0L;
                     faults += verdict == Sv.Route.Fault ? 1L : 0L;
                     moved |= verdict == Sv.Route.Moved ? 1 : 0;
@@ -111,6 +114,7 @@ namespace Sv
 
             view.Dead[part] = dead;
             view.Faults[part] = faults;
+            view.Sourced[part] = sourced != 0ul ? 1L : 0L;
         }
 
         public static int Plan(in SealView view)
@@ -227,14 +231,52 @@ namespace Sv
                     continue;
                 }
 
-                var sorted = shape == 1 ? segment : Unordered(segment, view.Scratch + offset, count, rows);
-                view.Merged[chunk] = Merge(sorted, count, segment);
+                view.Merged[chunk] = shape == 1 || count <= SmallSort ? Merge(shape == 1 ? segment : Small(segment, count), count, segment) : SortedRows(segment, view.Scratch + offset, count, rows);
             }
+        }
+
+        static Effect* Small(Effect* data, int count)
+        {
+            Insertion(data, count);
+            return data;
+        }
+
+        static int SortedRows(Effect* data, Effect* temp, int count, int* rows)
+        {
+            ByRow(data, temp, count, rows);
+            var written = 0;
+            var start = 0;
+            for (var row = 0; row < EffectKey.Rows; row++)
+            {
+                var end = rows[row];
+                var length = end - start;
+                if (length == 1)
+                {
+                    data[written] = temp[start];
+                    written++;
+                }
+                else if (length > 1)
+                {
+                    if (length > SmallSort)
+                    {
+                        MergeSort(temp + start, data + start, length);
+                    }
+                    else
+                    {
+                        Insertion(temp + start, length);
+                    }
+
+                    written += Merge(temp + start, length, data + written);
+                }
+
+                start = end;
+            }
+
+            return written;
         }
 
         static int Shape(Effect* data, int count)
         {
-            var descents = 0;
             var repeats = 0;
             for (var at = 1; at < count; at++)
             {
@@ -242,11 +284,15 @@ namespace Sv
                 var previous = data[at - 1].Key;
                 var amount = data[at].Amount;
                 var before = data[at - 1].Amount;
-                descents |= key < previous | (key == previous & amount < before) ? 1 : 0;
+                if (key < previous | (key == previous & amount < before))
+                {
+                    return 2;
+                }
+
                 repeats |= key == previous & amount == before ? 1 : 0;
             }
 
-            return descents != 0 ? 2 : repeats;
+            return repeats;
         }
 
         public static void Finish(in SealView view)

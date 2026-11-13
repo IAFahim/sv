@@ -46,3 +46,25 @@ What limits it:
   in Decide): B Decide 4.04 -> 3.22 ms; decide-shape Tick 64x1 822 ns (12.8 ns per target), 1x64 468 ns.
 - Mixed-channel targets (C, D: Tick plus a random record) still run the generic path; Decide C 13.2 ms, D 19.1 ms.
 - Tried and reverted: initializing `a.Assign` only before its first use (B 3.42 vs 3.45 ms, C -0.26, inside noise).
+
+## P3 (2026-11-14, worktree branch from v3/m8-unity 6c219e2; median of 5-9 processes x 50 frames, interleaved, digests unchanged)
+
+- Profile first (perf + jitdump, scenario r = 1M random records): in `Target<Lone0>` about 18 % of samples sat on two loads per
+  record, the source chunk's lane-table entry (`LaneOf[chunk * 46 + meta]`) and its meta word; in `Target<Mixed>` about 13 %. That
+  confirms the P1 reading (lane-table row + meta word, not the five lanes).
+- Software prefetch was measured first and dropped: two-stage prefetch of the next chunks' lane-table rows and meta lines from
+  `Phases.Decide` cut Target samples by 1.8 points but the warm loops cost 3.4 (r decide 10.36 -> 10.66 ms); prefetching the next
+  chunk's table entries once the table existed: r decide 9.76 -> 10.05 ms. Reverted both.
+- Kept fd1c108: a per-frame source-chunk table (idea 4 at chunk granularity, 24 B per chunk, 375 KB for 15,625 chunks): Live|Dying,
+  a bit per lane (first 64) that still points at the template lane, the template. Built by a new parallel phase right before Decide
+  (0.17 ms, bandwidth of the lane-table rows and meta lines) and skipped when no record has a source (B). RuleMath.Present/Read in
+  every kernel go through `SourceChunks`. r decide 10.13 -> 8.96, total 19.58 -> 18.58 ms; C 27.16 -> 26.29; D 38.86 -> 37.35.
+- Kept (next commit): the table entry points at the template's value row (template lanes are uniform pattern lanes with epoch 0,
+  never written in place; event lanes excluded), so an on-template source read is one load instead of three dependent ones
+  (`EmitRule3007`, lifesteal's `source.Lifesteal`, was 4.9 % of samples). r decide 8.92 -> 8.39, total 18.14 -> 17.56 ms (9 rounds);
+  C 25.43 -> 24.89; D 36.55 -> 35.47.
+- Law: `SourceChunkTableReadsEqualWorldReadsForEverySlotAndLane` (Shared and Dense, every slot incl. absent and out of range,
+  every lane incl. event and retired).
+- Not done: carrying source values in the record at send time (contract change, and the table removes most of the miss);
+  per-record CSE of the source entry across gate and emit methods (emitter, separate methods); compact entries (the table is an L3
+  hit now: `bt` on the Present word is the remaining stall, 12 % of `Target<Lone0>` samples before the value rows).

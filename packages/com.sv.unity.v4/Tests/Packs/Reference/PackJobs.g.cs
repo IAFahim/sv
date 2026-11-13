@@ -149,6 +149,19 @@ namespace Sv.Kernels.Reference
         }
     }
 
+    [BurstCompile(FloatMode = FloatMode.Strict, FloatPrecision = FloatPrecision.Standard, CompileSynchronously = true)]
+    public unsafe struct SourcesJob : IJobParallelFor
+    {
+        [NativeDisableUnsafePtrRestriction] public FrameContext* Context;
+        [NativeDisableUnsafePtrRestriction] public int* Probe;
+
+        public void Execute(int part)
+        {
+            SvProbe.Mark(Probe);
+            Phases<HostKernels>.Sources(Context, part);
+        }
+    }
+
     public sealed unsafe class PackJobs : SvJobs
     {
         public override void Run(FramePhase phase, FrameContext* context, int parts)
@@ -166,6 +179,7 @@ namespace Sv.Kernels.Reference
                 case FramePhase.Commit: new CommitJob { Context = context, Probe = ProbeAt(phase) }.Schedule(parts, 1).Complete(); break;
                 case FramePhase.EdgeEmits: new EdgeEmitsJob { Context = context, Probe = ProbeAt(phase) }.Schedule(parts, 1).Complete(); break;
                 case FramePhase.Digest: new DigestJob { Context = context, Probe = ProbeAt(phase) }.Schedule(parts, 1).Complete(); break;
+                case FramePhase.Sources: new SourcesJob { Context = context, Probe = ProbeAt(phase) }.Schedule(parts, 1).Complete(); break;
             }
         }
     }

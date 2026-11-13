@@ -5,7 +5,8 @@ Second stop (owner moving to another PC), 2026-11-13. See "Where it stopped" at 
 ## Done and verified on .NET (first stop: Laws 548, Scenario 80, Diff 20, Host 27, Lego 120)
 
 - c4fc094: Sv.Host builds net10.0 + netstandard2.1 (C# 9). FrameLoop takes an IPhaseRunner (src/Sv.Host/Runner.cs:
-  FramePhase enum of 11 phases, WorkerRunner = the .NET pool, still the default). Phase bodies no longer allocate:
+  FramePhase enum of 11 phases, 12 since P3 added `Sources` (fd1c108, a generated `SourcesJob` in each Unity pack; not yet run
+  in Unity), WorkerRunner = the .NET pool, still the default). Phase bodies no longer allocate:
   Decide record scratch and input-log part scratch are sized on the main thread (FrameLoop.DecidePhase/LogPhase,
   InputLog.ReservePart). Needed because Burst cannot call Marshal.AllocHGlobal.
 - 080d893: PackTables.Of(plan) in Sv.Rules (HostPack.From calls it). HostEmitter (src/Sv.Rules/Emit) emits

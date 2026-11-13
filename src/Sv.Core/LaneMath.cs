@@ -494,6 +494,30 @@ namespace Sv
             return levels;
         }
 
+        public static uint UsedWords(ulong* eventLane)
+        {
+            var used = 0u;
+            for (var word = 0; word < Lanes.Words; word++)
+            {
+                used |= eventLane[word] != 0ul ? 1u << word : 0u;
+            }
+
+            return used;
+        }
+
+        public static uint RowLevels(ulong* eventLane, int row, uint usedWords)
+        {
+            var levels = 0u;
+            while (usedWords != 0u)
+            {
+                var word = Bits.Tzcnt(usedWords);
+                usedWords &= usedWords - 1u;
+                levels |= (uint)((eventLane[word] >> row) & 1ul) << word;
+            }
+
+            return levels;
+        }
+
         public static void SetRowLevels(ulong* eventLane, int row, uint levels)
         {
             var bit = 1ul << row;

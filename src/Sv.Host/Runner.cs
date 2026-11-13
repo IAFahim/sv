@@ -15,11 +15,12 @@ namespace Sv.Host
         Commit = 8,
         EdgeEmits = 9,
         Digest = 10,
+        Sources = 11,
     }
 
     public static class FramePhases
     {
-        public const int Count = 11;
+        public const int Count = 12;
     }
 
     public unsafe interface IPhaseRunner : IDisposable
@@ -55,6 +56,7 @@ namespace Sv.Host
                 case FramePhase.Decide: return &Phases<TKernels>.Decide;
                 case FramePhase.Commit: return &Phases<TKernels>.Commit;
                 case FramePhase.EdgeEmits: return &Phases<TKernels>.EdgeEmits;
+                case FramePhase.Sources: return &Phases<TKernels>.Sources;
                 default: return &Phases<TKernels>.Digest;
             }
         }

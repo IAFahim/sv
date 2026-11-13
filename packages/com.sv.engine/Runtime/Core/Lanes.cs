@@ -14,6 +14,129 @@ namespace Sv
         public uint Epoch;
         public StoragePolicy Policy;
         public long Frame;
+        public SourceChunk* Sources;
+    }
+
+    [StructLayout(LayoutKind.Sequential, Size = 24)]
+    public readonly unsafe struct SourceChunk
+    {
+        public readonly ulong Present;
+        public readonly ulong OnTemplate;
+        public readonly int* Values;
+
+        public SourceChunk(ulong present, ulong onTemplate, int* values)
+        {
+            Present = present;
+            OnTemplate = onTemplate;
+            Values = values;
+        }
+    }
+
+    public static unsafe class SourceChunks
+    {
+        public const int TrackedLanes = 64;
+
+        public static void TemplateValues(in WorldView world, int* values)
+        {
+            var lanes = world.Layout.ValueLanes;
+            for (var template = 0; template < world.TemplateCount; template++)
+            {
+                var row = Lanes.TemplateRow(world, template);
+                for (var lane = 0; lane < lanes; lane++)
+                {
+                    values[(long)template * lanes + lane] = ((int*)Lanes.At(world, row[lane]))[0];
+                }
+            }
+        }
+
+        public static ulong UniformLanes(in WorldView world)
+        {
+            var lanes = world.Layout.ValueLanes < TrackedLanes ? world.Layout.ValueLanes : TrackedLanes;
+            var uniform = 0ul;
+            for (var lane = 0; lane < lanes; lane++)
+            {
+                uniform |= world.Layout.Classes[lane] != LaneClass.Event ? 1ul << lane : 0ul;
+            }
+
+            return uniform;
+        }
+
+        public static SourceChunk Of(in WorldView world, int* values, ulong uniform, int chunk)
+        {
+            var meta = Lanes.WordsOf(world, chunk, world.Layout.MetaLane);
+            var present = meta[ChunkMeta.Live] | meta[ChunkMeta.Dying];
+            var template = ChunkMeta.TemplateOf(meta[ChunkMeta.Template]);
+            if ((uint)template >= (uint)world.TemplateCount)
+            {
+                return new SourceChunk(present, 0ul, null);
+            }
+
+            var lanes = world.Layout.ValueLanes < TrackedLanes ? world.Layout.ValueLanes : TrackedLanes;
+            var current = world.LaneOf + Lanes.IndexOf(world, chunk, 0);
+            var defaults = Lanes.TemplateRow(world, template);
+            var onTemplate = 0ul;
+            for (var lane = 0; lane < lanes; lane++)
+            {
+                onTemplate |= current[lane] == defaults[lane] ? 1ul << lane : 0ul;
+            }
+
+            return new SourceChunk(present, onTemplate & uniform, values + (long)template * world.Layout.ValueLanes);
+        }
+
+        public static void Build(in WorldView world, int* values, SourceChunk* table, int chunkFrom, int chunkTo)
+        {
+            var uniform = UniformLanes(world);
+            for (var chunk = chunkFrom; chunk < chunkTo; chunk++)
+            {
+                table[chunk] = Of(world, values, uniform, chunk);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool Present(in WorldView world, int capacity, long slot)
+        {
+            if ((ulong)slot >= (ulong)capacity)
+            {
+                return false;
+            }
+
+            var at = (int)slot;
+            if (world.Sources != null)
+            {
+                return ((world.Sources[at >> Slot.RowBits].Present >> (at & Slot.RowMask)) & 1ul) != 0ul;
+            }
+
+            var meta = Lanes.WordsOf(world, at >> Slot.RowBits, world.Layout.MetaLane);
+            return (((meta[ChunkMeta.Live] | meta[ChunkMeta.Dying]) >> (at & Slot.RowMask)) & 1ul) != 0ul;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int Read(in WorldView world, int capacity, long slot, int lane, int fallback)
+        {
+            if ((ulong)slot >= (ulong)capacity)
+            {
+                return fallback;
+            }
+
+            var at = (int)slot;
+            if (world.Sources != null)
+            {
+                var source = world.Sources + (at >> Slot.RowBits);
+                if (((source->Present >> (at & Slot.RowMask)) & 1ul) == 0ul)
+                {
+                    return fallback;
+                }
+
+                if ((uint)lane < TrackedLanes && ((source->OnTemplate >> lane) & 1ul) != 0ul)
+                {
+                    return source->Values[lane];
+                }
+
+                return Lanes.Read(world, at, lane);
+            }
+
+            return Present(world, capacity, slot) ? Lanes.Read(world, at, lane) : fallback;
+        }
     }
 
     [StructLayout(LayoutKind.Sequential, Size = 8)]

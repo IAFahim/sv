@@ -8,7 +8,7 @@ Start here: read `unity-cli-field-notes` (`SKILL.md` and `references/layers-and-
 
 ## What it builds
 
-- `src/Sv.Core` (`netstandard2.1;net10.0`, C# 9, `AllowUnsafeBlocks`): chunked lane storage (`World`, `Layout`, `Lanes`, `LaneMath`, `LanePool`, `ChunkImage`), 16-byte `Effect` records, `RawArena`, `CanonicalArena`, `Seal`, `Route`, integer `StatLaw`, `StatOp`, `StatMachine`, and time travel (`Journal`, `InputLog`, `Replay`).
+- `src/Sv.Core` (`netstandard2.1;net10.0`, C# 9, `AllowUnsafeBlocks`): chunked lane storage (`World`, `Layout`, `Lanes`, `LaneMath`, `LanePool`, `ChunkImage`), 16-byte `Effect` records, `RawArena`, `CanonicalArena`, `Seal`, `Route`, `SourceChunks` (per-frame cross-entity read table), integer `StatLaw`, `StatOp`, `StatMachine`, and time travel (`Journal`, `InputLog`, `Replay`).
 - `src/Sv.Rules` (`netstandard2.1;net10.0`, C# 9): pack schema/JSON codec (`PackReader`, `PackWriter`, `PackPlan`), 10-pass rule compiler and C# kernel emitter (`PackEmitter`), and slow reference oracle (`Sv.Rules.Reference`).
 - `src/Sv.Host` (`net10.0`): runtime frame loop (`FrameLoop`, `HostPack`, `Workers`, `Collect`, `Net` fold/scan front doors).
 - `packages/com.sv.core` (legacy v2 core) with `packages/com.sv.core.tests` (the Unity legs of the legacy pins); the v3 adapter `com.sv.unity` is deleted (M11), see `docs/UNITY.md`.
@@ -22,7 +22,7 @@ Start here: read `unity-cli-field-notes` (`SKILL.md` and `references/layers-and-
 ## Data shape and who uses it how
 
 - **Memory layout**: Entities occupy slots `(chunk, row)` in `64`-row chunks (`Lanes.Rows = 64`). Every `Stat` (signed `int` with fixed-point `scale` 1..1,000,000 and basis points 10,000 = 100%), `Intrinsic` (signed `int`), and `Event` (bit-packed in `ulong`/word lanes) lives at a compile-time fixed lane offset (`Layout`, default-shared per-chunk lanes or dense identity table).
-- **Frame pipeline**: Sends during frame `N` write `16`-byte `Effect` records lock-free into per-writer `RawArena` blocks. At frame `N+1`, `Seal` merges and sorts them into canonical order per chunk, `Stats` updates `core` (including `"derive"` edges) and `external` modifier layers, `Decide` runs compiled gate/absorb/remove/emit/flow kernels, `Commit` folds deltas, updates bounds and event hysteresis, and marks the `32`-epoch `Journal` + `InputLog` ring for deterministic server rewind.
+- **Frame pipeline**: Sends during frame `N` write `16`-byte `Effect` records lock-free into per-writer `RawArena` blocks. At frame `N+1`, `Seal` merges and sorts them into canonical order per chunk, `Stats` updates `core` (including `"derive"` edges) and `external` modifier layers, `Decide` runs compiled gate/absorb/remove/emit/flow kernels (reads of other entities go through a per-chunk `SourceChunk` table built right before Decide when any record carries a source; equal to the world read by law), `Commit` folds deltas, updates bounds and event hysteresis, and marks the `32`-epoch `Journal` + `InputLog` ring for deterministic server rewind.
 - **Who uses it**: Designers author pure JSON packs (`values.sv.json`, `rules.sv.json`, `cards.sv.json`, `templates.sv.json`) and test them in `.scenario.json` runs; `sv pack` compiles packs at build time into `Values.g.cs`, `Kernels.g.cs`, `HostKernels.g.cs`, and binary `pack.svb`; hosts (`.NET`, `Sv.Host`, Unity 7 in M8, browser WASM) feed inputs, step `FrameLoop`, and read resolved values/events.
 
 ## Layer table (skill rule 19)
