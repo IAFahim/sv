@@ -95,6 +95,9 @@ namespace Sv.Host
         public int* PairFrom;
         public int* PairTo;
         public ulong* DigestParts;
+        public ulong* DigestLive;
+        public int* DigestTemplate;
+        public ulong* DigestLiveness;
         public int* PlanSums;
         public LogScan Log;
         public int* LogActive;
@@ -280,7 +283,22 @@ namespace Sv.Host
             {
                 for (var chunk = from; chunk < to; chunk++)
                 {
-                    sum += WorldDigest.OfChunk(context->World, chunk);
+                    var meta = Lanes.WordsOf(context->World, chunk, context->World.Layout.MetaLane);
+                    var live = meta[ChunkMeta.Live];
+                    var template = ChunkMeta.TemplateOf(meta[ChunkMeta.Template]);
+                    if (live == 0ul || (uint)template >= (uint)context->World.TemplateCount)
+                    {
+                        continue;
+                    }
+
+                    if (context->DigestLive[chunk] != live || context->DigestTemplate[chunk] != template)
+                    {
+                        context->DigestLive[chunk] = live;
+                        context->DigestTemplate[chunk] = template;
+                        context->DigestLiveness[chunk] = WorldDigest.Liveness(chunk, live, template);
+                    }
+
+                    sum += context->DigestLiveness[chunk] + WorldDigest.Cells(context->World, chunk, live, template);
                 }
             }
 
@@ -459,6 +477,14 @@ namespace Sv.Host
             activeBits = (ulong*)Memory.AllocZeroed((nuint)chunkWords, sizeof(ulong));
             denseCounts = (int*)Memory.AllocZeroed((nuint)Math.Max(1, eventCount), sizeof(int));
             context->DigestParts = (ulong*)Memory.AllocAligned((nuint)parts * Phases<TKernels>.DigestStride * sizeof(ulong), 128);
+            context->DigestLive = (ulong*)Memory.AllocZeroed((nuint)chunkCapacity, sizeof(ulong));
+            context->DigestTemplate = (int*)Memory.Alloc((nuint)chunkCapacity, sizeof(int));
+            context->DigestLiveness = (ulong*)Memory.AllocZeroed((nuint)chunkCapacity, sizeof(ulong));
+            for (var chunk = 0; chunk < chunkCapacity; chunk++)
+            {
+                context->DigestTemplate[chunk] = -1;
+            }
+
             context->PlanSums = (int*)Memory.AllocZeroed((nuint)parts, sizeof(int));
             context->Parts = parts;
             context->Capacity = options.EntityCapacity;
@@ -1236,6 +1262,9 @@ namespace Sv.Host
 
             Memory.Free(context->Buffers);
             Memory.FreeAligned(context->DigestParts);
+            Memory.Free(context->DigestLive);
+            Memory.Free(context->DigestTemplate);
+            Memory.Free(context->DigestLiveness);
             Memory.Free(context->PlanSums);
             Memory.Free(context);
             Memory.Free(laneWriters);
