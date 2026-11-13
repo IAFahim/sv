@@ -365,6 +365,35 @@ public sealed unsafe class LaneMathLaws
 
     [Theory]
     [MemberData(nameof(Seeds.Few), MemberType = typeof(Seeds))]
+    public void RowLevelsOverUsedWordsEqualRowLevelsOverAllThirtyTwoWords(ulong seed)
+    {
+        var gen = new Gen(seed);
+        var lane = new ulong[Lanes.Words];
+        fixed (ulong* words = lane)
+        {
+            for (var trial = 0; trial < 200; trial++)
+            {
+                for (var word = 0; word < lane.Length; word++)
+                {
+                    lane[word] = gen.Below(3) == 0 ? gen.Next() : 0ul;
+                }
+
+                var used = LaneMath.UsedWords(words);
+                for (var word = 0; word < lane.Length; word++)
+                {
+                    Assert.Equal(lane[word] != 0ul, ((used >> word) & 1u) != 0u);
+                }
+
+                for (var row = 0; row < Lanes.Rows; row++)
+                {
+                    Assert.Equal(LaneMath.RowLevels(words, row), LaneMath.RowLevels(words, row, used));
+                }
+            }
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(Seeds.Few), MemberType = typeof(Seeds))]
     public void BlendAndDifferWordsWorkPerRowBit(ulong seed)
     {
         var gen = new Gen(seed);
