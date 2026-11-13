@@ -1,0 +1,13 @@
+{"schema":1,"name":"core_external_stacking_layers","frames":3,
+"entities":[{"name":"T","template":"trained"}],
+"modifiers":[
+{"frame":0,"entity":"T","stat":"Strength","shape":"Multi","value":1000,"source":1,"layer":"external"},
+{"frame":1,"entity":"T","stat":"Strength","shape":"Added","value":10,"source":2,"layer":"external"},
+{"frame":2,"entity":"T","stat":"Strength","source":2,"op":"remove"},
+{"frame":2,"entity":"T","stat":"Strength","shape":"Added","value":10,"source":3,"layer":"core"}
+],
+"expect":[
+{"frame":0,"entity":"T","value":"Strength","equals":198},
+{"frame":1,"entity":"T","value":"Strength","equals":209},
+{"frame":2,"entity":"T","value":"Strength","equals":214}
+]}
