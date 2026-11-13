@@ -15,6 +15,8 @@ namespace Sv.Host
         public int Parts = 64;
         public int RawCapacity = 1 << 16;
         public int CanonicalLimit = int.MaxValue;
+        public int InputLogFrameLimit = int.MaxValue;
+        public long InputLogFrameBytes = long.MaxValue;
         public ArenaPolicy Arena = ArenaPolicy.Grow;
         public int ExternalWriters = 1;
         public int EventCapacity = 16384;
@@ -360,6 +362,11 @@ namespace Sv.Host
                 throw new ArgumentOutOfRangeException(nameof(hostOptions), "sv: parts and external writers are at least one");
             }
 
+            if (options.InputLogFrameLimit < 0 || options.InputLogFrameBytes < 0L)
+            {
+                throw new ArgumentOutOfRangeException(nameof(hostOptions), "sv: input log limits cannot be negative");
+            }
+
             world = World.Create(pack.Classes, pack.Channels, options.EntityCapacity, options.Policy, options.RingEpochs, options.FramesPerEpoch);
             stats = new StatMachine(world, pack.Stats, pack.Sources, pack.CurveValues, pack.Cards, options.RingEpochs);
             AddTemplates(pack);
@@ -371,7 +378,7 @@ namespace Sv.Host
             lanesWritten = kernels.LanesWrittenPerChunk;
             raw = new RawArena(options.RawCapacity, options.ExternalWriters + parts, options.Arena);
             canonical = new CanonicalArena(chunkCapacity, parts, Math.Max(1, options.CanonicalLimit), options.Arena == ArenaPolicy.HardCap ? ArenaPolicy.HardCap : ArenaPolicy.Grow);
-            log = new InputLog(InputLog.SpanOf(world), chunkCapacity, sizeof(StatOp));
+            log = new InputLog(InputLog.SpanOf(world), chunkCapacity, sizeof(StatOp), options.InputLogFrameLimit, options.InputLogFrameBytes);
             published = new EventLog(InputLog.SpanOf(world));
             workers = new Workers(Math.Max(1, options.Workers), options.SpinMicroseconds);
             Allocate();

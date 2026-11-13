@@ -168,6 +168,8 @@ namespace Sv
         readonly int span;
         readonly int chunkCapacity;
         readonly int statOpBytes;
+        readonly int frameRecordLimit;
+        readonly int frameBlockLimit;
         FrameSlot* frames;
         LoggedRecord** pages;
         int pageCount;
@@ -193,8 +195,13 @@ namespace Sv
         int partCount;
 
         public InputLog(int frameSpan, int chunkCapacity, int statOpBytes)
+            : this(frameSpan, chunkCapacity, statOpBytes, int.MaxValue, long.MaxValue)
         {
-            if (frameSpan < 1 || chunkCapacity < 1 || chunkCapacity > Slot.MaxChunks || statOpBytes < 0)
+        }
+
+        public InputLog(int frameSpan, int chunkCapacity, int statOpBytes, int frameRecordLimit, long frameByteLimit = long.MaxValue)
+        {
+            if (frameSpan < 1 || chunkCapacity < 1 || chunkCapacity > Slot.MaxChunks || statOpBytes < 0 || frameRecordLimit < 0 || frameByteLimit < 0L)
             {
                 throw new ArgumentOutOfRangeException(nameof(frameSpan));
             }
@@ -202,6 +209,9 @@ namespace Sv
             span = frameSpan;
             this.chunkCapacity = chunkCapacity;
             this.statOpBytes = statOpBytes;
+            this.frameRecordLimit = frameRecordLimit;
+            var blockBytes = (long)BlockRecords * sizeof(LoggedRecord);
+            frameBlockLimit = frameByteLimit == long.MaxValue ? int.MaxValue : (int)Math.Min(int.MaxValue, frameByteLimit / blockBytes);
             frames = (FrameSlot*)Memory.AllocZeroed((nuint)span, (nuint)sizeof(FrameSlot));
             for (var at = 0; at < span; at++)
             {
@@ -220,6 +230,14 @@ namespace Sv
         public int Span => span;
 
         public int StatOpBytes => statOpBytes;
+
+        public int FrameRecordLimit => frameRecordLimit;
+
+        public int FrameBlockLimit => frameBlockLimit;
+
+        public long DroppedRecords { get; private set; }
+
+        public long CappedFrames { get; private set; }
 
         public long Bytes => (long)pageCount * BlocksPerPage * BlockRecords * sizeof(LoggedRecord);
 
@@ -322,6 +340,9 @@ namespace Sv
         {
             var slot = Enter(frame);
             ReleaseSegments(slot);
+            var remainingRecords = frameRecordLimit;
+            var remainingBlocks = frameBlockLimit;
+            var dropped = 0L;
             var at = 0;
             while (at < count)
             {
@@ -335,10 +356,32 @@ namespace Sv
                     at++;
                 }
 
-                if (external > 0 && chunk < chunkCapacity)
+                if (external == 0 || chunk >= chunkCapacity)
                 {
-                    AddSegment(slot, chunk, Intern(chunk, scratch, external));
+                    continue;
                 }
+
+                var keep = TakeCount(external, remainingRecords, remainingBlocks);
+                if (keep < external)
+                {
+                    dropped += external - keep;
+                }
+
+                if (keep > 0)
+                {
+                    AddSegment(slot, chunk, Intern(chunk, scratch, keep));
+                    remainingRecords -= keep;
+                    if (remainingBlocks < int.MaxValue)
+                    {
+                        remainingBlocks -= BlocksForRecords(keep);
+                    }
+                }
+            }
+
+            if (dropped > 0L)
+            {
+                DroppedRecords += dropped;
+                CappedFrames++;
             }
         }
 
@@ -386,6 +429,9 @@ namespace Sv
         {
             var slot = Enter(frame);
             ReleaseSegments(slot);
+            var remainingRecords = frameRecordLimit;
+            var remainingBlocks = frameBlockLimit;
+            var dropped = 0L;
             for (var index = 0; index < runs; index++)
             {
                 var external = runExternal[index];
@@ -395,44 +441,90 @@ namespace Sv
                     continue;
                 }
 
-                var previous = lastHead[chunk];
-                int head;
-                if (runSame[index] != 0)
+                var keep = TakeCount(external, remainingRecords, remainingBlocks);
+                if (keep < external)
                 {
-                    head = previous;
-                    refs[head]++;
-                }
-                else
-                {
-                    var first = start[chunk];
-                    var end = start[chunk + 1];
-                    var records = canonical + first;
-                    if (external != end - first)
-                    {
-                        EnsureScratch(end - first);
-                        var kept = 0;
-                        for (var record = first; record < end; record++)
-                        {
-                            scratch[kept] = canonical[record];
-                            kept += LoggedRecordLaw.External(canonical[record].Key) ? 1 : 0;
-                        }
-
-                        records = scratch;
-                    }
-
-                    head = Store(records, external, runDigest[index]);
-                    if (previous >= 0)
-                    {
-                        Release(previous);
-                    }
-
-                    refs[head] = 2;
-                    lastHead[chunk] = head;
+                    dropped += external - keep;
                 }
 
+                if (keep == 0)
+                {
+                    continue;
+                }
+
+                var first = start[chunk];
+                var head = StoreRun(chunk, index, canonical + first, start[chunk + 1] - first, external, keep);
                 AddSegment(slot, chunk, head);
+                remainingRecords -= keep;
+                if (remainingBlocks < int.MaxValue)
+                {
+                    remainingBlocks -= BlocksForRecords(keep);
+                }
+            }
+
+            if (dropped > 0L)
+            {
+                DroppedRecords += dropped;
+                CappedFrames++;
             }
         }
+
+        int StoreRun(int chunk, int index, LoggedRecord* chunkRecords, int totalCount, int external, int keep)
+        {
+            if (keep < external)
+            {
+                var truncated = external == totalCount ? chunkRecords : ExtractExternal(chunkRecords, totalCount, keep);
+                return Intern(chunk, truncated, keep);
+            }
+
+            var previous = lastHead[chunk];
+            if (runSame[index] != 0)
+            {
+                refs[previous]++;
+                return previous;
+            }
+
+            var records = external == totalCount ? chunkRecords : ExtractExternal(chunkRecords, totalCount, external);
+            var head = Store(records, external, runDigest[index]);
+            if (previous >= 0)
+            {
+                Release(previous);
+            }
+
+            refs[head] = 2;
+            lastHead[chunk] = head;
+            return head;
+        }
+
+        LoggedRecord* ExtractExternal(LoggedRecord* chunkRecords, int totalCount, int target)
+        {
+            EnsureScratch(totalCount);
+            var kept = 0;
+            for (var at = 0; at < totalCount && kept < target; at++)
+            {
+                scratch[kept] = chunkRecords[at];
+                kept += LoggedRecordLaw.External(chunkRecords[at].Key) ? 1 : 0;
+            }
+
+            return scratch;
+        }
+
+        static int TakeCount(int external, int remainingRecords, int remainingBlocks)
+        {
+            var keep = external < remainingRecords ? external : remainingRecords;
+            if (remainingBlocks < int.MaxValue)
+            {
+                var maxByBlocks = (long)remainingBlocks * BlockRecords;
+                if (keep > maxByBlocks)
+                {
+                    keep = (int)maxByBlocks;
+                }
+            }
+
+            return keep;
+        }
+
+        static int BlocksForRecords(int count) => (count + BlockRecords - 1) / BlockRecords;
 
         public void Insert(long frame, LoggedRecord* lateCanonical, int count)
         {
@@ -440,6 +532,9 @@ namespace Sv
             var existing = 0;
             var late = 0;
             var produced = 0;
+            var remainingRecords = frameRecordLimit;
+            var remainingBlocks = frameBlockLimit;
+            var dropped = 0L;
             EnsureMerged(slot->SegmentCount + count);
             while (existing < slot->SegmentCount || late < count)
             {
@@ -454,8 +549,42 @@ namespace Sv
 
                 if (lateEnd == late)
                 {
-                    merged[produced] = slot->Segments[existing];
-                    produced++;
+                    var existingHead = slot->Segments[existing].Head;
+                    var existingCount = total[existingHead];
+                    var keepExisting = TakeCount(existingCount, remainingRecords, remainingBlocks);
+                    if (keepExisting < existingCount)
+                    {
+                        dropped += existingCount - keepExisting;
+                    }
+
+                    if (keepExisting == existingCount)
+                    {
+                        merged[produced] = slot->Segments[existing];
+                        produced++;
+                    }
+                    else if (keepExisting > 0)
+                    {
+                        EnsureScratch(existingCount);
+                        CopyChain(existingHead, scratch);
+                        Release(existingHead);
+                        merged[produced].Chunk = chunk;
+                        merged[produced].Head = Intern(chunk, scratch, keepExisting);
+                        produced++;
+                    }
+                    else
+                    {
+                        Release(existingHead);
+                    }
+
+                    if (keepExisting > 0)
+                    {
+                        remainingRecords -= keepExisting;
+                        if (remainingBlocks < int.MaxValue)
+                        {
+                            remainingBlocks -= BlocksForRecords(keepExisting);
+                        }
+                    }
+
                     existing++;
                     continue;
                 }
@@ -479,9 +608,23 @@ namespace Sv
                 late = lateEnd;
                 if (length > 0 && chunk < chunkCapacity)
                 {
-                    merged[produced].Chunk = chunk;
-                    merged[produced].Head = Intern(chunk, scratch, length);
-                    produced++;
+                    var keep = TakeCount(length, remainingRecords, remainingBlocks);
+                    if (keep < length)
+                    {
+                        dropped += length - keep;
+                    }
+
+                    if (keep > 0)
+                    {
+                        merged[produced].Chunk = chunk;
+                        merged[produced].Head = Intern(chunk, scratch, keep);
+                        produced++;
+                        remainingRecords -= keep;
+                        if (remainingBlocks < int.MaxValue)
+                        {
+                            remainingBlocks -= BlocksForRecords(keep);
+                        }
+                    }
                 }
             }
 
@@ -489,6 +632,11 @@ namespace Sv
             Ensure(ref slot->Segments, ref slot->SegmentCapacity, produced);
             Memory.Copy(merged, slot->Segments, (nuint)produced * (nuint)sizeof(Segment));
             slot->SegmentCount = produced;
+            if (dropped > 0L)
+            {
+                DroppedRecords += dropped;
+                CappedFrames++;
+            }
         }
 
         public void Truncate(long after)
