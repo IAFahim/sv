@@ -43,6 +43,7 @@ namespace SvV3Bench
         public int Timeline;
         public int Random;
         public int ActiveEvery = 1;
+        public int Rotate = 1;
     }
 
     internal sealed unsafe class LegoWorld : IDisposable
@@ -265,6 +266,8 @@ namespace SvV3Bench
             new LegoShape { Name = "b", Ticks = 1_000_000 },
             new LegoShape { Name = "c", Ticks = 1_000_000, Random = 1_000_000 },
             new LegoShape { Name = "d", Ticks = 1_000_000, Timeline = 500_000, Random = 1_500_000 },
+            new LegoShape { Name = "r", Random = 1_000_000 },
+            new LegoShape { Name = "c-rotate", Ticks = 1_000_000, Random = 1_000_000, Rotate = 2 },
         };
 
         static readonly string[] Phases = { "send", "seal", "log", "stats", "collect", "decide", "commit", "events", "digest", "end", "total" };
@@ -308,13 +311,20 @@ namespace SvV3Bench
         {
             var build = Stopwatch.StartNew();
             using var world = new LegoWorld(digestEvery, 1 << 22);
-            using var records = new LegoRecords(world, shape, 12345);
+            var sets = new LegoRecords[shape.Rotate];
+            for (var at = 0; at < sets.Length; at++)
+            {
+                sets[at] = new LegoRecords(world, shape, 12345 + at);
+            }
+
+            var records = sets[0];
             world.Load(records.Lists, records.Counts);
             var host = world.Host;
             Console.WriteLine(string.Format(CultureInfo.InvariantCulture, "{0}: world built in {1:0.0} s, {2} records per frame sent, {3} chunks, workers {4}",
                 name, build.Elapsed.TotalSeconds, records.Total, world.Host.World.ChunkCount, LegoWorld.Workers));
             for (var warm = 0; warm < 64; warm++)
             {
+                world.Load(sets[warm % sets.Length].Lists, sets[warm % sets.Length].Counts);
                 world.Send();
                 host.Step();
             }
@@ -333,6 +343,7 @@ namespace SvV3Bench
             var scale = 1000.0 / Stopwatch.Frequency;
             for (var f = 0; f < frames; f++)
             {
+                world.Load(sets[f % sets.Length].Lists, sets[f % sets.Length].Counts);
                 var before = GC.GetAllocatedBytesForCurrentThread();
                 var beforeAll = GC.GetTotalAllocatedBytes(true);
                 var start = Stopwatch.GetTimestamp();
@@ -366,6 +377,11 @@ namespace SvV3Bench
             }
 
             Console.Write(line.ToString());
+            foreach (var set in sets)
+            {
+                set.Dispose();
+            }
+
             return allocated == 0L ? 0 : 1;
         }
 
