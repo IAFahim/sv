@@ -1,6 +1,10 @@
 # 0365 RawArena counts an interval at Mark and again at EndLayer (the "double interval count" from the handoff)
 
-Status: open (no measured hot-path cost; a fix moves HardCap verdicts, so it is not a performance-only change)
+Status: closed (branch `v3/s3-remaining`, commit `38e6e11`).
+
+Update (`v3/s3-remaining`):
+- Removed the duplicate `interval++` on `Fits` in `RawArena.EndLayer` (`src/Sv.Core/Arena.cs`) so each completed layer is counted once (`Reset` initializes `interval = 1`, `Mark` increments once, `Release` restores `mark.Interval - 1`).
+- Pinned the new single-interval `HardCap` and `Grow` boundary verdicts in `tests/Sv.Laws.Tests/RawArenaVerdictLaws.cs` (`HardCapAfterCompletedLayerCountsSingleIntervalPerLayer`, `HardCapAcrossThreeCompletedLayersCountsEachLayerOnce`, `GrowModeFitsWithinSingleIntervalSlackWithoutRerun`) without editing `InputLaws.cs`.
 
 Found by BM1 (branch v3/bench), checking the note in docs/V3-HANDOFF.md section 12.
 
