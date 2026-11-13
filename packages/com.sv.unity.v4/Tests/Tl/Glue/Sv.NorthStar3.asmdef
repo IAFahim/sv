@@ -1,0 +1,29 @@
+{
+    "name": "Sv.NorthStar3",
+    "rootNamespace": "Sv.Kernels.NorthStar3.Glue",
+    "references": [
+        "Tl.Core",
+        "Sv.Engine.Core",
+        "Sv.Engine.Host",
+        "Sv.Unity.V4.TestPacks",
+        "Sv.Unity.V4.TlGenerator"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS",
+        "SV_TL_UNITY"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.tl.unity",
+            "expression": "0.0.0",
+            "define": "SV_TL_UNITY"
+        }
+    ],
+    "noEngineReferences": false
+}
