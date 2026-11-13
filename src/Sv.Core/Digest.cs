@@ -14,6 +14,14 @@ namespace Sv
                 return 0ul;
             }
 
+            unchecked
+            {
+                return Liveness(chunk, live, template) + Cells(world, chunk, live, template);
+            }
+        }
+
+        public static ulong Liveness(int chunk, ulong live, int template)
+        {
             var first = chunk << Slot.RowBits;
             var sum = 0ul;
             unchecked
@@ -25,7 +33,17 @@ namespace Sv
                     rows &= rows - 1ul;
                     sum += CellDigest.Key(LivenessColumn, first + row, (uint)template);
                 }
+            }
 
+            return sum;
+        }
+
+        public static ulong Cells(in WorldView world, int chunk, ulong live, int template)
+        {
+            var first = chunk << Slot.RowBits;
+            var sum = 0ul;
+            unchecked
+            {
                 var defaults = Lanes.TemplateRow(world, template);
                 for (var lane = 0; lane < world.Layout.ValueLanes; lane++)
                 {

@@ -32,3 +32,11 @@ the chunks a part touched, are layout/algorithm changes.
   bound of the gain 0.15-0.4 ms in B (16 parts vs 64). Pre-bucketed blocks still pay route + one copy + ascending check;
   skipping the check needs per-(part, chunk) "single ordered run" flags.
 - Gate: still above (B Seal 2.0 ms vs 0.4; 1M random 4.6 ms vs 3).
+
+## P2 (branch v3/p2-perf, no Seal change kept)
+
+- Split now (temporary probes, means), B / C: count 0.79 / 1.55, plan 0.43 / 0.31, scatter 0.72 / 2.26, order 0.47 / 4.67 ms.
+- Tried the per-chunk "single ordered run" flag (set in Scatter when a chunk got anything but one repeat-free run of an ordered
+  block starting at its base; Order skips Shape when clear): B Seal 2.13 -> 2.01 but Decide 3.83 -> 3.94, total unchanged
+  (8.77 -> 8.78); C 29.38 -> 29.86, D 41.67 -> 42.15, A 3.21 -> 3.34. Reverted. In B the record passes are bandwidth-bound: the
+  canonical records are read once by someone, and skipping Shape moves the misses into Log and Decide.

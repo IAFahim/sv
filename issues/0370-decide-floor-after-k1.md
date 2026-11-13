@@ -39,3 +39,10 @@ What limits it:
   all source reads together cost at most 2 ms of C's 13.
 - What could still pay: a table smaller than L2 (for example a per-slot 16-bit id into deduplicated rows, ids rebuilt only for
   chunks whose source lanes changed), or carrying the read values in the record at send time (contract change).
+
+## P2 (branch v3/p2-perf)
+
+- Item 2 done in 15560e6 as a type-parameter specialization (`Target<Lone{c}>` / `Target<Mixed>`, dispatch on the lone channel
+  in Decide): B Decide 4.04 -> 3.22 ms; decide-shape Tick 64x1 822 ns (12.8 ns per target), 1x64 468 ns.
+- Mixed-channel targets (C, D: Tick plus a random record) still run the generic path; Decide C 13.2 ms, D 19.1 ms.
+- Tried and reverted: initializing `a.Assign` only before its first use (B 3.42 vs 3.45 ms, C -0.26, inside noise).

@@ -193,8 +193,19 @@ namespace Sv.Rules.Emit
                 case Op.InSet: return InSet(e.Set, Compile(e.Args[0], scope, depth + 1));
                 case Op.Bit: return "RuleMath.Bit(" + Compile(e.Args[0], scope, depth + 1) + ", " + Compile(e.Args[1], scope, depth + 1) + ")";
                 case Op.Below:
-                    return "RuleMath.Below(" + Compile(e.Args[0], scope, depth + 1) + ", " + Compile(e.Args[1], scope, depth + 1) + ", "
-                        + Compile(e.Args[2], scope, depth + 1) + ", " + Compile(e.Args[3], scope, depth + 1) + ")";
+                {
+                    var value = Compile(e.Args[0], scope, depth + 1);
+                    var whole = Compile(e.Args[1], scope, depth + 1);
+                    var numerator = Compile(e.Args[2], scope, depth + 1);
+                    var denominator = Compile(e.Args[3], scope, depth + 1);
+                    if (!Narrow(e.Args[0]) || !Narrow(e.Args[1]) || !Narrow(e.Args[2]) || !Narrow(e.Args[3]))
+                    {
+                        return "RuleMath.Below(" + value + ", " + whole + ", " + numerator + ", " + denominator + ")";
+                    }
+
+                    return "((" + value + " * " + denominator + ") < (" + whole + " * " + numerator + "))";
+                }
+
                 case Op.Add:
                 case Op.Sub:
                 case Op.Mul:
@@ -216,6 +227,36 @@ namespace Sv.Rules.Emit
                     return "(" + Compile(e.Args[0], scope, depth + 1) + " ? " + Compile(e.Args[1], scope, depth + 1) + " : " + Compile(e.Args[2], scope, depth + 1) + ")";
                 default:
                     return "false";
+            }
+        }
+
+        static bool Narrow(Expression e)
+        {
+            if (e.Type != ExprType.Int)
+            {
+                return false;
+            }
+
+            switch (e.Op)
+            {
+                case Op.IntConst:
+                case Op.KindConst:
+                case Op.ChannelConst:
+                    return e.Integer >= int.MinValue && e.Integer <= int.MaxValue;
+                case Op.Cell:
+                case Op.BoundOf:
+                    return true;
+                case Op.RecordField:
+                    return e.Field != RecordField.Taken && e.Field != RecordField.NotTaken;
+                case Op.Min:
+                case Op.Max:
+                    return Narrow(e.Args[0]) && Narrow(e.Args[1]);
+                case Op.Neg:
+                    return Narrow(e.Args[0]);
+                case Op.Select:
+                    return Narrow(e.Args[1]) && Narrow(e.Args[2]);
+                default:
+                    return false;
             }
         }
 

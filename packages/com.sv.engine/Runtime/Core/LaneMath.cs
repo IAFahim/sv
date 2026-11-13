@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 #if NET
 using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.X86;
 #endif
 
 namespace Sv
@@ -158,6 +159,37 @@ namespace Sv
             for (var row = 0; row < Lanes.Rows; row++)
             {
                 flags[row] = first[row] > second[row] ? (byte)1 : (byte)0;
+            }
+
+            return Pack(flags);
+        }
+
+        public static ulong Below(int* value, int* whole, int numerator, int denominator)
+        {
+#if NET
+            if (Avx2.IsSupported)
+            {
+                var mask = 0ul;
+                var down = Vector256.Create(denominator);
+                var up = Vector256.Create(numerator);
+                for (var at = 0; at < Lanes.Rows; at += 8)
+                {
+                    var parts = Vector256.Load(value + at);
+                    var wholes = Vector256.Load(whole + at);
+                    var evenRows = Avx2.CompareGreaterThan(Avx2.Multiply(wholes, up), Avx2.Multiply(parts, down));
+                    var oddParts = Avx2.ShiftRightLogical(parts.AsInt64(), 32).AsInt32();
+                    var oddWholes = Avx2.ShiftRightLogical(wholes.AsInt64(), 32).AsInt32();
+                    var oddRows = Avx2.CompareGreaterThan(Avx2.Multiply(oddWholes, up), Avx2.Multiply(oddParts, down));
+                    mask |= (ulong)Avx2.Blend(evenRows.AsInt32(), oddRows.AsInt32(), 0xAA).ExtractMostSignificantBits() << at;
+                }
+
+                return mask;
+            }
+#endif
+            var flags = stackalloc byte[Lanes.Rows];
+            for (var row = 0; row < Lanes.Rows; row++)
+            {
+                flags[row] = (long)value[row] * denominator < (long)whole[row] * numerator ? (byte)1 : (byte)0;
             }
 
             return Pack(flags);

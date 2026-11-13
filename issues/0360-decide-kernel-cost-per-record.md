@@ -36,3 +36,8 @@ Progress (K1, branch v3/k1-decide, 6a6597c..d390be0; median of 3 x 50 frames, 11
 - Atoms: rule calls guarded by channels present and row masks; one settle pass per record; totalled scan over written channels;
   gate inlined; totals per part (0361); delta section skipped when no source moved plus inlined saturating helpers; hoisted
   repeated source reads; written-lane marks instead of a scratch clear.
+
+Progress (P2, branch v3/p2-perf, 15560e6; median of 5 x 50 frames, interleaved with the previous commit, digests unchanged):
+- `Target<Lone{c}>`: a target whose records share one channel runs a generic copy with constant present/channel, so the gate
+  switch, ChannelIndex, the assign set test and every presence guard fold. Decide B 4.04 -> 3.22, C 13.87 -> 13.39, D 19.47 ->
+  19.00 ms. decide-shape Tick 64x1 1,115 -> 822 ns, Physical 64x1 2,864 -> 2,360 ns (3ddf93e -> 152bee6).
