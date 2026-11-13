@@ -710,12 +710,55 @@ namespace Sv.Rules.Emit
                 body.Blank();
                 body.Line(Inline);
                 body.Open("static void " + block.Method + parameters);
+                HoistReads(block, scope);
                 for (var i = 0; i < block.Cases.Count; i++)
                 {
                     WriteCase(block.Cases[i], scope, i > 0);
                 }
 
+                scope.ReadLocals = null;
                 body.Close();
+            }
+        }
+
+        void HoistReads(GateBlock block, ExprScope scope)
+        {
+            scope.ReadCounts = new Dictionary<string, int>();
+            scope.ReadOrder = new List<string>();
+            for (var i = 0; i < block.Cases.Count; i++)
+            {
+                var gate = block.Cases[i].Gate;
+                scope.RuleId = gate.Rule.Id;
+                Condition(block.Cases[i].When, scope, false);
+                for (var s = 0; s < gate.Rule.Shapes.Length; s++)
+                {
+                    if (gate.Rule.Shapes[s].Cell != null)
+                    {
+                        ScaledCell(gate.Rule.Shapes[s].Cell!, scope, gate.Rule.Shapes[s].UnitScale);
+                    }
+                }
+            }
+
+            var locals = new Dictionary<string, string>();
+            for (var i = 0; i < scope.ReadOrder.Count; i++)
+            {
+                var read = scope.ReadOrder[i];
+                if (scope.ReadCounts[read] < 2)
+                {
+                    continue;
+                }
+
+                var local = "read" + Text(locals.Count);
+                locals.Add(read, local);
+                body.Line("var " + local + " = " + read + ";");
+            }
+
+            scope.ReadCounts = null;
+            scope.ReadOrder = null;
+            scope.ReadLocals = locals.Count == 0 ? null : locals;
+            if (locals.Count > 0)
+            {
+                body.Blank();
             }
         }
 
