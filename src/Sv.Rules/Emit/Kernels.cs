@@ -127,6 +127,12 @@ namespace Sv.Rules.Emit
             body.Line("default: return -1;");
             body.Close();
             body.Close();
+            if (ChannelBits)
+            {
+                body.Blank();
+                body.Line("static ulong ChannelBit(int channel) => channel < 64 ? 1ul << channel : ulong.MaxValue;");
+            }
+
             body.Blank();
             body.Open("public static int DeltaSlotOf(int intrinsic)");
             body.Open("switch (intrinsic)");
@@ -159,14 +165,20 @@ namespace Sv.Rules.Emit
             body.Open("while (at < count)");
             body.Line("var first = at;");
             body.Line("var target = EffectKey.Target(effects[at].Key);");
+            body.Line(ChannelBits ? "var present = ChannelBit(EffectKey.Channel(effects[at].Key));" : "var present = ulong.MaxValue;");
             body.Line("at++;");
             body.Open("while (at < count && EffectKey.Target(effects[at].Key) == target)");
+            if (ChannelBits)
+            {
+                body.Line("present |= ChannelBit(EffectKey.Channel(effects[at].Key));");
+            }
+
             body.Line("at++;");
             body.Close();
             body.Blank();
             body.Line("var row = target & 63;");
             body.Line("var self = 1ul << row;");
-            body.Line("Target(world, ref v, a, ref next, target, row, self, first, at, terms);");
+            body.Line("Target(world, ref v, a, ref next, target, row, self, first, at, present, terms);");
             body.Open("for (var index = 0; index < " + Text(schema.Channels.Length) + "; index++)");
             body.Line("totalled |= a.Totals[(index << 6) + row] != 0L ? self : 0ul;");
             body.Close();
@@ -181,7 +193,7 @@ namespace Sv.Rules.Emit
         void WriteTarget()
         {
             body.Blank();
-            body.Open("static void Target(in WorldView world, ref ChunkView v, in DecideArgs a, ref EffectWriter next, int target, int row, ulong self, int first, int end, ShapeTerm* terms)");
+            body.Open("static void Target(in WorldView world, ref ChunkView v, in DecideArgs a, ref EffectWriter next, int target, int row, ulong self, int first, int end, ulong present, ShapeTerm* terms)");
             body.Open("for (var r = first; r < end; r++)");
             body.Line("Gate(world, ref v, a, row, self, r, terms);");
             body.Close();
@@ -232,7 +244,7 @@ namespace Sv.Rules.Emit
                 }
 
                 body.Blank();
-                body.Open("if (" + Held(emit.When.Guard) + ")");
+                body.Open("if (" + CallGuard(emit.When, TriggerChannels(emit, false)) + ")");
                 body.Line(EmitMethod(emit, false) + "(world, ref v, a, ref next, target, row, self, first, end, terms);");
                 body.Close();
             }
@@ -268,7 +280,7 @@ namespace Sv.Rules.Emit
             {
                 var emit = layers.SelfOrder[i];
                 body.Blank();
-                body.Open("if (" + Held(emit.When.Guard) + ")");
+                body.Open("if (" + CallGuard(emit.When, TriggerChannels(emit, true)) + ")");
                 body.Line(EmitMethod(emit, true) + "(world, ref v, a, ref next, target, row, self, first, end, terms);");
                 body.Close();
             }
@@ -385,7 +397,7 @@ namespace Sv.Rules.Emit
             var budget = Text(budgetLane);
             unit.EmittedRules.Add(gate.Rule.Id);
             body.Blank();
-            body.Open("if (" + Held(gate.When.Guard) + ")");
+            body.Open("if (" + CallGuard(gate.When, gate.Channels) + ")");
             body.Line("var budget = (long)" + Lane(budgetLane) + "[row];");
             body.Open("for (var r = first; r < end; r++)");
             body.Line("var effect = a.Effects[r];");
@@ -407,7 +419,7 @@ namespace Sv.Rules.Emit
             var budget = Text(effect.Budget);
             unit.EmittedRules.Add(gate.Rule.Id);
             body.Blank();
-            body.Open("if (" + Held(gate.When.Guard) + ")");
+            body.Open("if (" + CallGuard(gate.When, gate.Channels) + ")");
             body.Line("var candidates = 0;");
             body.Open("for (var r = first; r < end; r++)");
             body.Line("var effect = a.Effects[r];");
