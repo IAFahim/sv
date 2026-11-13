@@ -80,6 +80,8 @@ namespace Sv.Host
         public ulong* Edges;
         public int* Scratch;
         public int ScratchInts;
+        public long* Totals;
+        public int TotalLongs;
         public int EventCount;
         public LaneWriter* LaneWriters;
         public EffectWriter* NextWriters;
@@ -157,6 +159,7 @@ namespace Sv.Host
             WorkRange.Of(context->ActiveCount, part, context->Parts, out var from, out var to);
             var kernels = default(TKernels);
             var bytes = (nuint)context->ScratchInts * sizeof(int);
+            var totals = context->Totals + (long)part * context->TotalLongs;
             ref var buffer = ref context->Buffers[part];
             for (var index = from; index < to; index++)
             {
@@ -178,7 +181,7 @@ namespace Sv.Host
                     buffer.Bytes = need;
                 }
 
-                context->Touched[index] = kernels.Decide(context->World, chunk, context->Capacity, context->Records + first, count, scratch, buffer.Pointer, ref context->NextWriters[part]);
+                context->Touched[index] = kernels.Decide(context->World, chunk, context->Capacity, context->Records + first, count, scratch, totals, buffer.Pointer, ref context->NextWriters[part]);
             }
         }
 
@@ -442,6 +445,8 @@ namespace Sv.Host
             context->Buffers = (RecordBuffer*)Memory.AllocZeroed((nuint)parts, (nuint)sizeof(RecordBuffer));
             context->EventCount = eventCount;
             context->ScratchInts = scratchInts;
+            context->TotalLongs = default(TKernels).TotalLanes << Slot.RowBits;
+            context->Totals = (long*)Memory.AllocZeroed((nuint)parts * (nuint)Math.Max(1, context->TotalLongs), sizeof(long));
             context->LaneWriters = laneWriters;
             context->NextWriters = raw.Writer(options.ExternalWriters);
             context->Width = options.Width ?? Widths.FromEnvironment();
@@ -1159,6 +1164,7 @@ namespace Sv.Host
             Memory.Free(context->EdgeAny);
             Memory.Free(context->Edges);
             Memory.Free(context->Scratch);
+            Memory.Free(context->Totals);
             Memory.Free(context->CardRows);
             Memory.Free(context->CardOfDelta);
             for (var part = 0; part < parts; part++)

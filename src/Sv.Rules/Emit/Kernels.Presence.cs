@@ -37,6 +37,30 @@ namespace Sv.Rules.Emit
             }
         }
 
+        bool TotalsOutliveDecide
+        {
+            get
+            {
+                for (var i = 0; i < layers.Events.Count; i++)
+                {
+                    if (ExprTools.Reads(layers.Events[i].Enter).Totals || ExprTools.Reads(layers.Events[i].Stay).Totals)
+                    {
+                        return true;
+                    }
+                }
+
+                for (var i = 0; i < layers.Edges.Count; i++)
+                {
+                    if (ExprTools.Reads(layers.Edges[i].When.Rest).Totals)
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+        }
+
         static bool ChannelMask(long[] channels, out ulong mask)
         {
             mask = 0ul;

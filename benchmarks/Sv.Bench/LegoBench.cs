@@ -733,6 +733,7 @@ namespace SvV3Bench
             using var raw = new RawArena(1 << 16, 1, ArenaPolicy.Grow);
             var scratchInts = Math.Max(1, v3::Sv.Kernels.Lego.Kernels.ScratchLanes) << Slot.RowBits;
             var scratch = (int*)Memory.AllocZeroed((nuint)scratchInts, sizeof(int));
+            var totals = (long*)Memory.AllocZeroed((nuint)Math.Max(1, v3::Sv.Kernels.Lego.Kernels.TotalLanes) << Slot.RowBits, sizeof(long));
             var buffer = (byte*)Memory.AllocZeroed(64, 32);
             var effects = (Effect*)Memory.AllocZeroed(64, (nuint)sizeof(Effect));
             foreach (var channel in new[] { tick, physical })
@@ -763,7 +764,7 @@ namespace SvV3Bench
                             Memory.Clear(scratch, (nuint)scratchInts * sizeof(int));
                             var t1 = Stopwatch.GetTimestamp();
                             var writer = raw.Writer(0);
-                            v3::Sv.Kernels.Lego.Kernels.Decide(host.World.View, 0, host.World.ChunkCapacity * Slot.Rows, effects, count, scratch, buffer, ref *writer);
+                            v3::Sv.Kernels.Lego.Kernels.Decide(host.World.View, 0, host.World.ChunkCapacity * Slot.Rows, effects, count, scratch, totals, buffer, ref *writer);
                             var t2 = Stopwatch.GetTimestamp();
                             raw.Reset();
                             clearTicks += t1 - t0;
@@ -783,6 +784,7 @@ namespace SvV3Bench
             }
 
             Memory.Free(scratch);
+            Memory.Free(totals);
             Memory.Free(buffer);
             Memory.Free(effects);
         }

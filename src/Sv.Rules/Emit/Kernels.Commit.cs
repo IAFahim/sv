@@ -172,10 +172,14 @@ namespace Sv.Rules.Emit
             body.Line("var any = 0ul;");
             if (layers.Events.Count > 0)
             {
-                body.Line("var totals = (long*)(scratch + " + Text(layers.DeltaIntrinsics.Count * Rows) + ");");
+                if (TotalsOutliveDecide)
+                {
+                    body.Line("var totals = (long*)(scratch + " + Text(layers.DeltaIntrinsics.Count * Rows) + ");");
+                }
+
                 body.Line("var dirty = recheck;");
                 body.Line("var v = View(world, chunk);");
-                var scope = new ExprScope { Totals = "totals", FreshEvents = true, Capacity = "0" };
+                var scope = new ExprScope { Totals = TotalsOutliveDecide ? "totals" : null, FreshEvents = true, Capacity = "0" };
                 for (var i = 0; i < layers.Events.Count; i++)
                 {
                     WriteEvent(layers.Events[i], scope);
@@ -219,7 +223,11 @@ namespace Sv.Rules.Emit
         {
             body.Blank();
             body.Open("public static void EdgeEmits(in WorldView world, int chunk, int capacity, ulong* edges, int* scratch, ref EffectWriter next)");
-            body.Line("var totals = (long*)(scratch + " + Text(layers.DeltaIntrinsics.Count * Rows) + ");");
+            if (TotalsOutliveDecide)
+            {
+                body.Line("var totals = (long*)(scratch + " + Text(layers.DeltaIntrinsics.Count * Rows) + ");");
+            }
+
             var any = false;
             for (var i = 0; i < layers.Edges.Count; i++)
             {
@@ -230,7 +238,7 @@ namespace Sv.Rules.Emit
             {
                 body.Line("var v = View(world, chunk);");
                 body.Line("Masks(world, ref v);");
-                var scope = new ExprScope { Totals = "totals", FreshEvents = true, Capacity = "capacity" };
+                var scope = new ExprScope { Totals = TotalsOutliveDecide ? "totals" : null, FreshEvents = true, Capacity = "capacity" };
                 for (var i = 0; i < layers.Edges.Count; i++)
                 {
                     WriteEdge(layers.Edges[i], scope);

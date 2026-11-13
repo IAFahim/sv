@@ -112,7 +112,9 @@ namespace Sv.Rules.Emit
             body.Blank();
             body.Line("public static readonly int DeltaLanes = " + Text(layers.DeltaIntrinsics.Count) + ";");
             body.Blank();
-            body.Line("public static readonly int ScratchLanes = " + Text(layers.DeltaIntrinsics.Count + 2 * schema.Channels.Length) + ";");
+            body.Line("public static readonly int ScratchLanes = " + Text(layers.DeltaIntrinsics.Count + (TotalsOutliveDecide ? 2 * schema.Channels.Length : 0)) + ";");
+            body.Blank();
+            body.Line("public static readonly int TotalLanes = " + Text(TotalsOutliveDecide ? 0 : schema.Channels.Length) + ";");
             body.Blank();
             body.Line("public static readonly int RecordBytes = sizeof(Outcome) + sizeof(int);");
             body.Blank();
@@ -160,7 +162,7 @@ namespace Sv.Rules.Emit
         void WriteDecide()
         {
             body.Blank();
-            body.Open("public static ulong Decide(in WorldView world, int chunk, int capacity, Effect* effects, int count, int* scratch, byte* records, ref EffectWriter next)");
+            body.Open("public static ulong Decide(in WorldView world, int chunk, int capacity, Effect* effects, int count, int* scratch, long* totals, byte* records, ref EffectWriter next)");
             body.Line("var v = View(world, chunk);");
             body.Line("Masks(world, ref v);");
             if (Assigns)
@@ -168,7 +170,7 @@ namespace Sv.Rules.Emit
                 body.Line("var assign = stackalloc long[" + Text(layers.AssignIntrinsics.Count) + "];");
             }
 
-            body.Line("var a = new DecideArgs { Effects = effects, Outcomes = (Outcome*)records, Order = (int*)(records + (long)count * sizeof(Outcome)), Totals = (long*)(scratch + " + Text(layers.DeltaIntrinsics.Count * Rows) + "), Delta = scratch, Capacity = capacity"
+            body.Line("var a = new DecideArgs { Effects = effects, Outcomes = (Outcome*)records, Order = (int*)(records + (long)count * sizeof(Outcome)), Totals = " + (TotalsOutliveDecide ? "(long*)(scratch + " + Text(layers.DeltaIntrinsics.Count * Rows) + ")" : "totals") + ", Delta = scratch, Capacity = capacity"
                 + (Assigns ? ", Assign = assign" : string.Empty) + " };");
             body.Line("var terms = stackalloc ShapeTerm[" + Text(ShapeCapacity) + "];");
             body.Line("var totalled = 0ul;");
@@ -312,9 +314,10 @@ namespace Sv.Rules.Emit
             body.Line("var nonzero = 0ul;");
             if (ChannelBits)
             {
-                body.Open("while (written != 0ul)");
-                body.Line("var channel = Bits.Tzcnt(written);");
-                body.Line("written &= written - 1ul;");
+                body.Line("var pending = written;");
+                body.Open("while (pending != 0ul)");
+                body.Line("var channel = Bits.Tzcnt(pending);");
+                body.Line("pending &= pending - 1ul;");
                 body.Line("var index = ChannelIndex(channel);");
                 body.Line("nonzero |= index >= 0 && a.Totals[(index << 6) + row] != 0L ? 1ul << channel : 0ul;");
                 body.Close();
@@ -394,6 +397,27 @@ namespace Sv.Rules.Emit
             for (var s = 0; s < layers.DeltaIntrinsics.Count; s++)
             {
                 body.Line("a.Delta[" + Text(s * Rows) + " + row] = EffectLaw.Saturate32(delta" + Text(s) + ");");
+            }
+
+            if (!TotalsOutliveDecide)
+            {
+                body.Blank();
+                if (ChannelBits)
+                {
+                    body.Open("while (written != 0ul)");
+                    body.Line("var index = ChannelIndex(Bits.Tzcnt(written));");
+                    body.Line("written &= written - 1ul;");
+                    body.Open("if (index >= 0)");
+                    body.Line("a.Totals[(index << 6) + row] = 0L;");
+                    body.Close();
+                    body.Close();
+                }
+                else
+                {
+                    body.Open("for (var index = 0; index < " + Text(schema.Channels.Length) + "; index++)");
+                    body.Line("a.Totals[(index << 6) + row] = 0L;");
+                    body.Close();
+                }
             }
 
             body.Blank();

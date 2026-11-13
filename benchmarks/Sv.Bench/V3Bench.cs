@@ -25,6 +25,8 @@ namespace SvV3Bench
 
         public int ScratchLanes => 1;
 
+        public int TotalLanes => 0;
+
         public int DeltaLanes => 1;
 
         public int EventCount => 0;
@@ -49,7 +51,7 @@ namespace SvV3Bench
 
         public int Forward(in WorldView world, int slot, int channel) => -1;
 
-        public ulong Decide(in WorldView world, int chunk, int capacity, Effect* effects, int count, int* scratch, byte* records, ref EffectWriter next)
+        public ulong Decide(in WorldView world, int chunk, int capacity, Effect* effects, int count, int* scratch, long* totals, byte* records, ref EffectWriter next)
         {
             var touched = 0ul;
             var at = 0;
@@ -238,7 +240,7 @@ namespace SvV3Bench
             {
                 var chunk = canonical.Active[index];
                 var first = canonical.Start[chunk];
-                touched += Bits(kernels.Decide(view, chunk, 0, canonical.Records + first, canonical.Start[chunk + 1] - first, scratch, null, ref *writer));
+                touched += Bits(kernels.Decide(view, chunk, 0, canonical.Records + first, canonical.Start[chunk + 1] - first, scratch, null, null, ref *writer));
             }
 
             return touched;
