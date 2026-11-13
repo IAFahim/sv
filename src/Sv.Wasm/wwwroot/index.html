@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>sv designer</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>sv designer</h1>
+  <span id="status">loading runtime…</span>
+</header>
+<main>
+  <section class="editor">
+    <nav id="tabs"></nav>
+    <textarea id="text" spellcheck="false"></textarea>
+    <div class="actions">
+      <button id="check">Check</button>
+      <button id="simulate" class="primary">Simulate</button>
+      <button id="canonical">Canonical</button>
+      <button id="download">Download pack</button>
+      <button id="reset">Reset samples</button>
+    </div>
+  </section>
+  <section class="result">
+    <div id="summary"></div>
+    <div class="filters">
+      <label>Entity <select id="entity"></select></label>
+      <label>Frame <select id="frame"></select></label>
+    </div>
+    <pre id="trace"></pre>
+    <ul id="diagnostics"></ul>
+  </section>
+</main>
+<script type="module" src="main.js"></script>
+</body>
+</html>

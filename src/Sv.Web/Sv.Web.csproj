@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RootNamespace>Sv.Web</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Sv.Core\Sv.Core.csproj" />
+    <ProjectReference Include="..\Sv.Rules\Sv.Rules.csproj" />
+    <ProjectReference Include="..\Sv.Host\Sv.Host.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Sv.Pack\Scenario.cs" Link="Pack\Scenario.cs" />
+    <Compile Include="..\Sv.Pack\ScenarioRunner.cs" Link="Pack\ScenarioRunner.cs" />
+  </ItemGroup>
+</Project>
