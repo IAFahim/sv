@@ -168,3 +168,7 @@ P1 merged: Seal writes the canonical buffer directly (B 11.21 to 9.60 ms, C 31.0
 NEXT TASK: S2 stat layers, brief D:\GitHub\_work\sv-proto\BRIEF-small-2-stat-layers.md. Do this one. Do not ask which brief.
 BRIEF-small-1-seal.md is mostly DONE by agent P1 (see section 16); remaining Seal gain is under 0.4 ms; skip it unless the owner asks.
 After S2: BRIEF-small-3-remaining.md item 4 onward. Push of v3/int is the owner's call, never the agent's.
+
+## 18. Update 2026-11-13 (S2 merged)
+
+S2 stat layers and derive rows merged on v3/int (1f12954, contract/CONTRACT-v3.2.0-stat-layers.md, issue 0390 readings). Mechanic 17 now gives 209. Suites: Laws 548, Scenario 80, Diff 20, Host 27, Lego 120, all green; all old digests unchanged. Next: BRIEF-small-3-remaining.md item 4 onward (redundant bricks only with owner agreement, 0363 cap, 0365, skill notes, AGENTS.md layer table). Push is the owner's call.
