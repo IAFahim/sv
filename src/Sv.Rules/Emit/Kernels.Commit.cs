@@ -330,7 +330,8 @@ namespace Sv.Rules.Emit
 
                 if (word)
                 {
-                    body.Line("static bool In" + Text(i) + "(long value) => (ulong)value < 64ul && ((" + Names.Hex(mask) + " >> (int)value) & 1ul) != 0ul;");
+                    body.Line(Inline);
+                    body.Line("static bool In"+ Text(i) + "(long value) => (ulong)value < 64ul && ((" + Names.Hex(mask) + " >> (int)value) & 1ul) != 0ul;");
                     continue;
                 }
 

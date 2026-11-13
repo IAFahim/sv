@@ -248,6 +248,78 @@ namespace Sv.Rules.Emit
             return Names.Hex(mask);
         }
 
+        long[] AssignChannels()
+        {
+            var channels = new List<long>();
+            for (var c = 0; c < schema.Channels.Length; c++)
+            {
+                var row = schema.Channels[c];
+                if (row.Assigns && AssignSlot(row.Into) >= 0)
+                {
+                    channels.Add(row.Id);
+                }
+            }
+
+            return Expression.SortedSet(channels.ToArray());
+        }
+
+        bool SelfMayAssign(EmitIr emit)
+        {
+            var assigning = AssignChannels();
+            var rule = emit.Rule;
+            for (var i = 0; i < rule.Actions.Length; i++)
+            {
+                var action = rule.Actions[i];
+                if (rule.IsSameFrameSelf(action) && (action.SameChannel || System.Array.BinarySearch(assigning, (long)action.Channel) >= 0))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        string MovesCondition(bool reshapes)
+        {
+            var parts = new List<string>();
+            if (ChannelBits)
+            {
+                var mask = 0ul;
+                for (var f = 0; f < layers.Flows.Count; f++)
+                {
+                    for (var t = 0; t < layers.Flows[f].Rule.Terms.Length; t++)
+                    {
+                        var channel = layers.Flows[f].Rule.Terms[t].Channel;
+                        mask |= ChannelIndex(channel) >= 0 ? 1ul << channel : 0ul;
+                    }
+                }
+
+                for (var c = 0; c < schema.Channels.Length; c++)
+                {
+                    var into = schema.Channels[c].Assigns ? -1 : schema.Channels[c].Into;
+                    mask |= into >= 0 && layers.DeltaIntrinsics.IndexOf(into) >= 0 ? 1ul << schema.Channels[c].Id : 0ul;
+                }
+
+                parts.Add("(nonzero & " + Names.Hex(mask) + ") != 0ul");
+            }
+            else
+            {
+                parts.Add("nonzero != 0ul");
+            }
+
+            if (reshapes)
+            {
+                parts.Add("reshaped");
+            }
+
+            if (Assigns)
+            {
+                parts.Add("assigned");
+            }
+
+            return string.Join(" || ", parts);
+        }
+
         string IntoChannels()
         {
             var mask = 0ul;

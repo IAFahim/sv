@@ -239,6 +239,7 @@ namespace Sv.Rules.Emit
 
             if (Assigns)
             {
+                body.Line("var assigned = false;");
                 for (var k = 0; k < layers.AssignIntrinsics.Count; k++)
                 {
                     body.Line("a.Assign[" + Text(k) + "] = " + Lane(layers.AssignIntrinsics[k]) + "[row];");
@@ -306,6 +307,11 @@ namespace Sv.Rules.Emit
                 body.Blank();
                 body.Open("if (" + CallGuard(emit.When, TriggerChannels(emit, true)) + ")");
                 body.Line("written |= " + SelfWrites(emit) + ";");
+                if (Assigns && SelfMayAssign(emit))
+                {
+                    body.Line("assigned = true;");
+                }
+
                 body.Line(EmitMethod(emit, true) + "(world, ref v, a, ref next, target, row, self, first, end, terms);");
                 body.Close();
             }
@@ -329,9 +335,10 @@ namespace Sv.Rules.Emit
                 body.Close();
             }
 
+            body.Blank();
+            body.Open("if (" + MovesCondition(reshapes.Count > 0) + ")");
             for (var s = 0; s < layers.DeltaIntrinsics.Count; s++)
             {
-                body.Blank();
                 body.Line("var delta" + Text(s) + " = 0L;");
             }
 
@@ -399,6 +406,8 @@ namespace Sv.Rules.Emit
                 body.Line("a.Delta[" + Text(s * Rows) + " + row] = EffectLaw.Saturate32(delta" + Text(s) + ");");
             }
 
+            body.Close();
+
             if (!TotalsOutliveDecide)
             {
                 body.Blank();
@@ -439,10 +448,11 @@ namespace Sv.Rules.Emit
             if (Assigns)
             {
                 body.Blank();
-                body.Open("if (RuleMath.Taken(a.Outcomes[r]) != 0L)");
+                body.Open("if (" + InSet(AssignChannels(), "(long)EffectKey.Channel(a.Effects[r].Key)") + " && RuleMath.Taken(a.Outcomes[r]) != 0L)");
                 body.Line("RuleMath.PerHit(a.Effects[r], a.Outcomes[r], 1, out var perHit, out _);");
                 body.Line("var from = EffectKey.Source(a.Effects[r].Key);");
                 body.Line("Assign(a, EffectKey.Channel(a.Effects[r].Key), perHit, from == EffectKey.NoSource ? -1L : from);");
+                body.Line("assigned = true;");
                 body.Close();
             }
         }
