@@ -162,3 +162,9 @@ Gotcha: after the host/kernel surface changes, kernel test projects keep stale g
 ## 16. Update 2026-11-13 (P1 merged, last big agent)
 
 P1 merged: Seal writes the canonical buffer directly (B 11.21 to 9.60 ms, C 31.08 to 30.0, D 43.28 to 41.7), digests unchanged, all suites green on default, no-AVX2 and scalar. Per-frame source table was exact but slower (reverted); issue 0370 overstated source misses. Gate 8.3 ms: A passes, B 9.6 close, C and D fail. Remaining ideas: skip order check for pre-bucketed blocks, touched-chunk count matrix (0.15-0.4 ms), B Decide per target 27 ns, C/D random sort, 0363 input log cap. Remaining briefs for smaller agents: D:\GitHub\_work\sv-proto\BRIEF-small-1-seal.md (partly done), -2-stat-layers.md, -3-remaining.md. Unity 7 facts for M8 (owner paste): netstandard2.1/C# 9 today, net10 TFM only later; statics and worker threads survive play mode, static ctors may run on background threads, stop workers on code reload; Burst function pointer delegates public or internal; no managed exception across native frames.
+
+## 17. What to do next (unambiguous)
+
+NEXT TASK: S2 stat layers, brief D:\GitHub\_work\sv-proto\BRIEF-small-2-stat-layers.md. Do this one. Do not ask which brief.
+BRIEF-small-1-seal.md is mostly DONE by agent P1 (see section 16); remaining Seal gain is under 0.4 ms; skip it unless the owner asks.
+After S2: BRIEF-small-3-remaining.md item 4 onward. Push of v3/int is the owner's call, never the agent's.
