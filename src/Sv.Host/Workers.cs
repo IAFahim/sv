@@ -66,11 +66,12 @@ namespace Sv.Host
             threads = new Thread[count - 1];
             wake = new ManualResetEventSlim[count - 1];
             parked = new int[count - 1];
+            var born = Volatile.Read(ref generation.Value);
             for (var index = 0; index < threads.Length; index++)
             {
                 wake[index] = new ManualResetEventSlim(false, 0);
                 var worker = index;
-                threads[index] = new Thread(() => Loop(worker))
+                threads[index] = new Thread(() => Loop(worker, born))
                 {
                     IsBackground = true,
                     Name = "sv-worker-" + (worker + 1).ToString(System.Globalization.CultureInfo.InvariantCulture),
@@ -153,9 +154,8 @@ namespace Sv.Host
             }
         }
 
-        void Loop(int worker)
+        void Loop(int worker, int seen)
         {
-            var seen = Volatile.Read(ref generation.Value);
             while (true)
             {
                 seen = Await(worker, seen);
