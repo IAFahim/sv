@@ -18,12 +18,19 @@ namespace Sv
     {
         public ulong* Live;
         public ulong* Forwarding;
+        public ulong* Channels;
         public int Chunks;
 
         public RouteTable(ulong* live, ulong* forwarding, int chunks)
+            : this(live, forwarding, chunks, null)
+        {
+        }
+
+        public RouteTable(ulong* live, ulong* forwarding, int chunks, ulong* channels)
         {
             Live = live;
             Forwarding = forwarding;
+            Channels = channels;
             Chunks = chunks;
         }
     }
@@ -34,6 +41,7 @@ namespace Sv
         public const int Moved = 1;
         public const int Dead = -1;
         public const int Fault = -2;
+        public const int Malformed = -3;
         public const int MaxHops = 4;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -63,6 +71,17 @@ namespace Sv
             if ((table.Live[chunk] & bit) == 0)
             {
                 return Dead;
+            }
+
+            if (table.Channels != null)
+            {
+                var channel = EffectKey.Channel(key);
+                var source = EffectKey.Source(key);
+                if (((table.Channels[channel >> 6] >> (channel & 63)) & 1ul) == 0ul
+                    || (source != EffectKey.NoSource && (uint)(source >> EffectKey.RowBits) >= (uint)table.Chunks))
+                {
+                    return Malformed;
+                }
             }
 
             if (table.Forwarding == null || (table.Forwarding[chunk] & bit) == 0)

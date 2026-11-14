@@ -28,20 +28,9 @@ namespace Sv.Rules.Passes
             for (var c = ValueClass.Stat; c <= ValueClass.Kind; c++)
             {
                 var rows = schema.Of(c);
-                var seen = new Dictionary<string, string>();
                 var limit = c == ValueClass.Channel || c == ValueClass.Kind ? 255 : 65535;
                 for (var i = 0; i < rows.Length; i++)
                 {
-                    var name = Names.Identifier(rows[i].Name);
-                    if (seen.TryGetValue(name, out var other))
-                    {
-                        unit.Diagnostics.Error(DiagnosticCode.DuplicateName, PackSource.ValuesFile, rows[i].Offset, -1, -1, rows[i].Name + " and " + other + " both become the identifier " + name);
-                    }
-                    else
-                    {
-                        seen.Add(name, rows[i].Name);
-                    }
-
                     if (rows[i].Id < 0 || rows[i].Id > limit)
                     {
                         unit.Diagnostics.Error(DiagnosticCode.IdOutOfRange, PackSource.ValuesFile, rows[i].Offset, -1, -1, rows[i].Name + " has number " + rows[i].Id.ToString(CultureInfo.InvariantCulture) + ", above " + limit.ToString(CultureInfo.InvariantCulture));

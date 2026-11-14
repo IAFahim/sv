@@ -94,7 +94,7 @@ namespace Sv
                     var keep = verdict >= 0;
                     sourced |= ~key & EffectKey.SourceField;
                     dead += verdict == Sv.Route.Dead ? 1L : 0L;
-                    faults += verdict == Sv.Route.Fault ? 1L : 0L;
+                    faults += verdict <= Sv.Route.Fault ? 1L : 0L;
                     moved |= verdict == Sv.Route.Moved ? 1 : 0;
                     if ((verdict | (kept ^ at)) != 0)
                     {

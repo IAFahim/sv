@@ -313,6 +313,7 @@ namespace Sv.Rules
         public PackPlan? Run()
         {
             CheckLimits();
+            CheckIdentifiers();
             CheckChainCycles();
             for (var i = 0; i < pack.Chains.Length; i++)
             {
@@ -363,6 +364,42 @@ namespace Sv.Rules
             }
 
             return new PackPlan(pack, PackHash.Of(pack), gateOrder, channelState, wants, stratum, selfOrder, warnings.ToArray());
+        }
+
+        void CheckIdentifiers()
+        {
+            for (var c = ValueClass.Stat; c <= ValueClass.Kind; c++)
+            {
+                var rows = schema.Of(c);
+                var seen = new System.Collections.Generic.Dictionary<string, string>();
+                for (var i = 0; i < rows.Length; i++)
+                {
+                    CheckIdentifier(seen, rows[i].Name, PackSource.ValuesFile, rows[i].Offset);
+                }
+            }
+
+            var templateNames = new System.Collections.Generic.Dictionary<string, string>();
+            for (var i = 0; i < schema.Templates.Length; i++)
+            {
+                CheckIdentifier(templateNames, schema.Templates[i].Name, PackSource.TemplatesFile, schema.Templates[i].Offset);
+            }
+        }
+
+        void CheckIdentifier(System.Collections.Generic.Dictionary<string, string> seen, string name, string file, int offset)
+        {
+            var identifier = Sv.Rules.Emit.Names.Identifier(name);
+            if (identifier == "value__")
+            {
+                Diagnostics.Error(DiagnosticCode.DuplicateName, file, offset, -1, -1, name + " becomes the identifier value__, which C# reserves in enums; rename it");
+            }
+
+            if (seen.TryGetValue(identifier, out var other))
+            {
+                Diagnostics.Error(DiagnosticCode.DuplicateName, file, offset, -1, -1, name + " and " + other + " both become the identifier " + identifier);
+                return;
+            }
+
+            seen.Add(identifier, name);
         }
 
         void CheckLimits()

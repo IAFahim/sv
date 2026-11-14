@@ -153,6 +153,13 @@ namespace Sv
 
         public void Flush() => Close();
 
+        public void Retry()
+        {
+            Exhausted = 0;
+            Missed--;
+            Sent--;
+        }
+
         public void Forget()
         {
             BlockIndex = -1;
@@ -308,6 +315,24 @@ namespace Sv
             DroppedLayers++;
             DroppedRecords += layerRecords;
             return LayerVerdict.Discarded;
+        }
+
+        public bool GrowFor(EffectWriter* writer)
+        {
+            if (Policy != ArenaPolicy.Grow || writer->Exhausted == 0)
+            {
+                return false;
+            }
+
+            var target = (long)core->Blocks * 2;
+            if (target > int.MaxValue || !Grow((int)target))
+            {
+                return false;
+            }
+
+            Grows++;
+            writer->Retry();
+            return true;
         }
 
         public void Release(in RawMark mark)

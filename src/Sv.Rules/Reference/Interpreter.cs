@@ -485,6 +485,14 @@ namespace Sv.Rules.Reference
                 Note("overflow level " + Trace.Number(level) + " records " + Trace.Number(canonical.Count));
             }
 
+            if (canonical.Count > Options.ArenaCapacity)
+            {
+                level = 4;
+                faults.DroppedOverflow += canonical.Count - Options.ArenaCapacity;
+                canonical = canonical.GetRange(0, Options.ArenaCapacity);
+                Note("overflow truncated records " + Trace.Number(canonical.Count));
+            }
+
             faults.OverflowLevel = level;
             return canonical;
         }

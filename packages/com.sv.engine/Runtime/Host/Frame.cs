@@ -337,6 +337,7 @@ namespace Sv.Host
         LaneWriter* laneWriters;
         ulong* live;
         ulong* forwarding;
+        ulong* packChannels;
         ulong* pendingBits;
         ulong* pendingRows;
         ulong* activeBits;
@@ -396,6 +397,15 @@ namespace Sv.Host
             world = World.Create(pack.Classes, pack.Channels, options.EntityCapacity, options.Policy, options.RingEpochs, options.FramesPerEpoch);
             stats = new StatMachine(world, pack.Stats, pack.Sources, pack.CurveValues, pack.Cards, options.RingEpochs);
             AddTemplates(pack);
+            packChannels = (ulong*)Memory.AllocZeroed(4, sizeof(ulong));
+            for (var c = 0; c < pack.ChannelIds.Length; c++)
+            {
+                var id = pack.ChannelIds[c];
+                if ((uint)id < 256u)
+                {
+                    packChannels[id >> 6] |= 1ul << (id & 63);
+                }
+            }
             parts = options.Parts;
             chunkCapacity = world.ChunkCapacity;
             chunkWords = ChunkSet.Words(chunkCapacity);
@@ -500,7 +510,7 @@ namespace Sv.Host
 
             context->PlanSums = (int*)Memory.AllocZeroed((nuint)parts, sizeof(int));
             context->Parts = parts;
-            context->Capacity = options.EntityCapacity;
+            context->Capacity = world.ChunkCapacity << Slot.RowBits;
             context->Buffers = (RecordBuffer*)Memory.AllocZeroed((nuint)parts, (nuint)sizeof(RecordBuffer));
             context->EventCount = eventCount;
             context->ScratchInts = scratchInts;
@@ -552,8 +562,17 @@ namespace Sv.Host
             activeCapacity = grown;
         }
 
+        void Alive()
+        {
+            if (context == null)
+            {
+                throw new ObjectDisposedException(nameof(FrameLoop<TKernels>), "sv: this FrameLoop was disposed");
+            }
+        }
+
         void Structural()
         {
+            Alive();
             if (stepping)
             {
                 throw new InvalidOperationException("sv: spawn, kill and rewind happen between frames, after every writer is absorbed");
@@ -626,6 +645,7 @@ namespace Sv.Host
 
         public EffectWriter* Sender(int index)
         {
+            Alive();
             if ((uint)index >= (uint)options.ExternalWriters)
             {
                 throw new ArgumentOutOfRangeException(nameof(index), "sv: external writers are 0 to ExternalWriters - 1");
@@ -634,11 +654,37 @@ namespace Sv.Host
             return raw.Writer(index);
         }
 
-        public bool Send(int target, int source, int kind, int channel, int amount, int hits = 1, Origin origin = Origin.Direct) =>
-            raw.Writer(0)->Send(EffectKey.Pack(target, source, (byte)kind, (byte)channel, origin, 0), amount, hits);
+        public bool Send(int target, int source, int kind, int channel, int amount, int hits = 1, Origin origin = Origin.Direct)
+        {
+            Alive();
+            if ((uint)kind > 255u || (uint)channel > 255u)
+            {
+                throw new ArgumentOutOfRangeException((uint)kind > 255u ? nameof(kind) : nameof(channel), "sv: kind and channel are 0 to 255");
+            }
+
+            var thread = Environment.CurrentManagedThreadId;
+            if (sendThread != thread && System.Threading.Interlocked.CompareExchange(ref sendThread, thread, 0) != 0)
+            {
+                throw new InvalidOperationException("sv: FrameLoop.Send was called from two threads in one frame; give each game thread its own writer (HostOptions.ExternalWriters and Sender(i))");
+            }
+
+            var writer = raw.Writer(0);
+            var key = EffectKey.Pack(target, source, (byte)kind, (byte)channel, origin, 0);
+            if (writer->Send(key, amount, hits))
+            {
+                return true;
+            }
+
+            return options.ExternalWriters == 1 && raw.GrowFor(writer) && writer->Send(key, amount, hits);
+        }
+
+        public long ExternalDropped { get; private set; }
+
+        int sendThread;
 
         public void Modify(in StatOp op)
         {
+            Alive();
             if (opCount == opCapacity)
             {
                 opCapacity = Math.Max(64, opCapacity * 2);
@@ -655,11 +701,19 @@ namespace Sv.Host
 
         public void Step()
         {
+            Alive();
             stepping = true;
             marks[FrameMarks.Begin] = Stopwatch.GetTimestamp();
             var frame = world.Frame;
             var phase = context;
             phase->World = world.View;
+            for (var index = 0; index < options.ExternalWriters; index++)
+            {
+                ExternalDropped += raw.Writer(index)->Missed;
+            }
+
+            sendThread = 0;
+
             SealPhase();
             marks[FrameMarks.Sealed] = Stopwatch.GetTimestamp();
             if (!replaying)
@@ -704,7 +758,7 @@ namespace Sv.Host
 
         void SealPhase()
         {
-            var route = new RouteTable(live, forwarding, chunkCapacity);
+            var route = new RouteTable(live, forwarding, chunkCapacity, packChannels);
             context->Seal = canonical.Begin(raw, route);
             runner.Run(FramePhase.SealCount, context, parts);
             var planParts = WorkRange.PartsFor(chunkCapacity, parts);
@@ -1104,6 +1158,22 @@ namespace Sv.Host
 
         public bool Rewind(uint epoch)
         {
+            if (!RewindState(epoch))
+            {
+                return false;
+            }
+
+            log.Truncate(world.Frame - 1L);
+            if (earliestLate >= world.Frame)
+            {
+                earliestLate = long.MaxValue;
+            }
+
+            return true;
+        }
+
+        bool RewindState(uint epoch)
+        {
             Structural();
             if (!world.Rewind(epoch))
             {
@@ -1193,7 +1263,13 @@ namespace Sv.Host
 
             var epoch = world.EpochAtOrBefore(earliestLate);
             earliestLate = long.MaxValue;
-            if (epoch == 0u || !Rewind(epoch))
+            var droppedInWindow = log.DroppedFrom(world.Journal.BeginOf(epoch));
+            if (droppedInWindow > 0L)
+            {
+                throw new InvalidOperationException("sv: cannot resolve: the input log cap (InputLogFrameLimit or InputLogFrameBytes) dropped " + droppedInWindow + " records in the frames a replay would need");
+            }
+
+            if (epoch == 0u || !RewindState(epoch))
             {
                 return false;
             }
@@ -1307,6 +1383,7 @@ namespace Sv.Host
             Memory.Free(laneWriters);
             Memory.Free(live);
             Memory.Free(forwarding);
+            Memory.Free(packChannels);
             Memory.Free(pendingRows);
             Memory.Free(statRowsByChunk);
             Memory.Free(pairFrom);
