@@ -423,6 +423,7 @@ prove            bash eng/v3-verify.sh   (Unity: eng/m8-run/gate.sh, eng/player-
 | `tests/` | laws, scenarios, differential tests (compiled against the oracle), twin journals, NorthStar3 (tl) |
 | `contract/` | the contract texts; `issues/` the decisions and their receipts; `docs/` the guides |
 | `docs/PRODUCTION-CHECKLIST.md` | what to do for a real project test |
+| `docs/FUZZING.md`, `eng/fuzz.sh` | how to fuzz sv: the promises, ready campaigns, harnesses to add, reporting |
 
 Agents: read `AGENTS.md` first.
 

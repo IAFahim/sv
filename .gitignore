@@ -4,3 +4,4 @@ obj/
 .vs/
 TestResults/
 build/web/
+fuzz-out/
