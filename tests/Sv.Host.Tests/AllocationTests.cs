@@ -25,17 +25,17 @@ public sealed class AllocationTests
         for (var window = 0; window < Windows; window++)
         {
             var threadBefore = GC.GetAllocatedBytesForCurrentThread();
-            var totalBefore = GC.GetTotalAllocatedBytes(true);
+            var workersBefore = host.WorkerAllocatedBytes;
             for (var frame = 0; frame < MeasuredFrames; frame++)
             {
                 work.Feed(host, host.Frame, kind);
                 host.Step();
             }
 
-            var totalAfter = GC.GetTotalAllocatedBytes(true);
+            var workersAfter = host.WorkerAllocatedBytes;
             var threadAfter = GC.GetAllocatedBytesForCurrentThread();
             thread = Math.Min(thread, threadAfter - threadBefore);
-            total = Math.Min(total, totalAfter - totalBefore);
+            total = Math.Min(total, threadAfter - threadBefore + workersAfter - workersBefore);
         }
 
         return (thread, total);
@@ -58,10 +58,10 @@ public sealed class AllocationTests
     [Theory]
     [InlineData(1)]
     [InlineData(7)]
-    public void Warm_frames_of_the_reference_pack_allocate_nothing_on_any_thread(int workers)
+    public void Warm_frames_of_the_reference_pack_allocate_nothing_on_any_sv_thread(int workers)
     {
         var bytes = Warm<ReferenceKernels>(Packs.Reference, workers, new[] { "worked_example_player", "player", "rifleman" }, "sniper", new[] { "Physical", "Poison", "Bleeding" }, "Healing", new[] { "GiveCharges" });
-        output.WriteLine($"workers {workers}: thread {bytes.Thread} B, all threads {bytes.Total} B over {MeasuredFrames} frames");
+        output.WriteLine($"workers {workers}: thread {bytes.Thread} B, sv threads (main and workers) {bytes.Total} B over {MeasuredFrames} frames");
         Assert.Equal(0L, bytes.Thread);
         Assert.Equal(0L, bytes.Total);
     }
@@ -69,10 +69,10 @@ public sealed class AllocationTests
     [Theory]
     [InlineData(1)]
     [InlineData(7)]
-    public void Warm_frames_of_a_pack_that_gains_and_loses_cards_allocate_nothing_on_any_thread(int workers)
+    public void Warm_frames_of_a_pack_that_gains_and_loses_cards_allocate_nothing_on_any_sv_thread(int workers)
     {
         var bytes = (ValueTuple<long, long>)Packs.Call(typeof(AllocationTests), nameof(Warm), CardPack.Kernels, CardPack.Plan, workers, new[] { "player", "warded" }, "grunt", new[] { "Physical" }, "Healing", new[] { "GrantWard", "GrantFortify" })!;
-        output.WriteLine($"workers {workers}: thread {bytes.Item1} B, all threads {bytes.Item2} B over {MeasuredFrames} frames");
+        output.WriteLine($"workers {workers}: thread {bytes.Item1} B, sv threads (main and workers) {bytes.Item2} B over {MeasuredFrames} frames");
         Assert.Equal(0L, bytes.Item1);
         Assert.Equal(0L, bytes.Item2);
     }

@@ -208,16 +208,24 @@ public sealed unsafe class InputLogCapLaws
                 Assert.Equal(maxBlocksPerFrame * InputLog.BlockRecords, log.RecordCount(frame));
             }
 
-            var before = GC.GetAllocatedBytesForCurrentThread();
-            for (var frame = 18L; frame < 50L; frame++)
+            var warm = long.MaxValue;
+            var end = 18L;
+            for (var window = 0; window < 3; window++)
             {
-                var idx = (int)(frame % 3);
-                log.Record(frame, (LoggedRecord*)framePointers[idx], frameCounts[idx]);
+                var before = GC.GetAllocatedBytesForCurrentThread();
+                for (var frame = end; frame < end + 32L; frame++)
+                {
+                    var idx = (int)(frame % 3);
+                    log.Record(frame, (LoggedRecord*)framePointers[idx], frameCounts[idx]);
+                }
+
+                var after = GC.GetAllocatedBytesForCurrentThread();
+                warm = Math.Min(warm, after - before);
+                end += 32L;
             }
 
-            var after = GC.GetAllocatedBytesForCurrentThread();
-            Assert.Equal(0L, after - before);
-            for (var frame = 42L; frame < 50L; frame++)
+            Assert.Equal(0L, warm);
+            for (var frame = end - 8L; frame < end; frame++)
             {
                 Assert.Equal(maxBlocksPerFrame * InputLog.BlockRecords, log.RecordCount(frame));
             }

@@ -13,6 +13,7 @@
     <ProjectReference Include="..\Sv.Core\Sv.Core.csproj" />
     <ProjectReference Include="..\Sv.Rules\Sv.Rules.csproj" />
     <InternalsVisibleTo Include="Sv.Laws.Tests" />
+    <InternalsVisibleTo Include="Sv.Host.Tests" />
     <InternalsVisibleTo Include="Sv.Diff.Tests" />
     <InternalsVisibleTo Include="Sv.Scenario.Tests" />
     <InternalsVisibleTo Include="Sv.Bench" />

@@ -9,10 +9,16 @@ public sealed unsafe class AllocationLaws
     {
         run();
         run();
-        var before = GC.GetAllocatedBytesForCurrentThread();
-        run();
-        var after = GC.GetAllocatedBytesForCurrentThread();
-        return after - before;
+        var least = long.MaxValue;
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            var before = GC.GetAllocatedBytesForCurrentThread();
+            run();
+            var after = GC.GetAllocatedBytesForCurrentThread();
+            least = Math.Min(least, after - before);
+        }
+
+        return least;
     }
 
     [Fact]

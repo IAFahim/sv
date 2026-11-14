@@ -1,6 +1,6 @@
 # 0371 Host "allocate nothing on any thread" tests read 168 B at workers:1, intermittently, on 1aa315e too
 
-Status: open
+Status: closed (2026-11-14: the tests now measure the property they name; see Resolution)
 
 Found by P2 (branch v3/p2-perf) while verifying each perf commit on Linux 7.2, Ryzen 5 8500G, .NET SDK 10.0.403.
 
@@ -31,3 +31,15 @@ in every P2 run and 0 B on all threads in most (6,192 B appears in about one pro
 ## 2026-11-14 (merge verification of P3 + 0400)
 
 `AllocationLaws.WritesEpochMarksDigestAndRewindAllocateNothingWarm(policy: Dense)` failed once, in the first Laws run under `DOTNET_EnableAVX2=0` right after a rebuild, on a box with load average about 5 (a nice-19 `localsearch` indexer at 100 percent). It then passed 6 of 6 full Laws runs and 5 of 5 isolated runs under the same setting. Same family as the Host any-thread tests and `InputLogCapLaws...AllocatesNothingWarm`: first run after a build, tiering JIT allocation on a loaded machine. Not fixed; if it recurs on an idle box, look at JIT tiering (`TieredPGO=0`, `TieredCompilation` quick jit) in the test host rather than the engine.
+
+## Resolution (2026-11-14)
+
+Cause, found by elimination and tracing:
+- Not tiered compilation: with `DOTNET_TieredCompilation=0` the Host test still failed 1 of 4 runs under `DOTNET_EnableHWIntrinsic=0` (default settings: 1 of 4).
+- An EventPipe allocation trace (`GCSampledObjectAllocationHigh`) of the test host shows several non-sv threads (xunit message bus, vstest result channel) allocating while tests run. `GC.GetTotalAllocatedBytes(true)` counts them, so "any thread" measured the test host, not sv. Seen as 168, 224 and 504 B, at workers 1 and 7.
+
+Fix:
+- `Workers` records `GC.GetAllocatedBytesForCurrentThread()` on each worker at the end of its share of every `Run` (`FrameLoop.WorkerAllocatedBytes`, internal). The Host tests (renamed `..._allocate_nothing_on_any_sv_thread`) assert 0 B on the main thread and 0 B over the main thread plus every sv worker, minimum of three 32-frame windows.
+- Laws `WarmBytes` and `InputLogCapLaws` take the minimum of three measured runs (a warm-path leak allocates on every run, a one-off runtime allocation does not).
+- Negative control: a 16-byte allocation in `Phases.Decide` on `sv-worker` threads only makes both workers:7 Host tests fail (7,760 and 8,240 B) while workers:1 pass.
+- Receipts: Host and Laws 6 of 6 green under each of default, AVX2=0 and HWIntrinsic=0 (36 runs); all other suites green; Unity gate 101/101 (Workers.cs compiles in Unity); B digest unchanged, B interleaved 11.14 -> 11.12 ms (no cost, loaded box).

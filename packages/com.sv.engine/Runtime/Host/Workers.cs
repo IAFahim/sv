@@ -44,6 +44,7 @@ namespace Sv.Host
         readonly Thread[] threads;
         readonly ManualResetEventSlim[] wake;
         readonly int[] parked;
+        readonly long[] allocated;
         readonly long spinTicks;
         delegate*<void*, int, void> body;
         void* state;
@@ -66,6 +67,7 @@ namespace Sv.Host
             threads = new Thread[count - 1];
             wake = new ManualResetEventSlim[count - 1];
             parked = new int[count - 1];
+            allocated = new long[count - 1];
             var born = Volatile.Read(ref generation.Value);
             for (var index = 0; index < threads.Length; index++)
             {
@@ -81,6 +83,20 @@ namespace Sv.Host
         }
 
         public int Count { get; }
+
+        internal long WorkerAllocatedBytes
+        {
+            get
+            {
+                var sum = 0L;
+                for (var index = 0; index < allocated.Length; index++)
+                {
+                    sum += Volatile.Read(ref allocated[index]);
+                }
+
+                return sum;
+            }
+        }
 
         public void Run(delegate*<void*, int, void> work, void* workState, int partCount)
         {
@@ -165,6 +181,7 @@ namespace Sv.Host
                 }
 
                 Execute();
+                Volatile.Write(ref allocated[worker], GC.GetAllocatedBytesForCurrentThread());
                 Interlocked.Increment(ref finished.Value);
             }
         }

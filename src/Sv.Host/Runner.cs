@@ -40,6 +40,8 @@ namespace Sv.Host
 
         public int Count => workers.Count;
 
+        internal long WorkerAllocatedBytes => workers.WorkerAllocatedBytes;
+
         public void Run(FramePhase phase, FrameContext* context, int parts) => workers.Run(BodyOf(phase), context, parts);
 
         static delegate*<void*, int, void> BodyOf(FramePhase phase)

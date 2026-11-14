@@ -424,6 +424,8 @@ namespace Sv.Host
 
         public long Frame => world.Frame;
 
+        internal long WorkerAllocatedBytes => runner is WorkerRunner<TKernels> pool ? pool.WorkerAllocatedBytes : 0L;
+
         public ulong LastDigest { get; private set; }
 
         public ReadOnlySpan<long> Marks => marks;
