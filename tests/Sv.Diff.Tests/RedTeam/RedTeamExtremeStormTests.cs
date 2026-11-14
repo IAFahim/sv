@@ -145,6 +145,8 @@ namespace DiffTests.RedTeam
                 Seeds.Options(1, 64, StoragePolicy.Shared),
                 Seeds.Options(4, 16, StoragePolicy.Dense),
                 Seeds.Options(7, 3, StoragePolicy.Shared),
+                Seeds.Options(32, 1, StoragePolicy.Dense),
+                Seeds.Options(11, 1000, StoragePolicy.Shared),
             };
             foreach (var item in built)
             {

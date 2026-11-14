@@ -227,6 +227,40 @@ public sealed unsafe class RedTeamHostMisuseTests
         output.WriteLine((string)Packs.Call(typeof(RedTeamHostMisuseTests), nameof(Overflow), typeof(ReferenceKernels), Packs.Reference, limit, targets)!);
     }
 
+    [Fact]
+    public void An_entity_capacity_that_is_not_a_multiple_of_64_is_a_hard_limit_or_the_extra_entities_behave_like_the_rest()
+    {
+        using var host = new FrameLoop<ReferenceKernels>(PackData.Create(), new HostOptions { Workers = 1, EntityCapacity = 100 });
+        var spawned = new List<int>();
+        try
+        {
+            for (var at = 0; at < 128; at++)
+            {
+                spawned.Add(host.Spawn((int)Template.player));
+            }
+        }
+        catch (InvalidOperationException)
+        {
+        }
+
+        host.Step();
+        var last = spawned[^1];
+        var first = spawned[0];
+        foreach (var slot in new[] { first, last })
+        {
+            host.Send(slot, -1, 0, (int)Channel.Physical, 80);
+        }
+
+        host.Step();
+        host.Step();
+        var lowFirst = host.Level(first, (int)Event.LowHealth);
+        var lowLast = host.Level(last, (int)Event.LowHealth);
+        var chargesFirst = host.Read(first, (int)Intrinsic.ImmuneCharges);
+        var chargesLast = host.Read(last, (int)Intrinsic.ImmuneCharges);
+        output.WriteLine("spawned " + spawned.Count + " with EntityCapacity 100; slot " + first + " LowHealth " + lowFirst + " panic charges " + chargesFirst + "; slot " + last + " LowHealth " + lowLast + " panic charges " + chargesLast);
+        Assert.True(spawned.Count == 100 || chargesLast == chargesFirst, "slot " + last + " is live but its edge emit to itself was dropped");
+    }
+
     [Theory]
     [InlineData(StoragePolicy.Shared, 200_000)]
     [InlineData(StoragePolicy.Dense, 1_000_000)]
