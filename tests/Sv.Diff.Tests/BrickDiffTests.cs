@@ -9,7 +9,7 @@ namespace DiffTests
 {
     public sealed class BrickSeeds
     {
-        public const int First = 9001;
+        public static readonly int First = 9001 + Seeds.Offset;
         public const int Count = 160;
 
         public BrickSeeds()
@@ -44,7 +44,7 @@ namespace DiffTests
 
         void Verdict(string test, int checkedCount, List<string> failures)
         {
-            output.WriteLine(test + ": " + checkedCount + " brick seeds checked, " + failures.Count + " failed (fixture build " + seeds.BuildMilliseconds + " ms)");
+            output.WriteLine(test + ": " + checkedCount + " brick seeds checked, " + failures.Count + " failed, seeds " + BrickSeeds.First + "-" + (BrickSeeds.First + BrickSeeds.Count - 1) + " (fixture build " + seeds.BuildMilliseconds + " ms)");
             foreach (var failure in failures)
             {
                 output.WriteLine(failure);

@@ -21,7 +21,7 @@ namespace DiffTests
 
         void Verdict(string test, int checkedCount, List<string> failures)
         {
-            output.WriteLine(test + ": " + checkedCount + " seeds checked, " + failures.Count + " failed (fixture build " + seeds.BuildMilliseconds + " ms)");
+            output.WriteLine(test + ": " + checkedCount + " seeds checked, " + failures.Count + " failed, seed offset " + Seeds.Offset + " (fixture build " + seeds.BuildMilliseconds + " ms)");
             foreach (var failure in failures)
             {
                 output.WriteLine(failure);

@@ -11,11 +11,12 @@ namespace DiffTests
 {
     public sealed class Seeds
     {
-        public const int Main = 1;
+        public static readonly int Offset = int.TryParse(Environment.GetEnvironmentVariable("SV_FUZZ_OFFSET"), out var offset) && offset > 0 ? offset : 0;
+        public static readonly int Main = 1 + Offset;
         public const int MainCount = 300;
-        public const int NoAbsorb = 3001;
-        public const int CardModifiers = 5001;
-        public const int StatOps = 7001;
+        public static readonly int NoAbsorb = 3001 + Offset;
+        public static readonly int CardModifiers = 5001 + Offset;
+        public static readonly int StatOps = 7001 + Offset;
         public const int VariantCount = 40;
 
         static readonly MethodInfo compiledRun = typeof(Runs).GetMethod(nameof(Runs.Compiled))!;
