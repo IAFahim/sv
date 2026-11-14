@@ -301,7 +301,7 @@ var world = MyGame.Sv.PackWorld.Create(new HostOptions { Workers = 11, EntityCap
 
 The quickest start is the **Hello sv** sample (Package Manager > sv Unity Adapter v4 > Samples): chapter 1 in Unity, with the same numbers and digests, and a guide for designers. `SvWorld` has the same calls as chapter 5. For ECS, `SvEntities.Publish` and `SvEntities.Attach` give entities slots and `SvStepSystem` steps the world. Details and the tl setup: `docs/UNITY.md`.
 
-What is proven in Unity: every phase runs as Burst at 1 and 11 job workers with digests equal to .NET (97 EditMode tests, also from a fresh clone into a new project), and a built **Linux player** (CoreCLR, Burst compiled ahead of time) replays 37 recorded scenarios with every digest equal to .NET (`eng/player-smoke.sh`).
+What is proven in Unity: every phase runs as Burst at 1 and 11 job workers with digests equal to .NET (98 EditMode tests, also from a fresh clone into a new project; one of them enters Play mode and proves the auto-created `SvStepSystem` in the default world steps sv and frees the slots of destroyed entities), and a built **Linux player** (CoreCLR, Burst compiled ahead of time) replays 37 recorded scenarios with every digest equal to .NET (`eng/player-smoke.sh`).
 
 ---
 
