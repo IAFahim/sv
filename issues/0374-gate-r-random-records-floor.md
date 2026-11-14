@@ -1,6 +1,6 @@
 # 0374 Gate case r (1M random records) is 17.6 ms against 8.3: what the remaining cost is made of
 
-Status: open (design: the gate needs fewer passes over the records and a cheaper Decide per record, not trims)
+Status: closed (decision D11, 2026-11-14: r is a stress benchmark with a no-regression ceiling of 19.0 ms; the 8.3 ms gate covers chunk-bucketed load, A and B pass). The redesign notes below stay as the plan if a real workload looks like r.
 
 Found by P3 (2026-11-14, worktree branch from v3/m8-unity 6c219e2, final f8b53af). Lego pack, 1,000,000 entities, 11 workers,
 digest every frame, Ryzen 5 8500G, Linux 7.2, .NET 10.0.403, Release; median of 5 processes x 50 frames, interleaved.
