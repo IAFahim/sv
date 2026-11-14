@@ -25,6 +25,7 @@ run() {
 note "mirrors"
 bash eng/engine-sync.sh check || failed=1
 bash eng/tl-plain-sync.sh check || failed=1
+bash eng/unity-sync.sh check packages/com.sv.core || failed=1
 
 note "build"
 dotnet build -c Release src/Sv.Pack -v q -p:NuGetAudit=false >/dev/null || { echo "FAIL build Sv.Pack"; exit 1; }
@@ -47,6 +48,11 @@ note "default leg, integration suites (TL_ROOT=$TL_ROOT)"
 for project in $extra; do
   run "default $project" dotnet test "tests/$project" -c Release -p:NuGetAudit=false
 done
+
+note "legacy sv 2.1 core (normal and SV_CHECKED)"
+run "legacy Sv.Tests" dotnet test tests/Sv.Tests -c Release -p:NuGetAudit=false
+run "legacy Sv.Tests SV_CHECKED" dotnet test tests/Sv.Tests -c Release -p:NuGetAudit=false -p:DefineConstants=SV_CHECKED
+dotnet build tests/Sv.Tests -c Release -v q -p:NuGetAudit=false >/dev/null
 
 if [ $failed -ne 0 ]; then
   echo "v3-verify: FAILED"

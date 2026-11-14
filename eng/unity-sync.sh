@@ -7,6 +7,7 @@ if [ "$mode" != "sync" ] && [ "$mode" != "check" ] || [ -z "$dest" ]; then
   echo "usage: eng/unity-sync.sh sync|check <unity-project>/Packages/com.sv.core" >&2
   exit 2
 fi
+case $dest in /*) ;; *) dest=$PWD/$dest ;; esac
 src="$root/src/Sv"
 if [ "$mode" = "sync" ]; then
   mkdir -p "$dest/Runtime"

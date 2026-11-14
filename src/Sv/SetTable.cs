@@ -7,11 +7,17 @@ namespace Sv
     {
         public readonly ModifierKind Kind;
 
+        public readonly byte Pad0;
+
+        public readonly short Pad1;
+
         public readonly float Value;
 
         public StatEntry(ModifierKind kind, float value)
         {
             Kind = kind;
+            Pad0 = 0;
+            Pad1 = 0;
             Value = value;
         }
     }

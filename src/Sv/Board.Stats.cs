@@ -15,9 +15,15 @@ public sealed unsafe partial class Board
 
         public ModifierKind Kind;
 
+        public byte Pad0;
+
+        public short Pad1;
+
         public float Value;
 
         public int Source;
+
+        public int Pad2;
 
         public long Expiry;
 
@@ -951,7 +957,7 @@ public sealed unsafe partial class Board
         var id = NextInsertionId();
         var record = AllocRecord();
         undo?.Note(records + record, sizeof(ModRecord));
-        records[record] = new ModRecord { Id = id, Kind = modifier.Kind, Value = modifier.Value, Source = source, Expiry = expiresAtTick, Next = state.Head, Slot = slot, Stat = index, Wheel = -1 };
+        records[record] = new ModRecord { Id = id, Kind = modifier.Kind, Pad0 = 0, Pad1 = 0, Value = modifier.Value, Source = source, Pad2 = 0, Expiry = expiresAtTick, Next = state.Head, Slot = slot, Stat = index, Wheel = -1 };
         undo?.Note(&SlotPtr(slot)->Head, sizeof(int));
         state.Head = record;
         MarkStatDirty(slot, index);

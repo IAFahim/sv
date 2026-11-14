@@ -13,6 +13,10 @@ namespace Sv
 
             public ModifierKind Kind;
 
+            public byte Pad0;
+
+            public short Pad1;
+
             public float Value;
 
             public int Source;
@@ -195,6 +199,8 @@ namespace Sv
                                 Id = records[record].Id,
                                 Stat = records[record].Stat,
                                 Kind = records[record].Kind,
+                                Pad0 = 0,
+                                Pad1 = 0,
                                 Value = records[record].Value,
                                 Source = records[record].Source,
                                 Expiry = records[record].Expiry,
@@ -365,8 +371,11 @@ namespace Sv
                         {
                             Id = shipped.Id,
                             Kind = shipped.Kind,
+                            Pad0 = 0,
+                            Pad1 = 0,
                             Value = shipped.Value,
                             Source = shipped.Source,
+                            Pad2 = 0,
                             Expiry = shipped.Expiry,
                             Next = slotState.Head,
                             Slot = slot,
