@@ -53,7 +53,7 @@ namespace DiffTests.RedTeam
             return names.ToArray();
         }
 
-        static string Storm(int seed, string[] templates, string[] channels, string[] stats, int frames)
+        static string Storm(int seed, string[] templates, string[] channels, string[] stats, int frames, bool shuffled = false)
         {
             var random = new Random(seed);
             var text = new StringBuilder();
@@ -86,6 +86,12 @@ namespace DiffTests.RedTeam
                     var withSource = random.Next(4) != 0 ? ",\"source\":\"" + source + "\"" : string.Empty;
                     sends.Add("{\"frame\":" + frame + ",\"target\":\"" + target + "\"" + withSource + ",\"channel\":\"" + channel + "\",\"amount\":" + amount.ToString(CultureInfo.InvariantCulture) + ",\"hits\":" + hits + ",\"origin\":\"" + origin + "\"}");
                 }
+            }
+
+            if (shuffled)
+            {
+                var order = new Random(seed ^ 0x5EED);
+                sends = sends.OrderBy(_ => order.Next()).ToList();
             }
 
             text.Append(string.Join(",", sends));
@@ -160,6 +166,28 @@ namespace DiffTests.RedTeam
                     {
                         failures.Add(Seeds.Receipt("redteam-storm-" + pack + "-w" + option.Workers + "-" + option.Policy, item, difference));
                     }
+                }
+            }
+
+            var shuffledCases = cases.Select(generated => new GeneratedCase
+            {
+                Seed = generated.Seed,
+                Namespace = generated.Namespace + "Shuffled",
+                Values = values,
+                Rules = rules,
+                Cards = cards,
+                Templates = templates,
+                Scenario = Storm(generated.Seed, templateNames, channels, stats, 6, true),
+            }).ToList();
+            var shuffledBuilt = KernelCompiler.Build(shuffledCases);
+            for (var at = 0; at < built.Count; at++)
+            {
+                var straight = Seeds.Compiled(built[at], Seeds.Options(4, 64, StoragePolicy.Shared));
+                var reordered = Seeds.Compiled(shuffledBuilt[at], Seeds.Options(4, 64, StoragePolicy.Shared));
+                var difference = RunTrace.FirstDifference(straight, reordered, true);
+                if (difference.Length > 0)
+                {
+                    failures.Add(Seeds.Receipt("redteam-storm-order-" + pack, shuffledBuilt[at], difference));
                 }
             }
 

@@ -261,6 +261,34 @@ public sealed unsafe class RedTeamHostMisuseTests
         Assert.True(spawned.Count == 100 || chargesLast == chargesFirst, "slot " + last + " is live but its edge emit to itself was dropped");
     }
 
+    static string HardCapEmits<TKernels>(PackPlan plan, int rawCapacity, int attackers)
+        where TKernels : struct, IPackKernels
+    {
+        using var duo = new RedTeamDuo<TKernels>(plan, new HostOptions { Workers = 1, Parts = 4, EntityCapacity = 4096, Arena = ArenaPolicy.HardCap, RawCapacity = rawCapacity });
+        var knight = duo.Spawn(1);
+        var riflemen = Enumerable.Range(0, attackers).Select(_ => duo.Spawn(3)).ToArray();
+        duo.Step();
+        foreach (var rifleman in riflemen)
+        {
+            duo.Send(knight, rifleman, 2, 0, 1);
+        }
+
+        duo.Step();
+        duo.Step();
+        var line = "raw capacity " + rawCapacity + ", attackers " + attackers + ": first rifleman Health compiled " + duo.Host.Read(riflemen[0], 2) + ", reference " + duo.State.Intrinsic(riflemen[0], 2) + ", dropped layers " + duo.Host.Raw.DroppedLayers + ", dropped records " + duo.Host.Raw.DroppedRecords;
+        Assert.True(duo.Host.Digest() == duo.ReferenceDigest, line);
+        return line;
+    }
+
+    [Theory]
+    [InlineData(1 << 16, 300)]
+    [InlineData(4096, 300)]
+    [InlineData(1, 1000)]
+    public void Thorns_under_a_hard_capped_raw_arena_reflect_like_the_reference(int rawCapacity, int attackers)
+    {
+        output.WriteLine((string)Packs.Call(typeof(RedTeamHostMisuseTests), nameof(HardCapEmits), typeof(ReferenceKernels), Packs.Reference, rawCapacity, attackers)!);
+    }
+
     [Theory]
     [InlineData(StoragePolicy.Shared, 200_000)]
     [InlineData(StoragePolicy.Dense, 1_000_000)]
