@@ -1170,11 +1170,12 @@ Gate [TARGET]: at rest (no history, empty arenas) <= 200 B per entity on the ref
 | D4 | sum, then clamp once, as the meaning of a frame | keep (clause 19) |
 | D5 | replay mode, and what the game does with a retracted event | sv-only; game decides per event |
 | D6 | the gate: 8.3 ms at 1M entities and 1M records; is 60 Hz required | gate 30 Hz, report 60 Hz |
-| D7 | approve contract v3.0.0 | - |
+| D7 | approve contract v3.0.0 | approved 2026-11-12 (contract/CONTRACT-v3.0.0.md header) |
 | D8 | sourced timeline effects: status entity, or ask tl for a playback tag | status entity now |
 | D9 | default capacity of an outward event channel | 16,384 [FACT: today's default] |
 | D10 | arena full: grow once and rerun, or lossy merge at a hard cap | grow on servers and editor; hard cap in the browser |
-| D11 | is scenario r (1,000,000 uniformly random cross-entity records) inside the 8.3 ms gate | No (2026-11-14, decided under the owner's delegation "do what is best for this repo"): the gate covers records arriving chunk-bucketed (timeline and Collect driven, shapes A and B; B 7.8 ms passes). r is a stress benchmark with a no-regression ceiling of 19.0 ms (median of 5 x 50 frames, Lego pack, reference box). Reason: measured floor of the current design is 17.6-18 ms after three optimization passes and an outside senior review (issue 0374); reaching 8.3 needs a week-scale redesign (single-writer range partition, fused Seal/Log/Decide), and no game sends uniformly random target and source at 1M per frame. Revisit if a real game workload looks like r. |
+| D20 | is scenario r (1,000,000 uniformly random cross-entity records) inside the 8.3 ms gate | No (2026-11-14, decided under the owner's delegation "do what is best for this repo"): the gate covers records arriving chunk-bucketed (timeline and Collect driven, shapes A and B; B 7.8 ms passes). r is a stress benchmark with a no-regression ceiling of 19.0 ms (median of 5 x 50 frames, Lego pack, reference box). Reason: measured floor of the current design is 17.6-18 ms after three optimization passes and an outside senior review (issue 0374); reaching 8.3 needs a week-scale redesign (single-writer range partition, fused Seal/Log/Decide), and no game sends uniformly random target and source at 1M per frame. Revisit if a real game workload looks like r. |
+| D21 | approve contracts v3.1.0 (rule bricks) and v3.2.0 (stat layers, derived stats); confirm the readings of issues 0180, 0190, 0200, 0210, 0330, 0350 | approved and confirmed 2026-11-14 by the lead dev under the owner's delegation; both contracts are additive (pins unchanged); decisions recorded in each issue |
 
 ### 17.4 Not verified
 

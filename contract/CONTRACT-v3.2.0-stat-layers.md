@@ -1,4 +1,4 @@
-owner approval pending, bus unreachable (written by S2 for the owner, 2026-11-13; additive over v3.1.0)
+approved 2026-11-14 (decision D21, decided by the lead dev under the owner's standing delegation ("think like a senior dev and take shots", 2026-11-14)); additive, every existing PackHash and digest unchanged
 
 # The Composition Contract - v3.2.0 (stat layers and derived stats; amendments over v3.0.1 and v3.1.0)
 

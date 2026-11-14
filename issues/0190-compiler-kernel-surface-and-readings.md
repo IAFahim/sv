@@ -1,6 +1,6 @@
 # 0190 rule compiler: kernel call surface against issue 0200, and readings taken
 
-Status: open (1-3 need reconciling with C2's `IPackKernels`; 4-7 are readings the emitter follows)
+Status: closed (2026-11-14, decided by the lead dev under the owner's standing delegation ("think like a senior dev and take shots", 2026-11-14))
 
 Found while writing `src/Sv.Rules/Passes` and `src/Sv.Rules/Emit` (branch v3/c1-compiler).
 
@@ -33,3 +33,7 @@ Found while writing `src/Sv.Rules/Passes` and `src/Sv.Rules/Emit` (branch v3/c1-
 Receipts: `dotnet build src/Sv.Rules/Sv.Rules.csproj -c Release`, net10.0 and netstandard2.1, 0 warnings. The reference
 pack's generated `Values.g.cs` and `Kernels.g.cs` were compiled in a scratch project against Sv.Core (net10.0 and
 netstandard2.1, C# 9, warnings as errors): 0 warnings, 0 errors. Nothing run (no tests this wave by owner order).
+
+## Decision (2026-11-14)
+
+Items 1-3 were settled by the implementation: `IPackKernels` and the generated `HostKernels` run in .NET and in Unity (Burst jobs, 101 Unity tests), and the Decide signature has since grown (`totals`, `written`, `records`) through reviewed commits. Readings 4-7 confirmed as written; edge emits keep Triggered or Reflected origin (0200 item 6).

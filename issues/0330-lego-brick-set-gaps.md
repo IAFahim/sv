@@ -1,6 +1,6 @@
 # 0330 brick-set acceptance (Lego test): missing bricks and readings that need an owner decision
 
-Status: open (owner or senior decides; no production code is wrong against the contract)
+Status: closed (2026-11-14, decided by the lead dev under the owner's standing delegation ("think like a senior dev and take shots", 2026-11-14))
 
 Found by L1 (branch v3/lego), full receipts in `docs/LEGO-REPORT.md`. 22 mechanics written as pack rows only (`packs/lego`),
 every scenario gives the hand-computed numbers and equal digests on the reference interpreter and compiled kernels
@@ -21,3 +21,7 @@ Readings to confirm:
 - per Hit emits count offered hits, absorbed ones included (`Interpreter.UnitAmount`; scenario 22: Health 55, not 45).
 - card modifiers fold once while held, whatever the count (`Interpreter.Stats`, `StatMachine.Cards`).
 - self emits exist only for entities with records this frame, so tl's Tick is the only clock (clause 7, by design).
+
+## Decision (2026-11-14)
+
+Readings confirmed: per-Hit emits count offered hits; card modifiers fold once while held unless the per-count brick is used; self emits exist only for entities with records (tl Tick is the clock). Bricks 1-6 were delivered by contract v3.1.0 (assign, emit from cell, per-count and cell-driven Shape, deterministic roll, spend) and v3.2.0 (stat layers, derived stats). Accepted as known limits, not blockers: the same-frame lethal check (a revive acts one frame late) and masks above bit 63. Both are listed in docs/PRODUCTION-CHECKLIST.md.

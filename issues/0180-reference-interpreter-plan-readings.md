@@ -1,6 +1,6 @@
 # 0180 reference interpreter: plan contradictions and the readings taken
 
-Status: open (owner or senior confirms each reading; code follows the reading today)
+Status: closed (2026-11-14, decided by the lead dev under the owner's standing delegation ("think like a senior dev and take shots", 2026-11-14))
 
 Found while writing `src/Sv.Rules/Pack` and `src/Sv.Rules/Reference` (branch v3/b1-reference).
 
@@ -26,3 +26,7 @@ Found while writing `src/Sv.Rules/Pack` and `src/Sv.Rules/Reference` (branch v3/
 
 Receipts: `dotnet build src/Sv.Rules/Sv.Rules.csproj -c Release` green on net10.0 and netstandard2.1. Nothing run
 (this wave has no tests by owner order).
+
+## Decision (2026-11-14)
+
+All eight readings confirmed as written: they keep one algebra (StatMath), are merge-invariant and replay-safe, and every one is pinned by the Scenario, Diff and Lego suites and the worked example digest E0F445186E2C3672. Changing any of them would change behaviour and pins for no game benefit.

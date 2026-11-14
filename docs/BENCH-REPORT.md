@@ -19,9 +19,9 @@ nothing else on the CPU, Vector256 on. Every frame number is the median of 5 pro
   1,500,000 random (3,248,724). Random = Physical 50 %, Healing 25 %, Fire, Poison; amount 1-8, hits 1-2, source random, kind of source.
 - Phase times come from `FrameLoop.Marks` (commit 4372554: ten timestamps per Step, no other change).
 
-## Gate status (2026-11-14, decision D11)
+## Gate status (2026-11-14, decision D20)
 
-The 8.3 ms gate covers chunk-bucketed load (records from timelines and Collect): A 2.4-2.8 ms and B 7.7-7.8 ms pass. Scenario r (1M uniformly random cross-entity records) is a stress benchmark with a no-regression ceiling of 19.0 ms (median of 5 x 50 frames); it is 17.6-18.1 ms on a quiet box. C and D are reported only. See plan.md D11 and issue 0374.
+The 8.3 ms gate covers chunk-bucketed load (records from timelines and Collect): A 2.4-2.8 ms and B 7.7-7.8 ms pass. Scenario r (1M uniformly random cross-entity records) is a stress benchmark with a no-regression ceiling of 19.0 ms (median of 5 x 50 frames); it is 17.6-18.1 ms on a quiet box. C and D are reported only. See plan.md D20 and issue 0374.
 
 ## Update P3 (2026-11-14, agent worktree branch from v3/m8-unity 6c219e2, merged into v3/m8-unity 94311ca)
 

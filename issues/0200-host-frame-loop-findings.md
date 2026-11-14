@@ -1,6 +1,6 @@
 # 0200 host frame loop: rewind gap, kernel call surface, readings taken
 
-Status: open (1 and 2 need the owner or senior; 3-6 are readings the code follows)
+Status: closed (2026-11-14, decided by the lead dev under the owner's standing delegation ("think like a senior dev and take shots", 2026-11-14))
 
 Found while writing `src/Sv.Host` and `src/Sv.Pack` (branch v3/c2-host).
 
@@ -35,3 +35,7 @@ Receipts: `dotnet build src/Sv.Pack/Sv.Pack.csproj -c Release` (Sv.Core and Sv.R
 and `dotnet build benchmarks/Sv.Bench/Sv.Bench.csproj -c Release`: 0 warnings, 0 errors. `sv run packs/reference
 packs/reference/scenarios` on the reference interpreter: worked example health 95, S2 health 75 next frame, digest
 E0F445186E2C3672 (not pinned). No tests run (owner order).
+
+## Decision (2026-11-14)
+
+Item 1 (per-epoch carry of in-flight derived records) accepted: it is the only way Rewind lands on a frame start that replays identically, and the rewind laws pin it. Item 2 is implemented (`IPackKernels`). Readings 3-6 confirmed; `Origin.Direct` stays forbidden for generated edge emits.

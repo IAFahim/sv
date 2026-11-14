@@ -1,6 +1,6 @@
 # 0350 rule bricks v3.1.0: readings taken where the brief and plan are silent
 
-Status: open (owner confirms each reading; the code and `contract/CONTRACT-v3.1.0-bricks.md` follow them today)
+Status: closed (2026-11-14, decided by the lead dev under the owner's standing delegation ("think like a senior dev and take shots", 2026-11-14))
 
 Found while adding the five bricks from issue 0330 (branch v3/b1-bricks).
 
@@ -24,3 +24,7 @@ Found while adding the five bricks from issue 0330 (branch v3/b1-bricks).
 Receipts: Laws 481/481 (341 + 140 new), Scenario 80/80, Lego 119/119 (90 + 29 new), Diff 16/16 (12 + 4 new, 160 brick seeds),
 on default, `DOTNET_EnableAVX2=0` and `DOTNET_EnableHWIntrinsic=0`. 680 existing diff packs: PackHash and every per-frame
 reference digest byte-identical before and after (dumped and compared). The 22 old lego scenarios print the report's digests.
+
+## Decision (2026-11-14)
+
+All eight readings confirmed as written, and contract v3.1.0 is approved (decision D21).

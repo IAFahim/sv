@@ -1,6 +1,6 @@
 # 0210 integer stats (D11): gaps found while porting the stat machine
 
-Status: open (owner or senior decides 1-4; 5-6 are integration notes)
+Status: closed (2026-11-14, decided by the lead dev under the owner's standing delegation ("think like a senior dev and take shots", 2026-11-14))
 
 Found while writing `src/Sv.Core/Stats` and the integer fold of `src/Sv.Rules` (branch v3/c3-stats).
 
@@ -21,3 +21,7 @@ Found while writing `src/Sv.Core/Stats` and the integer fold of `src/Sv.Rules` (
 
 Receipts: `dotnet build src/Sv.Core/Sv.Core.csproj -c Release` and `dotnet build src/Sv.Rules/Sv.Rules.csproj -c Release`, net10.0 and
 netstandard2.1, 0 warnings, 0 errors. Nothing run (no tests this wave by owner order).
+
+## Decision (2026-11-14)
+
+1: the machine's `StatOp` model (source ids, expiry) is the production model; the oracle's handle model stays a test oracle, and the Lego and Scenario suites check card and stat outcomes against it. Unify only if a diff test finds a divergence. 2: keep `ExprType.Float` for literals only (single IEEE operations, no float state); stat reads stay whole designer units. 3: done in contract v3.2.0 (derived-stat rows). 4: superseded by v3.0.1. 5: a project references legacy `com.sv.core` (namespace `Sv`, sv 2.1) or v3 `com.sv.engine`, never both in one assembly; stated in docs/PRODUCTION-CHECKLIST.md. 6: done by the host.
