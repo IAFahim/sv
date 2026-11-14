@@ -288,8 +288,8 @@ All of these are rows in `packs/reference` or `packs/lego`, each with scenario t
 **Use exactly Unity 7000.0.0a16** with Entities 7.0.0, Collections 7.0.0 and Burst 2.0.0 (the same editor as tl.unity). Add to `Packages/manifest.json`, pinned to a release tag:
 
 ```json
-"com.sv.engine": "https://github.com/IAFahim/sv.git?path=/packages/com.sv.engine#v3.0.0-rc.3",
-"com.sv.unity.v4": "https://github.com/IAFahim/sv.git?path=/packages/com.sv.unity.v4#v3.0.0-rc.3"
+"com.sv.engine": "https://github.com/IAFahim/sv.git?path=/packages/com.sv.engine#v3.0.0-rc.4",
+"com.sv.unity.v4": "https://github.com/IAFahim/sv.git?path=/packages/com.sv.unity.v4#v3.0.0-rc.4"
 ```
 
 The repository is private: Unity clones with your local git credentials, so your account needs access. With a local checkout use `"file:<sv checkout>/packages/com.sv.engine"` (and the same for the adapter) instead. `SV_GIT_REF=<tag> bash eng/player-smoke.sh` builds a player from exactly these git packages.

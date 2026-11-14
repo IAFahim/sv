@@ -142,5 +142,50 @@ namespace DiffTests
             var failures = AgainstReference("statops", seeds.Range(Seeds.StatOps, Seeds.VariantCount), out var checkedCount);
             Verdict("statops", checkedCount, failures);
         }
+
+        [Fact]
+        public void Compiled_kernels_equal_the_reference_when_the_capacity_is_not_a_multiple_of_64()
+        {
+            var failures = new List<string>();
+            var checkedCount = 0;
+            foreach (var item in seeds.Range(Seeds.Main, Seeds.MainCount).Where(item => item.Ready))
+            {
+                checkedCount++;
+                var tight = Seeds.Options(1, 64, StoragePolicy.Shared);
+                tight.EntityCapacity = 1;
+                var difference = RunTrace.FirstDifference(Seeds.Reference(item), Seeds.Compiled(item, tight), true);
+                if (difference.Length > 0)
+                {
+                    failures.Add(Seeds.Receipt("tightcapacity", item, difference));
+                }
+            }
+
+            Verdict("tightcapacity", checkedCount, failures);
+        }
+
+        [Fact]
+        public void A_hard_capped_arena_merges_and_cuts_like_the_reference()
+        {
+            var failures = new List<string>();
+            var checkedCount = 0;
+            foreach (var item in seeds.Range(Seeds.Main, Seeds.MainCount).Where(item => item.Ready))
+            {
+                checkedCount++;
+                foreach (var limit in new[] { 3, 6, 24 })
+                {
+                    var capped = Seeds.Options(1, 64, StoragePolicy.Shared);
+                    capped.Arena = ArenaPolicy.HardCap;
+                    capped.CanonicalLimit = limit;
+                    var difference = RunTrace.FirstDifference(Seeds.Reference(item, limit), Seeds.Compiled(item, capped), true);
+                    if (difference.Length > 0)
+                    {
+                        failures.Add(Seeds.Receipt("hardcap", item, "limit " + limit + ": " + difference));
+                        break;
+                    }
+                }
+            }
+
+            Verdict("hardcap", checkedCount, failures);
+        }
     }
 }

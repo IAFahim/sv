@@ -122,6 +122,33 @@ namespace DiffTests
             + string.Join(",", channels.Select(channel => "{\"frame\":0,\"target\":\"E0\",\"channel\":\"" + channel + "\",\"amount\":1}")) + "]}";
 
         [Theory]
+        [InlineData("rule", -1)]
+        [InlineData("card", -1)]
+        [InlineData("template", -1)]
+        [InlineData("rule", 1)]
+        public void A_negative_rule_card_or_template_id_is_rejected_when_the_pack_compiles(string row, int id)
+        {
+            var values = "{\"schema\":1,\"nextLane\":2,\"rows\":[{\"id\":0,\"name\":\"Health\",\"class\":\"intrinsic\",\"default\":10},{\"id\":1,\"name\":\"Charges\",\"class\":\"intrinsic\",\"default\":0},{\"id\":0,\"name\":\"C0\",\"class\":\"channel\"}]}";
+            var ruleId = row == "rule" ? id : 1;
+            var cardId = row == "card" ? id : 1;
+            var templateId = row == "template" ? id : 1;
+            var rules = "{\"schema\":1,\"rows\":[{\"id\":" + ruleId + ",\"name\":\"emit\",\"layer\":\"emit\",\"depthLimit\":0,\"when\":true,\"then\":[{\"emit\":{\"to\":\"Self\",\"channel\":\"C0\",\"amount\":1}}]}]}";
+            var cards = "{\"schema\":1,\"rows\":[{\"id\":" + cardId + ",\"name\":\"card\",\"value\":\"Charges\",\"modifiers\":[]}]}";
+            var templates = "{\"schema\":1,\"rows\":[{\"id\":" + templateId + ",\"name\":\"base\"}]}";
+            var compiled = Sv.Rules.PackCompiler.Compile(new Sv.Rules.PackSource(values, rules, cards, templates));
+            output.WriteLine(row + " id " + id + ": " + string.Join("; ", compiled.Diagnostics.Select(d => d.ToString())));
+            if (id < 0)
+            {
+                Assert.False(compiled.Ok);
+                Assert.Contains(compiled.Diagnostics, d => d.Code == Sv.Rules.DiagnosticCode.IdOutOfRange);
+            }
+            else
+            {
+                Assert.True(compiled.Ok);
+            }
+        }
+
+        [Theory]
         [InlineData(-7, "Frame", "\"C1\"", "\"C0\"", "C0,C1")]
         [InlineData(-8, "Source", "\"C1\"", "\"C0\"", "C0,C1")]
         [InlineData(-9, "Frame", "\"C2\",\"C0\"", "\"C2\",\"C3\"", "C0,C3")]

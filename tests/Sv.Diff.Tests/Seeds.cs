@@ -66,6 +66,8 @@ namespace DiffTests
 
         public static RunTrace Reference(CompiledCase item) => Runs.Reference(item.Plan!, Runs.Read(item.Plan!, item.Case.Scenario));
 
+        public static RunTrace Reference(CompiledCase item, int arenaCapacity) => Runs.Reference(item.Plan!, Runs.Read(item.Plan!, item.Case.Scenario), arenaCapacity);
+
         public static HostOptions Options(int workers, int parts, StoragePolicy policy) =>
             new HostOptions { Workers = workers, Parts = parts, Policy = policy, EntityCapacity = 1024 };
 

@@ -788,6 +788,11 @@ namespace Sv.Rules
 
                 CheckKeys(row, new[] { "id", "name", "value", "modifiers" });
                 RequireInt(row, "id", out var id);
+                if (id < 0)
+                {
+                    Error(DiagnosticCode.IdOutOfRange, row, "card id " + Text(id) + " is negative; ids are 0 or more");
+                }
+
                 var name = RequireString(row, "name");
                 var valueName = RequireString(row, "value");
                 var intrinsic = FindName(intrinsics, valueName);
@@ -944,6 +949,11 @@ namespace Sv.Rules
 
                 CheckKeys(row, new[] { "id", "name", "values", "cards", "forwards" });
                 RequireInt(row, "id", out var id);
+                if (id < 0)
+                {
+                    Error(DiagnosticCode.IdOutOfRange, row, "template id " + Text(id) + " is negative; ids are 0 or more");
+                }
+
                 var name = RequireString(row, "name");
                 var settings = new Rows<ValueSetting>();
                 var values = row.Find("values");
@@ -1149,6 +1159,11 @@ namespace Sv.Rules
 
                 RequireInt(row, "id", out var id);
                 ruleId = id;
+                if (id < 0)
+                {
+                    Error(DiagnosticCode.IdOutOfRange, row, "rule id " + Text(id) + " is negative; ids are 0 or more");
+                }
+
                 for (var s = 0; s < seen.Count; s++)
                 {
                     if (seen[s] == id)
