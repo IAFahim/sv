@@ -14,6 +14,7 @@ namespace DiffTests
         public bool StatOps;
         public bool Absorb = true;
         public bool Bricks;
+        public bool Churn;
     }
 
     public sealed class GeneratedCase
@@ -52,10 +53,12 @@ namespace DiffTests
         readonly int[] statScale;
         readonly List<string> grants = new List<string>();
         readonly List<string> templateNames = new List<string>();
+        readonly int seed;
         int ruleId = 1000;
 
         PackGenerator(int seed, GeneratorOptions options)
         {
+            this.seed = seed;
             random = new Random(seed);
             this.options = options;
             stats = 1 + random.Next(3);
@@ -518,6 +521,15 @@ namespace DiffTests
                 entities.Add("{\"name\":\"E" + N(e) + "\",\"template\":\"" + templateNames[template] + "\"" + (frame > 0 ? ",\"frame\":" + N(frame) : string.Empty) + "}");
             }
 
+            Random? churn = null;
+            List<(int Entity, int Frame)>? churnKills = null;
+            List<(int Entity, int Template, int Frame)>? churnSpawns = null;
+            if (options.Churn)
+            {
+                churn = new Random(unchecked(seed * 486187739 ^ 0x2F6E2B1));
+                PrepareChurn(churn, plan, entities, count, frames, out churnKills, out churnSpawns);
+            }
+
             SlotPlanner.Plan(plan);
             var sends = new List<string>();
             for (var e = 0; e < count; e++)
@@ -580,6 +592,11 @@ namespace DiffTests
                 }
             }
 
+            if (options.Churn && churn != null && churnKills != null && churnSpawns != null)
+            {
+                AddChurnTraffic(churn, plan, frames, churnKills, churnSpawns, sends, kills);
+            }
+
             var text = new StringBuilder();
             text.Append("{\"schema\":1,\"name\":\"generated\",\"frames\":").Append(N(frames)).Append(",\n\"entities\":[\n").Append(string.Join(",\n", entities)).Append("],\n");
             text.Append("\"sends\":[\n").Append(string.Join(",\n", sends)).Append("],\n");
@@ -588,42 +605,132 @@ namespace DiffTests
             return text.ToString();
         }
 
-        string Send(int frame, int count)
+        void PrepareChurn(
+            Random churn,
+            SvScenario plan,
+            List<string> entities,
+            int initialCount,
+            int frames,
+            out List<(int Entity, int Frame)> churnKills,
+            out List<(int Entity, int Template, int Frame)> churnSpawns)
         {
-            var text = new StringBuilder();
-            text.Append("{\"frame\":").Append(N(frame)).Append(",\"target\":\"E").Append(N(random.Next(count))).Append('"');
-            if (Chance(75))
+            churnKills = new List<(int Entity, int Frame)>();
+            churnSpawns = new List<(int Entity, int Template, int Frame)>();
+
+            var lo = (initialCount * 30 + 99) / 100;
+            var hi = Math.Max(lo, (initialCount * 60) / 100);
+            var killTarget = lo + churn.Next(hi - lo + 1);
+
+            var candidates = new int[initialCount];
+            for (var i = 0; i < initialCount; i++)
             {
-                text.Append(",\"source\":\"E").Append(N(random.Next(count))).Append('"');
+                candidates[i] = i;
             }
 
-            var grant = Chance(25);
-            var channel = grant ? Pick(grants) : RandomDamage();
+            for (var i = 0; i < killTarget; i++)
+            {
+                var pick = i + churn.Next(initialCount - i);
+                (candidates[i], candidates[pick]) = (candidates[pick], candidates[i]);
+                var entity = candidates[i];
+                var minFrame = Math.Max(1, (int)plan.Entities[entity].Frame);
+                var killFrame = minFrame + churn.Next(Math.Max(1, frames - minFrame));
+                churnKills.Add((entity, killFrame));
+            }
+
+            var spawnExtra = Math.Max(2, killTarget + churn.Next(3));
+            for (var s = 0; s < spawnExtra; s++)
+            {
+                var template = churn.Next(templateNames.Count);
+                var spawnFrame = s < churnKills.Count && (s == 0 || churn.Next(2) == 0)
+                    ? churnKills[s].Frame
+                    : 1 + churn.Next(Math.Max(1, frames - 1));
+                var entityIndex = plan.Entities.Count;
+                plan.Entities.Add(new ScenarioEntity { Name = "E" + N(entityIndex), TemplateIndex = template, Frame = spawnFrame });
+                entities.Add("{\"name\":\"E" + N(entityIndex) + "\",\"template\":\"" + templateNames[template] + "\",\"frame\":" + N(spawnFrame) + "}");
+                churnSpawns.Add((entityIndex, template, spawnFrame));
+            }
+        }
+
+        void AddChurnTraffic(
+            Random churn,
+            SvScenario plan,
+            int frames,
+            List<(int Entity, int Frame)> churnKills,
+            List<(int Entity, int Template, int Frame)> churnSpawns,
+            List<string> sends,
+            List<string> kills)
+        {
+            var totalEntities = plan.Entities.Count;
+            foreach (var (entity, killFrame) in churnKills)
+            {
+                kills.Add("{\"frame\":" + N(killFrame) + ",\"entity\":\"E" + N(entity) + "\"}");
+            }
+
+            foreach (var (entity, template, spawnFrame) in churnSpawns)
+            {
+                if (templateNames[template] == "part" || churn.Next(100) < 25)
+                {
+                    var owner = churn.Next(totalEntities);
+                    sends.Add("{\"frame\":" + N(spawnFrame) + ",\"target\":\"E" + N(entity) + "\",\"channel\":\"SetOwner\",\"amount\":" + N(plan.Entities[owner].Slot + 1) + "}");
+                }
+
+                sends.Add(SendFrom(churn, spawnFrame, totalEntities, entity));
+                if (spawnFrame + 1 < frames)
+                {
+                    var laterFrame = spawnFrame + 1 + churn.Next(frames - spawnFrame - 1);
+                    sends.Add(SendFrom(churn, laterFrame, totalEntities, entity));
+                }
+            }
+
+            for (var frame = 1; frame < frames; frame++)
+            {
+                var extra = churn.Next(3);
+                for (var s = 0; s < extra; s++)
+                {
+                    sends.Add(SendFrom(churn, frame, totalEntities, null));
+                }
+            }
+        }
+
+        string Send(int frame, int count) => SendFrom(random, frame, count, null);
+
+        string SendFrom(Random rng, int frame, int count, int? fixedTarget)
+        {
+            var target = fixedTarget ?? rng.Next(count);
+            var text = new StringBuilder();
+            text.Append("{\"frame\":").Append(N(frame)).Append(",\"target\":\"E").Append(N(target)).Append('"');
+            if (rng.Next(100) < 75)
+            {
+                text.Append(",\"source\":\"E").Append(N(rng.Next(count))).Append('"');
+            }
+
+            var grant = rng.Next(100) < 25;
+            var channel = grant ? grants[rng.Next(grants.Count)] : Damage(rng.Next(damage));
             int amount;
             if (grant)
             {
-                amount = channel == "GiveMask" ? random.Next(8) : channel == "GiveBudget" ? 1 + random.Next(30) : random.Next(5) - 1;
-                amount = channel == "SetOwner" ? random.Next(3) - 1 : amount;
+                amount = channel == "GiveMask" ? rng.Next(8) : channel == "GiveBudget" ? 1 + rng.Next(30) : rng.Next(5) - 1;
+                amount = channel == "SetOwner" ? rng.Next(3) - 1 : amount;
             }
             else
             {
-                var roll = random.Next(100);
-                amount = roll < 10 ? -1 - random.Next(20) : roll < 13 ? 1_000_000_000 : 1 + random.Next(60);
+                var roll = rng.Next(100);
+                amount = roll < 10 ? -1 - rng.Next(20) : roll < 13 ? 1_000_000_000 : 1 + rng.Next(60);
             }
 
             text.Append(",\"channel\":\"").Append(channel).Append("\",\"amount\":").Append(N(amount));
-            var hitRoll = random.Next(100);
+            var hitRoll = rng.Next(100);
             if (hitRoll >= 70)
             {
-                text.Append(",\"hits\":").Append(N(hitRoll >= 97 ? 100000 : 2 + random.Next(3)));
+                text.Append(",\"hits\":").Append(N(hitRoll >= 97 ? 100000 : 2 + rng.Next(3)));
             }
 
-            if (Chance(15))
+            if (rng.Next(100) < 15)
             {
-                text.Append(",\"kind\":\"K").Append(N(random.Next(kinds))).Append('"');
+                text.Append(",\"kind\":\"K").Append(N(rng.Next(kinds))).Append('"');
             }
 
-            if (Chance(20))
+            if (rng.Next(100) < 20)
             {
                 text.Append(",\"origin\":\"Timeline\"");
             }
