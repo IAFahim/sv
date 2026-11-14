@@ -4,9 +4,11 @@ sv keeps **the numbers of every entity**: health, shields, stats, statuses, char
 
 This file is the whole course. Read it top to bottom and you will know how sv works, how to design with it, what it cannot do, and where it will bite you. The code in chapter 1 is a real program in this repository (`samples/Sv.Hello`), and CI runs it on Linux x64, Linux ARM64, macOS and Windows and checks it prints exactly the numbers shown here. Other snippets name the tested file they come from.
 
+**Showing sv to someone?** `docs/DEMO.md` is a 10-minute script with tonight's real outputs.
+
 **Who it is for:** programmers. A designer edits the four pack files (or the Pack Authoring window in Unity) and never writes C#.
 
-**Status:** release candidate `v3.0.0-rc.2`. Engine `com.sv.engine` 3.0.0, Unity adapter `com.sv.unity.v4` 4.0.0, contract v3.0.0 to v3.2.0 (`contract/`).
+**Status:** release candidate `v3.0.0-rc.4` (what changed: `CHANGELOG.md`). Engine `com.sv.engine` 3.0.0, Unity adapter `com.sv.unity.v4` 4.0.0, contract v3.0.0 to v3.2.0 (`contract/`).
 
 ## Contents
 
