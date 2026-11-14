@@ -104,5 +104,34 @@ namespace DiffTests
                 + "{\"frame\":0,\"entity\":\"E0\",\"stat\":\"S0\",\"shape\":\"Added\",\"value\":3,\"source\":1}]}";
             SameOnBothHosts(new GeneratedCase { Seed = -4, Namespace = "Diff.OneSource", Values = StatValues, Rules = NoRules, Cards = NoCards, Templates = OneTemplate, Scenario = scenario });
         }
+
+        const string FourChannelValues = "{\"schema\":1,\"nextLane\":1,\"rows\":[\n"
+            + "{\"id\":0,\"name\":\"Health\",\"class\":\"intrinsic\",\"default\":10},\n"
+            + "{\"id\":0,\"name\":\"C0\",\"class\":\"channel\"},\n"
+            + "{\"id\":1,\"name\":\"C1\",\"class\":\"channel\"},\n"
+            + "{\"id\":2,\"name\":\"C2\",\"class\":\"channel\"},\n"
+            + "{\"id\":3,\"name\":\"C3\",\"class\":\"channel\"}\n]}";
+
+        static string AggregateEmitRules(string per, string offered, string taken) => "{\"schema\":1,\"rows\":[\n"
+            + "{\"id\":1,\"name\":\"flow\",\"layer\":\"flow\",\"then\":[{\"subtract\":[\"Health\",\"C0\"]}]},\n"
+            + "{\"id\":2,\"name\":\"emit\",\"layer\":\"emit\",\"depthLimit\":1,\"when\":{\"and\":[{\"gt\":[{\"offered\":[" + offered + "]},0]},{\"gt\":[{\"taken\":[" + taken + "]},0]}]},"
+            + "\"then\":[{\"emit\":{\"to\":\"Self\",\"channel\":\"C0\",\"amount\":1,\"per\":\"" + per + "\"}}]}\n]}";
+
+        static string SendsScenario(params string[] channels) =>
+            "{\"schema\":1,\"name\":\"aggregate\",\"frames\":2,\"entities\":[{\"name\":\"E0\",\"template\":\"base\"}],\"sends\":["
+            + string.Join(",", channels.Select(channel => "{\"frame\":0,\"target\":\"E0\",\"channel\":\"" + channel + "\",\"amount\":1}")) + "]}";
+
+        [Theory]
+        [InlineData(-7, "Frame", "\"C1\"", "\"C0\"", "C0,C1")]
+        [InlineData(-8, "Source", "\"C1\"", "\"C0\"", "C0,C1")]
+        [InlineData(-9, "Frame", "\"C2\",\"C0\"", "\"C2\",\"C3\"", "C0,C3")]
+        [InlineData(-10, "Source", "\"C2\",\"C1\"", "\"C2\",\"C3\"", "C1,C3")]
+        [InlineData(-11, "Frame", "\"C2\",\"C0\"", "\"C2\",\"C3\"", "C2")]
+        [InlineData(-12, "Frame", "\"C1\"", "\"C0\"", "C0")]
+        public void An_aggregate_emit_fires_when_each_conjunct_sees_its_own_channel(int seed, string per, string offered, string taken, string sends)
+        {
+            var scenario = SendsScenario(sends.Split(','));
+            SameOnBothHosts(new GeneratedCase { Seed = seed, Namespace = "Diff.Aggregate" + (-seed), Values = FourChannelValues, Rules = AggregateEmitRules(per, offered, taken), Cards = NoCards, Templates = OneTemplate, Scenario = scenario });
+        }
     }
 }
