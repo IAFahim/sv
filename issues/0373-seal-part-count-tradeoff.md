@@ -1,6 +1,6 @@
 # 0373 Seal part count: fewer Count/Scatter parts help A and B, hurt random-heavy frames (r, C, D)
 
-Status: open (measured and reverted in P3; a per-frame choice is not designed)
+Status: closed (2026-11-14, decided by the lead dev under the owner's standing delegation)
 
 Found by P3 (2026-11-14, worktree branch from v3/m8-unity 6c219e2, after the source-chunk table and the Seal order fusion).
 
@@ -19,3 +19,7 @@ Reading: the matrix clear, plan walk and per-part cursor rows cost in every fram
 Scatter covers more blocks and the slowest of two parts per worker sets the end (r, C, D lose). The gate case is r, so it was
 reverted. Open: choose the Count/Scatter part count per frame from the raw arena (ordered blocks vs unordered), or size the matrix
 by the chunks a part touched (issue 0362).
+
+## Decision (2026-11-14)
+
+Closed by decision D20: 64 parts stays the default (best for random-heavy frames, within noise for B); a per-frame part count is not worth its design cost while B passes.

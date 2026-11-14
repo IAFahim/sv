@@ -1,6 +1,6 @@
 # 0370 Decide after K1: 17 ns per single-record target, 46 ns per record when rules read random source cells; what is left needs more than the emitter
 
-Status: open (design: cross-entity reads; per-target dispatch)
+Status: closed (2026-11-14, decided by the lead dev under the owner's standing delegation)
 
 Found by K1 (branch v3/k1-decide, after d390be0). Lego pack, Ryzen 5 8500G, Release, median of 3 processes x 50 frames.
 
@@ -68,3 +68,7 @@ What limits it:
 - Not done: carrying source values in the record at send time (contract change, and the table removes most of the miss);
   per-record CSE of the source entry across gate and emit methods (emitter, separate methods); compact entries (the table is an L3
   hit now: `bt` on the Present word is the remaining stall, 12 % of `Target<Lone0>` samples before the value rows).
+
+## Decision (2026-11-14)
+
+Closed by decision D20; the floor analysis and the measured follow-ups (source-chunk table kept, prefetch and huge pages refuted on this box) are in issue 0374.

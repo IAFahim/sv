@@ -1,8 +1,8 @@
 # Issue 0151 - Small leftovers
 
-Status: open
+Status: closed (2026-11-14, decided by the lead dev under the owner's standing delegation)
 
-Labels: `ai`, `area:core`, `open`.
+Labels: `ai`, `area:core`, `closed`.
 
 1. **SV_CHECKED test (also in 0134):** `BindingGenerationTests.ExternalBind_Invalidate_Recalculate_CheckedThrows_ReleaseParks`
    fails under `-p:DefineConstants=SV_CHECKED` on main `ac0e065`: expects a throw, the binding parks. Owner decision: the
@@ -16,3 +16,8 @@ Labels: `ai`, `area:core`, `open`.
    10 percent to one slot through the Unity send pass and decide the default.
 6. **Commit trailer:** phase 2 agents signed `Claude Opus 5.5`; BRIEF asked `Claude Sonnet 5.5`. Cosmetic; local history.
 7. **Cleanup:** phase-1 and phase-2 worktrees and `proto/*`, `proto2/*` branches under `D:\GitHub\_work\sv-proto`.
+
+## Decision (2026-11-14)
+
+1. The checked contract is "park": after `InvalidateBindings` a bound column is not written until rebound, in every build. The test is now `ExternalBind_Invalidate_Recalculate_Parks_InEveryBuild` and passes with and without `-p:DefineConstants=SV_CHECKED` (7 of 7 BindingGenerationTests each).
+2. Done. 3. No schema-level cap: the per-host cap (`HostOptions.EventCapacity`) is enough and keeps `Schema.ContentHash` and the pins. 4, 5: moot since M11. 6: cosmetic, history stays. 7: the Windows worktrees are on the other PC; nothing on this machine.

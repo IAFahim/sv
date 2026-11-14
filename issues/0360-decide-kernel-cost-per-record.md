@@ -1,6 +1,6 @@
 # 0360 generated Decide costs 27-87 ns per record, the plan's cost model says 4-8 ns; it is 53-68 % of every 1M frame
 
-Status: open (K1 cut Decide 3-7x, see below; the remaining floor is issue 0370)
+Status: closed (2026-11-14, decided by the lead dev under the owner's standing delegation)
 
 Found by BM1 (branch v3/bench). Lego pack (55 rules, 22 mechanics), 1,000,000 entities, 11 workers, Ryzen 5 8500G, Release.
 
@@ -47,3 +47,7 @@ value rows. Decide r 10.18 -> 8.42 ms (1M random records, 1,165,758 canonical), 
 f8b53af, one session). Still about 7.2 ns per record wall at 11 workers, roughly 40 ns of core time (11 threads on 6 SMT cores); the rest is per-target scalar work (dispatch on the lone channel
 and, in Mixed targets, per record; 10-argument rule-method calls; settle and delta fold per target). The plan's 4-8 ns per record
 needs a different execution shape, not more emitter trims.
+
+## Decision (2026-11-14)
+
+Closed by decision D20: the whole-frame gate is met for chunk-bucketed load (B 7.7-7.8 ms); the remaining Decide cost and the redesign that would cut it are recorded in issue 0374.

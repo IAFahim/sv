@@ -1,6 +1,6 @@
 # 0160: lanes: table stride, journal order, duplicated types (v3 A1 findings)
 
-Status: open
+Status: closed (2026-11-14, decided by the lead dev under the owner's standing delegation)
 
 Found while writing `src/Sv.Core` (branch v3/a1-lanes). Built with `dotnet build src/Sv.Core/Sv.Core.csproj -c Release`, net10.0 and netstandard2.1, 0 warnings.
 
@@ -21,3 +21,7 @@ Found while writing `src/Sv.Core` (branch v3/a1-lanes). Built with `dotnet build
 6. **BoundOf twice.** `Clamp.cs` depends on `Board`, so it cannot be linked. `LaneMath.BoundOf` restates the law of `Clamp.BoundOf` (NaN 0,
    saturate, truncate); a test must pin them equal.
 7. **Slot 2^22 - 1 is the "no source" key value** (4.1), so it is never handed out (`Slot.Reserved`).
+
+## Decision (2026-11-14)
+
+Readings confirmed as implemented (stride through `WorldView.LanesPerChunk`, journal order with `World.Absorb`, 8-byte journal entries, Rewind = start of epoch e, slot 2^22-1 reserved). Item 5: a project references either `com.sv.core` (legacy) or `com.sv.engine` (v3), never both from one assembly (docs/PRODUCTION-CHECKLIST.md). Item 6: accepted; both are the same law.

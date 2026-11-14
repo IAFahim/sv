@@ -1,4 +1,4 @@
-# Using sv with tl
+# Using sv 2.1 with tl (LEGACY: v3 wiring is in docs/PRODUCTION-CHECKLIST.md and tests/Sv.NorthStar3)
 
 sv holds the numbers a game simulates (stats, intrinsics such as hp) and tl plays the timelines that
 change them. Neither library references the other: the glue owns two tables and calls both in a fixed

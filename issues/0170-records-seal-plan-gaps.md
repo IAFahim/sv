@@ -1,6 +1,6 @@
 # Issue 0170 - Records and Seal: four places where plan 4.4 / 13.2 does not compile or does not decide
 
-Status: open
+Status: closed (2026-11-14, decided by the lead dev under the owner's standing delegation)
 
 Labels: `ai`, `area:core`, `plan-discrepancy`.
 
@@ -23,3 +23,7 @@ Found while writing `src/Sv.Core/Effect.cs`, `Arena.cs`, `Seal.cs`, `Route.cs` (
    Sends from systems outside sv cannot be rerun; the host must size the raw arena for them.
 4. **D2 24-byte layout.** The plan keeps it as an owner decision, not a compile switch; D2 chose 16 bytes. Not built.
    The plain-fields form `EffectFields` with its own `EffectLaw.Compare` is the oracle for the packed key.
+
+## Decision (2026-11-14)
+
+Readings confirmed as implemented and pinned (overflow merge to `saturate32(sum Term)` with hits 1, same reading as 0180 item 3; logical raw-arena capacity so the verdict does not depend on worker count; D2 is 16 bytes).

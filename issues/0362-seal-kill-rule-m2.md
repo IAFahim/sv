@@ -1,6 +1,6 @@
 # 0362 Seal above the M2 gate twice over: kill rule says "counting sort by row; still above -> stop and report"
 
-Status: open (stop and report per plan section 14 M2; the counting sort by row already exists in `Seal.Sort`/`ByRow`)
+Status: closed (2026-11-14, decided by the lead dev under the owner's standing delegation)
 
 Found by BM1 (branch v3/bench). Lego pack, 1,000,000 entities, 11 workers, 64 parts, records sent by 11 writers.
 
@@ -51,3 +51,7 @@ the chunks a part touched, are layout/algorithm changes.
   Count/Scatter on 2 x workers parts instead of 64 (A -9.5 %, B -2.7 %, r +1.2 %, C +1.3 %: issue 0373).
 - Gate: still above (1M random: Seal 4.3 ms vs 3; B 2.1 ms vs 0.4). What is left is memory traffic: the scattered lines are
   written by one core and read by another in Order (cross-core transfers), and Count and Scatter both read the raw blocks.
+
+## Decision (2026-11-14)
+
+Closed by decision D20: the per-phase M2 Seal sub-gate is superseded by the whole-frame gate, which A and B meet. Seal ideas and the single-writer range partition are recorded in issue 0374.

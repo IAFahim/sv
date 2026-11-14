@@ -22,6 +22,10 @@ Unity 7000.0.0a16 (newest editor only), Entities 7.0.0, Collections 7.0.0, Burst
 
 `COMPILE_ONLY=1 T=c1 bash m8-run/locked.sh m8-run/gate.sh` then the same without `COMPILE_ONLY` (scripts in `eng/m8-run`, set-up in `docs/M8-HANDOFF.md`). Expect 0 `error CS`, 0 `warning CS`, 0 `error BC` and every EditMode test green. Every generated job carries a probe: 1 means it ran as a Burst job.
 
+## Player builds (Linux, CoreCLR, Burst AOT)
+
+`bash eng/player-smoke.sh` builds a Linux player from a throwaway project (the three test packs as a runtime assembly, the 37 twin journals under StreamingAssets), runs it headless and replays every journal at 1 and 11 job workers: every per-frame digest must equal the .NET host's and every phase must run as Burst (`SvProbe.ManagedRuns` 0). Set `KEEP=1` to keep the project, `U` for another editor. Result on 2026-11-14 (Unity 7000.0.0a16, `LinuxStandaloneSupport` CoreCLR player): build Succeeded, 0 error CS, 0 error BC, `lib_burst_generated.so` present; `SVSMOKE summary cases 74 frames 324 failures 0 maxJobWorkers 11 managedRuns 0`. This editor ships CoreCLR players only (no Mono, no IL2CPP variation installed), so those backends are not covered.
+
 ## tl in Unity (plain host, M9 Unity leg)
 
 tl runs inside Unity on its plain host: `TimelineWorld`, `PlaybackTable`, `KindStore` and the generated system over managed column arrays, on the main thread or `TlWorkers`. No SubScene, Timeline asset or ECS system is involved. The worked example is `packages/com.sv.unity.v4/Tests/Tl` (NorthStar3).

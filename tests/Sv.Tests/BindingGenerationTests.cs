@@ -44,7 +44,7 @@ public unsafe class BindingGenerationTests
     }
 
     [Fact]
-    public void ExternalBind_Invalidate_Recalculate_CheckedThrows_ReleaseParks()
+    public void ExternalBind_Invalidate_Recalculate_Parks_InEveryBuild()
     {
         using var board = Board.Create(Schema(), 4);
         var speed = board.Schema.Stat("move_speed");
@@ -58,13 +58,9 @@ public unsafe class BindingGenerationTests
         board.AddModifier(0, speed, new Modifier(ModifierKind.Added, 2f));
         board.InvalidateBindings();
         Assert.Equal(1, board.PendingRebind);
-#if SV_CHECKED
-        Assert.Throws<InvalidOperationException>(() => board.Recalculate());
-#else
         board.Recalculate();
         Assert.Equal(7f, column[0]);
         Assert.Equal(9f, board.Stat(0, speed));
-#endif
     }
 
     [Fact]

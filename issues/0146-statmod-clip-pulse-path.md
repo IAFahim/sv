@@ -1,8 +1,8 @@
 # Issue 0146 - Modifier clips: pulse at clip Start/End becomes a StatOp inside Burst (plan mode M)
 
-Status: open
+Status: closed (2026-11-14, decided by the lead dev under the owner's standing delegation)
 
-Labels: `ai`, `area:unity`, `area:core`, `open`, `plan-gap`.
+Labels: `ai`, `area:unity`, `area:core`, `closed`, `plan-gap`.
 
 ## Problem
 
@@ -41,3 +41,7 @@ public struct StatMod : ITlTrack<StatModClip>
 ## Receipts of the gap
 
 `grep -n StatOp packages/com.sv.unity/SvHost.cs` shows only the managed queue (lines 20, 88, 231, 299, 300).
+
+## Decision (2026-11-14)
+
+Superseded. The legacy Unity adapter v3 (`SvHost`) was deleted in M11. In sv v3 a stat modifier from a timeline is a card: the clip writes an outbox cell on a grant or loss channel, Collect sends it as an `Origin.Timeline` record, and the card's modifiers fold while it is held (contract v3.0.0 cards, v3.1.0 per-count cards). Tested by `Warm_frames_of_a_pack_that_gains_and_loses_cards_...` (Host) and the Lego card scenarios; tl outbox to record is proven in Unity by `Sv.Unity.V4.TlTests`.

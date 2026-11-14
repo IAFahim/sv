@@ -26,3 +26,7 @@ A sample under `packages/com.sv.unity/Samples~` (same convention as tl.unity `Sa
 - The guide uses designer words (stat, current value, clip) before sv words (intrinsic, fold).
 
 Depends on 0145, 0146, 0147.
+
+## Note (2026-11-14)
+
+Stays open: not needed for the first production test (docs/PRODUCTION-CHECKLIST.md). It is the next authoring item after the test, on the v3 adapter (`com.sv.unity.v4`) and tl.unity's Timeline window.

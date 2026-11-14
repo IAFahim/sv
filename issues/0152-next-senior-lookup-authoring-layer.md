@@ -1,8 +1,8 @@
 # Issue 0152 - Next senior lookup: the authoring layer the first plan did not cover
 
-Status: open
+Status: closed (2026-11-14, decided by the lead dev under the owner's standing delegation)
 
-Labels: `ai`, `area:plan`, `open`, `senior-lookup`.
+Labels: `ai`, `area:plan`, `closed`, `senior-lookup`.
 
 ## Why
 
@@ -37,3 +37,7 @@ A written answer with signatures and files, saved next to plan-sv.md, and issues
 
 
 Owner clarification 2026-11-12: the main question for this lookup is issue 0154 (designer-defined values per entity, contiguous, and a pass between any two entities).
+
+## Decision (2026-11-14)
+
+Superseded by the v3 plan and build: packs (`values`, `rules`, `cards`, `templates` .sv.json), the Unity authoring window, the web designer and simulator (M10), and issue 0154's model are delivered.
