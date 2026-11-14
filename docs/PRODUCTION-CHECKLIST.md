@@ -1,65 +1,104 @@
-# Production test checklist (sv with tl)
+# Production test checklist (sv v3, with or without tl)
 
-For a first real-project test of sv 2.1.0 with tl on .NET 10 or Unity 7. Frame order and modes:
-`docs/USING-WITH-TL.md`. Unity specifics and open Unity sharp edges: `docs/UNITY.md`.
+For a first real-project test of sv v3 on .NET 10 or Unity 7. The previous engine (sv 2.1) was removed from this repository on 2026-11-14; it lives in git history and the tag `v3.0.0-rc.2`.
 
-## Enable
+## What you are testing
 
-1. **One frame order** (USING-WITH-TL section 3). Deltas written by tl in frame t fold in t+1.
-2. **Columns declared once**: `Links.Validate` returns `LinkFault.None` at load; pin `Links.Hash` and
-   `Schema.ContentHash` in your own test next to the game's state hash.
-3. **Stats to host columns**: `board.BindSink(stat, true)` once at setup, drain `TakeBroadcast` every
-   frame. Rollback, `LoadKeyframe` and `LoadState` refill the sink; drain fully after each.
-4. **Bounds from stats**: `Bounds.Stats(board, ...)` (sv columns) or `Bounds.StatRows(floor, ceiling)`
-   (host float columns). Never `(int)` a stat; `Clamp.BoundOf` is the only conversion.
-5. **Remote writes are integers**: tl kind -> row-local effect column -> send pass. Use one
-   `InboxLanes` lane per worker (`Flush` at the end of the pass); it costs the same as `Inbox.Send`
-   and less when many sends hit few slots.
-6. **Events**: one `EventDerive` per channel, cap at host build (default 16,384, max 16,777,216). Every
-   handler must accept the `DenseEvent` + edge-word form; above the cap no per-row event exists.
-7. **Digest**: `SvHost.Install` defaults to `digestEvery: 8` in every build; pass `digestEvery: 1` in a development player (`DigestCadence.Default` is the core-level default: every tick in debug, every 8 in release). `digestEvery: 0` turns the digest off. Log
-   `(tick, Board.Digest, CellDigest sums per intrinsic column)` on due ticks.
-8. **Test builds**: run once with `-p:DefineConstants=SV_CHECKED` (Unity: add `SV_CHECKED` to Scripting Define Symbols) (range guards throw; after `InvalidateBindings` a bound column parks instead of throwing, see issue 0151), and run
-   `sh eng/isa-legs.sh` on each machine you compare.
-9. **Unity**: `eng/unity-sync.sh sync <project>/Packages/com.sv.core`, then `check` in CI (the sums need LF files: `.gitattributes` pins that); the repo copy
-   lives in `packages/com.sv.core`.
+| Piece | Version | Where |
+|---|---|---|
+| Engine (`Sv.Core`, `Sv.Host`, `Sv.Rules`) | 3.0.0 | `src/`, Unity copy `packages/com.sv.engine` |
+| Unity adapter (Burst jobs, `SvWorld`, ECS systems, authoring window) | 4.0.0 | `packages/com.sv.unity.v4` |
+| Contract | v3.0.0 + v3.0.1 (integer stats) + v3.1.0 (rule bricks) + v3.2.0 (stat layers, derived stats) | `contract/` |
+| Editors and runtimes | .NET 10; Unity 7000.0.0a16, Entities 7.0.0, Collections 7.0.0, Burst 2.0.0 | |
+| tl | tl main, tl.unity `com.tl.unity` (plain host) | `tests/Sv.NorthStar3`, `packages/com.sv.unity.v4/Tests/Tl` |
 
-## Expected numbers (measured, Ryzen 5 8500G 6C/12T)
+
+## Before the first frame
+
+1. **Write the pack.** Four files: `values.sv.json`, `rules.sv.json`, `cards.sv.json`, `templates.sv.json`. Start from `packs/reference` (the worked example) or `packs/lego` (22 mechanics). In Unity use Window > sv > Pack Authoring.
+2. **Generate the kernels.**
+   - .NET: import `build/Sv.Pack.targets` in the game project and set `SvPackFolder` and `SvPackNamespace`; the build runs `sv pack`. It regenerates when a pack file or any dll of the pack tool changes.
+   - Unity: `sv pack <folder> --host unity --namespace <ns> --out <dir>` or the window's Regenerate.
+   - With tl: add `--glue tl` for `Glue.g.cs`: `[TlState]` outbox columns, `[TlKind]` feeds, clips, tracks and `TimelineRequests`.
+3. **Pin `PackHash`** (`Layout.PackHash`) in your own test next to your game's state hash. The host throws `sv: the compiled kernels were built against another pack` if the kernels and pack differ.
+4. **Create the host.** .NET: `new FrameLoop<HostKernels>(PackData.Create(), new HostOptions { ... })` (`PackData.g.cs` is the pack as generated code; no JSON is read at run time). Unity: `PackWorld.Create(new HostOptions { ... })`, then `SvEntities.Publish` and `SvEntities.Attach` for ECS. Options that matter:
+
+| Option | Default | Set it to |
+|---|---|---|
+| `EntityCapacity` | 65,536 | live entities plus margin (`sv: the world is full` past it) |
+| `Workers` | 1 | physical cores plus SMT (measured best: 11 on a 6C/12T Ryzen 5 8500G; fewer is slower) |
+| `Parts` | 64 | 64 (16 and 22 were measured worse for random load) |
+| `DigestEvery` | 1 | 1 while testing; 0 turns the digest off |
+| `RingEpochs`, `FramesPerEpoch` | 32, 2 | the rewind window you need (32 x 2 frames at 30 Hz = about 2 s) |
+| `Arena` | `Grow` | `Grow` on servers and editor; a hard cap in the browser (decision D10) |
+| `EventCapacity` | 16,384 | outward events per channel per frame; above it the channel is dense |
+| `Late` | `Clamp` | `Reject` if late inputs must never be clamped |
+
+## Every frame
+
+The tested order (`tests/Sv.NorthStar3/Rig.cs`, the same in Unity):
+
+1. tl: `world.Tick(...)`, then the generated `TlAuto_<Assembly>.Run(...)` writes the `[TlState]` outbox columns.
+2. Collect: `Outbox.Send(host, cells, channel, kindLane, targetLane)` per timeline channel. Each non-zero cell becomes one `Origin.Timeline` record from the status entity to its aimed target (target lane value minus 1, or itself when 0), and the cell is zeroed.
+3. Your own input: `Send(target, source, kind, channel, amount, hits, origin)`, `Modify(StatOp)`, `Spawn(template)`, `Kill(slot)`. Spawn, kill and rewind happen between frames only.
+4. `Step()`.
+5. Read results: `Read(slot, lane)`, `Level(slot, raised)`, `Events`/`EventCount` (`HostEvent`: event, slot, entered), then `TimelineRequests.Apply(players, Events, EventCount)` to start and stop tl timelines on event edges.
+6. Log `(Frame, LastDigest)`.
+7. Late inputs: `Late(frame, records, count)` and `Resolve()` right after `Step`, before the next frame's input.
+
+Rules that keep it deterministic:
+- Everything that changes state is an integer record, a `StatOp`, a spawn or a kill. Glue code does no float maths on state.
+- Zero every column you hand to sv or tl. Seed every random source and never use wall-clock time in the glue.
+- Never iterate a `Dictionary` or `HashSet` to produce sends.
+- Origins: `Direct` for game input (it is logged and replayed); `Timeline` for tl (via `Outbox`); generated edge emits are Triggered or Reflected.
+
+## Verify on every machine you compare
+
+- `bash eng/v3-verify.sh` (set `TL_ROOT` to your tl checkout). It runs the engine mirror and tl generator checks, Laws, Scenario, Diff, Lego and Host under default, `DOTNET_EnableAVX2=0` and `DOTNET_EnableHWIntrinsic=0`, then Twin.Fixtures, NorthStar3 and Web, the checked build (`-p:SvChecked=true`) and the README chapter 1 sample. Expect `v3-verify: all green`.
+- Unity: `eng/m8-run/gate.sh` (set-up in `docs/M8-HANDOFF.md`, tl in `docs/UNITY.md`): 0 `error CS`, 0 `warning CS`, 0 `error BC`, every EditMode test green (97 with com.tl.unity, 87 without). Every generated job reports probe 1 (ran as Burst).
+- Unity player: `bash eng/player-smoke.sh` builds and runs a Linux player; expect `failures 0` and `managedRuns 0`. `SV_GIT_REF=v3.0.0-rc.3` builds it from the git packages instead of the checkout.
+- Pins that must not move: worked example `E0F445186E2C3672`; reference PackHash `BD70627B1C671888`; lego PackHash `9A043301EA06000E`; NorthStar3 `A566FAEC8837BA57` and `2D6A06776AE25DCB`; bench digests A `DAF3A1D9BD73BA10`, B `6E7618BF0900D3F8`, C `D3C714D46555B7CE`, D `7413F619472566C4`, r `9CFD52083A9DA3FB`.
+
+## Expected numbers (measured, Ryzen 5 8500G 6C/12T, 11 workers, 1,000,000 entities, lego pack)
 
 | What | Value | Source |
 |---|---|---|
-| .NET P1 (1,048,576 rows), W 2.5, 0 % cross, 6 workers, stand-in kinds | ~6.1 ms/tick total, sv stages ~3.3 ms | issues 0125, 0130 |
-| same, 10 % cross to one slot, `InboxLanes` | 7.3 ms (atomic 8.0 ms) | issue 0130 |
-| .NET digest of 2 x 1M intrinsics | 1.2-1.4 ms when computed (hence K = 8) | issue 0125 |
-| Unity Burst P1, W 2.5, 0 % cross, sv + stand-in kinds | ~4.7 ms/tick | issue 0127 |
-| same with tl's real Damage kind job, 11 workers | sv 2.35 ms, tl kinds 8.45 ms, frame 10.83 ms (gate covers sv only) | verifier, issue 0143 |
-| gate | 8.3 ms per tick at P1 (25 % of 30 Hz) | plan |
-| warm managed allocation in sv calls | 0 B (soak: 50,000 ticks) | issue 0133 |
-| board memory under churn | flat after warm-up | issue 0133 |
+| A: 100k random records into 10 % of chunks | 2.4-2.8 ms per frame | BENCH-REPORT Update P3 |
+| B: 1M timeline records, one per entity (chunk-bucketed) | 7.7-7.8 ms (gate 8.3 ms: pass) | same |
+| r: 1M uniformly random cross-entity records | 17.6-18.1 ms; stress benchmark, ceiling 19.0 ms (decision D20) | issue 0374 |
+| C, D (2M, 3M records) | about 25 and 35 ms; reported only | same |
+| Memory at rest | 41-46 B per entity | BENCH-REPORT |
+| Warm allocation | 0 B on sv's threads (main and workers) | issue 0371 |
 
-tl's own kind jobs are not in the .NET numbers; budget their time on top.
+tl's own kind jobs are not included: tl's kind job alone was 8.45 ms at 1M rows (issue 0149). Budget it on top.
 
 ## Reading a digest mismatch
 
-Compare the per-tick logs and find the **first** differing tick, then:
+Record a twin journal on the side you trust (`tests/Sv.NorthStar3/Rig.cs` `Journal`: spawn, kill, send, digest per frame) and replay it on the other (`packages/com.sv.unity.v4/Tests/Editor/TwinReplayTests.cs`). Find the first differing frame, then:
 
 | Differs between | Likely cause |
 |---|---|
-| two runs, same host, same workers | uninitialized memory (zero every native column), wall-clock or `Random` without a seed, dictionary order in the glue |
-| worker counts (1 vs N) | a float summed across rows, a non-integer remote write, a store column written during the tl step, a send pass that is not inside the frame |
-| hosts or ISA legs | float math outside `StatMath`/`BoundOf`, FMA introduced by your code, a Mono/IL2CPP path not in the legs |
-| `Board.Digest` only | modifier stream differs: StatOp order (always `Canonicalize`), expiry ticks, add+remove of one (slot, source) in one batch (the remove sorts first) |
-| one intrinsic's `CellDigest` only | that column's deltas or inbox: bisect by partition, then by slot |
-| live vs replay | something outside the journal changed state |
+| two runs, same host and workers | an unzeroed column, wall-clock or unseeded random in the glue, dictionary order in the glue |
+| worker counts (1 against N) | glue that sends from several threads in a non-canonical order, or a store column written during the tl step |
+| .NET and Unity | sends collected in a different order or frame (compare the journal's `send` lines), a Burst job that did not run as Burst (probe 2), stale generated kernels |
+| live and replay | something changed state outside sends, StatOps, spawns and kills; a `Direct` record sent from an edge rule |
+| only after an emitter change | stale generated kernels: compare `obj/SvPack/Kernels.g.cs` time with the pack tool, delete `obj/SvPack/.svpack.key` and rebuild |
 
-## Failure modes
+## Failure messages
 
-| Signal | Meaning |
+| Message | Meaning |
 |---|---|
-| `InvalidDataException: keyframe does not fold onto this base` | the receiver was not at the keyframe's base (missed a keyframe, or local edits not rolled back) |
-| `InvalidOperationException: slot exhaustion` | board capacity too small for live entities |
-| `stale binding — storage moved; rebind` (SV_CHECKED) | a bound column moved; rebind before the next fold |
-| `ArgumentException: ... does not cover the window` | delta, inbox or changed column shorter than the fold window |
-| `DenseEvent` on a channel | edges above the cap this frame; read the edge words, not per-row events |
-| host stat column stale | sink not drained to zero, or bound without fill |
-| frame over the gate | look at the stage split: fold and digest are DRAM-bound, cross-row sends live in the kinds stage |
+| `sv: the compiled kernels were built against another pack` | regenerate the kernels for this pack |
+| `sv: the world is full` | raise `EntityCapacity` |
+| `sv: spawn, kill and rewind happen between frames, after every writer is absorbed` | moved into a frame: call them before `Step` and outside writer passes |
+| `sv: resolve late inputs right after Step, ...` | call `Late`/`Resolve` before the next frame's input |
+| `sv: templates are added in pack order` | the host was handed templates out of pack order |
+| `sv: a stat scale is a power of ten from 1 to 1,000,000` and other `ArgumentException`s at load | the pack's values do not satisfy the contract; the pack reader names the row |
+
+## Known limits (accepted, decision D21)
+
+- A same-frame lethal check is not available: a revive acts one frame late (Lego 13).
+- Masks and exclusive groups use 64 bits (Lego 7).
+- Uniformly random cross-entity load runs at about 18 ms per 1M records (D20). Games whose records come from timelines and Collect are inside the gate.
+- Unity: proven in the editor (EditMode, Burst, 1 and 11 workers, fresh clone and fresh project) and in a built Linux CoreCLR player with AOT Burst (`eng/player-smoke.sh`, 37 journals at 1 and 11 workers). Not covered: Windows, macOS, mobile and console players, IL2CPP (not shipped by this editor). tl in Unity runs on tl's plain host; the ECS/SubScene timeline path is not built.
+- Unity 7000.0.0a16 is an alpha editor (CoreCLR only, C# 9).

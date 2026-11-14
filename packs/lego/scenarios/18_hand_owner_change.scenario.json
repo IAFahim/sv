@@ -1,0 +1,17 @@
+{"schema":1,"name":"hand_owner_change","frames":3,
+"entities":[{"name":"P1","template":"player_half"},{"name":"P2","template":"player_half"},{"name":"H","template":"hand"}],
+"sends":[
+{"frame":0,"target":"H","channel":"OwnerShift","amount":1},
+{"frame":1,"target":"H","channel":"Healing","amount":10},
+{"frame":1,"target":"H","channel":"OwnerShift","amount":1},
+{"frame":2,"target":"H","channel":"Healing","amount":10}
+],
+"expect":[
+{"frame":0,"entity":"H","value":"Owner","equals":0},
+{"frame":1,"entity":"P1","value":"Health","equals":60},
+{"frame":1,"entity":"P2","value":"Health","equals":50},
+{"frame":1,"entity":"H","value":"Owner","equals":1},
+{"frame":2,"entity":"P1","value":"Health","equals":60},
+{"frame":2,"entity":"P2","value":"Health","equals":60},
+{"frame":2,"entity":"H","value":"Health","equals":100}
+]}

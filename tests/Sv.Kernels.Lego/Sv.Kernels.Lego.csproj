@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RootNamespace>Sv.Kernels.Lego</RootNamespace>
+    <SvPackFolder>$(MSBuildProjectDirectory)\..\..\packs\lego</SvPackFolder>
+    <SvPackNamespace>Sv.Kernels.Lego</SvPackNamespace>
+    <SvPackOutput>$(MSBuildProjectDirectory)\obj\SvPack\</SvPackOutput>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Sv.Host\Sv.Host.csproj" />
+    <ProjectReference Include="..\..\src\Sv.Pack\Sv.Pack.csproj" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <Import Project="..\..\build\Sv.Pack.targets" />
+</Project>

@@ -1,0 +1,17 @@
+twin 1
+pack lego 9A043301EA06000E
+scenario core_external_stacking_layers
+capacity 65536
+frames 3
+frame 0
+spawn 21 0
+add 0 7 2 1000 1 1
+digest E1C49DDFA39DBEB8
+frame 1
+add 0 7 0 10 2 1
+digest 03BE5223F05FF241
+frame 2
+remove 0 2
+add 0 7 0 10 3 0
+digest CE059C93789974D1
+final CE059C93789974D1

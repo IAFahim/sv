@@ -1,0 +1,15 @@
+twin 1
+pack lego 9A043301EA06000E
+scenario heal_5_per_damage
+capacity 65536
+frames 2
+frame 0
+spawn 25 0
+spawn 0 64
+send 0 64 0 0 10 3 0
+send 0 64 0 1 4 1 0
+digest 6449E89ED5D7B0FF
+frame 1
+send 0 64 0 0 2 1 0
+digest A7535706BCD886EE
+final A7535706BCD886EE

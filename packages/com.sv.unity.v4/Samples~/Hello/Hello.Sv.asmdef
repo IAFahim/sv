@@ -1,0 +1,20 @@
+{
+    "name": "Hello.Sv",
+    "rootNamespace": "Hello",
+    "references": [
+        "Sv.Engine.Core",
+        "Sv.Engine.Host",
+        "Sv.Unity.V4",
+        "Unity.Burst",
+        "Unity.Collections"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -11,12 +11,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Sv\Sv.csproj" />
-    <ProjectReference Include="..\..\src\Sv.Compose\Sv.Compose.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Include="..\..\tests\Sv.Tests\StrictFloatOracle.cs" Link="StrictFloatOracle.cs" />
+    <ProjectReference Include="..\..\src\Sv.Core\Sv.Core.csproj" Aliases="v3" />
+    <ProjectReference Include="..\..\src\Sv.Rules\Sv.Rules.csproj" Aliases="v3" />
+    <ProjectReference Include="..\..\src\Sv.Host\Sv.Host.csproj" Aliases="v3" />
+    <ProjectReference Include="..\..\tests\Sv.Kernels.Lego\Sv.Kernels.Lego.csproj" Aliases="v3" />
   </ItemGroup>
 
 </Project>

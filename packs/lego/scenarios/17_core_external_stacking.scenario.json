@@ -1,0 +1,10 @@
+{"schema":1,"name":"core_external_stacking","frames":2,
+"entities":[{"name":"T","template":"trained"}],
+"modifiers":[
+{"frame":0,"entity":"T","stat":"Strength","shape":"Multi","value":1000,"source":1},
+{"frame":1,"entity":"T","stat":"Strength","shape":"Added","value":10,"source":2}
+],
+"expect":[
+{"frame":0,"entity":"T","value":"Strength","equals":198},
+{"frame":1,"entity":"T","value":"Strength","equals":214}
+]}

@@ -1,0 +1,5 @@
+<Project>
+  <PropertyGroup Condition="'$(SvChecked)' == 'true'">
+    <DefineConstants>$(DefineConstants);SV_CHECKED</DefineConstants>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,31 @@
+twin 1
+pack northstar3 1456B551FFCFA7CF
+scenario status_warded_player_rifle_status
+capacity 65536
+frames 9
+spawn 8 0
+spawn 7 64
+send 64 4194303 0 5 1 1 0
+frame 0
+digest 357E9B4E5B2E34F2
+frame 1
+send 0 64 2 1 3 1 1
+digest 4CA82E7D2E9AC9B5
+frame 2
+send 0 64 2 1 3 1 1
+digest FFE0FDF40271A12A
+frame 3
+send 0 64 2 1 3 1 1
+digest EEE9BC3E958E6D13
+frame 4
+send 0 64 2 1 3 1 1
+digest E1F87BA800099B94
+frame 5
+digest E1F87BA800099B94
+frame 6
+digest E1F87BA800099B94
+frame 7
+digest E1F87BA800099B94
+frame 8
+digest E1F87BA800099B94
+final E1F87BA800099B94

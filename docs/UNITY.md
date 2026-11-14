@@ -1,124 +1,39 @@
-# Using sv from tl.unity kind jobs
+# sv in Unity 7
 
-Unity 7000.0.0a16, Entities 7.0.0, Collections 7.0.0, Burst 2.0.0 (the editor's built-in packages).
-tl does not reference sv and sv does not reference tl. The glue is in your game assembly.
+Unity 7000.0.0a16 (newest editor only), Entities 7.0.0, Collections 7.0.0, Burst 2.0.0. sv does not reference tl or Unity; the Unity adapter and the tl glue live in the host.
 
-## 1. Install
+## Packages
 
-- `eng/unity-sync.sh sync <project>/Packages/com.sv.core` copies `src/Sv` into an embedded
-  package (asmdef `Sv.Core`). `eng/unity-sync.sh check <same path>` fails on any drift.
-- Add `"com.sv.unity": "file:<sv checkout>/packages/com.sv.unity"` to `Packages/manifest.json`.
-  Reference `Sv.Core` and `Sv.Unity` from your game asmdef.
-
-## 2. Declare the columns as tl state
-
-Every sv column is a `[TlState]` partial struct with exactly one 4-byte field. One struct is one
-component type, and tl's generated kind job binds it directly. Do not declare sv columns as
-`Span<T>` fields of a `[TimelineSystem]`: those get a per-system wrapper component.
-
-```csharp
-[TlState] public partial struct Hp { public int Value; }          // intrinsic value: sv writes it in the fold
-[TlState] public partial struct HpDelta { public int Value; }     // delta: kinds add into it, sv consumes it
-[TlState] public partial struct MaxHp { public float Value; }     // stat output: sv scatters it
-public struct LowHp : IComponentData, IEnableableComponent { }    // condition gate (optional)
-
-[TlKind]
-public struct Damage
-{
-    public static void Combine(ref int total, in int next) => total += next;
-    public static void Apply(in int total, ref HpDelta delta) => delta.Value -= total;
-}
-```
-
-A kind writes a delta with `+=` or `-=`, never `=`, and it never writes the value or a stat column.
-A kind reads `Hp` and `MaxHp` as ordinary read-only columns. tl adds the kind's Apply column itself;
-add `SvSlot`, `SvSlotCleanup`, the value and stat columns in the same `ComponentTypeSet` as tl's
-columns (without `SvSlotCleanup` in the archetype a row moves archetype once, at its first frame).
-
-## 3. Register the links once, install the host
-
-```csharp
-var links = new SvLinkRegistry();
-links.Stat<MaxHp>(schema.Stat("max_hp"));
-var hp = links.Intrinsic<Hp, HpDelta>(schema.Intrinsic("hp"), SvBound.Of(0), SvBound.OfStat<MaxHp>(), remote: true);
-links.Condition<LowHp>(hp, 30, 100, 40, 100, capacity: 16384);      // enter below 30 %, leave at 40 %
-links.Send<Outgoing, Target>(hp);                                     // optional cross-row send pass
-links.Link<HpDelta>(kindId, LinkMode.Delta);                          // one line per use, for Validate and Hash
-var host = SvHost.Install(world, board, links, digestEvery: 8);      // throws on a LinkFault or a second host
-```
-
-`Install` creates `SvBeginSystem` (first in `SimulationSystemGroup`) and `SvEndSystem` (last).
-tl's systems run between them. Limits: 4 dense intrinsics, 8 stat columns, stat index below 64,
-4 send passes, one `SvHost` per world (a second `Install` throws). `Install(world, board, links,
-writeCapacity = 65536, opCapacity = 65536, digestEvery = 8)`: the two capacities are buffer sizes, not
-limits (the StatOp queue doubles when full, the scatter runs in `writeCapacity` chunks).
-`Install` adopts entities whose `SvSlot` names a slot that is already live on the board (a board
-restored before the world) and scatters all their stats on the first frame.
-
-## 4. Per frame (section 2.4 of the plan)
-
-| Where | Call |
+| Package | What it is |
 |---|---|
-| main thread, before the group | `host.Enqueue(StatOp.Add(...))`, `host.Enqueue(StatOp.RemoveSource(...))` |
-| `SvBeginSystem` | expire, canonical Apply, Recalculate, scatter of changed stats, fold job |
-| tl systems | kinds read store columns and add into deltas |
-| a kind that writes another row | a tl kind writes its own row only: it adds the amount to a row-local effect column (`[TlState] Outgoing`, `+=`); the game writes the target's slot into a target column (`Target`, an `int`, a slot from `SvSlot` or `Bind`). `links.Send<Outgoing, Target>(hp)` makes `SvEndSystem` send every nonzero effect through the inbox and zero it. Targets outside `[0, Capacity)` are dropped. Your own `SvInboxWriter` from `host.InboxWriter(hp)` still works in any job |
-| `SvEndSystem` | send passes (Burst, parallel), derive events, digest every `host.DigestEvery` ticks (1 = every tick, default 8; use 1 in debug builds) |
-| main thread, after the group | `host.Events(hp)` (ascending slot), `host.Channel(hp).Dense`, `host.Digest` (taken at tick `host.DigestTick`; between digest ticks it is the older value) |
+| `com.sv.engine` | `Sv.Core`, `Sv.Host` (runtime) and `Sv.Rules` (editor only) copied verbatim from `src` by `eng/engine-sync.sh sync` (`check` fails on drift) |
+| `com.sv.unity.v4` | the adapter: generated Burst jobs per frame phase, `SvWorld`, `SvStepSystem`, `SvSlot`, reload hook, pack authoring window |
 
-Deltas written in tick t are folded at the start of tick t+1. The fold is
-`after = clamp(before + saturate32(delta + inbox), min(floor, ceiling), ceiling)`; it clears the
-delta and the inbox. Above the channel capacity no per-row events are delivered: one Dense record,
-and `host.EdgeBit(hp, slot)` stays readable until the next fold.
+## Use
 
-## 5. Rows
+1. Add `com.sv.engine` and `com.sv.unity.v4` to `Packages/manifest.json` as `"file:<sv checkout>/packages/<name>"`.
+2. Write the pack (`values`, `rules`, `cards`, `templates` `.sv.json`) with the authoring window (Window > sv > Pack Authoring) or by hand and generate with `sv pack <folder> --host unity --namespace <ns> --out <dir>` or the window's Regenerate. The output is `Values.g.cs`, `Kernels.g.cs`, `HostKernels.g.cs`, `PackData.g.cs`, `PackJobs.g.cs`, `Rules.map.txt`. Put it in a game assembly that references `Sv.Engine.Core`, `Sv.Engine.Host`, `Sv.Unity.V4`, `Unity.Burst`, `Unity.Collections`.
+3. `PackWorld.Create(new HostOptions { Workers = ..., Parts = 64 })` returns an `SvWorld<HostKernels>`. `Spawn(template)`, `Send(...)`, `Modify(StatOp)`, `Step()`, `Read(slot, lane)`, `Digest()`.
+4. In ECS: `SvEntities.Publish(entityManager, world)` creates the world handle entity, `SvEntities.Attach(entityManager, entity, world, template)` gives an entity a slot, and `SvStepSystem` (in `SimulationSystemGroup`, first) kills the slots of destroyed entities and steps the world. `SvWorlds.DisposeAll()` runs before every assembly reload.
 
-- `host.Bind(entity)` gives a slot; the next `SvBeginSystem` adds `SvSlot` + `SvSlotCleanup` if missing
-  and writes both. `host.Unbind(slot)` frees the slot, cancels a `Bind` of the same frame and the next
-  `SvBeginSystem` removes both components.
-- Destroying a bound entity (or removing its `SvSlot`) frees its slot at the next `SvBeginSystem`
-  (`SvSlotCleanup` is a cleanup component). No `Unbind` needed.
-- Waves: `host.Spawn(entityManager, prefab, templateSlot, spawned)` instantiates a prefab that
-  already carries the template's stat values and assigns slots with `Board.Spawn`.
-- Structural changes cost sv nothing: sv keeps slot-indexed arrays only, never chunk pointers.
+## Proof
 
-## 6. Sharp edges (what is still true)
+`COMPILE_ONLY=1 T=c1 bash m8-run/locked.sh m8-run/gate.sh` then the same without `COMPILE_ONLY` (scripts in `eng/m8-run`, set-up in `docs/M8-HANDOFF.md`). Expect 0 `error CS`, 0 `warning CS`, 0 `error BC` and every EditMode test green. Every generated job carries a probe: 1 means it ran as a Burst job.
 
-- Adding and removing the same (slot, source) in one batch leaves the modifier live (remove sorts before add).
-- All sends to one slot serialize (about 10 ns each, `Interlocked.Add`); the core `InboxLanes` fallback exists but the adapter's send pass does not use it yet (issue 0151). `digestEvery: 0` turns the digest off; the StatOp queue grows with managed memory when `opCapacity` is exceeded, so size it for the busiest frame.
-- Above the channel capacity (`Condition(..., capacity)`) only one Dense record; the edge bits stay readable until the next fold.
-- `host.Digest` is the value of tick `host.DigestTick`; compare digests only on ticks where `DigestTick == Tick - 1`.
-- `Unbind`, `Bind` and `Enqueue` are main-thread calls between frames. Structural changes for new, unbound and
-  destroyed rows happen at the start of `SvBeginSystem` (one sync point per frame that has such rows).
-- An entity carrying `SvSlot` that was never `Bind`-ed is folded as whatever slot its `SvSlot` says: bind every
-  row that has the component, or add `SvSlot` only through `Bind`.
-- `Spawn` instantiates from a prefab: cleanup components are not copied, so every spawned row moves archetype
-  once when `SvSlotCleanup` is added.
-- No Mono player on Unity 7000.0.0a16 (only CoreCLR and IL2CPP variations ship; `Mono2x` is silently ignored). Not measured.
+## Player builds (Linux, CoreCLR, Burst AOT)
 
-## 7. Rules that keep it exact
+`bash eng/player-smoke.sh` builds a Linux player from a throwaway project (the three test packs as a runtime assembly, the 37 twin journals under StreamingAssets), runs it headless and replays every journal at 1 and 11 job workers: every per-frame digest must equal the .NET host's and every phase must run as Burst (`SvProbe.ManagedRuns` 0). Set `KEEP=1` to keep the project, `U` for another editor. Result on 2026-11-14 (Unity 7000.0.0a16, `LinuxStandaloneSupport` CoreCLR player): build Succeeded, 0 error CS, 0 error BC, `lib_burst_generated.so` present; `SVSMOKE summary cases 74 frames 324 failures 0 maxJobWorkers 11 managedRuns 0`. This editor ships CoreCLR players only (no Mono, no IL2CPP variation installed), so those backends are not covered.
 
-- Remote writes are integers through the inbox. Floats never cross rows.
-- Every delta writer goes through a read-write type handle (tl's generated job does). A write
-  through a cached pointer bypasses the chunk change filter and is not folded.
-- All sends to one slot serialize (about 10 ns each): a measured, documented limit.
+## tl in Unity (plain host, M9 Unity leg)
 
-## 8. Measured (Unity 7000.0.0a16, CoreCLR, Burst on, safety off, 3 fresh processes, probes 0, 0 B main thread)
+tl runs inside Unity on its plain host: `TimelineWorld`, `PlaybackTable`, `KindStore` and the generated system over managed column arrays, on the main thread or `TlWorkers`. No SubScene, Timeline asset or ECS system is involved. The worked example is `packages/com.sv.unity.v4/Tests/Tl` (NorthStar3).
 
-P1 = 1,048,576 rows, tl's generated Damage kind job fed by W 2.5 Poison tracks per row, cross-row 0 %,
-send pass on, condition lane on, digest every 8, 874 StatOps per tick (issue 0143, `SvTlBench`).
+1. Import `com.tl.unity` (`"com.tl.unity": "file:<tl.unity checkout>/com.tl.unity"` or its git URL). The plain path uses only its `Tl.Core` assembly, whose sources equal tl's `src/Tl.Core`. Do not list `com.tl.unity` under `testables`: its own test assemblies would register kinds twice. The sv tl leg (`Sv.Unity.V4.TlGenerator`, `Sv.NorthStar3`, `Sv.Unity.V4.TlTests`) compiles only when `com.tl.unity` is in the project (`versionDefines` set `SV_TL_UNITY`) and tests are included, so a project without tl still compiles the rest of `com.sv.unity.v4`.
+2. The generator is `Tl.Gen.Plain.dll`, copied from tl.unity's `com.tl.unity/Tests/Plain/Generator` by `eng/tl-plain-sync.sh sync` (`check` compares it with `eng/tl-plain.stamp` and with the tl.unity copy). It sits in a folder with its own asmdef (`Tests/Tl/Generator`), and the game assembly references that asmdef, so the analyzer runs on the game assembly only. Its plugin settings are label `RoslynAnalyzer` and no platforms. Set them through Unity, never in the `.meta` by hand: an `-executeMethod` in the scratch project that calls `PluginImporter.SetCompatibleWithAnyPlatform(false)`, `SetCompatibleWithEditor(false)`, `SaveAndReimport()` and `AssetDatabase.SetLabels(dll, new[] { "RoslynAnalyzer" })`. The committed `.meta` carries the result. Unity cannot run that method while a script fails to compile, so do it before adding code that uses the generated system.
+3. `Tl.Gen.Plain` runs only on an assembly that declares at least one `[TimelineSystem]` struct. The glue from `sv pack --glue tl` is zero-config and declares none, so the game assembly adds one empty `[TimelineSystem] public ref partial struct`. The generator then emits `Tl.Generated.TlAuto_<AssemblyName>`, the same code tl's .NET generator emits, and `TlSystems.TlModule.Install()`, which the host calls once per domain.
+4. Bake the library with tl's `tlb library` over the timeline JSON, against the compiled game assembly: `dotnet Tl.Bake.dll library Tests/Tl/Glue/Timelines~ --assembly <project>/Library/ScriptAssemblies/Sv.NorthStar3.dll --out Tests/Tl/Glue/game.bytes --no-sources`. The library metadata records the clip type's assembly name, so the Unity glue assembly has the same name as the .NET one (`Sv.NorthStar3`). Then the bytes equal the library the .NET host bakes in code. `tests/Sv.NorthStar3/UnityLegTests.cs` checks three things: the Unity glue equals the emitter output, `game.bytes` equals `Rig.Library()`, and the fixture bakes to the same bytes. `SV_UPDATE_TWIN=1` rewrites the glue and `game.bytes`.
+5. Each frame: `NorthStar3Timelines.TickAndFillOutboxes()` (tl `Tick`, then `TlAuto_Sv_NorthStar3.Run` adds the clip amounts to the `[TlState]` outbox columns), then `Outbox.Send(world.Loop, cells, channel, kindLane, targetLane)` per timeline channel (Collect: the cells become `Origin.Timeline` records), then `SvWorld.Step()` (the generated Burst jobs), then `TimelineRequests.Apply` with the frame's events.
 
-| workers | sv total ms (fold) | tl kinds ms | frame ms |
-|---|---|---|---|
-| 11 | 2.31 (1.26) | 8.28 | 10.56 |
-| 7 | 2.53 (1.46) | 9.47 | 11.99 |
-| 4 | 3.26 (1.89) | 12.41 | 15.71 |
-| 2 | 4.65 (2.72) | 18.30 | 22.91 |
+Proof: `Sv.Unity.V4.TlTests` replays the five NorthStar3 journals at 1 and 11 job workers. tl writes the outbox, and Collect feeds the SvWorld. Each frame, the cells tl wrote equal the timeline sends the .NET host collected, and every per-frame digest equals the journal's, including the pins `A566FAEC8837BA57` and `2D6A06776AE25DCB`. The ECS/SubScene path (Timeline assets, a baked Playable Director, Tl tracks for the glue clips) is not built; it stays a follow-up.
 
-- sv meets the 8.3 ms gate at every worker count. tl's own kind work at 1M rows is 8.3 ms at 11 workers.
-- P2 / P3 stand-in cells: worst sv total 1.14 ms (P2) and 2.18 ms (P3).
-- RAM at 1M rows: board 18.6 B per row + 58.8 B per live modifier; host native 33.1 B per row;
-  sv ECS columns 32 B per row in that test (4 B per column) + 1 enable bit per condition.
-- Determinism: NorthStar2 through the adapter equals the .NET twin at 1,000 and 1,048,576 rows, 1 and 11
-  workers (issue 0142); the send pass digest is equal at 1 and 11 workers (issue 0141).
-- FMA: none in the Burst code of the fold, scatter, send and digest jobs (disassembled JIT cache, issue 0143).
+tl glue: `sv pack <folder> --glue tl` and `docs/V3-HANDOFF.md` (M9). The old adapter v3 (`com.sv.unity`: `SvHost`, `SvLinkRegistry`, `SvJobs`) was deleted in M11; its history is in git and its issues are `issues/0127`, `0140`, `0142`.

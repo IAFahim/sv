@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RootNamespace>Sv.Pack</RootNamespace>
+    <AssemblyName>sv</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Sv.Core\Sv.Core.csproj" />
+    <ProjectReference Include="..\Sv.Rules\Sv.Rules.csproj" />
+    <ProjectReference Include="..\Sv.Host\Sv.Host.csproj" />
+  </ItemGroup>
+</Project>

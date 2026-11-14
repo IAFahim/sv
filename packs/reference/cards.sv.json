@@ -1,0 +1,11 @@
+{"schema":1,"rows":[
+{"id":1,"name":"sniper_ward","value":"SniperWard"},
+{"id":2,"name":"thorns","value":"Thorns"},
+{"id":3,"name":"leech","value":"Leech"},
+{"id":4,"name":"no_physical","value":"NoPhysical"},
+{"id":5,"name":"damage_immune","value":"DamageImmune"},
+{"id":6,"name":"jump_healer","value":"JumpHealer"},
+{"id":7,"name":"spite","value":"Spite"},
+{"id":8,"name":"mirror_ward","value":"MirrorWard"},
+{"id":9,"name":"charge_ward","value":"ChargeWard","modifiers":[{"stat":"MoveSpeed","multi":-0.5}]}
+]}

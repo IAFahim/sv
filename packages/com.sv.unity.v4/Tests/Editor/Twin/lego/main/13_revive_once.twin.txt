@@ -1,0 +1,18 @@
+twin 1
+pack lego 9A043301EA06000E
+scenario revive_once
+capacity 65536
+frames 4
+frame 0
+spawn 16 0
+spawn 0 64
+send 0 64 0 0 40 1 0
+digest F9E286DF5CA0146A
+frame 1
+digest D05BDC8BADC6E417
+frame 2
+send 0 64 0 0 60 1 0
+digest 5585F58F2ABAA7F8
+frame 3
+digest 5585F58F2ABAA7F8
+final 5585F58F2ABAA7F8

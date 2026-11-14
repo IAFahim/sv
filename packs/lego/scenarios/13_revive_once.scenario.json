@@ -1,0 +1,17 @@
+{"schema":1,"name":"revive_once","frames":4,
+"entities":[{"name":"P","template":"phoenix"},{"name":"X","template":"dummy"}],
+"sends":[
+{"frame":0,"target":"P","source":"X","channel":"Physical","amount":40},
+{"frame":2,"target":"P","source":"X","channel":"Physical","amount":60}
+],
+"expect":[
+{"frame":0,"entity":"P","value":"Health","equals":0},
+{"frame":0,"entity":"P","value":"Dead","equals":true},
+{"frame":1,"entity":"P","value":"Health","equals":50},
+{"frame":1,"entity":"P","value":"ReviveCharges","equals":0},
+{"frame":1,"entity":"P","value":"Dead","equals":false},
+{"frame":2,"entity":"P","value":"Health","equals":0},
+{"frame":2,"entity":"P","value":"Dead","equals":true},
+{"frame":3,"entity":"P","value":"Health","equals":0},
+{"frame":3,"entity":"P","value":"Dead","equals":true}
+]}

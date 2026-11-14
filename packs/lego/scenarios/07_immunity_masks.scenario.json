@@ -1,0 +1,11 @@
+{"schema":1,"name":"immunity_masks","frames":1,
+"entities":[{"name":"M","template":"masked"},{"name":"R","template":"rifleman"},{"name":"B","template":"beast"}],
+"sends":[
+{"frame":0,"target":"M","source":"R","channel":"Physical","amount":10},
+{"frame":0,"target":"M","source":"R","channel":"Poison","amount":10},
+{"frame":0,"target":"M","source":"B","channel":"Physical","amount":10},
+{"frame":0,"target":"M","source":"B","channel":"Fire","amount":5}
+],
+"expect":[
+{"frame":0,"entity":"M","value":"Health","equals":90}
+]}

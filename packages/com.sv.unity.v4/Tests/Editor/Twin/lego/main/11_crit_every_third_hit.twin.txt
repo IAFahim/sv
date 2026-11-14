@@ -1,0 +1,26 @@
+twin 1
+pack lego 9A043301EA06000E
+scenario crit_every_third_hit
+capacity 65536
+frames 6
+frame 0
+spawn 13 0
+spawn 0 64
+send 0 64 0 0 10 1 0
+digest 3274192BC467E8A3
+frame 1
+send 0 64 0 0 10 1 0
+digest 09CAE9654EF951C0
+frame 2
+send 0 64 0 0 10 1 0
+digest 9FE5174AC5A21E7A
+frame 3
+send 0 64 0 0 10 1 0
+digest 0AFD99FA4D55D7EE
+frame 4
+send 0 64 0 0 10 2 0
+digest 8C639BDA3C0DE6E8
+frame 5
+send 0 64 0 0 10 1 0
+digest D634D9A7150DDD89
+final D634D9A7150DDD89

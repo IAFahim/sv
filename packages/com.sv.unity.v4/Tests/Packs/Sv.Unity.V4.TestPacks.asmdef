@@ -1,0 +1,22 @@
+{
+    "name": "Sv.Unity.V4.TestPacks",
+    "rootNamespace": "Sv.Kernels",
+    "references": [
+        "Sv.Engine.Core",
+        "Sv.Engine.Host",
+        "Sv.Unity.V4",
+        "Unity.Burst",
+        "Unity.Collections"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,0 +1,7 @@
+{"schema":1,"rows":[
+{"id":1,"name":"health_flow","layer":"flow","then":[{"add":["Health","Healing"]},{"subtract":["Health","Physical","Fire"]}]},
+{"id":2,"name":"health_bounds","layer":"fold","value":"Health","floor":0,"ceiling":{"stat":"MaxHealth"}},
+{"id":3,"name":"fire_ward","card":"fire_ward","layer":"gate","priority":100,"when":{"eq":["record.channel","Fire"]},"then":[{"deny":{}}]},
+{"id":4,"name":"shield","layer":"gate","priority":0,"when":{"and":[{"in":["record.channel",["Physical","Fire"]]},{"gt":["self.Shield",0]}]},"then":[{"absorb":{"budget":"Shield","per":"Amount","order":"ByAmountDescending"}}]},
+{"id":5,"name":"low_health","layer":"event","event":"LowHealth","enter":{"below":["Health","MaxHealth",30,100]},"stay":{"below":["Health","MaxHealth",40,100]}}
+]}

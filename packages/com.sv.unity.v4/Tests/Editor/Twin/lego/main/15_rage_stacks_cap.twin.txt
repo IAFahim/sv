@@ -1,0 +1,20 @@
+twin 1
+pack lego 9A043301EA06000E
+scenario rage_stacks_cap
+capacity 65536
+frames 4
+frame 0
+spawn 0 0
+spawn 19 64
+send 0 4194303 0 15 3 1 0
+digest 9195690300073CD6
+frame 1
+send 64 0 0 0 100 1 0
+digest 5351F3B34A8C89B2
+frame 2
+send 0 4194303 0 15 4 1 0
+digest 5F6B8AD9A3C8A09B
+frame 3
+send 64 0 0 0 100 1 0
+digest 1256AD83EFDDBB56
+final 1256AD83EFDDBB56

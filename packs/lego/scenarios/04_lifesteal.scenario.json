@@ -1,0 +1,11 @@
+{"schema":1,"name":"lifesteal","frames":2,
+"entities":[{"name":"A","template":"vampire"},{"name":"V","template":"dummy"}],
+"sends":[
+{"frame":0,"target":"V","source":"A","channel":"Physical","amount":40}
+],
+"expect":[
+{"frame":0,"entity":"V","value":"Health","equals":60},
+{"frame":0,"entity":"A","value":"Health","equals":50},
+{"frame":1,"entity":"A","value":"Health","equals":70},
+{"frame":1,"entity":"V","value":"Health","equals":60}
+]}

@@ -1,0 +1,13 @@
+{"schema":1,"name":"execute","frames":3,
+"entities":[{"name":"V","template":"weakened"},{"name":"E","template":"executioner"}],
+"sends":[
+{"frame":0,"target":"V","source":"E","channel":"Physical","amount":10},
+{"frame":1,"target":"V","source":"E","channel":"Physical","amount":10}
+],
+"expect":[
+{"frame":0,"entity":"V","value":"Health","equals":15},
+{"frame":0,"entity":"V","value":"Dead","equals":false},
+{"frame":1,"entity":"V","value":"Health","equals":0},
+{"frame":1,"entity":"V","value":"Dead","equals":true},
+{"frame":2,"entity":"V","value":"Dead","equals":true}
+]}

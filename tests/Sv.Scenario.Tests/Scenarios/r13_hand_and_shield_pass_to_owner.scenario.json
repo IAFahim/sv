@@ -1,0 +1,15 @@
+{"schema":1,"name":"r13_hand_and_shield_pass_to_owner","frames":2,
+"entities":[{"name":"P","template":"player"},{"name":"H","template":"hand"},{"name":"S","template":"shield"},{"name":"R","template":"rifleman"}],
+"sends":[
+{"frame":0,"target":"H","channel":"SetOwner","amount":1},
+{"frame":0,"target":"S","channel":"SetOwner","amount":1},
+{"frame":1,"target":"P","source":"R","channel":"Physical","amount":50},
+{"frame":1,"target":"H","channel":"Healing","amount":20},
+{"frame":1,"target":"S","source":"R","channel":"Poison","amount":10}
+],
+"expect":[
+{"frame":0,"entity":"H","value":"Owner","equals":0},
+{"frame":1,"entity":"P","value":"Health","equals":60},
+{"frame":1,"entity":"H","value":"Health","equals":100},
+{"frame":1,"entity":"S","value":"Health","equals":100}
+]}

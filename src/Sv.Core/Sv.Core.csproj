@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net10.0;netstandard2.1</TargetFrameworks>
+    <LangVersion>9</LangVersion>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RootNamespace>Sv</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Sv.Core.Lanes.Tests" />
+    <InternalsVisibleTo Include="Sv.Core.Records.Tests" />
+    <InternalsVisibleTo Include="Sv.Laws.Tests" />
+    <InternalsVisibleTo Include="Sv.Diff.Tests" />
+    <InternalsVisibleTo Include="Sv.Scenario.Tests" />
+    <InternalsVisibleTo Include="Sv.Bench" />
+  </ItemGroup>
+</Project>

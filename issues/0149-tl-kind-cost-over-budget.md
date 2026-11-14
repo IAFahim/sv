@@ -1,8 +1,8 @@
 # Issue 0149 - tl's own kind job is over the frame budget at 1M rows (owner decision, tl side)
 
-Status: open
+Status: closed (2026-11-14, decided by the lead dev under the owner's standing delegation)
 
-Labels: `ai`, `area:tl`, `open`, `owner-decision`.
+Labels: `ai`, `area:tl`, `closed`, `owner-decision`.
 
 ## Finding (issue 0143, Unity 7000.0.0a16, 1M rows, W 2.5, 0 percent cross-row, Burst on, safety off, 3 fresh processes)
 
@@ -25,3 +25,7 @@ sv meets its own gate (25 percent of a 30 Hz frame, 8.3 ms) at every worker coun
 
 Is a 1M-row frame at 30 Hz in scope for the tl test? If yes, the kind job is the next target (tl owners). If the real row
 count is lower, this issue closes with the table above as the budget.
+
+## Decision (2026-11-14)
+
+Not sv's to fix: the gate covers sv only (plan G11). tl's kind cost at 1M rows is listed in docs/PRODUCTION-CHECKLIST.md so a project budgets it on top. Follow it in the tl repository.

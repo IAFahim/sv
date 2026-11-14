@@ -1,0 +1,16 @@
+{"schema":1,"name":"stack_buff_per_count_card","frames":4,
+"entities":[{"name":"A","template":"dummy"},{"name":"V","template":"tank"}],
+"sends":[
+{"frame":0,"target":"A","channel":"FuryGain","amount":3},
+{"frame":1,"target":"V","source":"A","channel":"Physical","amount":100},
+{"frame":2,"target":"A","channel":"FuryGain","amount":4},
+{"frame":3,"target":"V","source":"A","channel":"Physical","amount":100}
+],
+"expect":[
+{"frame":0,"entity":"A","value":"Fury","equals":3},
+{"frame":1,"entity":"A","value":"RageBonus","equals":30},
+{"frame":1,"entity":"V","value":"Health","equals":370},
+{"frame":2,"entity":"A","value":"Fury","equals":5},
+{"frame":3,"entity":"A","value":"RageBonus","equals":50},
+{"frame":3,"entity":"V","value":"Health","equals":220}
+]}

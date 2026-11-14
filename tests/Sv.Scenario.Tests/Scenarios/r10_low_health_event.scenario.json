@@ -1,0 +1,14 @@
+{"schema":1,"name":"r10_low_health_event","frames":3,
+"entities":[{"name":"P","template":"player"},{"name":"R","template":"rifleman"}],
+"sends":[
+{"frame":0,"target":"P","source":"R","channel":"Physical","amount":75},
+{"frame":1,"target":"P","channel":"Healing","amount":10},
+{"frame":2,"target":"P","channel":"Healing","amount":10}
+],
+"expect":[
+{"frame":0,"entity":"P","value":"LowHealth","equals":true},
+{"frame":1,"entity":"P","value":"ImmuneCharges","equals":1},
+{"frame":1,"entity":"P","value":"LowHealth","equals":true},
+{"frame":2,"entity":"P","value":"Health","equals":45},
+{"frame":2,"entity":"P","value":"LowHealth","equals":false}
+]}

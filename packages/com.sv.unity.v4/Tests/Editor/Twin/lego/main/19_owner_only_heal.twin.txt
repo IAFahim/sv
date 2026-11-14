@@ -1,0 +1,17 @@
+twin 1
+pack lego 9A043301EA06000E
+scenario owner_only_heal
+capacity 65536
+frames 2
+frame 0
+spawn 0 0
+spawn 0 1
+spawn 24 64
+send 64 4194303 0 18 1 1 0
+send 64 0 0 3 10 1 0
+digest BE35DB004E7494A5
+frame 1
+send 64 0 0 3 10 1 0
+send 64 1 0 3 10 1 0
+digest 2A4C898972E4D196
+final 2A4C898972E4D196

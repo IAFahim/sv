@@ -1,0 +1,13 @@
+{"schema":1,"name":"thorns_reflection_limit","frames":4,
+"entities":[{"name":"A","template":"thorny"},{"name":"B","template":"thorny"}],
+"sends":[
+{"frame":0,"target":"B","source":"A","channel":"Physical","amount":20}
+],
+"expect":[
+{"frame":0,"entity":"B","value":"Health","equals":80},
+{"frame":0,"entity":"A","value":"Health","equals":100},
+{"frame":1,"entity":"A","value":"Health","equals":90},
+{"frame":2,"entity":"B","value":"Health","equals":75},
+{"frame":3,"entity":"A","value":"Health","equals":90},
+{"frame":3,"entity":"B","value":"Health","equals":75}
+]}

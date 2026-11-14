@@ -1,7 +1,0 @@
-settings tag=tl-w7-2 burst=True safety=False jobDebugger=False leak=Disabled workers=7 unity=7000.0.0a16 rows=1048576 W=2.5 cross=0% kinds=tl-generated(Damage<-Poison feeds) digestEvery=8 Iw=1
-setup rows=1048576 ms=1431.0 boardBytes=13582056 hostNativeBytes=34735744 svEcsBytesPerRow=32+1bit
-cell shape=P1 W=2.5 cross=0% window=sv+tl statOps=874 svMain=0.174 scatter=0.116 fold=1.459 kinds=9.465 send=0.670 derive=0.011 digest=0.065 total=11.968 mainBytes=0 svProbeManaged=0 kindProbeManaged=0 hp0=40 delta0=0
-ram rows=1048576 boardBytesPerRow=18.58 hostNativeBytesPerRow=33.13 modifiers=100000 boardBytesPerModifier=58.76 boardBefore=19485240 boardAfter=25361112
-setup rows=1048576 ms=957.9 boardBytes=13582056 hostNativeBytes=34735744 svEcsBytesPerRow=32+1bit
-cell shape=P1 W=2.5 cross=0% window=null(tl-only) statOps=0 svMain=0.000 scatter=0.000 fold=0.000 kinds=9.500 send=0.000 derive=0.000 digest=0.000 total=9.501 mainBytes=0 svProbeManaged=0 kindProbeManaged=0 hp0=40 delta0=0
-done tag=tl-w7-2

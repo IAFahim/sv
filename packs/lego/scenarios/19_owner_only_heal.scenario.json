@@ -1,0 +1,13 @@
+{"schema":1,"name":"owner_only_heal","frames":2,
+"entities":[{"name":"P","template":"dummy"},{"name":"S","template":"dummy"},{"name":"Pet","template":"pet"}],
+"sends":[
+{"frame":0,"target":"Pet","channel":"OwnerShift","amount":1},
+{"frame":0,"target":"Pet","source":"P","channel":"Healing","amount":10},
+{"frame":1,"target":"Pet","source":"P","channel":"Healing","amount":10},
+{"frame":1,"target":"Pet","source":"S","channel":"Healing","amount":10}
+],
+"expect":[
+{"frame":0,"entity":"Pet","value":"Owner","equals":0},
+{"frame":0,"entity":"Pet","value":"Health","equals":50},
+{"frame":1,"entity":"Pet","value":"Health","equals":60}
+]}

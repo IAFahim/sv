@@ -1,0 +1,17 @@
+twin 1
+pack lego 9A043301EA06000E
+scenario shield_absorb
+capacity 65536
+frames 3
+frame 0
+spawn 6 0
+spawn 0 64
+send 0 64 0 0 20 1 0
+digest 8BF14347A6C0CC7A
+frame 1
+send 0 64 0 0 25 1 0
+digest E85AF6BC908B8DF6
+frame 2
+send 0 64 0 0 5 1 0
+digest 7B34D75614614776
+final 7B34D75614614776

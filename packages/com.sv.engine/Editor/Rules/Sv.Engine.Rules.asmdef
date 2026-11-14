@@ -1,0 +1,14 @@
+{
+    "name": "Sv.Engine.Rules",
+    "rootNamespace": "Sv",
+    "references": ["Sv.Engine.Core"],
+    "includePlatforms": ["Editor"],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

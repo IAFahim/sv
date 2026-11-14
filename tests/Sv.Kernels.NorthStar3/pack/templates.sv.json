@@ -1,0 +1,11 @@
+{"schema":1,"rows":[
+{"id":1,"name":"player","values":{"Health":100,"MaxHealth":100.0}},
+{"id":2,"name":"worked_example_player","values":{"Health":100,"MaxHealth":100.0},"cards":{"sniper_ward":1,"thorns":1,"leech":1}},
+{"id":3,"name":"sniper","values":{"Kind":1}},
+{"id":4,"name":"rifleman","values":{"Kind":2}},
+{"id":5,"name":"hand","forwards":[{"channel":"Healing","to":"Owner"}]},
+{"id":6,"name":"shield","forwards":[{"channel":"Poison","to":"Owner"}]},
+{"id":9,"name":"warded_player","values":{"Health":100,"MaxHealth":100.0},"cards":{"sniper_ward":1}},
+{"id":7,"name":"poison_status","values":{"Kind":1}},
+{"id":8,"name":"rifle_status","values":{"Kind":2}}
+]}

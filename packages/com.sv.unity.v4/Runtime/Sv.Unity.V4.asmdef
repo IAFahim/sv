@@ -1,0 +1,20 @@
+{
+    "name": "Sv.Unity.V4",
+    "rootNamespace": "Sv.Unity",
+    "references": [
+        "Sv.Engine.Core",
+        "Sv.Engine.Host",
+        "Unity.Entities",
+        "Unity.Burst",
+        "Unity.Collections"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

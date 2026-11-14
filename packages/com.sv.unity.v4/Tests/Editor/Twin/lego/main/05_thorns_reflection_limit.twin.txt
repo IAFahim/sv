@@ -1,0 +1,17 @@
+twin 1
+pack lego 9A043301EA06000E
+scenario thorns_reflection_limit
+capacity 65536
+frames 4
+frame 0
+spawn 8 0
+spawn 8 1
+send 1 0 0 0 20 1 0
+digest C75B3AAE2F580759
+frame 1
+digest ED0C15C3057C1DE8
+frame 2
+digest 77BC29EDAD1EFA65
+frame 3
+digest 77BC29EDAD1EFA65
+final 77BC29EDAD1EFA65

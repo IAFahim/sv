@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.WebAssembly">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RootNamespace>Sv.Wasm</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <WasmEnableThreads>false</WasmEnableThreads>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="..\..\packs\reference\*.sv.json" Link="wwwroot\samples\%(Filename)%(Extension)" />
+    <Content Include="..\..\packs\reference\scenarios\worked_example.scenario.json" Link="wwwroot\samples\worked_example.scenario.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Sv.Web\Sv.Web.csproj" />
+  </ItemGroup>
+</Project>

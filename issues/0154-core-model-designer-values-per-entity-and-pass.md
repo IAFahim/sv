@@ -1,8 +1,8 @@
 # Issue 0154 - Core model: designer-defined values per entity, contiguous, and a pass between any two entities
 
-Status: open
+Status: closed (2026-11-14, decided by the lead dev under the owner's standing delegation)
 
-Labels: `ai`, `area:core`, `area:unity`, `area:authoring`, `open`, `owner-requirement`, `supersedes-premises-of-0145-0153`.
+Labels: `ai`, `area:core`, `area:unity`, `area:authoring`, `closed`, `owner-requirement`, `supersedes-premises-of-0145-0153`.
 
 ## Owner requirement (2026-11-12, verbatim intent)
 
@@ -44,3 +44,7 @@ A designer adds `health` and `immune` to a player profile and `heal` to a hand p
 player, a shield curse lands on the player, an immune bit blocks it; no C# per value; digests pinned at 1 and 11 workers.
 
 Next step: senior lookup (issue 0152) with this file as the main question. Issues 0145 to 0153 are re-scoped by it.
+
+## Decision (2026-11-14)
+
+Delivered by v3. Values are designer data (`values.sv.json` classes: stat, intrinsic, channel, event, kind), every entity of a template has them at fixed lane offsets (contiguous per chunk, 41-46 B per entity at rest), templates are the profiles, any entity passes an amount to any other by an integer record, a part reaches its owner through template channel forwarding (`packs/lego` template `hand`: `"forwards": [{"channel": "Healing", "to": "Owner"}]`, with an `Owner` value of role owner), immunity is an ordinary mask value read by rules (`immune_by_kind_mask`), cards change membership at run time, and no C# is written per value. Receipts: `packs/lego` (22 mechanics, docs/LEGO-REPORT.md), Lego 120 tests, Unity twin replays at 1 and 11 workers.

@@ -1,0 +1,14 @@
+{"schema":1,"name":"r8_cursed_blocks_healing","frames":4,
+"entities":[{"name":"P","template":"player"},{"name":"R","template":"rifleman"}],
+"sends":[
+{"frame":0,"target":"P","source":"R","channel":"Physical","amount":50},
+{"frame":0,"target":"P","channel":"GiveCursed","amount":1},
+{"frame":1,"target":"P","channel":"Healing","amount":20},
+{"frame":2,"target":"P","channel":"GiveCursed","amount":-1},
+{"frame":3,"target":"P","channel":"Healing","amount":20}
+],
+"expect":[
+{"frame":1,"entity":"P","value":"Health","equals":50},
+{"frame":2,"entity":"P","value":"Cursed","equals":0},
+{"frame":3,"entity":"P","value":"Health","equals":70}
+]}

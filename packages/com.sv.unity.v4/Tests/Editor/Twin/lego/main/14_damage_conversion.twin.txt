@@ -1,0 +1,13 @@
+twin 1
+pack lego 9A043301EA06000E
+scenario damage_conversion
+capacity 65536
+frames 1
+frame 0
+spawn 17 0
+spawn 0 64
+spawn 18 128
+send 0 64 0 0 20 1 0
+send 128 64 0 0 20 1 0
+digest 3180F2CEF9B0E6C7
+final 3180F2CEF9B0E6C7

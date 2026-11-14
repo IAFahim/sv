@@ -1,0 +1,23 @@
+twin 1
+pack lego 9A043301EA06000E
+scenario double_jump_refill_by_set
+capacity 65536
+frames 5
+frame 0
+spawn 11 0
+send 0 4194303 0 8 1 1 0
+digest 97752C3F0B683480
+frame 1
+send 0 4194303 0 8 1 1 0
+digest A05AB31FB0F55B0A
+frame 2
+send 0 4194303 0 20 1 1 0
+digest 5E378CD32DBFF503
+frame 3
+send 0 4194303 0 8 1 1 0
+digest FC740C4D4B867499
+frame 4
+send 0 4194303 0 20 1 1 0
+send 0 4194303 0 8 1 1 0
+digest 4FEE326C66100884
+final 4FEE326C66100884

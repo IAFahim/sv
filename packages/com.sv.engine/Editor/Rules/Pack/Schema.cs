@@ -1,0 +1,421 @@
+namespace Sv.Rules
+{
+    public enum ValueClass : byte
+    {
+        Stat = 0,
+        Intrinsic = 1,
+        Event = 2,
+        Channel = 3,
+        Kind = 4,
+    }
+
+    public enum IntrinsicRole : byte
+    {
+        Plain = 0,
+        Kind = 1,
+        Owner = 2,
+        Reference = 3,
+    }
+
+    public static class LaneNumbers
+    {
+        public const int EventWords = 32;
+        public const int EventWordShift = 5;
+        public const int MaxLanes = 65536 >> EventWordShift;
+        public const int MaxChannels = 256;
+        public const int MaxKinds = 256;
+        public const int ChannelWord = 64;
+
+        public static int LaneOfEvent(int eventId) => eventId >> EventWordShift;
+
+        public static int WordOfEvent(int eventId) => eventId & (EventWords - 1);
+
+        public static int EventId(int lane, int word) => (lane << EventWordShift) | (word & (EventWords - 1));
+    }
+
+    public readonly struct StatDerive
+    {
+        public int From { get; }
+
+        public int Coefficient { get; }
+
+        public int[] Curve { get; }
+
+        public int CurveMin { get; }
+
+        public int CurveStep { get; }
+
+        public bool IsCurve => Curve.Length > 0;
+
+        StatDerive(int from, int coefficient, int[] curve, int curveMin, int curveStep)
+        {
+            From = from;
+            Coefficient = coefficient;
+            Curve = curve;
+            CurveMin = curveMin;
+            CurveStep = curveStep;
+        }
+
+        public static StatDerive CreateLinear(int from, int coefficient) =>
+            new StatDerive(from, coefficient, System.Array.Empty<int>(), 0, 1);
+
+        public static StatDerive CreateCurve(int from, int[] curve, int curveMin, int curveStep) =>
+            new StatDerive(from, 0, curve, curveMin, curveStep);
+    }
+
+    public sealed class ValueDef
+    {
+        public int Id { get; }
+
+        public string Name { get; }
+
+        public ValueClass Class { get; }
+
+        public IntrinsicRole Role { get; }
+
+        public int IntDefault { get; }
+
+        public int Scale { get; }
+
+        public bool EventDefault { get; }
+
+        public bool Timeline { get; }
+
+        public int Into { get; }
+
+        public int Offset { get; }
+
+        public AssignMode IntoMode { get; }
+
+        public StatDerive[] Derive { get; }
+
+        public string Starts { get; }
+
+        public ValueDef(int id, string name, ValueClass valueClass, IntrinsicRole role, int intDefault, int scale, bool eventDefault, bool timeline, int into, int offset, string starts)
+            : this(id, name, valueClass, role, intDefault, scale, eventDefault, timeline, into, offset, AssignMode.Add, System.Array.Empty<StatDerive>(), starts)
+        {
+        }
+
+        public ValueDef(int id, string name, ValueClass valueClass, IntrinsicRole role, int intDefault, int scale, bool eventDefault, bool timeline, int into, int offset)
+            : this(id, name, valueClass, role, intDefault, scale, eventDefault, timeline, into, offset, AssignMode.Add, System.Array.Empty<StatDerive>())
+        {
+        }
+
+        public ValueDef(int id, string name, ValueClass valueClass, IntrinsicRole role, int intDefault, int scale, bool eventDefault, bool timeline, int into, int offset, AssignMode intoMode)
+            : this(id, name, valueClass, role, intDefault, scale, eventDefault, timeline, into, offset, intoMode, System.Array.Empty<StatDerive>())
+        {
+        }
+
+        public ValueDef(int id, string name, ValueClass valueClass, IntrinsicRole role, int intDefault, int scale, bool eventDefault, bool timeline, int into, int offset, AssignMode intoMode, StatDerive[]? derive)
+            : this(id, name, valueClass, role, intDefault, scale, eventDefault, timeline, into, offset, intoMode, derive, string.Empty)
+        {
+        }
+
+        public ValueDef(int id, string name, ValueClass valueClass, IntrinsicRole role, int intDefault, int scale, bool eventDefault, bool timeline, int into, int offset, AssignMode intoMode, StatDerive[]? derive, string starts)
+        {
+            Starts = starts;
+            IntoMode = intoMode;
+            Derive = derive ?? System.Array.Empty<StatDerive>();
+            Id = id;
+            Name = name;
+            Class = valueClass;
+            Role = role;
+            IntDefault = intDefault;
+            Scale = scale;
+            EventDefault = eventDefault;
+            Timeline = timeline;
+            Into = into;
+            Offset = offset;
+        }
+
+        public int Lane => Class == ValueClass.Event ? LaneNumbers.LaneOfEvent(Id) : Id;
+
+        public bool Assigns => Into >= 0 && IntoMode != AssignMode.Add;
+    }
+
+    public readonly struct StatModifier
+    {
+        public int Stat { get; }
+
+        public ShapeKind Kind { get; }
+
+        public int Value { get; }
+
+        public bool PerCount { get; }
+
+        public StatLayer Layer { get; }
+
+        public StatModifier(int stat, ShapeKind kind, int value)
+            : this(stat, kind, value, false, StatLayer.Core)
+        {
+        }
+
+        public StatModifier(int stat, ShapeKind kind, int value, bool perCount)
+            : this(stat, kind, value, perCount, StatLayer.Core)
+        {
+        }
+
+        public StatModifier(int stat, ShapeKind kind, int value, bool perCount, StatLayer layer)
+        {
+            Stat = stat;
+            Kind = kind;
+            Value = value;
+            PerCount = perCount;
+            Layer = layer;
+        }
+    }
+
+    public sealed class CardDef
+    {
+        public int Id { get; }
+
+        public string Name { get; }
+
+        public int Intrinsic { get; }
+
+        public StatModifier[] Modifiers { get; }
+
+        public int Offset { get; }
+
+        public CardDef(int id, string name, int intrinsic, StatModifier[] modifiers, int offset)
+        {
+            Id = id;
+            Name = name;
+            Intrinsic = intrinsic;
+            Modifiers = modifiers;
+            Offset = offset;
+        }
+    }
+
+    public readonly struct ValueSetting
+    {
+        public ValueClass Class { get; }
+
+        public int Id { get; }
+
+        public int Int { get; }
+
+        public bool Level { get; }
+
+        public ValueSetting(ValueClass valueClass, int id, int intValue, bool level)
+        {
+            Class = valueClass;
+            Id = id;
+            Int = intValue;
+            Level = level;
+        }
+    }
+
+    public readonly struct Forward
+    {
+        public int Channel { get; }
+
+        public int Via { get; }
+
+        public Forward(int channel, int via)
+        {
+            Channel = channel;
+            Via = via;
+        }
+    }
+
+    public sealed class TemplateDef
+    {
+        public int Id { get; }
+
+        public string Name { get; }
+
+        public ValueSetting[] Settings { get; }
+
+        public Forward[] Forwards { get; }
+
+        public int Offset { get; }
+
+        public TemplateDef(int id, string name, ValueSetting[] settings, Forward[] forwards, int offset)
+        {
+            Id = id;
+            Name = name;
+            Settings = settings;
+            Forwards = forwards;
+            Offset = offset;
+        }
+    }
+
+    public sealed class PackSchema
+    {
+        public int NextLane { get; }
+
+        public ValueDef[] Stats { get; }
+
+        public ValueDef[] Intrinsics { get; }
+
+        public ValueDef[] Events { get; }
+
+        public ValueDef[] Channels { get; }
+
+        public ValueDef[] Kinds { get; }
+
+        public string[] Tags { get; }
+
+        public CardDef[] Cards { get; }
+
+        public TemplateDef[] Templates { get; }
+
+        public int KindIntrinsic { get; }
+
+        public int OwnerIntrinsic { get; }
+
+        public ulong Seed { get; }
+
+        public PackSchema(int nextLane, ValueDef[] stats, ValueDef[] intrinsics, ValueDef[] events, ValueDef[] channels, ValueDef[] kinds, string[] tags, CardDef[] cards, TemplateDef[] templates)
+            : this(nextLane, stats, intrinsics, events, channels, kinds, tags, cards, templates, 0ul)
+        {
+        }
+
+        public PackSchema(int nextLane, ValueDef[] stats, ValueDef[] intrinsics, ValueDef[] events, ValueDef[] channels, ValueDef[] kinds, string[] tags, CardDef[] cards, TemplateDef[] templates, ulong seed)
+        {
+            Seed = seed;
+            NextLane = nextLane;
+            Stats = stats;
+            Intrinsics = intrinsics;
+            Events = events;
+            Channels = channels;
+            Kinds = kinds;
+            Tags = tags;
+            Cards = cards;
+            Templates = templates;
+            KindIntrinsic = RoleHolder(intrinsics, IntrinsicRole.Kind);
+            OwnerIntrinsic = RoleHolder(intrinsics, IntrinsicRole.Owner);
+        }
+
+        static int RoleHolder(ValueDef[] intrinsics, IntrinsicRole role)
+        {
+            for (var i = 0; i < intrinsics.Length; i++)
+            {
+                if (intrinsics[i].Role == role)
+                {
+                    return intrinsics[i].Id;
+                }
+            }
+
+            return -1;
+        }
+
+        public ValueDef[] Of(ValueClass valueClass)
+        {
+            switch (valueClass)
+            {
+                case ValueClass.Stat: return Stats;
+                case ValueClass.Intrinsic: return Intrinsics;
+                case ValueClass.Event: return Events;
+                case ValueClass.Channel: return Channels;
+                default: return Kinds;
+            }
+        }
+
+        public int IndexOf(ValueClass valueClass, int id)
+        {
+            var rows = Of(valueClass);
+            var low = 0;
+            var high = rows.Length - 1;
+            while (low <= high)
+            {
+                var middle = (low + high) >> 1;
+                var at = rows[middle].Id;
+                if (at == id)
+                {
+                    return middle;
+                }
+
+                if (at < id)
+                {
+                    low = middle + 1;
+                }
+                else
+                {
+                    high = middle - 1;
+                }
+            }
+
+            return -1;
+        }
+
+        public ValueDef? Find(ValueClass valueClass, int id)
+        {
+            var index = IndexOf(valueClass, id);
+            return index < 0 ? null : Of(valueClass)[index];
+        }
+
+        public ValueDef? FindByName(ValueClass valueClass, string name)
+        {
+            var rows = Of(valueClass);
+            for (var i = 0; i < rows.Length; i++)
+            {
+                if (string.CompareOrdinal(rows[i].Name, name) == 0)
+                {
+                    return rows[i];
+                }
+            }
+
+            return null;
+        }
+
+        public string NameOf(ValueClass valueClass, int id)
+        {
+            var found = Find(valueClass, id);
+            return found == null ? "?" + id.ToString(System.Globalization.CultureInfo.InvariantCulture) : found.Name;
+        }
+
+        public TemplateDef? Template(int id)
+        {
+            for (var i = 0; i < Templates.Length; i++)
+            {
+                if (Templates[i].Id == id)
+                {
+                    return Templates[i];
+                }
+            }
+
+            return null;
+        }
+
+        public int TagOf(string name)
+        {
+            for (var i = 0; i < Tags.Length; i++)
+            {
+                if (string.CompareOrdinal(Tags[i], name) == 0)
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        public AssignMode AssignModeOf(int intrinsic, FlowRule[] flows)
+        {
+            for (var c = 0; c < Channels.Length; c++)
+            {
+                if (Channels[c].Assigns && Channels[c].Into == intrinsic)
+                {
+                    return Channels[c].IntoMode;
+                }
+            }
+
+            for (var f = 0; f < flows.Length; f++)
+            {
+                for (var t = 0; t < flows[f].Terms.Length; t++)
+                {
+                    if (flows[f].Terms[t].Assigns && flows[f].Terms[t].Intrinsic == intrinsic)
+                    {
+                        return flows[f].Terms[t].Mode;
+                    }
+                }
+            }
+
+            return AssignMode.Add;
+        }
+
+        public bool ChannelsFitWord => Channels.Length == 0 || Channels[Channels.Length - 1].Id < LaneNumbers.ChannelWord;
+    }
+}

@@ -1,0 +1,11 @@
+twin 1
+pack lego 9A043301EA06000E
+scenario heal_per_hit_counts_absorbed_hits
+capacity 65536
+frames 1
+frame 0
+spawn 27 0
+spawn 0 64
+send 0 64 0 0 10 3 0
+digest B8D3F09BC648CCEF
+final B8D3F09BC648CCEF

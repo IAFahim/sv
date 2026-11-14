@@ -1,0 +1,14 @@
+{"schema":1,"name":"shield_absorb","frames":3,
+"entities":[{"name":"S","template":"shielded"},{"name":"X","template":"dummy"}],
+"sends":[
+{"frame":0,"target":"S","source":"X","channel":"Physical","amount":20},
+{"frame":1,"target":"S","source":"X","channel":"Physical","amount":25},
+{"frame":2,"target":"S","source":"X","channel":"Physical","amount":5}
+],
+"expect":[
+{"frame":0,"entity":"S","value":"Shield","equals":10},
+{"frame":0,"entity":"S","value":"Health","equals":100},
+{"frame":1,"entity":"S","value":"Shield","equals":0},
+{"frame":1,"entity":"S","value":"Health","equals":85},
+{"frame":2,"entity":"S","value":"Health","equals":80}
+]}
