@@ -5,6 +5,11 @@ U=${U:-$HOME/Unity/Hub/Editor/7000.0.0a16/Editor/Unity}
 P=${P:-$HOME/sv-proto/player-smoke}
 SETTINGS=${SETTINGS:-$HOME/sv-proto/m8-harness/ProjectSettings}
 KEEP=${KEEP:-0}
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*) export SMOKE_TARGET=${SMOKE_TARGET:-win64}; exe=smoke.exe;;
+  *) export SMOKE_TARGET=${SMOKE_TARGET:-linux64}; exe=smoke.x86_64;;
+esac
+export SMOKE_BACKEND=${SMOKE_BACKEND:-coreclr}
 
 rm -rf "$P"
 mkdir -p "$P/Assets/Smoke/Runtime" "$P/Assets/Editor" "$P/Assets/StreamingAssets/twin" "$P/Packages" "$P/out"
@@ -55,14 +60,16 @@ asmdef "$P/Assets/Editor/SvSmoke.Editor.asmdef" SvSmoke.Editor "" '"Editor"' tru
 
 "$U" -batchmode -nographics -projectPath "$P" -executeMethod SmokeBuild.Build -logFile "$P/out/build.log"
 built=$?
-echo "packages: $engine_package"
+echo "packages: $engine_package target: $SMOKE_TARGET backend: $SMOKE_BACKEND"
 echo "build exit=$built errorCS=$(grep -c 'error CS' "$P/out/build.log") warningCS=$(grep -c 'warning CS' "$P/out/build.log") errorBC=$(grep -c 'error BC' "$P/out/build.log")"
 grep -E "SVSMOKE build" "$P/out/build.log"
 status=1
-if [ $built -eq 0 ] && [ -x "$P/Build/smoke.x86_64" ]; then
-  timeout 900 "$P/Build/smoke.x86_64" -batchmode -nographics -logFile "$P/out/player.log"
+if [ $built -eq 0 ] && [ -f "$P/Build/$exe" ]; then
+  timeout 900 "$P/Build/$exe" -batchmode -nographics -logFile "$P/out/player.log"
   status=$?
-  echo "player exit=$status burst=$( [ -f "$P/Build/smoke_Data/Plugins/lib_burst_generated.so" ] && echo aot || echo missing )"
+  burst=$(find "$P/Build/smoke_Data/Plugins" -name 'lib_burst_generated.*' 2>/dev/null | head -1)
+  il2cpp=$(find "$P/Build" -maxdepth 1 \( -name 'GameAssembly.*' -o -name 'GameAssembly' \) 2>/dev/null | head -1)
+  echo "player exit=$status burst=$( [ -n "$burst" ] && echo aot || echo missing ) il2cpp=$( [ -n "$il2cpp" ] && echo yes || echo no )"
   grep -E "SVSMOKE (FAIL|summary)" "$P/out/player.log"
 fi
 if [ "$KEEP" != "1" ] && [ $status -eq 0 ]; then
