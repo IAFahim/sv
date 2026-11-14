@@ -20,13 +20,35 @@ namespace Sv.Host
 
         public ulong PackHash { get; }
 
+        public int[] ChannelIds { get; }
+
         public HostPack(LaneClass[] classes, int channels, StatDef[] stats, int[][] templateValues, CardTerm[] cards, ulong packHash)
             : this(classes, channels, stats, templateValues, cards, Array.Empty<StatSource>(), Array.Empty<int>(), packHash)
         {
         }
 
         public HostPack(LaneClass[] classes, int channels, StatDef[] stats, int[][] templateValues, CardTerm[] cards, StatSource[] sources, int[] curveValues, ulong packHash)
+            : this(classes, channels, stats, templateValues, cards, sources, curveValues, packHash, null)
         {
+        }
+
+        public HostPack(LaneClass[] classes, int channels, StatDef[] stats, int[][] templateValues, CardTerm[] cards, StatSource[] sources, int[] curveValues, ulong packHash, int[]? channelIds)
+        {
+            if (channelIds == null)
+            {
+                channelIds = new int[channels];
+                for (var c = 0; c < channels; c++)
+                {
+                    channelIds[c] = c;
+                }
+            }
+
+            if (channelIds.Length != channels)
+            {
+                throw new ArgumentException("sv: channelIds must list one id per channel", nameof(channelIds));
+            }
+
+            ChannelIds = channelIds;
             Classes = classes;
             Channels = channels;
             Stats = stats;

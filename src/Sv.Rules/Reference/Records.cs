@@ -148,7 +148,7 @@ namespace Sv.Rules.Reference
 
             if (first.Kind != second.Kind)
             {
-                return first.Kind < second.Kind ? -1 : 1;
+                return first.Kind == StatOpKind.Remove ? -1 : 1;
             }
 
             if (first.Layer != second.Layer)
@@ -236,5 +236,7 @@ namespace Sv.Rules.Reference
         public int CommandFault;
         public int StatOpFault;
         public int OverflowLevel;
+
+        public long DroppedOverflow;
     }
 }

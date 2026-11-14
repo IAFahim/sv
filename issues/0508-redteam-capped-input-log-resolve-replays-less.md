@@ -1,6 +1,6 @@
 # 0508 red team: with InputLogFrameLimit set, Resolve returns true and replays less input than was played
 
-Status: open (found by red team, not fixed)
+Status: closed (2026-11-14, fixed by the lead; see Fix)
 
 Severity: medium (silent divergence after a late input; the cap is a host option documented only in issue 0363)
 Kind: design flaw
@@ -28,3 +28,9 @@ The per-frame cap keeps 2 of 5 records per frame in the log; the replay after th
 
 ## Fix direction
 Mark capped frames in the log and make `Resolve` return false (or throw) when its replay window holds one; list the cap and its effect in README chapter 12.
+
+## Fix (lead)
+
+The input log remembers per frame how many records its cap dropped; `Resolve` throws `sv: cannot resolve: the input log cap (InputLogFrameLimit or InputLogFrameBytes) dropped N records in the frames a replay would need` instead of replaying less. README chapters 11 and 12 list it.
+
+Receipts: `bash eng/v3-verify.sh` -> `v3-verify: all green` (Laws 573, Scenario 80, Diff 48, Lego 120, Host 63 under default, AVX2 off and SIMD off, plus SV_CHECKED; Twin 32, NorthStar3 21, Web 6; Hello sample). Host tests 3 of 3 runs green under `taskset -c 0,1`. Unity 7000.0.0a16 gate with com.tl.unity: 98/98, 0 error CS, 0 warning CS, 0 error BC. Bench digests unchanged: B 6E7618BF0900D3F8, r 9CFD52083A9DA3FB, 0 B allocated.

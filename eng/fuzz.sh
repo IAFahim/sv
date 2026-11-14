@@ -28,6 +28,10 @@ mkdir -p "$out"
 found=0
 for ((round = 0; round < rounds; round++)); do
   offset=$((first + round * step))
+  while [ -d "$HOME/sv-proto/_work/bench.lock" ]; do
+    echo "fuzz: waiting for the benchmark to release $HOME/sv-proto/_work/bench.lock" >&2
+    sleep 30
+  done
   log="$out/offset-$offset-$mode.log"
   env "${flags[@]}" SV_FUZZ_OFFSET=$offset "${prefix[@]}" dotnet test tests/Sv.Diff.Tests -c Release --no-build --logger "console;verbosity=detailed" > "$log" 2>&1
   status=$?

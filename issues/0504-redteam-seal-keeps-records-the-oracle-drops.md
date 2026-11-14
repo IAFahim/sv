@@ -1,6 +1,6 @@
 # 0504 red team: compiled Seal keeps records the reference drops as malformed (unknown channel, source outside the world)
 
-Status: open (found by red team, not fixed)
+Status: closed (2026-11-14, fixed by the lead; see Fix)
 
 Severity: high (compiled differs from the oracle; silent)
 Kind: bug
@@ -44,3 +44,11 @@ Actual: `Echo compiled 1, reference 0; digest compiled 3A418E98E68A5054, referen
 
 ## Fix direction
 Drop (and count) in `Seal.Count` every record whose channel is not a pack channel or whose source is neither `NoSource` nor below the capacity, as the reference does; validate kind and channel range in `Send` instead of truncating.
+
+## Fix (lead)
+
+Seal now drops, like the reference, every record whose channel is not a pack channel or whose source is neither `NoSource` nor inside the world (`Route.Malformed`, counted in `RouteFaults`). The pack's channel ids travel in `HostPack.ChannelIds` (generated `PackData.g.cs` passes them only when they are not 0..n-1, so every committed generated file is unchanged). `FrameLoop.Send` throws `ArgumentOutOfRangeException` for a kind or channel outside 0..255 instead of truncating it to a byte.
+
+Receipts: `bash eng/v3-verify.sh` -> `v3-verify: all green` (Laws 573, Scenario 80, Diff 48, Lego 120, Host 63 under default, AVX2 off and SIMD off, plus SV_CHECKED; Twin 32, NorthStar3 21, Web 6; Hello sample). Host tests 3 of 3 runs green under `taskset -c 0,1`. Unity 7000.0.0a16 gate with com.tl.unity: 98/98, 0 error CS, 0 warning CS, 0 error BC. Bench digests unchanged: B 6E7618BF0900D3F8, r 9CFD52083A9DA3FB, 0 B allocated.
+
+Cost: Seal now reads a 4-word channel mask and compares the source per record. Interleaved runs against main on a loaded machine (a fuzz campaign at about 700% CPU was running) gave Seal B 2.35-2.59 ms vs 2.20-2.46 ms on main, about +0.2 ms; totals were too noisy to read (main itself measured 8.1-9.3 ms against 7.7 ms quiet). Re-measure on a quiet machine; B is expected near 7.9 ms, inside the 8.3 ms gate.

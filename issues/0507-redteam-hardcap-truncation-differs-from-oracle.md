@@ -1,6 +1,6 @@
 # 0507 red team: under ArenaPolicy.HardCap the compiled Seal truncates past merge level 3; the reference keeps every record and the contract defines neither
 
-Status: open (found by red team, not fixed)
+Status: closed (2026-11-14, fixed by the lead; see Fix)
 
 Severity: high (compiled differs from the oracle; damage silently lost, only `CanonicalArena.DroppedOverflow` counts it)
 Kind: design flaw (contract gap) and bug
@@ -28,3 +28,9 @@ Actual, limit 3: `overflow Truncated, digest compiled 01FC0B4AB33327D3, referenc
 
 ## Fix direction
 Decide the level-4 rule in the contract (truncate in canonical order, or refuse the frame) and make the reference do the same; document it next to `Arena` in the checklist.
+
+## Fix (lead)
+
+The reference interpreter now applies the same level-4 rule as the compiled arena: after three merge levels, records past `ArenaCapacity` are cut in canonical order and counted (`RefFaults.DroppedOverflow`, overflow level 4). README chapter 12 states the rule.
+
+Receipts: `bash eng/v3-verify.sh` -> `v3-verify: all green` (Laws 573, Scenario 80, Diff 48, Lego 120, Host 63 under default, AVX2 off and SIMD off, plus SV_CHECKED; Twin 32, NorthStar3 21, Web 6; Hello sample). Host tests 3 of 3 runs green under `taskset -c 0,1`. Unity 7000.0.0a16 gate with com.tl.unity: 98/98, 0 error CS, 0 warning CS, 0 error BC. Bench digests unchanged: B 6E7618BF0900D3F8, r 9CFD52083A9DA3FB, 0 B allocated.

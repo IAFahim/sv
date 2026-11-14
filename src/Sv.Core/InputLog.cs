@@ -157,6 +157,7 @@ namespace Sv
             public byte* StatOps;
             public int StatOpCount;
             public int StatOpCapacity;
+            public long Dropped;
         }
 
         readonly int span;
@@ -375,6 +376,7 @@ namespace Sv
             if (dropped > 0L)
             {
                 DroppedRecords += dropped;
+                slot->Dropped += dropped;
                 CappedFrames++;
             }
         }
@@ -473,6 +475,7 @@ namespace Sv
             if (dropped > 0L)
             {
                 DroppedRecords += dropped;
+                slot->Dropped += dropped;
                 CappedFrames++;
             }
         }
@@ -643,8 +646,23 @@ namespace Sv
             if (dropped > 0L)
             {
                 DroppedRecords += dropped;
+                slot->Dropped += dropped;
                 CappedFrames++;
             }
+        }
+
+        public long DroppedFrom(long frame)
+        {
+            var dropped = 0L;
+            for (var at = 0; at < span; at++)
+            {
+                if (frames[at].Frame >= frame)
+                {
+                    dropped += frames[at].Dropped;
+                }
+            }
+
+            return dropped;
         }
 
         public void Truncate(long after)
@@ -873,6 +891,7 @@ namespace Sv
             }
 
             slot->SegmentCount = 0;
+            slot->Dropped = 0L;
         }
 
         void AddSegment(FrameSlot* slot, int chunk, int head)

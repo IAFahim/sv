@@ -21,6 +21,8 @@ namespace Sv.Rules
 
         public ulong PackHash { get; }
 
+        public int[] ChannelIds { get; private set; } = Array.Empty<int>();
+
         PackTables(LaneClass[] classes, int channels, StatDef[] stats, int[][] templateValues, CardTerm[] cards, StatSource[] sources, int[] curveValues, ulong packHash)
         {
             Classes = classes;
@@ -90,7 +92,13 @@ namespace Sv.Rules
             }
 
             SourcesOf(schema, out var sources, out var curves);
-            return new PackTables(classes, schema.Channels.Length, stats, templates, CardsOf(schema), sources, curves, plan.Hash);
+            var channelIds = new int[schema.Channels.Length];
+            for (var c = 0; c < channelIds.Length; c++)
+            {
+                channelIds[c] = schema.Channels[c].Id;
+            }
+
+            return new PackTables(classes, schema.Channels.Length, stats, templates, CardsOf(schema), sources, curves, plan.Hash) { ChannelIds = channelIds };
         }
 
         static void SourcesOf(PackSchema schema, out StatSource[] sources, out int[] curveValues)

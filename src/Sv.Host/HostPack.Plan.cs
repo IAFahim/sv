@@ -8,7 +8,7 @@ namespace Sv.Host
         public static HostPack From(PackPlan plan)
         {
             var tables = PackTables.Of(plan);
-            return new HostPack(tables.Classes, tables.Channels, tables.Stats, tables.TemplateValues, tables.Cards, tables.Sources, tables.CurveValues, tables.PackHash);
+            return new HostPack(tables.Classes, tables.Channels, tables.Stats, tables.TemplateValues, tables.Cards, tables.Sources, tables.CurveValues, tables.PackHash, tables.ChannelIds);
         }
 
         public int TemplateIndexOf(PackSchema schema, int templateId)

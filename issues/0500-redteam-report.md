@@ -1,10 +1,10 @@
 # 0500 red team report: coverage index
 
-Status: open (index of red-team findings 0501-0510; close when they are closed)
+Status: closed (2026-11-14: all ten findings fixed and closed by the lead; the red-team tests are now regression guards and all pass)
 
 Found by: red team (opus), branch `redteam/opus`, base sv `7f6bdb4`. Tests: `tests/Sv.Host.Tests/RedTeam/*.cs`, `tests/Sv.Diff.Tests/RedTeam/*.cs` (finding tests assert the correct behaviour and fail today; survived attacks stay as guards).
 
-Run: `dotnet test tests/Sv.Host.Tests -c Release --filter "FullyQualifiedName~RedTeam"` (32 tests: 13 fail, 19 pass) and the same for `tests/Sv.Diff.Tests` (22 tests: 5 fail, 17 pass). Identical results under default, `DOTNET_EnableAVX2=0`, `DOTNET_EnableHWIntrinsic=0` and `taskset -c 0,1`. The crashing case of 0503 runs only with `SV_REDTEAM_CRASH=1`.
+Run: `dotnet test tests/Sv.Host.Tests -c Release --filter "FullyQualifiedName~RedTeam"` (32 tests; at the red-team commit 13 failed and 19 passed, after the fixes all pass) and the same for `tests/Sv.Diff.Tests` (22 tests; 5 failed and 17 passed before the fixes, all pass after). Identical results under default, `DOTNET_EnableAVX2=0`, `DOTNET_EnableHWIntrinsic=0` and `taskset -c 0,1`. The crashing case of 0503 is ungated now: `Send` refuses a second thread.
 
 ## Findings
 

@@ -269,13 +269,14 @@ All of these are rows in `packs/reference` or `packs/lego`, each with scenario t
 |---|---|
 | `new FrameLoop<HostKernels>(PackData.Create(), new HostOptions { ... })` | the world |
 | `Spawn((int)Template.x)` / `Kill(slot)` | between frames only |
-| `Send(target, source, kind, channel, amount, hits = 1, origin = Origin.Direct)` | a record for this frame |
+| `Send(target, source, kind, channel, amount, hits = 1, origin = Origin.Direct)` | a record for this frame, from **one thread** (it throws if a second thread calls it in the same frame) |
+| `Sender(i)` with `HostOptions.ExternalWriters = n` | one writer per game thread: `host.Sender(thread)->Send(...)` is the multi-threaded path |
 | `Modify(StatOp.Add(...))`, `Modify(StatOp.RemoveSource(...))` | stat modifiers |
 | `Step()` | one frame |
 | `Read(slot, lane)`, `Level(slot, event)` | values and events |
 | `Events`, `EventCount` | this frame's event edges (`HostEvent`: event, slot, entered) |
 | `LastDigest`, `Digest()` | the state hash |
-| `Rewind(epoch)` | back to the start of an epoch |
+| `Rewind(epoch)` | back to the start of an epoch; the input log of the frames after it is dropped, so play them again yourself (rollback) |
 | `Late(frame, records, count)`, `Resolve()` | input that arrives late (networking) |
 
 **Options that matter** (`HostOptions`): `EntityCapacity` (default 65,536), `Workers` (default 1; 11 was best on a 6-core, 12-thread desktop), `Parts` (64), `DigestEvery` (1), `RingEpochs` and `FramesPerEpoch` (32 and 2: the rewind window), `Arena` (grow, or a hard cap for the browser), `EventCapacity` (16,384 per channel per frame), `Late` (`Clamp` or `Reject`). More in `docs/PRODUCTION-CHECKLIST.md`.
@@ -365,6 +366,12 @@ Runs every suite under three CPU modes (default, no AVX2, scalar), the integrati
 | `sv: spawn, kill and rewind happen between frames, after every writer is absorbed` | you spawned or killed inside a frame | do it before `Step` |
 | `sv: the world is full` | more entities than `EntityCapacity` | raise it |
 | `sv: resolve late inputs right after Step, ...` | `Late`/`Resolve` called at the wrong time | call them right after `Step` |
+| `sv: FrameLoop.Send was called from two threads in one frame; ...` | game threads share `Send` | set `ExternalWriters` and give each thread `Sender(i)` |
+| `sv: cannot resolve: the input log cap ... dropped N records ...` | `InputLogFrameLimit`/`InputLogFrameBytes` dropped records a replay would need | raise or remove the cap, or do not use late input with it |
+| `sv: kind and channel are 0 to 255` (`ArgumentOutOfRangeException`) | `Send` got a kind or channel outside a byte | pass the pack's enum values |
+| `ObjectDisposedException` | a call after `Dispose` | keep the world alive while you use it |
+| `Send` returns `false` | zero amount or hits, or (with several `ExternalWriters`, or a hard cap) the raw arena is full; `ExternalDropped` counts these | raise `RawCapacity`; with one writer and `Grow` the arena grows by itself |
+| `RouteFaults` grows | records with a channel the pack does not have, or a source outside the world, are dropped in Seal like the reference does (also chains over 4 forward hops) | send pack channels and live or no sources |
 | a value changes one frame later than you expected | changes from this frame's records commit at the end of the frame; edge emits arrive next frame | read after `Step` |
 | a revive does not save the entity this frame | there is no same-frame lethal check | design for one frame of delay (chapter 12) |
 | an event fires for many rows as "dense" | more edges than `EventCapacity` on a channel this frame | read the edge words, or raise the capacity |
@@ -382,6 +389,8 @@ Honest list.
 - **Players.** Only a Linux CoreCLR player has been run. Windows, macOS, mobile and console players, and IL2CPP, have not.
 - **tl at a million.** tl's own kind job takes about 8.45 ms at 1,000,000 rows on its own, so sv plus tl at that size does not fit a 30 Hz budget of 8.3 ms. That is tl's cost (issue 0149); size your scenes for both.
 - **Random load.** A million records with random targets **and** random sources per frame costs about 18 ms (decision D20). Timeline and gameplay load that is grouped by entity is inside the gate.
+- **Arena overflow.** With a hard cap, records past the limit after three merge levels are cut in canonical order (both engines, counted); `Grow` grows instead.
+- **Input log cap.** `InputLogFrameLimit` and `InputLogFrameBytes` trade replay for memory: a `Resolve` over a capped frame throws instead of replaying less.
 - **Reaction depth.** A record can cause records up to depth 3 (thorns of thorns of thorns). Deeper chains are cut.
 - **Sizes.** At most 4,194,303 entities (22-bit slots), 256 channels and 256 kinds per pack, 64 exclusive gate groups, masks of 64 bits.
 - **Same-frame lethal check.** A revive acts one frame late.

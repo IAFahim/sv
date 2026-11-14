@@ -25,7 +25,9 @@ For a first real-project test of sv v3 on .NET 10 or Unity 7. The previous engin
 
 | Option | Default | Set it to |
 |---|---|---|
-| `EntityCapacity` | 65,536 | live entities plus margin (`sv: the world is full` past it) |
+| `EntityCapacity` | 65,536 | live entities plus margin (`sv: the world is full` past it). Rounded up to whole 64-entity chunks, and each template fills its own chunks, so leave a chunk of margin per template |
+| `ExternalWriters` | 1 | the number of game threads that send; each uses `Sender(i)`. `Send` itself is single-threaded and throws if a second thread uses it in one frame |
+| `RawCapacity` | 65,536 | records sent per frame plus margin; with one writer and `Grow` the arena grows by itself, otherwise a full arena makes `Send` return false and `ExternalDropped` counts it |
 | `Workers` | 1 | physical cores plus SMT (measured best: 11 on a 6C/12T Ryzen 5 8500G; fewer is slower) |
 | `Parts` | 64 | 64 (16 and 22 were measured worse for random load) |
 | `DigestEvery` | 1 | 1 while testing; 0 turns the digest off |
@@ -92,6 +94,10 @@ Record a twin journal on the side you trust (`tests/Sv.NorthStar3/Rig.cs` `Journ
 | `sv: the world is full` | raise `EntityCapacity` |
 | `sv: spawn, kill and rewind happen between frames, after every writer is absorbed` | moved into a frame: call them before `Step` and outside writer passes |
 | `sv: resolve late inputs right after Step, ...` | call `Late`/`Resolve` before the next frame's input |
+| `sv: FrameLoop.Send was called from two threads in one frame; ...` | use `ExternalWriters` and `Sender(i)` per thread |
+| `sv: cannot resolve: the input log cap ... dropped N records ...` | the replay window holds frames the log cap truncated; raise or remove `InputLogFrameLimit`/`InputLogFrameBytes` |
+| `sv: kind and channel are 0 to 255` | `Send` got a value outside a byte |
+| `ObjectDisposedException` | a call on a disposed `FrameLoop` |
 | `sv: templates are added in pack order` | the host was handed templates out of pack order |
 | `sv: a stat scale is a power of ten from 1 to 1,000,000` and other `ArgumentException`s at load | the pack's values do not satisfy the contract; the pack reader names the row |
 

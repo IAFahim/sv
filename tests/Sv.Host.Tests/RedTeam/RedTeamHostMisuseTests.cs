@@ -144,26 +144,18 @@ public sealed unsafe class RedTeamHostMisuseTests
         output.WriteLine((string)Packs.Call(typeof(RedTeamHostMisuseTests), nameof(UnknownInputs), RedTeamPacks.CatchAllKernels, RedTeamPacks.CatchAll, 0, source)!);
     }
 
-    public static bool CrashTestsEnabled => Environment.GetEnvironmentVariable("SV_REDTEAM_CRASH") == "1";
-
     [Theory]
     [InlineData(1, false)]
     [InlineData(4, false)]
     [InlineData(4, true)]
-    public void Sends_from_several_game_threads_with_as_many_external_writers_all_arrive(int threads, bool throughFrameLoopSend)
+    public void Sends_from_several_game_threads_with_as_many_external_writers_all_arrive_or_are_refused(int threads, bool throughFrameLoopSend)
     {
-        if (threads > 1 && throughFrameLoopSend && !CrashTestsEnabled)
-        {
-            output.WriteLine("needs SV_REDTEAM_CRASH=1: this case corrupts native memory and kills the test host (issue 0503)");
-            return;
-        }
-
         var threadCount = threads;
         const int PerThread = 25_000;
         using var host = new FrameLoop<ReferenceKernels>(PackData.Create(), new HostOptions { Workers = 1, EntityCapacity = 256, ExternalWriters = threadCount });
         var hero = host.Spawn((int)Template.player);
         host.Step();
-        Parallel.For(0, threadCount, new ParallelOptions { MaxDegreeOfParallelism = threadCount }, thread =>
+        void SendFromEveryThread() => Parallel.For(0, threadCount, new ParallelOptions { MaxDegreeOfParallelism = threadCount }, thread =>
         {
             var writer = host.Sender(thread);
             for (var at = 0; at < PerThread; at++)
@@ -178,6 +170,39 @@ public sealed unsafe class RedTeamHostMisuseTests
                 }
             }
         });
+        if (threads > 1 && throughFrameLoopSend)
+        {
+            Assert.True(host.Send(hero, -1, 0, (int)Channel.GiveCharges, 1));
+            Exception? secondThreadError = null;
+            var secondThreadSent = false;
+            void SendFromSecondThread()
+            {
+                try
+                {
+                    secondThreadSent = host.Send(hero, -1, 0, (int)Channel.GiveCharges, 1);
+                }
+                catch (Exception error)
+                {
+                    secondThreadError = error;
+                }
+            }
+
+            var sameFrame = new System.Threading.Thread(SendFromSecondThread);
+            sameFrame.Start();
+            sameFrame.Join();
+            Assert.IsType<InvalidOperationException>(secondThreadError);
+            Assert.Contains("Sender(i)", secondThreadError!.Message);
+            host.Step();
+            secondThreadError = null;
+            var nextFrame = new System.Threading.Thread(SendFromSecondThread);
+            nextFrame.Start();
+            nextFrame.Join();
+            Assert.Null(secondThreadError);
+            Assert.True(secondThreadSent);
+            return;
+        }
+
+        SendFromEveryThread();
         host.Step();
         var charges = host.Read(hero, (int)Intrinsic.ImmuneCharges);
         output.WriteLine("ImmuneCharges " + charges + " of " + (threadCount * PerThread));

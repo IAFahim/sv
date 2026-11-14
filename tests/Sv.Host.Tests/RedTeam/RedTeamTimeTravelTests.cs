@@ -183,8 +183,8 @@ public sealed unsafe class RedTeamTimeTravelTests
 
         var late = new LoggedRecord(EffectKey.Pack(heroes[0], EffectKey.NoSource, 0, (byte)Channel.Healing, Origin.Direct, 0), 3, 1);
         Assert.Equal(2L, host.Late(2, &late, 1));
-        var resolved = host.Resolve();
-        output.WriteLine("resolved " + resolved + ", dropped from log " + host.Log.DroppedRecords + ", digest " + Packs.Hex(host.LastDigest) + ", straight " + Packs.Hex(straight.LastDigest));
-        Assert.True(!resolved || host.LastDigest == straight.LastDigest, "Resolve returned true but the replay lost logged input");
+        var refused = Assert.Throws<InvalidOperationException>(() => host.Resolve());
+        output.WriteLine(refused.Message + "; dropped from log " + host.Log.DroppedRecords);
+        Assert.Contains("input log cap", refused.Message);
     }
 }

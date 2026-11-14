@@ -107,7 +107,14 @@ namespace Sv.Rules.Emit
             }
 
             code.Line("var curves = " + Ints(tables.CurveValues) + ";");
-            code.Line("return new HostPack(classes, " + Names.Int(tables.Channels) + ", stats, templates, cards, sources, curves, " + Names.Hex(tables.PackHash) + ");");
+            var denseChannels = true;
+            for (var c = 0; c < tables.ChannelIds.Length; c++)
+            {
+                denseChannels &= tables.ChannelIds[c] == c;
+            }
+
+            var channelIds = denseChannels ? string.Empty : ", " + Ints(tables.ChannelIds);
+            code.Line("return new HostPack(classes, " + Names.Int(tables.Channels) + ", stats, templates, cards, sources, curves, " + Names.Hex(tables.PackHash) + channelIds + ");");
             code.Close();
             code.Close();
             code.Close();

@@ -1,6 +1,6 @@
 # 0502 red team: game sends beyond the raw arena capacity are silently dropped under ArenaPolicy.Grow
 
-Status: open (found by red team, not fixed)
+Status: closed (2026-11-14, fixed by the lead; see Fix)
 
 Severity: critical (silent loss of game input with default options)
 Kind: bug
@@ -28,3 +28,9 @@ The only signal is the `bool` returned by `Send`, which no README or sample code
 
 ## Fix direction
 Under `Grow`, let an exhausted external writer grow the arena between frames (segments are append-only, existing block pointers stay valid), or throw `sv: the raw arena is full` instead of returning false; keep `Missed` readable after `Step`.
+
+## Fix (lead)
+
+With one external writer and `ArenaPolicy.Grow`, `FrameLoop.Send` grows the raw arena (doubling, `RawArena.GrowFor`) and retries when the writer runs out of blocks, so every send arrives. With several `ExternalWriters` (threads) or a hard cap, a full arena still makes `Send` return false, and the new `FrameLoop.ExternalDropped` counts those records across frames. README chapter 11 and the checklist (`RawCapacity` row) say so.
+
+Receipts: `bash eng/v3-verify.sh` -> `v3-verify: all green` (Laws 573, Scenario 80, Diff 48, Lego 120, Host 63 under default, AVX2 off and SIMD off, plus SV_CHECKED; Twin 32, NorthStar3 21, Web 6; Hello sample). Host tests 3 of 3 runs green under `taskset -c 0,1`. Unity 7000.0.0a16 gate with com.tl.unity: 98/98, 0 error CS, 0 warning CS, 0 error BC. Bench digests unchanged: B 6E7618BF0900D3F8, r 9CFD52083A9DA3FB, 0 B allocated.
