@@ -36,6 +36,10 @@ bits 19..12 kind (8), 11..4 channel (8), 3..2 origin (2), 1..0 depth (2)
 ```
 So inside one target the records are ordered by **source slot** first. That ordering is part of the definition (it decides fold order for non-commutative saturating arithmetic).
 
+## 1.00 FOLLOW-UP after your first answer (2026-11-14, measured)
+
+Thank you. Measured on this box (load ~5): huge pages via madvise on all allocations of 1 MB or more did not raise huge-page coverage much (306 -> 332 MB of 1 GB) and did not move r; 6 or 8 workers instead of 11 made Seal itself slower (4.7 -> 6.0 ms) and r 18.5 -> 23.8 ms; 16 parts made r worse (20.7 ms); `a` is already `in DecideArgs`; the source gather was largely done by the P3 source-chunk table; perf stat (user): IPC 1.8, branch misses 2.1 % of branches (~8 % of cycles). A9 cannot apply to the lego pack (`immune_by_kind_mask` reads kind on every channel). Questions now: (1) how to get 2 MB pages for the big malloc regions without changing every allocation site (an mmap-backed arena allocator for buffers of 1 MB+?), and would you still expect a gain given the madvise result; (2) given IPC 1.8 and low mispredicts, what dominates Decide's ~40 ns/record if not speculation; (3) a concrete week-scale plan for the single-writer range partition with fused Seal/Log/Decide per range, as file-level steps.
+
 ## 1.0 UPDATE 2026-11-14 (read this first, it supersedes the numbers below where they differ)
 
 A third pass (branch merged into v3/m8-unity) took `r` from **20.88 to 17.64 ms**; the gate (8.3 ms) is still NOT met. Same-session interleaved, median of 5 x 50 frames, ms:
