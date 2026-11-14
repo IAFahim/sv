@@ -17,11 +17,4 @@
     <InternalsVisibleTo Include="Sv.Scenario.Tests" />
     <InternalsVisibleTo Include="Sv.Bench" />
   </ItemGroup>
-  <ItemGroup>
-    <Compile Include="..\Sv\Bits.cs" Link="Kept\Bits.cs" />
-    <Compile Include="..\Sv\CellDigest.cs" Link="Kept\CellDigest.cs" />
-    <Compile Include="..\Sv\Memory.cs" Link="Kept\Memory.cs" />
-    <Compile Include="..\Sv\NativeArena.cs" Link="Kept\NativeArena.cs" />
-    <Compile Include="..\Sv\XxHash64.cs" Link="Kept\XxHash64.cs" />
-  </ItemGroup>
 </Project>

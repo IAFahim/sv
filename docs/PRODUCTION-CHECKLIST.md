@@ -1,6 +1,6 @@
 # Production test checklist (sv v3, with or without tl)
 
-For a first real-project test of sv v3 on .NET 10 or Unity 7. The legacy sv 2.1 checklist is `docs/legacy/PRODUCTION-CHECKLIST-v2.1.md`.
+For a first real-project test of sv v3 on .NET 10 or Unity 7. The previous engine (sv 2.1) was removed from this repository on 2026-11-14; it lives in git history and the tag `v3.0.0-rc.2`.
 
 ## What you are testing
 
@@ -12,7 +12,6 @@ For a first real-project test of sv v3 on .NET 10 or Unity 7. The legacy sv 2.1 
 | Editors and runtimes | .NET 10; Unity 7000.0.0a16, Entities 7.0.0, Collections 7.0.0, Burst 2.0.0 | |
 | tl | tl main, tl.unity `com.tl.unity` (plain host) | `tests/Sv.NorthStar3`, `packages/com.sv.unity.v4/Tests/Tl` |
 
-A project references either the legacy core (`com.sv.core`, sv 2.1) or the v3 engine (`com.sv.engine`), never both from one assembly: both define `Sv.StatOp`, `Sv.ModifierHandle` and others (CS0433).
 
 ## Before the first frame
 
@@ -55,8 +54,8 @@ Rules that keep it deterministic:
 
 ## Verify on every machine you compare
 
-- `bash eng/v3-verify.sh` (set `TL_ROOT` to your tl checkout). It runs the engine mirror and tl generator checks, Laws, Scenario, Diff, Lego and Host under default, `DOTNET_EnableAVX2=0` and `DOTNET_EnableHWIntrinsic=0`, then Twin.Fixtures, NorthStar3, NorthStar2, NorthStar, Web and Portable. Expect `v3-verify: all green`.
-- Unity: `eng/m8-run/gate.sh` (set-up in `docs/M8-HANDOFF.md`, tl in `docs/UNITY.md`): 0 `error CS`, 0 `warning CS`, 0 `error BC`, every EditMode test green (101 with com.tl.unity, 91 without). Every generated job reports probe 1 (ran as Burst).
+- `bash eng/v3-verify.sh` (set `TL_ROOT` to your tl checkout). It runs the engine mirror and tl generator checks, Laws, Scenario, Diff, Lego and Host under default, `DOTNET_EnableAVX2=0` and `DOTNET_EnableHWIntrinsic=0`, then Twin.Fixtures, NorthStar3 and Web, the checked build (`-p:SvChecked=true`) and the README chapter 1 sample. Expect `v3-verify: all green`.
+- Unity: `eng/m8-run/gate.sh` (set-up in `docs/M8-HANDOFF.md`, tl in `docs/UNITY.md`): 0 `error CS`, 0 `warning CS`, 0 `error BC`, every EditMode test green (97 with com.tl.unity, 87 without). Every generated job reports probe 1 (ran as Burst).
 - Unity player: `bash eng/player-smoke.sh` builds and runs a Linux player; expect `failures 0` and `managedRuns 0`.
 - Pins that must not move: worked example `E0F445186E2C3672`; reference PackHash `BD70627B1C671888`; lego PackHash `9A043301EA06000E`; NorthStar3 `A566FAEC8837BA57` and `2D6A06776AE25DCB`; bench digests A `DAF3A1D9BD73BA10`, B `6E7618BF0900D3F8`, C `D3C714D46555B7CE`, D `7413F619472566C4`, r `9CFD52083A9DA3FB`.
 

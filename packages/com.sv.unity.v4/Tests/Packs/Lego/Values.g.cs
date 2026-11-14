@@ -99,6 +99,39 @@ namespace Sv.Kernels.Lego
         Beast = 3,
     }
 
+    public enum Template : int
+    {
+        dummy = 0,
+        sniper = 1,
+        rifleman = 2,
+        beast = 3,
+        regen_low = 4,
+        regen_full = 5,
+        shielded = 6,
+        vampire = 7,
+        thorny = 8,
+        ward_charges = 9,
+        masked = 10,
+        jumper = 11,
+        caster = 12,
+        crit_target = 13,
+        executioner = 14,
+        weakened = 15,
+        phoenix = 16,
+        converter = 17,
+        converter_fireproof = 18,
+        tank = 19,
+        alchemist = 20,
+        trained = 21,
+        player_half = 22,
+        hand = 23,
+        pet = 24,
+        bloodmage = 25,
+        worked_example_player = 26,
+        bloodmage_warded = 27,
+        lucky = 28,
+    }
+
     public static class Layout
     {
         public const ulong CompiledAgainst = 0x9A043301EA06000Eul;

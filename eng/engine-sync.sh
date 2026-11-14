@@ -11,14 +11,12 @@ fi
 
 sources() {
   (cd "$root/src/Sv.Core" && find . -name '*.cs' -not -path './bin/*' -not -path './obj/*' | sed 's#^\./##' | sort | sed 's#^#Runtime/Core/#')
-  for kept in Bits CellDigest Memory NativeArena XxHash64; do echo "Runtime/Core/Kept/$kept.cs"; done
   (cd "$root/src/Sv.Host" && find . -name '*.cs' -not -path './bin/*' -not -path './obj/*' -not -name 'HostPack.Plan.cs' | sed 's#^\./##' | sort | sed 's#^#Runtime/Host/#')
   (cd "$root/src/Sv.Rules" && find . -name '*.cs' -not -path './bin/*' -not -path './obj/*' | sed 's#^\./##' | sort | sed 's#^#Editor/Rules/#')
 }
 
 origin() {
   case "$1" in
-    Runtime/Core/Kept/*) echo "$root/src/Sv/${1#Runtime/Core/Kept/}" ;;
     Runtime/Core/*) echo "$root/src/Sv.Core/${1#Runtime/Core/}" ;;
     Runtime/Host/*) echo "$root/src/Sv.Host/${1#Runtime/Host/}" ;;
     Editor/Rules/*) echo "$root/src/Sv.Rules/${1#Editor/Rules/}" ;;

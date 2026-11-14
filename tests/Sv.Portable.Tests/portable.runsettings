@@ -1,5 +1,0 @@
-﻿<RunSettings>
-  <RunConfiguration>
-    <TestCaseFilter>FullyQualifiedName!=AlignedColumnTests.LargeColumns_AreHugePageAligned</TestCaseFilter>
-  </RunConfiguration>
-</RunSettings>

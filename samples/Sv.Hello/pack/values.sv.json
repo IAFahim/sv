@@ -1,0 +1,14 @@
+{"schema":1,"nextLane":6,"rows":[
+{"id":0,"name":"MaxHealth","class":"stat","default":100.0},
+{"id":1,"name":"Health","class":"intrinsic","default":100},
+{"id":2,"name":"Shield","class":"intrinsic","default":0},
+{"id":3,"name":"FireWard","class":"intrinsic","default":0},
+{"id":4,"name":"Kind","class":"intrinsic","default":0,"role":"kind"},
+{"lane":5,"word":0,"name":"LowHealth","class":"event","default":false},
+{"id":0,"name":"Physical","class":"channel"},
+{"id":1,"name":"Fire","class":"channel"},
+{"id":2,"name":"Healing","class":"channel"},
+{"id":0,"name":"None","class":"kind"},
+{"id":1,"name":"Goblin","class":"kind"},
+{"id":2,"name":"Dragon","class":"kind"}
+]}

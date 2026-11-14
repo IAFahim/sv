@@ -25,13 +25,12 @@ run() {
 note "mirrors"
 bash eng/engine-sync.sh check || failed=1
 bash eng/tl-plain-sync.sh check || failed=1
-bash eng/unity-sync.sh check packages/com.sv.core || failed=1
 
 note "build"
 dotnet build -c Release src/Sv.Pack -v q -p:NuGetAudit=false >/dev/null || { echo "FAIL build Sv.Pack"; exit 1; }
 
 core="Sv.Laws.Tests Sv.Scenario.Tests Sv.Diff.Tests Sv.Lego.Tests Sv.Host.Tests"
-extra="Sv.Twin.Fixtures Sv.NorthStar3 Sv.NorthStar2 Sv.NorthStar Sv.Web.Tests Sv.Portable.Tests"
+extra="Sv.Twin.Fixtures Sv.NorthStar3 Sv.Web.Tests"
 for leg in default noavx2 scalar; do
   case $leg in
     default) flags="";;
@@ -49,10 +48,19 @@ for project in $extra; do
   run "default $project" dotnet test "tests/$project" -c Release -p:NuGetAudit=false
 done
 
-note "legacy sv 2.1 core (normal and SV_CHECKED)"
-run "legacy Sv.Tests" dotnet test tests/Sv.Tests -c Release -p:NuGetAudit=false
-run "legacy Sv.Tests SV_CHECKED" dotnet test tests/Sv.Tests -c Release -p:NuGetAudit=false -p:DefineConstants=SV_CHECKED
-dotnet build tests/Sv.Tests -c Release -v q -p:NuGetAudit=false >/dev/null
+note "checked build (SV_CHECKED: the arena's canonical-order check)"
+for project in $core; do
+  run "checked $project" dotnet test "tests/$project" -c Release -p:NuGetAudit=false -p:SvChecked=true
+done
+dotnet build sv.slnx -c Release -v q -p:NuGetAudit=false >/dev/null
+
+note "README chapter 1 sample"
+if dotnet run --no-build -c Release --project samples/Sv.Hello | diff -u --strip-trailing-cr samples/Sv.Hello/expected.txt - >/dev/null; then
+  echo "ok   samples/Sv.Hello prints samples/Sv.Hello/expected.txt"
+else
+  failed=1
+  echo "FAIL samples/Sv.Hello output differs from samples/Sv.Hello/expected.txt"
+fi
 
 if [ $failed -ne 0 ]; then
   echo "v3-verify: FAILED"

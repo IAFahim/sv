@@ -20,6 +20,14 @@ namespace Sv.Rules.Emit
             code.Blank();
             Enum(code, "Kind", "byte", schema.Kinds);
             code.Blank();
+            code.Open("public enum Template : int");
+            for (var i = 0; i < schema.Templates.Length; i++)
+            {
+                code.Line(Names.Identifier(schema.Templates[i].Name) + " = " + Names.Number(i) + ",");
+            }
+
+            code.Close();
+            code.Blank();
             code.Open("public static class Layout");
             code.Line("public const ulong CompiledAgainst = " + Names.Hex(packHash) + ";");
             code.Blank();

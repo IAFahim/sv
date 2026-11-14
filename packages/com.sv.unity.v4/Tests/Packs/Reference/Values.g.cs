@@ -51,6 +51,16 @@ namespace Sv.Kernels.Reference
         Rifle = 2,
     }
 
+    public enum Template : int
+    {
+        player = 0,
+        worked_example_player = 1,
+        sniper = 2,
+        rifleman = 3,
+        hand = 4,
+        shield = 5,
+    }
+
     public static class Layout
     {
         public const ulong CompiledAgainst = 0xBD70627B1C671888ul;

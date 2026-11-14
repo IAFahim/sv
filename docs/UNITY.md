@@ -8,8 +8,6 @@ Unity 7000.0.0a16 (newest editor only), Entities 7.0.0, Collections 7.0.0, Burst
 |---|---|
 | `com.sv.engine` | `Sv.Core`, `Sv.Host` (runtime) and `Sv.Rules` (editor only) copied verbatim from `src` by `eng/engine-sync.sh sync` (`check` fails on drift) |
 | `com.sv.unity.v4` | the adapter: generated Burst jobs per frame phase, `SvWorld`, `SvStepSystem`, `SvSlot`, reload hook, pack authoring window |
-| `com.sv.core` | the legacy v2 core (`src/Sv`), synced by `eng/unity-sync.sh`; kept for the frozen legacy pins |
-| `com.sv.core.tests` | the Unity legs of the legacy pins: fold scenario (plain and as a Burst job) = `0D945D8FD131DA2A`, NorthStar2 link table hash `A47434070C42E4AC`, twin scenario `DA47AD9B5CD74335` |
 
 ## Use
 

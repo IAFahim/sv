@@ -1,17 +1,21 @@
 <Solution>
-  <Project Path="src/Sv/Sv.csproj" />
-  <Project Path="src/Sv.Burst/Sv.Burst.csproj" />
-  <Project Path="src/Sv.Generators/Sv.Generators.csproj" />
-  <Project Path="src/Sv.Frent/Sv.Frent.csproj" />
-  <Project Path="src/Sv.Compose/Sv.Compose.csproj" />
-  <Project Path="tests/Sv.Tests/Sv.Tests.csproj" />
-  <Project Path="tests/Sv.Fuzz/Sv.Fuzz.csproj" />
-  <Project Path="tests/Sv.NorthStar/Sv.NorthStar.csproj" />
-  <Project Path="tests/Sv.NorthStar2/Sv.NorthStar2.csproj" />
-  <Project Path="tests/Sv.Unity.Facade/Unity.Facade.csproj" />
-  <Project Path="tests/Sv.Unity.Tests/Sv.Unity.Tests.csproj" />
-  <Project Path="tests/Sv.Unity.Twin/Sv.Unity.Twin.csproj" />
-  <Project Path="tests/Sv.Portable.Tests/Sv.Portable.Tests.csproj" />
   <Project Path="benchmarks/Sv.Bench/Sv.Bench.csproj" />
-  <Project Path="samples/Sv.Samples/Sv.Samples.csproj" />
+  <Project Path="src/Sv.Core/Sv.Core.csproj" />
+  <Project Path="src/Sv.Rules/Sv.Rules.csproj" />
+  <Project Path="src/Sv.Host/Sv.Host.csproj" />
+  <Project Path="src/Sv.Pack/Sv.Pack.csproj" />
+  <Project Path="src/Sv.Web/Sv.Web.csproj" />
+  <Project Path="tests/Sv.Kernels.Reference/Sv.Kernels.Reference.csproj" />
+  <Project Path="tests/Sv.Kernels.Lego/Sv.Kernels.Lego.csproj" />
+  <Project Path="tests/Sv.Kernels.NorthStar3/Sv.Kernels.NorthStar3.csproj" />
+  <Project Path="tests/Sv.Kernels.Sentences/Sv.Kernels.Sentences.csproj" />
+  <Project Path="tests/Sv.Laws.Tests/Sv.Laws.Tests.csproj" />
+  <Project Path="tests/Sv.Scenario.Tests/Sv.Scenario.Tests.csproj" />
+  <Project Path="tests/Sv.Diff.Tests/Sv.Diff.Tests.csproj" />
+  <Project Path="tests/Sv.Lego.Tests/Sv.Lego.Tests.csproj" />
+  <Project Path="tests/Sv.Host.Tests/Sv.Host.Tests.csproj" />
+  <Project Path="tests/Sv.Twin.Fixtures/Sv.Twin.Fixtures.csproj" />
+  <Project Path="tests/Sv.NorthStar3/Sv.NorthStar3.csproj" />
+  <Project Path="tests/Sv.Web.Tests/Sv.Web.Tests.csproj" />
+  <Project Path="samples/Sv.Hello/Sv.Hello.csproj" />
 </Solution>

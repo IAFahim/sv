@@ -31,14 +31,32 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
+        with:
+          path: sv
+
+      - uses: actions/checkout@v5
+        with:
+          repository: IAFahim/tl
+          ref: 3ba5575e3a87bb8db47ca13ec6faa9b2b5f87a35
+          path: tl
 
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 10.0.x
 
-      - name: Baked cross-host digest + full suite
+      - name: Cross-host digests + full suite
         shell: bash
+        working-directory: sv
         run: |
           if [ -n "${{ matrix.env }}" ]; then export ${{ matrix.env }}; fi
           dotnet test sv.slnx -c Release --logger "console;verbosity=normal"
-          dotnet test sv.slnx -c Release -p:DefineConstants=SV_CHECKED
+          dotnet test sv.slnx -c Release -p:SvChecked=true
+
+      - name: README chapter 1 sample prints the documented numbers
+        shell: bash
+        working-directory: sv
+        run: |
+          if [ -n "${{ matrix.env }}" ]; then export ${{ matrix.env }}; fi
+          dotnet build sv.slnx -c Release -v q
+          dotnet run --no-build -c Release --project samples/Sv.Hello > hello.txt
+          diff -u --strip-trailing-cr samples/Sv.Hello/expected.txt hello.txt

@@ -53,6 +53,19 @@ namespace Sv.Kernels.NorthStar3
         Rifle = 2,
     }
 
+    public enum Template : int
+    {
+        player = 0,
+        worked_example_player = 1,
+        sniper = 2,
+        rifleman = 3,
+        hand = 4,
+        shield = 5,
+        poison_status = 6,
+        rifle_status = 7,
+        warded_player = 8,
+    }
+
     public static class Layout
     {
         public const ulong CompiledAgainst = 0x1456B551FFCFA7CFul;

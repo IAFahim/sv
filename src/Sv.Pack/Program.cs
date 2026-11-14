@@ -11,6 +11,8 @@ namespace Sv.Pack
     internal static class Program
     {
         const string ToolVersion = "3.0.0";
+
+        static readonly string Build = ToolVersion + "+" + typeof(Program).Assembly.ManifestModule.ModuleVersionId.ToString("N") + "+" + typeof(Sv.Rules.Emit.PackEmitter).Assembly.ManifestModule.ModuleVersionId.ToString("N");
         const string KeyFile = ".svpack.key";
         const int Ok = 0;
         const int Failed = 1;
@@ -122,7 +124,7 @@ namespace Sv.Pack
             var source = PackFolder.Read(folder);
             var unity = arguments.Option("--host") == "unity";
             var glue = arguments.Option("--glue") == "tl";
-            var key = PackFolder.InputKey(source, rootNamespace, (unity ? ToolVersion + "+unity" : ToolVersion) + (glue ? "+glue" : string.Empty));
+            var key = PackFolder.InputKey(source, rootNamespace, Build + (unity ? "+unity" : string.Empty) + (glue ? "+glue" : string.Empty));
             var keyPath = Path.Combine(output, KeyFile);
             if (File.Exists(keyPath) && File.ReadAllText(keyPath) == key)
             {
@@ -144,9 +146,10 @@ namespace Sv.Pack
             }
 
             files.Add(HostGlue.Emit(rootNamespace));
+            HostGlue.EmitPackData(plan, rootNamespace, files);
             if (unity)
             {
-                HostGlue.EmitUnity(plan, rootNamespace, files);
+                HostGlue.EmitUnityJobs(rootNamespace, files);
             }
 
             if (glue)

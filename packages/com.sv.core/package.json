@@ -1,7 +1,0 @@
-{
-    "name": "com.sv.core",
-    "version": "2.1.0",
-    "displayName": "sv core",
-    "description": "sv tiers 0 and 1, synced verbatim from src/Sv by eng/unity-sync.sh",
-    "unity": "7000.0"
-}

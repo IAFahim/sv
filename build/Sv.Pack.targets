@@ -14,7 +14,8 @@
   </ItemGroup>
 
   <Target Name="SvPack"
-          BeforeTargets="CoreCompile;BeforeBuild"
+          BeforeTargets="CoreCompile"
+          DependsOnTargets="ResolveProjectReferences"
           Inputs="@(SvPackInput);@(SvPackToolFile)"
           Outputs="$(SvPackOutput).svpack.key">
     <Error Condition="!Exists('$(SvPackTool)')" Text="sv: the pack tool $(SvPackTool) is missing; build src/Sv.Pack first or set SvPackTool" />

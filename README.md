@@ -1,389 +1,426 @@
-# sv — state variables
+# sv for games
 
-One noun — dense columns over entity slots. Three verbs over it: **tl** (authored
-motion), **ecs-kernels** (derived math), **sv** (settings/state: stats, intrinsics,
-events, input).
+sv keeps **the numbers of every entity**: health, shields, stats, statuses, charges, immunities. A designer writes those values and the rules between them as data. Your code sends **records** ("the goblin hits the hero for 30 Physical") and sv decides what actually happens: gates, shields, cards, reflections, events. It does this the same way every time (deterministic), for up to a million entities per frame, and it can **rewind** and **replay** any frame.
 
-`sv` is the standalone state library negotiated on the agent-bus: float **stats**
-(recalculated, modifier-driven), int **intrinsics** (directly written, clamped),
-**events** (condition-column ingestion), and **input** (bit-captured axes, button
-edges, replay ring). Entity-free at the core; ECS hosts adapt through one chunk shape.
+This file is the whole course. Read it top to bottom and you will know how sv works, how to design with it, what it cannot do, and where it will bite you. The code in chapter 1 is a real program in this repository (`samples/Sv.Hello`), and CI runs it on Linux x64, Linux ARM64, macOS and Windows and checks it prints exactly the numbers shown here. Other snippets name the tested file they come from.
 
-- Contract: **The Composition Contract v1.0.3** below, vendored verbatim
-  ([local copy](contract/CONTRACT-v1.0.3.md); merge point:
-  `agent-bus/contract/CONTRACT.md`). Negotiated under the name "board"; shipped as
-  `sv` — same library, owner's pick. Changes are bus messages first, then a version
-  bump at the merge point; the full changelog lives in the vendored header.
-- Contract v2.1.0 amendments (owner-approved, bus unreachable, 2026-11-12): vendored as
-  [contract/CONTRACT-v2.1.0.md](contract/CONTRACT-v2.1.0.md) — clauses 3, 4, 7, 12, 13,
-  17, new 19 (intrinsic fold) and 20 (connections are data), and the portable-surface rule.
-- Verification: clause conformance is proven by the north-star fused test
-  (`contract/NORTH-STAR.md`, seated as [issues/0002](issues/0002-north-star.md)) plus
-  this repo's own suite; mask/run semantics by `contract/mask-fixtures.json`
-  (extracted bit-exact from ecs-kernels editor-verified facts — the fleet conformance
-  set). The north-star leg consumes the published tl pair only (Tl.Runtime /
-  Tl.Gen.CSharp / tlb 1.3.0). Since atom 13 the harness rides `Sv.Compose`'s
-  `Frame.Run`; bit-identity to the pre-migration manual loop is pinned by baked
-  digest constants (`MigrationTests`), and whole-run determinism rides the tape
-  (`Record`/`Playback`: per-frame digest always compared, full body byte-compared
-  under `SV_CHECKED`).
-- Usage: [sv-examples](https://github.com/IAFahim/sv-examples) — five runnable
-  samples (core stats/intrinsics, events, input replay, the Frent adapter, and the
-  frozen-frame composition with whole-run replay bit-identity), each printing a
-  zero-managed-allocation receipt on its warm path. This repo also carries
-  `samples/Sv.Samples` — three limit-pushing showcases (one million slots under every
-  core verb; 100k entities on the composed frame with tape record → bit-identical
-  playback; 100k Frent entities fragmenting and healing through `Reconcile`):
-  `dotnet run -c Release --project samples/Sv.Samples`.
+**Who it is for:** programmers. A designer edits the four pack files (or the Pack Authoring window in Unity) and never writes C#.
 
-## Quick start
+**Status:** release candidate `v3.0.0-rc.2`. Engine `com.sv.engine` 3.0.0, Unity adapter `com.sv.unity.v4` 4.0.0, contract v3.0.0 to v3.2.0 (`contract/`).
 
-`Sv` targets `net10.0` with `<AllowUnsafeBlocks>true</AllowUnsafeBlocks>` — the data
-path is unmanaged columns by design (clause 5: the host owns storage, sv owns the slot
-space and the math). Define `SV_CHECKED` in debug builds to trap stale bindings and
-use-after-rebind (clauses 12, 14).
+## Contents
 
-All four verbs in one listing — schema, dense slots, stat modifiers, clamped
-intrinsics, sparse events, bit-captured input:
+0. [Why sv, in one example](#0-why-sv-in-one-example)
+1. [Run your first pack (10 minutes)](#1-run-your-first-pack-10-minutes)
+2. [The model: values, records, one frame](#2-the-model-values-records-one-frame)
+3. [The four pack files](#3-the-four-pack-files)
+4. [Patterns](#4-patterns)
+5. [The host API (.NET)](#5-the-host-api-net)
+6. [Unity](#6-unity)
+7. [With tl (timelines)](#7-with-tl-timelines)
+8. [Determinism, digests, rewind and replay](#8-determinism-digests-rewind-and-replay)
+9. [Speed and memory](#9-speed-and-memory)
+10. [Prove it on your machine](#10-prove-it-on-your-machine)
+11. [Sharp edges: what will bite you](#11-sharp-edges-what-will-bite-you)
+12. [Known limits and open risks](#12-known-limits-and-open-risks)
+13. [Cheat sheet](#13-cheat-sheet)
+14. [Repository](#14-repository)
+
+---
+
+## 0. Why sv, in one example
+
+You need: "a knight has a 15-point shield and a fire ward. A goblin hits him for 30, a dragon breathes fire for 45. The hero has neither." Without sv you write a damage function, then special cases for shields, wards, armour, thorns, lifesteal, immunities, and every new card is a code change and a new bug in the order of operations.
+
+With sv the designer writes **one rule per mechanic, as data** (chapter 1). You get, for free:
+
+- **Designers change it without you.** A new ward is two lines of JSON, not a code change.
+- **One order of operations, always.** Gates run by priority, shields absorb in a stated order, totals are summed then clamped once. Two designers cannot invent two orders.
+- **Exact replay.** The same records give the same numbers on every machine. Each frame ends with a 64-bit digest of the whole state, and CI compares them on Linux x64 (three CPU modes), Linux ARM64, macOS and Windows.
+- **Rewind.** Go back to any of the last 32 epochs (about 2 seconds at 30 Hz by default) and replay.
+- **Speed.** 1,000,000 entities with one timeline record each per frame: 7.7 ms per frame on a 6-core desktop, 0 bytes allocated (chapter 9).
+
+---
+
+## 1. Run your first pack (10 minutes)
+
+**Setup:** .NET 10 SDK and this repository.
+
+```sh
+git clone https://github.com/IAFahim/sv.git
+cd sv
+dotnet run -c Release --project samples/Sv.Hello
+```
+
+It prints:
+
+```
+frame 1: hero health 25, knight health 85 shield 0, hero low health True, digest D0391ABCE50C62DB
+frame 2: hero health 75, knight health 85 shield 0, hero low health False, digest 9078B3C66F1DD3FE
+```
+
+That is the whole program. The pack is four small files in `samples/Sv.Hello/pack`.
+
+**`values.sv.json`**: every value an entity has, and the channels and kinds a record can carry.
+
+```json
+{"schema":1,"nextLane":6,"rows":[
+{"id":0,"name":"MaxHealth","class":"stat","default":100.0},
+{"id":1,"name":"Health","class":"intrinsic","default":100},
+{"id":2,"name":"Shield","class":"intrinsic","default":0},
+{"id":3,"name":"FireWard","class":"intrinsic","default":0},
+{"id":4,"name":"Kind","class":"intrinsic","default":0,"role":"kind"},
+{"lane":5,"word":0,"name":"LowHealth","class":"event","default":false},
+{"id":0,"name":"Physical","class":"channel"},
+{"id":1,"name":"Fire","class":"channel"},
+{"id":2,"name":"Healing","class":"channel"},
+{"id":0,"name":"None","class":"kind"},
+{"id":1,"name":"Goblin","class":"kind"},
+{"id":2,"name":"Dragon","class":"kind"}
+]}
+```
+
+**`rules.sv.json`**: what happens to records.
+
+```json
+{"schema":1,"rows":[
+{"id":1,"name":"health_flow","layer":"flow","then":[{"add":["Health","Healing"]},{"subtract":["Health","Physical","Fire"]}]},
+{"id":2,"name":"health_bounds","layer":"fold","value":"Health","floor":0,"ceiling":{"stat":"MaxHealth"}},
+{"id":3,"name":"fire_ward","card":"fire_ward","layer":"gate","priority":100,"when":{"eq":["record.channel","Fire"]},"then":[{"deny":{}}]},
+{"id":4,"name":"shield","layer":"gate","priority":0,"when":{"and":[{"in":["record.channel",["Physical","Fire"]]},{"gt":["self.Shield",0]}]},"then":[{"absorb":{"budget":"Shield","per":"Amount","order":"ByAmountDescending"}}]},
+{"id":5,"name":"low_health","layer":"event","event":"LowHealth","enter":{"below":["Health","MaxHealth",30,100]},"stay":{"below":["Health","MaxHealth",40,100]}}
+]}
+```
+
+**`cards.sv.json`**: things an entity can hold that switch rules on.
+
+```json
+{"schema":1,"rows":[
+{"id":1,"name":"fire_ward","value":"FireWard"}
+]}
+```
+
+**`templates.sv.json`**: the kinds of entity you spawn.
+
+```json
+{"schema":1,"rows":[
+{"id":1,"name":"hero","values":{"Health":100,"MaxHealth":100.0}},
+{"id":2,"name":"knight","values":{"Health":100,"MaxHealth":100.0,"Shield":15},"cards":{"fire_ward":1}},
+{"id":3,"name":"goblin","values":{"Kind":1}},
+{"id":4,"name":"dragon","values":{"Kind":2}}
+]}
+```
+
+The build compiles the pack into C# (the project imports `build/Sv.Pack.targets`; chapter 5). The program:
 
 ```csharp
-using System;
-using System.Runtime.InteropServices;
+using Hello.Sv;
 using Sv;
+using Sv.Host;
 
-internal static unsafe class Program
+using var world = new FrameLoop<HostKernels>(PackData.Create(), new HostOptions { Workers = 1 });
+
+var hero = world.Spawn((int)Template.hero);
+var knight = world.Spawn((int)Template.knight);
+var goblin = world.Spawn((int)Template.goblin);
+var dragon = world.Spawn((int)Template.dragon);
+
+world.Send(hero, goblin, (int)Kind.Goblin, (int)Channel.Physical, 30);
+world.Send(hero, dragon, (int)Kind.Dragon, (int)Channel.Fire, 45);
+world.Send(knight, goblin, (int)Kind.Goblin, (int)Channel.Physical, 30);
+world.Send(knight, dragon, (int)Kind.Dragon, (int)Channel.Fire, 45);
+world.Step();
+Report("frame 1");
+
+world.Send(hero, hero, 0, (int)Channel.Healing, 50);
+world.Step();
+Report("frame 2");
+
+void Report(string when)
 {
-    public struct Hit
-    {
-        public int Slot;
-        public int Amount;
-    }
-
-    [UnmanagedCallersOnly]
-    static Hit MakeHit(int slot, int value) => new() { Slot = slot, Amount = value };
-
-    static int Main()
-    {
-        // 1. Schema: float stats (modifier-driven) + int intrinsics (direct writes).
-        var schema = SchemaBuilder.Create()
-            .Stat("move_speed", 6f)
-            .Stat("max_mana", 100f)
-            .Intrinsic("mana")
-            .Build();
-
-        // 2. One board = one dense slot space; capacity rounds up to a 64 boundary.
-        using var board = Board.Create(schema, capacity: 1024);
-        var slot = board.Acquire();          // host maps entity -> slot; Release() at destroy
-
-        // 3. Stats: stack modifiers, then Recalculate folds + broadcasts into columns.
-        var speed = schema.Stat("move_speed");
-        var haste = board.AddModifier(slot, speed, new Modifier(ModifierKind.Additive, 0.5f));
-        board.Recalculate();
-        Span<float> speeds = board.Output(speed);   // sv-owned column, no bind needed
-        // speeds[slot] == 9  (6 base * (1 + 0.5) additive); clause-3 canonical fold
-        board.RemoveModifier(slot, speed, haste);
-
-        // 4. Intrinsics: host-owned unmanaged int columns, written through chunk ops.
-        var mana = (int*)NativeMemory.AllocZeroed((nuint)board.Capacity * sizeof(int));
-        var applied = (int*)NativeMemory.Alloc((nuint)board.Capacity * sizeof(int));
-        mana[slot] = 40;
-
-        var clamp = Clamp.StatMax(board, schema.Stat("max_mana"));  // bound = last broadcast
-        board.RunIntrinsicsChunk(mana, 25, clamp, 0, board.Capacity, applied);
-        // mana[slot] == 65, applied[slot] == 25
-
-        // Masked run-walk: only set bits are touched; applied[] is 0 on skipped rows.
-        board.RunEnabledChunk(mana, 7, clamp, 0b1011ul, offset: 0, applied);
-
-        // 5. Events: sparse signals over a pooled double buffer (clause 17).
-        using var streams = EventStreams.Create(writerCount: 1, bytesPerWriter: 4096);
-        var hits = streams.CreateChannel<Hit>();
-        hits.Write(new Hit { Slot = slot, Amount = applied[slot] });
-        // ...or emit per live row off a condition column — applied != 0 -> one Hit each:
-        streams.EmitFromNonZero(hits, applied, 0, board.Capacity, &MakeHit);
-
-        streams.Swap();                          // publishes this frame's writes to readers
-        while (streams.TryReadNext(out var type, out var payload, out _))
-        {
-            if (type == hits.Id)
-            {
-                var hit = *(Hit*)payload;        // drain handlers write intrinsics here
-            }
-        }
-
-        // 6. Input: raw axis bits + button edges + a replay ring (clause 11).
-        using var input = InputState.Create(axes: 2, buttonWords: 1, ringTicks: 128);
-        var axes = stackalloc uint[2];
-        var buttons = stackalloc ulong[1];
-        axes[0] = BitConverter.SingleToUInt32Bits(0.5f);   // captured bit-verbatim
-        buttons[0] = 1ul << 3;                           // button 3 down
-        input.Capture(axes, buttons);
-        // input.Pressed(3) / Down(3) / Released(3), input.AxisF(0) == 0.5f
-        // input.BeginReplay(tick) + input.ReplayStep() walks the ring bit-identically
-
-        NativeMemory.Free(mana);
-        NativeMemory.Free(applied);
-        return 0;
-    }
+    Console.WriteLine($"{when}: hero health {world.Read(hero, (int)Intrinsic.Health)}, knight health {world.Read(knight, (int)Intrinsic.Health)} shield {world.Read(knight, (int)Intrinsic.Shield)}, hero low health {world.Level(hero, (int)Event.LowHealth)}, digest {world.LastDigest:X16}");
 }
 ```
 
-### Beyond the core verbs (atoms 31–38; contract v1.1.0 proposed on bus 0036)
+Read the numbers:
 
-```csharp
-var schema = SchemaBuilder.Create()
-    .Stat("str", 10f)
-    .Derived("atk", 1f, ("str", 2f))          // atk = 1 + 2*str, then atk's own modifiers
-    .Stat("max_mana", 100f)
-    .Intrinsic("mana")
-    .Build();
+- **Hero, frame 1:** 30 Physical and 45 Fire, nothing stops them: 100 - 75 = **25**. That is below 30 % of MaxHealth, so the `LowHealth` event **enters**.
+- **Knight, frame 1:** the `fire_ward` card's gate (priority 100) **denies** the Fire record. The shield gate **absorbs** 15 of the 30 Physical and is spent: health **85**, shield **0**.
+- **Hero, frame 2:** healing 50 gives **75**. `LowHealth` stays only while below 40 %, so it **leaves**.
+- **Digest:** a hash of every value of every entity. Run the program on any machine: the same two digests.
 
-board.AddModifier(slot, str, new Modifier(ModifierKind.Added, 5f), source: SwordItem, expiresAtTick: tick + 300);
-board.RemoveSource(slot, SwordItem);         // unequip: every modifier the sword granted
-board.ExpireModifiers(tick);                 // deterministic (tick, insertion id) order
-board.Recalculate();
-ulong* changedAtk = board.ChangedWords(atk); // rows whose atk bits changed — a run-walk mask
+`Template`, `Intrinsic`, `Channel`, `Kind` and `Event` are enums generated from the pack, so a renamed value is a compile error, not a silent bug.
 
-var clamp = Clamp.StatMirrorMax(board, maxMana);     // int mirror written at broadcast
-var maker = new HitMaker();                          // struct IEventMaker<T>: inlined, no gate
-streams.EmitFromNonZero(hits, applied, 0, board.Capacity, ref maker);
+---
 
-using var state = new SvState();             // rollback: save, simulate, load, resimulate
-game.SaveState(state);                       // board + input + events + tl columns
-game.LoadState(state);
-```
+## 2. The model: values, records, one frame
 
-To broadcast stats into columns the host already owns, bind once after allocation —
-`board.BindOutput(stat, ptr)` or `BindExternal` for a stale-checkable handle — instead
-of reading `board.Output(stat)`. For per-row bounds, `Clamp.Columns(min*, max*)`;
-for constants, `Clamp.Constant(lo, hi)`.
+**Values.** Every entity of a template has every value of the pack, each at a fixed place (a *lane*: one value for 64 entities, 256 bytes). Lanes that still hold the template's defaults are shared, so 1,000,000 entities take 41-46 bytes each at rest.
 
-### The composed frame
-
-`Sv.Compose` runs the same pieces in clause-7 frozen order behind one call. The host
-supplies a `struct World : IFrameWorld` with the four duties the composition layer
-refuses to own — `Reconcile`, `DispatchEvent`, `RunIntrinsics`, `RunConditions`:
-
-```csharp
-using var input = InputState.Create(axes: 2, buttonWords: 1, ringTicks: 128);
-var host = Game.Create(schema, capacity)        // Sv.Compose
-    .Event<Landed>()                            // sparse channel, T : unmanaged
-    .Timeline<Jump>()                           // tl step: Apply/Transform/Advance
-    .Kernel<Fall>()                             // ecs-kernels step
-    .Build(world, input);
-
-host.Frame.Tick(dt, axes, buttons);             // input capture + one frozen frame
-host.Record("run.tape");                        // per-frame inputs + digest + body
-// fresh host later: replay.Playback("run.tape") — digest-checked bit-identical
-```
-
-Full listing — a real tl timeline, a gravity kernel, and tape replay on 100k entities —
-in [samples/Sv.Samples/FrameSample.cs](samples/Sv.Samples/FrameSample.cs); the
-entity-adapter walkthrough (`Sv.Frent`, `FrentBoard.Bind`/`Unbind`, `Reconcile`) lives
-in [sv-examples](https://github.com/IAFahim/sv-examples).
-
-## The Composition Contract — v1.0.3
-
-Clause index (17), verbatim from the vendored master copy:
-
-1. **Strict two-step IEEE float policy**; no FMA anywhere (grep-enforced); StrictFloat oracle vendored.
-2. **Clamps are ternary/select** (compare+blend); never Min/Max on floats; ints may use Avx2.Min/Max.
-3. **Canonical aggregation order**: (op-kind, insertion id) strict left fold, scalar per set; vertical-only vectorization, width-invariance receipts required.
-4. **Recalc ends in a broadcast** into bound columns; per-entity board reads are tooling-only; no gathers.
-5. **Dense slots**; adapter owns entity→slot at create/destroy; single chunk shape `RunChunk`/`RunEnabledChunk` (+ `Span` twins).
-6. **Condition ingestion by run-walk** (tzcnt, `length == 64` guard); semantics conform to `mask-fixtures.json`.
-7. **Frozen frame order**: input edges → drain prev events → stat recalc + broadcast → tl Apply/Advance → kernels → condition run-walk → write events → swap. Mid-frame structural changes apply next frame. Intrinsics writes happen inside event-drain handlers (step 2) and condition responses (step 6), and both read frame-frozen bounds from the previous broadcast.
-8. **Runtime dependencies: none**; tl and ecs-kernels are test-only references.
-9. **Bool normalization**: any nonzero byte = true; compare-≠0 → movemask before any bit trick; arithmetic OR of raw bytes banned.
-10. **Clamp bounds**: Constant / Columns / Stat; Stat resolves at construction to the bound output column; bounds are frame-frozen; no clamp–modifier cycles.
-11. **Axis bit-capture**: raw uint bits in the ring; replay is bit-verbatim.
-12. **Pointer stability**: bound output pointers (`BindOutput`) and `Clamp.Stat`-captured columns are stable from warmup until an explicit rebind; any storage growth forces re-resolve before the next op; use-after-rebind detected in checked builds.
-13. **tl effect columns accumulate** (`+=`): (a) one column, one writer kind — store-writers (stats broadcast) and accumulate-writers (tl) never share a column; (b) the host zeroes each tl effect column once per frame, immediately before the timeline step of clause 7; (c) tl's position in the frozen order fixes the add order.
-14. **Warmup before parallel frames**: all timeline ids loaded and first-use folds completed during warmup; first-use inside a warm frame is a contract violation, asserted in checked builds.
-16. **Pinned float→int conversion for stat bounds**: NaN → 0; saturate to [int.MinValue, int.MaxValue]; otherwise truncate toward zero. Implemented identically in scalar and vector paths (sv: `Clamp.BoundOf` / `Simd.BoundsOf`); raw `(int)float` casts on bound paths are banned — ECMA leaves out-of-range conversion unspecified and JIT tiers and ISAs disagree (x64 `cvttss2si` indefinite vs ARM `fcvtzs` saturating).
-15. **Stats is float/int only; no double effect columns** (tl's double combine branch never exercised); any shipped `IBlend` follows clauses 1–2 and prefers pre-folded tables so Blend never runs at runtime.
-17. **Events are sparse signals; dense per-row payloads move through columns**: emitters and makers exist for edge-triggered facts (threshold crossed, timeline finished, damage dealt), never as a per-row per-frame data channel — full-density payload traffic goes through broadcast/accumulate columns per clauses 4/13. Hosts must not build full-density make-call loops in perf-critical frames: on .NET each maker call pays the `UnmanagedCallersOnly` entry gate (~10 ns, IL stub + TLS, measured in sv issue #9); Unity/Burst hosts compile the same `delegate* unmanaged` signature natively via `BurstCompiler.CompileFunctionPointer` and pay no such gate. The maker signature stays fixed (portable-surface rule); a batched emitter may be added later only if a real scenario demands near-dense emission, as a versioned contract change.
-
-**Portable-surface rule** (from Amendment B):
-
-Unity hosts are C# 9: `static abstract` interface members are .NET-only wrappers.
-The portable, Burst-compatible core for all walkers and emitters is
-`delegate* unmanaged<int, int, T>`; Unity falls back to the fnptr core or mask-level
-escapes (`WalkNonZero`). Same pattern tl.unity's fork uses for the same reason.
-
-## Performance receipts
-
-`benchmarks/Sv.Bench` (100k rows/frame, AVX2, Ryzen dev box, 2026-10-10 after atoms
-22–38): intrinsics chunk ~6 G rows/s (bandwidth-bound; struct-specialized loops per
-clamp kind × delta × applied); stat clamp ~4 G rows/s (`Clamp.StatMirror*` 5–10%
-faster and stride-capable); enabled run-walk ~4.5 G rows/s on an alternating mask
-(full words take the dense loop, partial words AVX2 masked load/store — disabled rows
-are never touched); stat add+remove+recalculate 22 ns, and the buff-expiry pattern
-(a slot rejoining a population-wide set) 16 ns — join-only broadcast writes one row,
-not the set; input capture 6 ns; every scenario verified against a scalar reference
-and prints `alloc=0B`. The composed one-call frame (`frame-run`) runs at parity with
-the hand-rolled fused tick (~0.67–0.70 ms/frame at 100k rows — the composition layer
-itself is free); the determinism tape adds ~0.06 ms/frame (tape v3: 64-bit XXH64
-digest + body over live rows, fully live words copied whole; was ~0.6 ms with v2's
-byte-serial FNV-1a). Events: dense emit (15k events/frame) 455 µs through
-`delegate* unmanaged` makers vs 97 µs through struct `IEventMaker<T>` makers (no
-`UnmanagedCallersOnly` gate); parallel writers scale (8 writers: 793 M events/s
-aggregate, per-writer cache-line-padded locks). Standing `NoAllocationTests` assert
-exact-zero managed bytes for every warm verb; the managed-state audit shows zero
-managed collections outside `Schema` (cold authoring). The native bill is a receipt
-too: `Board.MemoryBytes` reports everything the board owns (a 1M × 3-stat board
-commits a few MiB empty — slot storage is paged and allocated on first touch, and
-stat identity is interned blocks — and ~17 MiB fully live) and
-`Board.RequestedCapacity` sits beside the 64-rounded
-`Capacity`, so alignment padding is visible. Determinism is proven across ISAs: a
-baked 64-bit scenario digest is identical on the AVX2, 128-bit and scalar paths, and
-the `determinism` CI matrix runs it on x64, arm64, macOS and Windows.
-
-The table below is refreshed by CI on a 2-core cloud runner (the banner names the
-machine) — it is regression tracking only. Authoritative receipts are the issue
-files in `issues/`, measured on the bus host (i9-14900K, 24C/32T); per owner
-decision 0048 the performance gate is cold-core p50 on that box, with warm
-reported alongside.
-
-<!-- bench:begin (auto-generated — CI refreshes this on every push to main; do not edit by hand) -->
-
-Last refreshed 2026-10-22 11:22 UTC · `main@f4ccc8d` · AMD EPYC 9V45 96-Core Processor (2 cores) · sv-bench rows=100000 vector256=True vector128=True
-
-| Scenario | µs/frame | rate | Managed alloc |
-|---|---:|---:|---|
-| intrinsics-uniform | 34.973 | 2859.4 M rows/s | 0 B |
-| intrinsics-varying | 34.124 | 2930.5 M rows/s | 0 B |
-| intrinsics-statclamp | 32.407 | 3085.7 M rows/s | 0 B |
-| intrinsics-statmirror | 23.115 | 4326.1 M rows/s | 0 B |
-| enabled-runwalk | 39.871 | 2508.1 M rows/s | 0 B |
-| stat-recalc | 0.041 | 41 ns/op | 0 B |
-| stat-churn | 0.033 | 33 ns/op | 0 B |
-| events-emit | 248.251 | 402.8 M rows/s | 0 B |
-| events-emit-struct | 83.379 | 1199.3 M rows/s | 0 B |
-| input-capture | 0.007 | 7 ns/op | 0 B |
-| fused-tick | 771.910 | 129.5 M rows/s | 0 B |
-| frame-run | 771.903 | 129.5 M rows/s | 0 B |
-| tape-digest | 830.790 | 120.4 M rows/s | 0 B |
-| ff1m | 2296.9 | p99 3829.4 µs · 1048576 rows · Δ=128 | 0 B |
-
-<!-- bench:end -->
-
-## Atoms
-
-| # | Atom | Status |
+| Class | What it is | Example |
 |---|---|---|
-| 1 | Schema + Board slots + `Clamp` (Constant/Columns) + `RunIntrinsicsChunk`/`RunEnabledChunk` (+ `Span` twins), ternary clamps, applied-delta — [issues/0001](issues/0001-atom-1.md) | done |
-| 2 | Stats: insertion-id modifiers, content-deduped sets, canonical fold, `BindOutput` broadcast, `Clamp.Stat`, StrictFloat oracle vendored | done |
-| 3 | Event streams: pooled double buffer, parallel writer, fnptr walkers, mask conformance via `contract/mask-fixtures.json` | done |
-| 4 | Input: bit-captured axes, button edges, replay ring | done |
-| 5 | SIMD pass: vector chunk clamps, scan words, ANDNOT edges — width-invariance receipts, pinned stat-bound float→int (NaN→0, saturate), zero FMA | done |
-| 6 | Adapter: Frent chunk seam (`sv.frent`, SvSlot mapping, zero-copy contiguous fast path, Pull/Push fallback) + Unity 6.7 handoff record | done |
-| 7 | North-star fused test — .NET leg complete: stage A ([issues/0008](issues/0008-atom-7.md)) + stage B real kernel bit-identical ([issues/0010](issues/0010-atom-7-stage-b.md)); Unity cross-host handed to the integrator ([issues/0015](issues/0015-atom-12.md), [issues/0016](issues/0016-atom-13.md)) | done (.NET) |
-| 8 | Perf: benchmark harness, perf receipts, zero-allocation tests, managed audit, run-walk inlining (+81%) ([issues/0009](issues/0009-perf-bench.md)) | done |
-| 9 | Binding generations + sv-owned output columns: `BindExternal` handle, `InvalidateBindings` stale-throw (checked), `OutputPtr`/`Output` self-owned broadcast — [issues/0012](issues/0012-atom-9.md) | done |
-| 10 | Slot renumbering: `Board.RenumberSlots`, `Sv.Columns.Permute`, `Sv.Frent.Population` fused chunk windows + `Reconcile()` 64-aligned healing — [issues/0013](issues/0013-atom-10.md) | done |
-| 11 | `Sv.Compose`: Game/GameHost/`Frame.Run` frozen-frame composition (clause 7 verbatim), static-generic step dispatch, tl naming seam absorbed, 0 B warm — [issues/0014](issues/0014-atom-11.md) | done |
-| 12 | `Sv.Unity` adapter (com.sv.unity): SvSlot/UnityPopulation/SvChunk + svSystemBase pattern; .NET facade tests, editor leg is the integrator handoff — [issues/0015](issues/0015-atom-12.md) | done (.NET) |
-| 13 | North-star on `Frame.Run`, bit-identical to the pre-migration manual digests (baked oracle test); determinism tape `Record`/`Playback`; sv-owned outputs replace the NativeMemory blocks — [issues/0016](issues/0016-atom-13.md) | done |
-| 19 | Checked-only `BindOutput`/`BindExternal` column length (`columnLength: -1` legacy, >= 0 guarded per broadcast write, zero release cost) — [issues/0024](issues/0024-atom-19-bind-column-length.md) | done |
-| 20 | O(1) set-member removal: per-pair member-position index, swap-remove with fix-up — bulk modifier migration off million-member sets drops from seconds to microseconds — [issues/0025](issues/0025-atom-20-o1-member-removal.md) | done |
-| 21 | `Board.MemoryBytes` + `Board.RequestedCapacity`: the eager memory bill as a receipt, the 64-rounding loud — [issues/0026](issues/0026-atom-21-memory-receipt.md) | done |
-| 22 | Bench rate label fixed (was rows/ns printed as M rows/s — 1000x understated); stray `SetTable` probe allocations removed — [issues/0027](issues/0027-atom-22-bench-rate-and-settable-probe.md) | done |
-| 23 | Join-only broadcast: set values are immutable, so a slot joining a folded set writes one row instead of rebroadcasting the set; bind refills the column — churn 30.8 µs → 13 ns — [issues/0028](issues/0028-atom-23-join-only-broadcast.md) | done |
-| 24 | Specialized chunk loops: struct strategies for clamp kind × delta × applied, branch-free per instantiation, C# 9 portable — statclamp −19%, varying −24% — [issues/0029](issues/0029-atom-24-specialized-chunk-loops.md) | done |
-| 25 | Vectorized enabled run-walk: full words take the dense loop, partial words AVX2 masked load/store (disabled rows never touched), `Span` twins vectorized behind up-front length guards — run-walk 2.8× — [issues/0030](issues/0030-atom-25-vector-runwalk-and-span-twins.md) | done |
-| 26 | Per-writer cache-line-padded event locks + word-batched emit — 8 parallel writers 2.7 → 793 M events/s — [issues/0031](issues/0031-atom-26-per-writer-event-locks.md) | done |
-| 27 | Tape v3: XXH64 64-bit digest (verified against the reference at every length 0–300 + published vectors), whole-word body copy — tape overhead ~576 → ~58 µs/frame at 100k rows — [issues/0032](issues/0032-atom-27-tape-v3-xxh64.md) | done |
-| 28 | **Fix**: recalc permuted stored modifier ids in place, so `RemoveModifier` could remove the wrong modifier (since atom 2); independent-oracle churn tests added — [issues/0033](issues/0033-atom-28-fix-modifier-id-permutation.md) | done |
-| 29 | Paged pair storage (4096-slot pages, metadata on first acquire, modifier lists on first modifier, 16 B lists) — empty 1M×3 board 110 → 15 MiB; renumber leak of released slots' buffers fixed — [issues/0034](issues/0034-atom-29-paged-pair-storage.md) | done |
-| 30 | Cross-host determinism: baked 64-bit digest over a full churn/clamp/run-walk/events scenario, identical on AVX2 / 128-bit / scalar paths; CI matrix x64 · no-AVX2 · scalar · arm64 · macOS · Windows — [issues/0035](issues/0035-atom-30-cross-host-determinism.md) | done (ARM legs on next CI run) |
-| 31 | Struct event makers `IEventMaker<T>` (C# 9 portable, inlined, no entry gate) beside the fnptr emitters — dense emit 450 → 98 µs — [issues/0036](issues/0036-atom-31-struct-event-makers.md) | done (contract: bus 0036 pending) |
-| 32 | **Fix**: pairs queued for a slot released before `Recalculate` made the dead slot a set member; after `RenumberSlots` it became member −1 and broadcast wrote `column[-1]` (heap corruption, since atom 10) — [issues/0037](issues/0037-atom-32-fix-dead-slot-queue.md) | done |
-| 33 | **Fix**: `Clamp.Stat*` read stride-bound columns as contiguous (wrong bounds); now rejected at construction — [issues/0038](issues/0038-atom-33-fix-clamp-stat-stride.md) | done |
-| 34 | Stat-bound mirrors: `Board.MirrorBounds` keeps an sv-owned int `BoundOf` column written at broadcast; `Clamp.StatMirror*` clamps through the int-column path and works for any binding stride (~5% over `Clamp.Stat`) — [issues/0039](issues/0039-atom-34-stat-bound-mirrors.md) | done (contract: bus 0036 pending) |
-| 35 | Modifier lifetimes: source tags (`RemoveSource`) and expiry ticks (`ExpireModifiers`, deterministic (tick, id) heap), renumber-safe, 0 B warm — [issues/0040](issues/0040-atom-35-modifier-sources-and-expiry.md) | done (contract: bus 0036 pending) |
-| 36 | Changed masks: `ChangedWords(stat)` — rows whose broadcast bits changed, clause-5 word span, cleared in O(changes); feeds the run-walk directly — [issues/0041](issues/0041-atom-36-changed-masks.md) | done (contract: bus 0036 pending) |
-| 37 | Derived stats: `SchemaBuilder.Derived(name, base, (source, coefficient)...)` — synthetic canonical entries keep sets immutable and deduped; acyclic by declaration order — [issues/0042](issues/0042-atom-37-derived-stats.md) | done (contract: bus 0036 pending) |
-| 38 | State save/load: `SvState` + `SaveState/LoadState` on Board, InputState, EventStreams and `Game` — exact set identities, 0 B warm, rollback resimulation bit-identical (100k × 3 stats: save 1.1 ms / load 0.9 ms) — [issues/0043](issues/0043-atom-38-state-save-load.md) | done (contract: bus 0036 pending) |
-| 39 | **Fix**: idempotent `Game.Dispose` — the `Applied` column freed twice under `using` + explicit dispose (heap corruption) — [issues/0045](issues/0045-atom-39-idempotent-game-dispose.md) | done |
-| 40 | **Fix**: `BeginReplay` seeds button state from the prior ring entry — held buttons replayed as freshly pressed across a rollback boundary, diverging resimulation — [issues/0046](issues/0046-atom-40-replay-button-seeding.md) | done |
-| 50 | **Contract**: intrinsics integer adds saturate before the clamp (owner ruling on bus 0039: SATURATE) — full heal no longer wraps to death; total `clamp(saturate(before + delta))` oracle pinned across scalar/128/256/masked/enabled/remap paths — [issues/0057](issues/0057-atom-50-saturating-integer-add.md) | done (contract: amendment proposed) |
-| 41 | **Fix**: byte-count `NativeMemory` allocations — the two-argument overload multiplies (count × size), so 28 sites over-allocated up to 16×; source-scan guard — [issues/0048](issues/0048-atom-41-byte-count-allocations.md) | done |
-| 42 | **Fix**: `LoadState` keeps mirrors alive (cached `Clamp.StatMirror*` no longer dangles across rollback to a pre-mirror snapshot), refills local-only mirrors, and rebroadcasts bound stats from the restored state — [issues/0049](issues/0049-atom-42-loadstate-mirror-stability.md) | done |
-| 43 | Set-table hash avalanche (murmur3 finalizer) + ≤50% load cap + state format v2 — value-only-distinct sets shared one bucket at ≤256 buckets (O(chain) Resolve) — [issues/0050](issues/0050-atom-43-set-table-hash-avalanche-load.md) | done |
-| 44 | **Fix**: event arena growth validated — `bytesPerWriter: 0` hung the writer spinlock forever; deterministic 1 GiB cap instead of int-overflow `Realloc`; lock released on failure — [issues/0051](issues/0051-atom-44-event-stream-hardening.md) | done |
-| 45 | **Fix**: `ChunkRange`/`EnabledRange`/`EnabledTail` always-on (release builds unchecked the vectorized pointer paths); single-word seam polices tail bits — full-ones word on a partial tail wrote past the chunk — [issues/0052](issues/0052-atom-45-always-on-guards.md) | done |
-| 46 | **Fix**: spawn visibility — released rows zeroed (previous occupant's values leaked into spawns and change-detection), acquired slots change-marked, renumber clears stale masks — [issues/0053](issues/0053-atom-46-spawn-visibility.md) | done |
-| 47 | **Fix**: `Columns.Permute` scratch zero-filled (padding slots read garbage); `Reconcile` validates capacity and bound-slot count before any rewrite — a failed reconcile no longer diverges world and board — [issues/0054](issues/0054-atom-47-permute-and-reconcile-atomicity.md) | done |
-| 48 | Determinism surface: tape digest reads the effective (bound, strided) column — bound stats were digest-invisible; computed NaNs canonicalised to `0x7FC00000` at broadcast (x64/ARM64 sign-bit desyncs) — [issues/0055](issues/0055-atom-48-digest-coverage-and-canonical-nan.md) | done |
-| 49 | `Game.Renumber(perm)` — timeline ids, clocks, applied and effect columns permuted with the board at reconcile; `Columns.Permute` count contract documented — [issues/0056](issues/0056-atom-49-game-renumber.md) | done |
-| 51 | FF-1M benchmark (roadmap [issues/0058](issues/0058-roadmap-1m-entities-5us.md) §2.2): 1M entities × 16 stats × 4 intrinsics × 2 timed modifiers, 1 timeline, 4 channels, Δ=128 busy frame — **measured p50 3,134 µs/frame, board 887 MiB, snapshot 558 MiB** (the gap the O(Δ) design closes) — [issues/0059](issues/0059-atom-51-ff1m-bench.md) | done |
-| 52 | Guard-page fuzz harness (`tests/Sv.Fuzz` child + pinned-outcome fact): every public window API against `PROT_NONE`-flanked columns — **F1/F2/F3/F23 reproduce as 11 pinned crashes today; atom 1.1 flips them to throws** — [issues/0060](issues/0060-atom-52-guard-page-fuzz.md) | done |
-| 53 | The eager oracle, frozen: independent managed model of the canonical fold (synthetic entries, set-change propagation) and the saturating intrinsics step; random programs (600 ops × 5 seeds) and 240 frame rounds pin production bit-for-bit — the reference for laws L1/L7 — [issues/0061](issues/0061-atom-53-frozen-eager-oracle.md) | done |
-| 54 | **Fix** (roadmap 1.1): exact window validation — F1 Frent enabled offset/wordCount, F2 masked `EnabledTail` shift + non-exact multi-word counts, F3 span-length trust at the seams, F23 int-overflow range guards; guard-page fuzz table flipped to all-throws (raw `int*` Board API pinned length-blind by design) — [issues/0062](issues/0062-atom-54-exact-window-validation.md) | done |
-| 55 | **Fix** (roadmap 1.2): bijective `Reconcile` (seen-marking first pass — a counterbalanced duplicate+missing no longer rewrites the world before throwing, law L11), idempotent exception-safe `Bind`/validate-first `Unbind` (F6), idempotent `Population.Dispose` (F7) — [issues/0063](issues/0063-atom-55-reconcile-bijection-bind-unbind-dispose.md) | done |
-| 56 | `AcquiredWords(stat)` (roadmap 1.4, F10): acquire marks leave `ChangedWords` (value change only — no more mixing with the previous frame's mask), a base-0 stat's spawn is visible in `AcquiredWords` and never in `ChangedWords` — [issues/0064](issues/0064-atom-56-acquired-words.md) | done |
-| 57 | **Fix** (roadmap 1.7): state integrity — `Schema.ContentHash` (XXH64 over names/bases/sources) kills the state-shape count collisions (F18); the composed game validates its header before any component loads, so a mismatched `LoadState` throws with everything untouched (F17); `XxHash64` moved to Sv — [issues/0065](issues/0065-atom-57-state-integrity.md) | done |
-| 58 | **Fix** (roadmap 1.9): totality — pure canonical `Board.Stat` (dedicated scratch, `CanonicalNaN`), `Modifier` rejects undefined kinds (F21), dead `IntrinsicDef.Min/Max` deleted (F22, sv-local break), README sample alloc fixed + the scan covers Markdown (F26) — [issues/0066](issues/0066-atom-58-totality-fixes.md) | done |
-| 59 | **Fix** (roadmap 1.6): builder declaration order = execution order = id order for events, timelines and kernels (F15, law L10 — was reverse since atom 11); the world is one mutable instance passed by `ref` through the frame (F14 — by-value copies reset struct fields every frame); tape playback bounds-checks before reading (F19) — sv-local break announced on bus 0050 — [issues/0067](issues/0067-atom-59-declaration-order-and-world-by-ref.md) | done |
-| 60 | Set reclamation (roadmap 2.1, F11, law L14): the member count is the set refcount — the last leaving member frees the set (LIFO slot reuse gated by a per-`Recalculate` generation horizon — the phase-5 rollback hook), backward-shift bucket deletion, content spans reused by power-of-two size class, `SetCount` = live sets, reclamation state persisted byte-exactly (set-table format v3) — [issues/0068](issues/0068-atom-60-set-reclamation.md) | done |
-| 61 | Sets forget membership (roadmap 2.2, S1 — set values are immutable): member arrays, `PairMeta.Pos` and the dirty-set queue deleted — the refcount (atom 60) is the whole membership; new sets fold and broadcast inline in the pair loop; binds and loads refill bound columns by a dense write-only walk (immediately, without touching the changed mask — set-table format v4) — FF-1M board 890 → 762 MiB, snapshot 560 → 432 MiB, statmirror 25.5 → 19.2 µs — [issues/0069](issues/0069-atom-61-membershipless-sets.md) | done |
-| 62 | Dirty-stat masks (roadmap 2.3, F12, S1 — recompute exactly once): the FIFO pair queue and `PairMeta.Queued` deleted — per-slot `uint` dirty words, a touched-slot list heap-sorted each `Recalculate`, a per-stat dependents mask; declaration order (already topological) drains lowest stat first and bits only move upward, so a derived pair never folds against a stale source and never resolves twice; `PairMeta` is a bare `int` set id (8 → 4 B/pair) — no transient sets, `ChangedWords` never flags a row whose final value equals its old (board state format v5; dirty state persisted compactly as touched slots + mask words) — FF-1M board 762 → 642 MiB, snapshot 432 → 368 MiB, ff1m p50 2.57 ms — [issues/0070](issues/0070-atom-62-dirty-stat-masks.md) | done |
-| 63 | Modifier instance pool (roadmap 2.4, S1): the `PairMods` pages, per-pair 16 B headers and per-list 64 B doubling blocks deleted — one global pool of 32 B records (`Id`, `Kind`, `Value`, `Source`, `Expiry`, `Next`) with a deterministic LIFO free list, linked per pair through a `PairState { Set, Head }` (8 B/pair, board state format v6); renumber moves pair states only — records are pool-global — and the first 16 modifiers on acquired slots allocate nothing — FF-1M board 642 → 386 MiB, snapshot 368 → 336 MiB, rss 734 → 447 MiB, stat-churn 26 → 21 ns/op — [issues/0071](issues/0071-atom-63-modifier-instance-pool.md) | done |
-| 64 | Lazy owned columns (roadmap 2.5): sv-owned stat columns allocate on first `OutputPtr`/`Output` and dense-refill from the set table (only while unbound — a bound column stays the effective one, the owned view stays stale per the atom-48 digest law); broadcasts of unmaterialized stats mark `ChangedWords` against the old set's computed value with zero column bytes; release/renumber/save skip unallocated columns (board state format v7, per-stat column flags) — FF-1M board 386 → 322 MiB, snapshot 336 → 272 MiB, rss 447 → 383 MiB — [issues/0072](issues/0072-atom-64-lazy-owned-columns.md) | done |
-| 65 | Bitmap allocator (roadmap 2.6): the free-slot stack (`capacity × 4 B` int LIFO) deleted — the live bitmap's complement is the free set, `Acquire` hands out the lowest free slot (`TrailingZeroCount` over `~live`) with a `freeHint` word index keeping it amortized O(1); holes always refill lowest-first so the live prefix stays dense and renumber has less to do; the free set leaves the save entirely (board state format v8, `freeHint` recomputed from `live` on load) — FF-1M board 322 → 318 MiB (−4 MiB stack), alloc 0 B — [issues/0073](issues/0073-atom-65-bitmap-allocator.md) | done |
-| 66 | Blocks + template spawn (roadmap 2.7, §4.4): each slot's set tuple is interned as one refcounted **block** (`BlockTable`, set ids only — values stay `Computed(set)`), pair pages become per-slot `SlotState {Block, Head}` (8 B/pair → 8 B/slot); changing one stat re-interns the tuple (O(S), refs-first so shared sets never dip to zero); modifier records gain `Slot`/`Stat` and chain per entity; expiry entries pack to 16 B with exact-fit shrink; `Spawn(template, n, slots)` = n block-id writes + column/mirror fills + one refcount add — no pair resolves, rows surface in `AcquiredWords` (board state format v9) — **spawn1m 3.3 ms** (receipt ≤ 10 ms), FF-1M board 318 → **154 MiB** (receipt ≤ 160), snapshot 272 → 152 MiB, rss 383 → 260 MiB — [issues/0074](issues/0074-atom-66-blocks-template-spawn.md) | done |
-| 67 | Tracked allocator + high-water shrink (roadmap 2.8, §4.10/S11): `NativeArena` — one exact byte-accounting allocator per board (`Board`, `SetTable`, `BlockTable` all route through it) — so `MemoryBytes` is O(1) and exact (the formula and its drift die); `Recalculate`'s end is the structural boundary that reclaims record-pool and dirty-touched slack (live + 12.5% headroom behind a 75% hysteresis gate — the expiry heap already shrank in atom 66); `EventStreams.Swap` shrinks arenas against a watermark decaying 6.25%/swap, so burst frames stay resident and quiet stretches reclaim — FF-1M board 154 → **150 MiB**, fused-tick unregressed — [issues/0075](issues/0075-atom-67-allocator-exact-memorybytes.md) | done |
-| 68 | Sparse change rows (roadmap 3.1, §4.6/S4): `changedTouched` — the dedup'd touched-word list `MarkChanged` already kept — partitions per stat and goes public as `ChangedWordIndices`/`ChangedWordCount` beside `ChangedWords`, so a condition consumer walks O(changed words) instead of `LiveWordCount` per stat (indices unique, arrival order; the dense word-span shape is untouched); FF-1M `RunConditions` walks the sparse view — measured at 1M rows: 4 stats 20.3 µs dense → **0.27 µs sparse** (65,536 words scanned → 24 touched); values bit-identical — the cross-host digest pin did not move (board state format v10: per-stat counts + index prefixes) — [issues/0076](issues/0076-atom-68-sparse-change-rows.md) | done |
-| 69 | In-place fragmented windows (roadmap 3.4, S3/S7): the remap scratch (`capacity × 4 B` int buffer — 4 MiB at 1M) and `ChunkSeam.Pull`/`Push` are deleted; a fragmented chunk walks `rows[i]` in place, touching `slots[i].Slot` only for the clamp's bounds — one pass instead of pull + walk + push, bit-identical results; contiguity is classified once per chunk visit (the cursor's `TrySlotRange` feeds the window) so `IsContiguous`/`Apply`/`ApplyEnabled` share one scan instead of one each — reconcile-keyed caching was rejected: Frent exposes no structural version and one destroy's swap-remove spoofs every O(1) fingerprint (`[5,6,7,8]` − slot 6 → `[5,8,7]`) — [issues/0077](issues/0077-atom-69-inplace-fragmented-windows.md) | done |
-| 70 | `ClampShift` monoid (roadmap 4.1, §4.1, law L6): the composition of intrinsic updates `x ↦ clamp(x + s, f, c)` as a `readonly struct` — `Step/Apply/Then/Repeat` with the closed-form n-th power (rising settles at the ceiling, falling at the floor) and a canonical form (bounds tightened to the image of int, constants carry shift 0) so equal structs ⇔ equal functions; total for every long shift via compare-then-add image endpoints; nothing consumes it yet — drift storage (4.2) is bus-gated — the receipt is the law suite: associativity over ~343k lattice triples, `Repeat(n) == Thenⁿ`, `Repeat·Apply` == n eager steps on the lattice and on 20k random chains — [issues/0078](issues/0078-atom-70-clampshift-monoid.md) | done |
-| 71 | One serialization codec (roadmap 5.1, F17): `Visit<TCodec>` (header, values, bytes; `TCodec.Reading` gates load-only reconciliation) replaces every mirrored `Write*`/`Read*` pair — Board (stats, set table, block table), EventStreams, InputState, composed Game; `SaveCodec`/`LoadCodec`/`SizeCodec`/`HashCodec` share the exact layout, dead `SvState.Expect` deleted; `SizeCodec.Total` == saved length, `HashCodec` digests state not identity, `Save(Load(Save(s))) == Save(s)` at board and game level (−83 net lines) — [issues/0079](issues/0079-atom-71-state-codec.md) | done |
-| 72 | Zobrist digest + tape v4 (roadmap 5.2, L13): board digest = Σ `DigestKey(stat, slot, bits(Computed(set)))` over live resolved pairs, maintained incrementally at block transitions in `Recalculate`/`ClearSlotStats`/`Spawn` with per-(stat, 256-slot page) partial sums (`FirstDivergentPage` localizes divergence); bulk spawns (`count × stats > 65536`) defer via `digestPagesDirty`, `RecomputeDigest()` walks from scratch and anchors load/renumber; tape v4 frames are dt bits + input shape + captured inputs + XXH64(dt, inputs, board digest) — bodies on demand (`WriteBody` retained), playback v4 rejects v3 and flags incremental-vs-recomputed drift; `Digest` == `RecomputeDigest()` under churn/spawn/release/save-load (digest law); tape-record 0.034 µs/frame ≤ 0.1 µs receipt, spawn1m 3.8 ms ≤ 10 ms, ff1m p50 ~2.9 ms unchanged — [issues/0080](issues/0080-atom-72-zobrist-digest-tape-v4.md) | done |
-| 73 | Board undo window (roadmap 5.3, L12): address-based undo log — a ring of W frame buffers records `(address, length, prior bytes)` before every state-memory write; `BeginUndoFrame` marks boundaries by snapshotting every mutating scalar (board, set table, block table); `Rollback(k)` replays entries newest→oldest, restores the mark's scalars, drops fresh allocations at/after it — bit-equal to `LoadState` of the snapshot at that mark; growth reallocations quarantine old blocks over retained ordinals instead of freeing, set reclamation waits out the window (`ReclaimHorizon`), slot pages/owned columns/mirrors quarantine as fresh; load, renumber, rebind, invalidate and dispose close the window; replay offset scratch sized from collected entries + remaining bytes (long tail spans grow it before the write) — [issues/0081](issues/0081-atom-73-board-undo-window.md) | done |
-| 74 | Composed rollback (roadmap 5.3): input ring and event stream undo windows — `Capture`/`ReplayStep` note every mutated byte (ring slot, tick id, head, counter, edges), appends note destination bytes (the double buffer reuses halves a frame later), `Swap` notes offsets/peaks/active, arena growth journals replacements instead of reallocating (replay targets the old block), shrink suppressed while open; `Game.BeginUndoWindow` opens all three windows (`frames + 1` marks, the topmost is now), `FrameRunner.Run` marks after `Swap` so a mark is a completed frame with events published, `GameHost.Rollback(frames)` replays board+input+streams to `top − frames` and re-opens the target so re-driving the same inputs is bit-identical; L12 verified at the composed level (marks byte-compare, resim reproduces the top mark); `rollback-resim` bench: 8-frame rollback + resim at Δ=128 on 2²⁰ entities ~270–340 µs/cycle, O(Δ), allocation-free, digest-verified (≤ 50 µs is the end-state envelope, queued behind phase 6 perf atoms) — [issues/0082](issues/0082-atom-74-composed-rollback.md) | done |
-| 75 | Incremental keyframes (roadmap 5.4): a lazily-allocated per-board bitmap tracks the digest pages (256 slots) dirtied since the last keyframe — set as a side effect of the existing slot funnels (`MarkStatDirty`/`MarkSlotStatsDirty`, acquire/release/spawn), zero per-frame cost when nothing changes; `SaveKeyframe(SvState)` serializes only the dirty pages (live-word slices + each live slot's modifier records with original insertion ids, plus the digest for verification) through the atom-71 codec into a warm `SvState`, resetting the epoch; `LoadKeyframe(SvState)` folds one keyframe onto a board at the epoch base — releases/acquires per live bit, replaces changed slots' record chains (identical slots skipped), re-resolves through the board's own content-addressed set/block tables, and digest-verifies, so the restored board continues simulation (byte equality of full saves is deliberately not claimed: interned tables legitimately diverge; the law is digest + column + fold equality, then continued identical frames); `KeyframeDirtyPages` exposes the count; loads re-base the epoch, renumber/rollback conservatively dirty every page; `keyframe` bench: capture + fold + verify at 2²⁰ entities with Δ=96 scattered edits ~270–330 µs/cycle, allocation-free — save alone 48 µs at Δ=96 vs 53 µs at 2¹⁶ entities (no capacity scan) vs 964 µs at Δ=3072 (cost ∝ dirty pages) — [issues/0083](issues/0083-atom-75-incremental-keyframes.md) | done |
-| 76 | Undo windows never log class-field addresses (fix to 74, roadmap 5.3): the input/stream hooks pinned `ringHead`/`tickCounter`/`replayCursor`/`active` and replayed writes through the stored address — stale after a GC relocation, the source of the ~1-in-8 ComposeRollback flakes; scalars now live in GC-safe managed snapshot rings captured at every frame mark and restored by target ordinal, matching the board's discipline — every recorded address targets NativeMemory, which never moves — [issues/0084](issues/0084-atom-76-undo-scalar-snapshot-rings.md) | done |
-| 77 | Unmanaged `Clamp` (roadmap 6.1a, S9): the managed `Board` reference, `minStatIndex`, `maxStatIndex` die — the factories still validate at construction (S9's shape), and the `SV_CHECKED` staleness check reads the arena-backed generation counter through a captured `int*` (native memory, never moves), comparing to the generation captured at bind; `Clamp` now satisfies `where T : unmanaged` — the shape Burst can hold — with the data path untouched (values already flowed through raw pointers) — [issues/0085](issues/0085-atom-77-unmanaged-clamp.md) | done |
-| 78 | `Sv.Kernel` — static chunk kernels (roadmap 6.1b, §5.5): the six pointer chunk verbs (uniform/per-row × intrinsics, single-word, multi-word) gain a static home taking the **capacity explicitly** — null + range guards run unchanged against it, then the same `Simd.*` kernels — so a caller holding only pointers, masks and an unmanaged `Clamp` (atom 77) runs the whole surface with no `Board` instance; the twelve `Board.Run*` overloads become thin wrappers validating against `Capacity` and delegating; named `Kernel` (singular) because the vendored oracle kit's `namespace Kernels.Testing` shadows a plural name inside the test project — [issues/0086](issues/0086-atom-78-static-kernel-surface.md) | done |
-| 79 | One `Run` verb over the §5.1 vocabulary (roadmap 7.1): `Column<T>` (pointer+length, validated at construction — the length the guards check), `Window.Range`/`Window.Masked` (any offset — the board multi-word guard never required alignment; the Frent seam rule stays), `Delta` (uniform `new Delta(int)` / per-row `new Delta(int*)`; ctor names because a `Uniform` factory collides with its property), `Bounds` (factories over the unmanaged `Clamp`: `None`/`Constant`/`Rows`/`Stats`) and `Kernel.Run(value, window, delta, bounds, applied = default)` dispatching to the atom-78 statics — the twelve-overload choice product collapses to one signature, the clause-5 names survive as aliases; L9 partition invariance pinned (whole ≡ disjoint sub-windows, shuffled) — [issues/0087](issues/0087-atom-79-run-verb-vocabulary.md) | done |
-| 80 | Aligned columns (roadmap 6.5a, §4.10): `NativeArena.AllocAlignedZeroed/FreeAligned` — 64 B alignment for every sv-owned column and bound mirror, **2 MiB alignment + Linux `madvise(MADV_HUGEPAGE)` once a request reaches 2 MiB** (an sv-owned column at 1M rows is 4 MiB — 8,192 small pages become 2 huge ones for the TLB) — wired at the six alloc/free sites (lazy first-read, bind-mirror, both load paths, dispose); `Live` counts requested bytes only, so every exact `MemoryBytes` bill is unchanged — [issues/0088](issues/0088-atom-80-aligned-columns.md) | done |
-| 81 | The bulk worker pool (roadmap 6.5b, §5.6): `Bulk.Run` — the bulk twin of `Kernel.Run` over a persistent pool of ProcessorCount − 1 spin-parked workers with a sense-reversing barrier (hot rounds spin sleep-free, workers park on a Monitor after a 5 ms grace so idle cores are not burned; fixed disjoint partitions make results L9-identical to the sequential run regardless of scheduling; reentrancy throws; invalid windows are pre-validated and every participant completes the barrier even on throw, so the pool cannot deadlock) — measured honestly: **1.1–1.3× on this hardware**, because one core already near-saturates DRAM for stream-shaped kernels; the "scales with cores" receipt is killed here and recorded — real scaling awaits compute-bound kernels — [issues/0089](issues/0089-atom-81-bulk-worker-pool.md) | done |
-| 82 | Schema as code (roadmap 7.2, F22): `[SvSchema]` + `[SvStat]` / `[SvDerived]` / `[SvIntrinsic]` on a static partial class, compiled by the new `Sv.Generators` Roslyn incremental generator into `Schema`, `StatId`/`IntrinsicId` members resolved once in the static constructor, and `Get<Stat>(board, slot)` typed accessors — the runtime `SchemaBuilder` rule set mirrored at compile time (SVSGEN01–09: unknown sources, forward/self references, duplicates, structural, identifier, arity, finiteness, emptiness, reserved names), so **unknown stat names fail the build** — generated schemas are bit-identical to hand-built ones (ContentHash) — [issues/0090](issues/0090-atom-82-schema-generator.md) | done |
-| 83 | One clock + the timing wheel (roadmap 3.2, F25): the expiry heap is deleted — 4 levels × 256 buckets of intrusive, doubly-linked entries (insert O(1), advance O(due), natural drain order is (tick, id); pathological jumps bulk-drain with a native merge sort; eager unlink makes `PendingExpiries` exact), `Game.Tick` is the one frame clock (rewinding with the undo window), and `FrameRunner` expires as the declared step-3 sub-step before recalc — saves drop the persisted heap (format v11; keyframe restores insert per-record, keeping incremental cost O(dirty)) — [issues/0091](issues/0091-atom-83-timing-wheel.md) | done |
-| 84 | Keyframe restore initializes `Wheel` (fix of 83): the one `ModRecord` construction site besides `AddModifier` forgot the field, so every record restored by a `LoadKeyframe` fold carried `Wheel = 0` — the next fold's `WheelUnlink` trusted it and performed a wild unlink (an arbitrary 4-byte heap write through `wheelEntries[0]`, a double-freed entry-pool slot, `PendingExpiries` going negative) — found on the bus host where the full bench suite crashed differently on each run (AV in `WheelUnlink` one run, the source board's live bitmap corrupted the next), while all 377 tests and the building host's bench stayed green; the regression fact folds a receiver three times over stacked modifiers and pins `PendingExpiries`, digest and folded value — [issues/0092](issues/0092-atom-84-keyframe-wheel-init.md) | done |
-| 85 | Renumber without re-resolve (roadmap 3.3, F16): `RenumberSlots` stops clearing and re-dirtying every live pair — pending dirty rows remap through the map (`RemapDirty`), clean pairs stay clean, so the next `Recalculate` resolves only what was already pending; slot pages become copy-on-write (a page copies only when a moved row enters or leaves it), the digest moves per-slot instead of recomputing (double-applying a permutation restores it bit-exactly), and columns/mirrors move only the moved rows; slots not in the image are reset after all moves — an inline per-move source clear would wipe a destination written earlier in the same permutation (the oracle suites caught it: half of every swapped pair lost its chain) — **renumber1m receipt: 4.3 ms RenumberSlots + 12 µs Recalculate at 1M rows / 8,192 moved per frame (was ~1 s re-resolve)**; the seam's 64-slot padding drop is deferred to the clause-5 v1.2 batch — [issues/0093](issues/0093-atom-85-renumber-without-re-resolve.md) | done |
-| 86 | Audit hardening (atoms 77–83 follow-up): `RebuildWheel` sanitizes the persisted `Wheel` backlink to −1 on load (derived state can no longer survive a save/load as a stale entry index — the wild-unlink shape), rollback frees fresh aligned columns/mirrors through `NativeMemory.AlignedFree` (the fresh-quarantine path used the plain free — formally wrong, glibc tolerated it), and a throwing `Bulk.Run` slice is captured and rethrown on the caller after the round completes (a partially applied window can no longer return as success; the pool stays usable); `src/SV_REVIEW.md` deleted (atom-41-era review, superseded) — the audit's `Guard.EnabledTail` "dead code" finding was a false alarm (three live seam callers) and is recorded, not deleted — [issues/0094](issues/0094-atom-86-audit-hardening.md) | done |
-| 87 | Wheel-expiry microbench (issue 0091's deferred receipt): a dedicated `wheel-expiry` scenario holding the ff1m steady state — 262k pending expiries at 1M entities, delays uniform in [1, 512] so both wheel levels stay populated and every L1 wrap cascades — with a 1,024-slot ring histogram predicting the *exact* due count per tick and integer accounting predicting the *exact* pending count, so a lost, double-fired or stranded wheel entry fails the scenario; **92–98 µs Expire p50, 290–293 µs whole tick at 262,414–262,998 pending / 1,024 due per tick** — expiry cost is bounded by the due count, not the pending pool (a per-tick scan of 262k entries cannot pass the 500 µs gate) — [issues/0095](issues/0095-atom-87-wheel-expiry-bench.md) | done |
-| 88 | `ClampShift.FirstTickAtLeast` (roadmap 4.1, completes 0078): the earliest tick in [1, horizon] with `Repeat(n).Apply(v) >= threshold`, or horizon+1 — a bisection over the closed-form power, O(log horizon); the bridge from the drift monoid to the timing wheel ("first tick mana is full" becomes one wheel entry instead of a per-frame scan); throws on `Shift < 0` where the bisection predicate is not monotone (house-style validation, roadmap snippet relied on the caller) — 20,000-trial brute-force oracle, exactness-around-the-hit, unreachable/constant edges, and the non-rising rejection; still consumer-free behind the bus like 0078 — [issues/0096](issues/0096-atom-88-clampshift-first-tick.md) | done |
-| 89 | Drift storage (roadmap 4.2, L7): `DriftStore` — one 32-byte segment per slot `(v₀, t₀, rule)` with the `ClampShift` frozen by value; `Read(slot, tick)` evaluates the closed-form power so n frames of regen are one evaluation; `Write`/`Rebase` pin the §4.1 segment convention (step-2 writes land before that frame's drift step → `(value, tick−1)`; step-3 rebases fold `Repeat(tick−t₀)` then swap the rule); `Materialize` bulk-reads through the atom-79 window vocabulary (masked windows write enabled rows only); anchored bit-equal to the real `Kernel.Run` at every tick plus a 400-frame random write/rebase oracle — consumer is 4.3's board wiring — [issues/0098](issues/0098-atom-89-drift-storage.md) | done |
-| 90 | Total clamp (roadmap 1.3, F8+F9; decisions 0044/0043): crossed bounds are ceiling-wins at every clamp site — scalar `Clamp.Apply` loads both bounds once and tightens `lo = min(lo, hi)`, vector `ClampBoth` prepends int `Min` — so `[0, −5]` is the constant −5 and a zero-delta pass is the identity; `applied` is `saturate(after − before)` via new scalar/128/256 `SaturatingSubtract` at all nine reporting sites — F9's `int.MinValue`-hit now reports `int.MaxValue`; the frozen eager oracle moved with the contract (ceiling-wins + saturating difference) and the cross-host digest pin moved `73D6FCED95A8BA9D → 0781B61BE6F53640`; implemented ahead of the v1.2 fold per owner instruction (bus 0053, 0051 precedent); cost recorded: applied-reporting paths +~0.17 ns/row, ff1m +13% — [issues/0099](issues/0099-atom-90-total-clamp.md) | done |
-| 91 | Release-safe bindings (roadmap 1.8, F13): `InvalidateBindings` parks the writes in **every** build — the recorded pointers are dropped, so release broadcasts route to the sv-owned column or nowhere instead of into memory the board declared suspect (`OutputColumn` returns null while parked); `BindOutput`/`BindExternal` validate a declared `columnLength` against `(capacity−1)·stride+1` at bind in every build (0-length escape hatch closed); new `PendingRebind` counts parked stats — and the init bug it exposed is fixed (`boundGeneration` was hand-set to −1 for never-bound stats; now zeroed, −1 uniquely means parked); receipt includes the roadmap's guard-page proof — a `PROT_NONE`d stale column survives a full parked Recalculate — [issues/0100](issues/0100-atom-91-parked-bindings.md) | done |
-| 92 | 64-bit generation-tagged modifier ids (roadmap 1.5, F5; decision 0045): `ModifierHandle.Id` is `(generation << 40) | counter` — unique for the board's lifetime, insertion-ordered, the 32-bit wrap that silently reordered the canonical fold in ~36 min at 1M adds/s is gone; `ModRecord`/wheel/undo ids widen to long, the fold's sort keys are `long*`, and derived synthetic entries move to their own always-negative key space (`long.MinValue + k`) so they can never collide with host traffic; keyframes merge the `(generation, counter)` stream lexicographically so post-fold additions sort after every shipped id across generations; one SvState format bump (both magics — old saves rejected loudly); receipt: churn seeded at `2⁴⁰−3` crosses the wrap with ids unique, ordered and removable, and a gen-2 keyframe onto a gen-0 receiver yields ids past `(2<<40)|9` — [issues/0101](issues/0101-atom-92-modifier-ids-64bit.md) | done |
-| 93 | Blend-store masked words (roadmap 6.3, S8; decision 0047): the masked-word kernels are `Load` + `ConditionalSelect` + `Store` per group — the AVX2-only masked-load/store surface is deleted, x86 runs `Masked256`, and **arm64/no-AVX2 hosts get the new `Masked128` blend where they previously ran the per-bit scalar walker**; because a plain load touches every lane, `validBits` threads the whole surface (Span/Column paths derive it from real lengths, per-row takes `min(value, delta)`; the raw single-word overloads gain an optional `validBits = 64` validated by `EnabledTail`) with the boundary group scalar — the pinned atom-54 contract (*a masked word never touches a column past its end*, `PROT_NONE`-tested) survives the blend; cost recorded honestly: enabled-runwalk −2.2% on AVX2 (2391 → 2339 M rows/s same-box) for one path on every ISA; also fixed the Unity facade suite's stale LIFO rebind expectation (dead since the 2.6 bitmap allocator) — [issues/0102](issues/0102-atom-93-blend-store.md) | done |
-| 94 | Enabled windows at any offset (roadmap 3.3 seam, S6): a window's words anchor at its own `start` — any alignment — so the 64-alignment gates are deleted from `ChunkSeam`/`Population.ApplyEnabled` and Unity's `SvChunk` always takes the direct two-word window (tail bounded, batch fallback deleted); both reconciles pack contiguously (`(next+63)&~63` gone — up to 63 slots × archetypes of capacity no longer reserved); also fixed a pre-existing `EnabledRunwalkBench` OOB (100,000 rows is not a word multiple — the last window ran 32 rows past its buffers); receipt: unaligned offset 5 over a 135-row chunk row-exact on the fast path, a 70-row Unity `v128` chunk tail-bounded, two 40-row archetypes pack to {0, 40} hole-free, and renumber1m 5,421 µs + 9.8 µs next-frame recalc — the 3.3 "≤ 20 ms, no spike" gate cleared by 3.7× — [issues/0103](issues/0103-atom-94-any-offset-windows.md) | done |
-| 95 | Drift rides the frame (roadmap 4.3, L7): `DriftStore.AttachBoard` routes every segment write through the board's undo window so **`Rollback` restores drift bit-exactly with the rest of the state**; `RebaseRules(Window, tick, rate*, floor*, ceiling*)` is the step-3 bulk rebase — rows whose stat-broadcast rule changed rebase to `ClampShift.Step(BoundOf(·)³)` (masked + range windows, segmentless rows skipped); `Renumber(oldToNew)` gives drift its L3 half (`read ∘ renumber = π ∘ read`); receipt is law L7 proper — a 160-frame random schedule (hits, heals, column-driven bound changes, spawns, two renumbers, depth-1–3 rollbacks) bit-equal to the eager model at every frame, plus an 8-depth mark-pattern rollback restoring exact `(v₀, t₀, rule)` triples — [issues/0104](issues/0104-atom-95-drift-rebase.md) | done |
-| 96 | Crossings → wheel → events (roadmap 4.4, L8): the timing wheel holds **drift crossings alongside modifier expiries** — `ScheduleCrossing(atTick, id)` takes a host-chosen generation-tagged 64-bit id (no cancel API: a stale generation drains and the host drops it), entries carry their own expiry (32 → 40 B) so crossings and expiries order by the same (tick, id) key, `ExpireModifiers` collects due crossings and `TakeDueCrossings` hands them over in (tick, id) order for the host's clause-17 events — the ring is an output, never rolled back, re-collected on re-drain; the wheel is now **lazy** (statless boards keep their 8-byte bill, load-rebuild allocates only when something is pending); receipt is law L8 — 200 random rules/values/thresholds where the scheduled tick is exactly the first eager satisfied tick, never one early — [issues/0105](issues/0105-atom-96-crossings.md) | done |
-| 97 | Per-slot op folding in the drain (roadmap 4.5, L6): `DriftOp (slot, ClampShift)` batches — `ApplyBatch` stably radix-sorts by slot (4×8-bit counting passes, O(Δ), deterministic), composes each slot's ops in **arrival order** through `Then`, and writes once — **folding k hits is bit-equal to applying them eagerly then the frame's drift step**; receipt: 200 frames × 12 slots × ≤40 random ops/frame (unsorted batches, non-commutative pairs pinned: `(+9 cap 10) then (−7)` = 2, reversed = 9) — [issues/0106](issues/0106-atom-97-drain-fold.md) | done |
-| 98 | History-free canonical fold (roadmap 7.3, §4.5; decision 0046): the canonical order is **`(kind, value bits)`** — the within-kind tiebreak is the raw float bits, not the insertion id — so the fold is a function of the modifier **multiset**: peers receiving the same buffs in different orders converge bit-exactly (packet reordering stops being a desync source) and identical loadouts intern to one set regardless of history (the content hash was already id-free; now the canonical array is too); ids shrink to removal handles; receipt: a random 6-modifier loadout delivered to 16 slots in 16 random permutations — every slot bit-identical, SetCount 2 — plus the historical `(1e8, −1e8, +1)` pair that used to read 9 vs 8 now converging; the eager oracle moved with the contract and the cross-host digest pin re-baked `0781B61BE6F53640 → A2ACAA69E55F79D8` — [issues/0107](issues/0107-atom-98-history-free-fold.md) | done |
-| 99 | Indirect stats (roadmap 7.4, §4.3 sources): each derived source can be **anchored** to one slot (`BindSourceAnchor`) — auras, banners, global buffs — and one modifier on the anchor reaches every slot in the population through the normal dirty propagation, O(1) modifiers instead of O(population); the anchor rides the binding doctrine (not state): released slots and `InvalidateBindings` sweep it back to per-slot reads, renumber parks it; anchors resolve in a pre-pass before the touched wave so an anchored source recomputes once, not per dependent; receipt: a one-modifier aura on any anchor slot reaches all 16 slots (order-independent), an anchored program matches the eager oracle step-for-step, release/renumber revert to per-slot semantics, and guards reject dead ordinals and dead anchor slots — [issues/0108](issues/0108-atom-99-indirect-stats.md) | done |
-| 100 | `Cap` modifier kind (roadmap 7.5, §4.11): the fourth op kind folds **after `Multi`** with the ceiling idiom `value > cap ? cap : value` — full-fat caps ("max crit 75 %") are one modifier, not a per-stat clamp rebuild; `min` over caps commutes, so the atom-98 history-free property carries over: identical loadouts cap-included intern to one set, and the fold stays a function of the multiset; NaN passes through to `CanonicalNaN` (ternary comparisons are false); receipt: cap binds the post-multi value (5 ×3 capped at 10 reads 10, not 15), tightest of {85, 75, 95} wins, a 16-permutation property over all four kinds converges bit-exactly, and a three-round board program mixing all four kinds matches the eager oracle — [issues/0109](issues/0109-atom-100-cap-kind.md) | done |
-| 101 | BCL shims + Burst kernels (roadmap 6.2, §5.5 "one kernel source, two compilers"): `src/Sv.Burst` re-expresses the chunk kernels in the Burst-compilable subset (scalar branch-free, `FloatMode.Strict`, flat `KState/KOp/KBound` ABI mirroring `Kernel.Run`) with two BCL shims where Unity's profile blocks the BCL — `Tzcnt` (BitOperations is internal in the scripting profile, CS0122 observed) and `BoundOf` (clause-16 conversion, math-identical to `Clamp.BoundOf`); the same three sources are copied byte-identical into the Unity project (sha256-pinned, xunit-asserted); receipt: a 512-op × 4096-row seeded program with extremes (NaN/±inf/±2³¹, masks at any offset) digests **`2B43BC1549AAE751` identically on .NET-JIT, Mono and Burst-compiled x64** — proven real Burst via the disable-control differential (2.7×) plus the arena disassembly carrying the clause-16 `vcvttss2si` sequence — and the FMA grep now extends to the Burst-generated assembly: 0 fused ops in every dumped window — [issues/0111](issues/0111-atom-101-burst-kernels.md) | done |
-| 103 | Curve sources (roadmap 7.5, §4.11 curves): `SchemaBuilder.Curve` declares a single-source derived stat whose contribution is the **pre-folded table entry** at the bucket holding the source value — diminishing returns become one subtract/divide/truncate plus a load, evaluated once per set resolution; below-min reads entry 0, at/above the ceiling the last entry, NaN entry 0 (deterministic on .NET, Mono and Burst); the table is schema-declared and content-hashed (a curve change is a state-compat change), rides renumber and load like a coefficient, and composes with anchors — an anchored curved source evaluates the table at the anchor's value for every slot; slots whose sources share a bucket intern to one set, so "evaluated once per set" falls out of the fold; the curve block allocates only for curve-declaring schemas — linear boards byte-for-byte unchanged; receipt: 8 slots spanning below-min, every bucket edge, the ceiling, a negative and 3e38 match the extended eager oracle, same-bucket slots share the fold, add/remove tracks the dirty propagation, and the builder rejects empty/non-finite/non-positive-step/undeclared-source tables — [issues/0112](issues/0112-atom-103-curve-sources.md) | done |
-| 104 | Conditional modifiers via crossings (roadmap 7.5, §4.11 conditionals): "+20 % damage below 30 % hp" with **zero per-frame predicates** — `FirstTickAtLeast` schedules the threshold tick on a rising map over the traveled distance (falling hp: distance map, not the hp map — the predicate is monotone only for rising maps), the crossing rides the wheel (atom 96) and comes due inside `ExpireModifiers` in (tick, id) order, the host adds/removes one sourced modifier and one `Recalculate` folds it; receipt: the add fires exactly at tick 35 (0 due for ticks 1–34, value pinned through 36–49), the clear crossing at hp ≥ 60 removes it, and 200 staggered slots drain across two passes in exact (tick, id) order — same-tick pairs by id — then ONE Recalculate lands every slot at 12.5f with **SetCount 1**: the conditional population shares one interned set — [issues/0113](issues/0113-atom-104-conditional-modifiers.md) | done |
-| 102 | Unity adapter v2 (roadmap 6.4, §5.5, S3): `SvRange` chunk component — reconcile writes `{Start, Count}` per chunk and `SvChunk.RunIntrinsics` resolves its slot window in **O(1)** (three loads + anchor validation) instead of a ≤128-compare scan per visit (~0.8 ms/frame of scan work deleted at FF-1M's 8,192 visits); `SvChanged.ChunkMask` funnels the board's changed bits into Unity's word-pair shape at any alignment — sv's Δ becomes Unity's Δ, measured 1.4 ns per misaligned call on a 1M-row board; the Burst `ISystem` frame runs the clause-7 v2 order (structural boundary → chunk intrinsics → `ExpireModifiers` with due crossings in (tick, id) order → `Recalculate`); the mask-funnel half is intentionally not built — atom 94 already consumes the v128 mask directly; receipt: ranges verified two-archetype, stale-range throws until reconciled, chunk mask equals `ChangedWords` bit for bit, frame order drives reconcile → intrinsics → expiry → crossings → recalculate, and an identical 6-frame program twice yields identical column bits and crossing sequences — [issues/0110](issues/0110-atom-102-unity-adapter-v2.md) | done |
-| 105 | Unity editor leg (issue 0110's BLOCKED-ON-EDITOR receipt): a real Entities 1.5.0 project under Unity 6000.7.0b5 batch mode (one `-batchmode -nographics -quit -executeMethod` boot, the whole FF-1M measurement as an in-process loop — **528 rounds, zero domain reloads**, `AssemblyReloadEvents` counters 0/0; a script-import reload costs ~0.45 s, warm boot-to-entry 4.9 s, cold ~2.5×); the CLI surface is mapped (`/home/i/.local/bin/unity` — the real Unity CLI with `run/test/recompile/command/shell/status` for kept-alive editors — documented, not built on; `--help` is not a console printer on Linux); src/Sv does **not** compile in-editor verbatim (exact table: `System.Runtime.Intrinsics` CS0234/246, static-abstract interfaces CS8919, `delegate* unmanaged` CS8889, IsExternalInit CS0518, C# 12 for primary ctors, BitOperations CS0122, NativeMemory CS0103, BitConverter.SingleToUInt32Bits CS0117, TickCount64, ThrowIf, nint atomics) — the measurement runs on a test-project BCL shim (Vector128/256 compile surface with `IsHardwareAccelerated=false` → the scalar twins the Burst leg proved bit-identical) plus eight recorded mechanical transforms on the copies (sha256-pinned, per-file diff-lines); the fold cross-checks **bit-exact against .NET 10**; receipt at 2^20 entities / 8,200 real chunks through the clause-7 v2 order with real enabled masks: sv stage p50 **33.81 ms** steady (visits 33.79 ms, expire+crossings 4.1 µs, Δ=128 Recalculate 13.9 µs), structural frame 102.4 ms with reconcile 64.8 ms — the ≤5 µs roadmap line is not met and as written sits ~6× below the ~31 µs AVX2 arithmetic floor for 4 M column ops (native .NET ff1m frame 2.99 ms, Mono ≈ 10.6× native); adapter drift fixed to real 1.5 APIs (`AddComponentData`, handle bool, by-value `GetNativeArray`) with the facade mirroring — [issues/0114](issues/0114-atom-105-editor-cli-and-1m-receipt.md) | done |
+| `stat` | modified by cards and stat ops (added, additive %, multiply), integer with a decimal scale | MaxHealth, MoveSpeed |
+| `intrinsic` | an integer the rules change directly; `"role": "kind"` and `"role": "owner"` are special | Health, Shield, Kind, Owner |
+| `event` | a true/false condition with enter and stay thresholds; edges can trigger rules or start timelines | LowHealth |
+| `channel` | what a record carries: damage types, healing, grants | Physical, Fire, Healing |
+| `kind` | who or what sent it, for rules like "immune to snipers" | Goblin, Sniper |
 
-Atom 1 scope note: `Clamp.Stat` and the StrictFloat oracle land with atom 2 (the first
-float math); the walkers land with atom 3. Nothing ships half-wired.
+**Records.** Every change is a 16-byte record: target, source, kind, channel, amount, hits, origin, depth. You send them with `Send`, timelines send them through the tl glue, and rules emit more (thorns, lifesteal, reflection) up to depth 3.
 
-## Discipline
+**One frame (`Step`).**
 
-Mirrors tl's `AGENTS.md`: issues carry the spec, atoms are short and green before the
-next starts, receipts (commands + outputs) are recorded in the issue, production code
-carries no explanatory comments, the data path is unmanaged, and every public
-abstraction pays for itself. GitHub issues are the record; `issues/` keeps the
-authored copies.
+```
+Send     records arrive from your code, timelines and last frame's emits
+Seal     dead targets dropped, records grouped per entity in one canonical order, exact duplicates merged
+Log      the frame's input is logged for replay
+Decide   per entity: gates by priority, shields and budgets, cards, then the flows sum each channel
+Commit   values change once per frame: sum, then clamp (floor, ceiling) once
+Events   enter/stay conditions are re-checked; edge rules emit for next frame
+Digest   one 64-bit hash of the whole state
+```
 
-Before starting and before finishing any atom, check the agent bus:
-`/home/i/GitHub/agent-bus/bin/check stats --body`. Reply and ack per
-`/home/i/GitHub/agent-bus/README.md`. Cross-repo decisions never live only in chat.
+Because everything is summed and then clamped **once**, the order your code sent records in never matters. That is what makes it deterministic across threads and machines.
+
+---
+
+## 3. The four pack files
+
+Every file is `{"schema":1,"rows":[...]}`. Full grammar: `contract/CONTRACT-v3.0.0.md` and the additions in `CONTRACT-v3.1.0-bricks.md` and `CONTRACT-v3.2.0-stat-layers.md`. The two big working examples are `packs/reference` (the worked example) and `packs/lego` (22 mechanics, explained in `docs/LEGO-REPORT.md`).
+
+### 3.1 `values.sv.json`
+
+`id` is the lane (values) or the number (channels, kinds). Events give `lane` and `word` instead. `nextLane` is the first free lane. Stats take a float `default` in designer units; intrinsics take an integer.
+
+### 3.2 `rules.sv.json`: the layers
+
+| Layer | Runs | Does | Example from the packs |
+|---|---|---|---|
+| `gate` | per record, by `priority` (high first) | `deny`, `allow`, shape the amount (`added`, `additive`, `multi`), `absorb` from a budget, `spend` | sniper ward, shield, immunity mask |
+| `emit` | after gates, per record or per source | sends new records: `to` `Self` or `Source`, amount `Taken`, `Offered`, `NotTaken` or a number | thorns, lifesteal, mirror |
+| `flow` | once per entity | turns channel totals into value changes: `add`, `subtract`, `set`, `max`, `min` | health_flow |
+| `fold` | at commit | `floor` and `ceiling` for a value, from numbers or stats | health_bounds |
+| `event` | after commit | `enter` and `stay` thresholds | low_health |
+| `edge` | on an event's enter or leave | emits records | panic_charge |
+| `chain` | while true | adds tags other rules test with `any` | cursed blocks healing |
+
+Conditions read `record.channel`, `record.kind`, `record.source`, `self.<Value>`, `source.<Value>`, and use `eq`, `ne`, `gt`, `ge`, `in`, `bit`, `below`, `and`, `any`, `roll`. A rule with `"card"` runs only for entities holding that card.
+
+### 3.3 `cards.sv.json`
+
+A card names the intrinsic that counts how many the entity holds, and optionally stat `modifiers` that apply while it is held:
+
+```json
+{"id":9,"name":"charge_ward","value":"ChargeWard","modifiers":[{"stat":"MoveSpeed","multi":-0.5}]}
+```
+
+(from `packs/reference/cards.sv.json`)
+
+### 3.4 `templates.sv.json`
+
+Starting values, cards, and `forwards`: a part that passes a channel to its owner.
+
+```json
+{"id":5,"name":"hand","forwards":[{"channel":"Healing","to":"Owner"}]}
+```
+
+(from `packs/reference/templates.sv.json`: healing sent to a hand reaches the entity in the hand's `Owner` value)
+
+---
+
+## 4. Patterns
+
+All of these are rows in `packs/reference` or `packs/lego`, each with scenario tests.
+
+| You want | Write | Pack row |
+|---|---|---|
+| damage and healing | a `flow` with `add` and `subtract`, a `fold` with floor 0 and ceiling MaxHealth | reference `health_flow`, `health_bounds` |
+| immune to one attacker type | a `gate` that denies on `record.kind` | reference `sniper_ward` |
+| immunity by bits ("fire and curse") | a `gate` with `{"bit": ["self.Immunity", "record.channel"]}` | reference `immunity_mask` |
+| a shield that soaks damage | a `gate` with `absorb` from an intrinsic budget | reference `shield` |
+| thorns | an `emit` to `Source`, amount `Taken`, `depthLimit` 0 | reference `thorns` |
+| lifesteal | an `emit` to `Self` on `Healing` when damage was taken | reference `leech` |
+| "can't heal while cursed" | a `chain` that tags, and a `gate` that tests the tag with `any` | reference `cursed`, `cursed_blocks_healing` |
+| a status that ticks (poison) | a status entity that a timeline drives (chapter 7) | NorthStar3 `poison_status` |
+| low health starts a timeline | an event with `"starts": "<timeline>"` | NorthStar3 `LowHealth` |
+| a part passes to its owner | template `forwards` | reference `hand`, `shield` |
+
+---
+
+## 5. The host API (.NET)
+
+**Generate the code.** In your game's `.csproj`:
+
+```xml
+<PropertyGroup>
+  <SvPackNamespace>MyGame.Sv</SvPackNamespace>
+</PropertyGroup>
+<ItemGroup>
+  <ProjectReference Include="path/to/sv/src/Sv.Host/Sv.Host.csproj" />
+  <ProjectReference Include="path/to/sv/src/Sv.Pack/Sv.Pack.csproj" ReferenceOutputAssembly="false" />
+</ItemGroup>
+<Import Project="path/to/sv/build/Sv.Pack.targets" />
+```
+
+(the same lines as `samples/Sv.Hello/Sv.Hello.csproj`). The pack lives in a `pack` folder next to the project (set `SvPackFolder` to move it). The build writes `Values.g.cs` (the enums and `Layout`), `Kernels.g.cs` (your rules as code), `HostKernels.g.cs` and `PackData.g.cs` (the pack as code, so nothing is parsed at run time). It regenerates when a pack file or the generator changes.
+
+**The calls you use:**
+
+| Call | Does |
+|---|---|
+| `new FrameLoop<HostKernels>(PackData.Create(), new HostOptions { ... })` | the world |
+| `Spawn((int)Template.x)` / `Kill(slot)` | between frames only |
+| `Send(target, source, kind, channel, amount, hits = 1, origin = Origin.Direct)` | a record for this frame |
+| `Modify(StatOp.Add(...))`, `Modify(StatOp.RemoveSource(...))` | stat modifiers |
+| `Step()` | one frame |
+| `Read(slot, lane)`, `Level(slot, event)` | values and events |
+| `Events`, `EventCount` | this frame's event edges (`HostEvent`: event, slot, entered) |
+| `LastDigest`, `Digest()` | the state hash |
+| `Rewind(epoch)` | back to the start of an epoch |
+| `Late(frame, records, count)`, `Resolve()` | input that arrives late (networking) |
+
+**Options that matter** (`HostOptions`): `EntityCapacity` (default 65,536), `Workers` (default 1; 11 was best on a 6-core, 12-thread desktop), `Parts` (64), `DigestEvery` (1), `RingEpochs` and `FramesPerEpoch` (32 and 2: the rewind window), `Arena` (grow, or a hard cap for the browser), `EventCapacity` (16,384 per channel per frame), `Late` (`Clamp` or `Reject`). More in `docs/PRODUCTION-CHECKLIST.md`.
+
+---
+
+## 6. Unity
+
+**Use exactly Unity 7000.0.0a16** with Entities 7.0.0, Collections 7.0.0 and Burst 2.0.0 (the same editor as tl.unity). Add to `Packages/manifest.json`:
+
+```json
+"com.sv.engine": "file:<sv checkout>/packages/com.sv.engine",
+"com.sv.unity.v4": "file:<sv checkout>/packages/com.sv.unity.v4"
+```
+
+Generate with **Window > sv > Pack Authoring** (Regenerate) or `sv pack <folder> --host unity --namespace <ns> --out <dir>`. That adds `PackJobs.g.cs`: every frame phase as a Burst job. Then:
+
+```csharp
+var world = MyGame.Sv.PackWorld.Create(new HostOptions { Workers = 11, EntityCapacity = 100_000 });
+```
+
+`SvWorld` has the same calls as chapter 5. For ECS, `SvEntities.Publish` and `SvEntities.Attach` give entities slots and `SvStepSystem` steps the world. Details and the tl setup: `docs/UNITY.md`.
+
+What is proven in Unity: every phase runs as Burst at 1 and 11 job workers with digests equal to .NET (97 EditMode tests, also from a fresh clone into a new project), and a built **Linux player** (CoreCLR, Burst compiled ahead of time) replays 37 recorded scenarios with every digest equal to .NET (`eng/player-smoke.sh`).
+
+---
+
+## 7. With tl (timelines)
+
+sv and tl do not reference each other; a few generated lines connect them. `sv pack <folder> --glue tl` writes `Glue.g.cs`: an outbox column per timeline channel, the clips, the tracks that feed them, and `TimelineRequests` (an event value with `"starts": "poison"` starts that timeline on enter and stops it on leave).
+
+The tested frame order (`tests/Sv.NorthStar3/Rig.cs`, and the same in Unity):
+
+1. tl ticks, and the generated tl system writes each status entity's outbox cell.
+2. `Outbox.Send(host, cells, channel, kindLane, targetLane)` turns each non-zero cell into one `Origin.Timeline` record from the status entity to its target, and zeroes the cell.
+3. Your own `Send`, `Modify`, `Spawn`, `Kill`.
+4. `Step()`.
+5. `TimelineRequests.Apply(players, host.Events, host.EventCount)`.
+
+A ticking poison is a **status entity** (template `poison_status`) whose timeline sends Poison to the entity it is aimed at, so a ward on the target can still stop each tick. In Unity, tl runs on its plain host (no SubScene needed): `docs/UNITY.md`, section "tl in Unity".
+
+---
+
+## 8. Determinism, digests, rewind and replay
+
+- **Rules that keep it deterministic:** integers only for state; one canonical record order; sum then clamp once; no float maths, wall-clock time, unseeded random or dictionary order in your glue.
+- **Digest:** `LastDigest` after every `Step` (`DigestEvery = 1`). Log `(Frame, LastDigest)`; two machines that disagree tell you the first frame they differ.
+- **Rewind:** `Rewind(epoch)` returns the world to the start of that epoch, including records in flight. The last `RingEpochs` epochs are kept.
+- **Replay:** external records are logged per frame; derived records (thorns, events) are recreated. `Late` and `Resolve` fold input that arrives after its frame.
+- **Twin journals:** `tests/Sv.Twin.Fixtures` records every call into a text journal; Unity and the player replay those journals and compare every digest. Use the same idea to compare your game across hosts.
+
+---
+
+## 9. Speed and memory
+
+Measured on a Ryzen 5 8500G (6 cores, 12 threads), 1,000,000 entities, 11 workers, the `lego` pack (55 rules), digest every frame:
+
+| Load per frame | Time | |
+|---|---|---|
+| 100,000 random records | 2.4-2.8 ms | |
+| 1,000,000 timeline records (one per entity) | 7.7-7.8 ms | the 8.3 ms gate (25 % of a 30 Hz frame) passes |
+| 1,000,000 uniformly random cross-entity records | about 18 ms | a stress test, ceiling 19 ms (decision D20) |
+| memory at rest | 41-46 B per entity | |
+| warm allocation | 0 B on sv's threads | |
+
+tl's own work is not included (chapter 12). The full report: `docs/BENCH-REPORT.md`.
+
+---
+
+## 10. Prove it on your machine
+
+```sh
+bash eng/v3-verify.sh
+```
+
+Runs every suite under three CPU modes (default, no AVX2, scalar), the integration suites, the checked build and this README's chapter 1 sample, and the mirror checks. It ends with `v3-verify: all green`. Set `TL_ROOT` if tl is not next to sv. Unity: `eng/m8-run/gate.sh` (set-up in `docs/M8-HANDOFF.md`) and `bash eng/player-smoke.sh`.
+
+---
+
+## 11. Sharp edges: what will bite you
+
+| You see | Cause | Do this |
+|---|---|---|
+| `sv: the compiled kernels were built against another pack` | the generated code is from another version of the pack | rebuild; in Unity press Regenerate |
+| `sv: spawn, kill and rewind happen between frames, after every writer is absorbed` | you spawned or killed inside a frame | do it before `Step` |
+| `sv: the world is full` | more entities than `EntityCapacity` | raise it |
+| `sv: resolve late inputs right after Step, ...` | `Late`/`Resolve` called at the wrong time | call them right after `Step` |
+| a value changes one frame later than you expected | changes from this frame's records commit at the end of the frame; edge emits arrive next frame | read after `Step` |
+| a revive does not save the entity this frame | there is no same-frame lethal check | design for one frame of delay (chapter 12) |
+| an event fires for many rows as "dense" | more edges than `EventCapacity` on a channel this frame | read the edge words, or raise the capacity |
+| digests differ between two runs on one machine | glue code: an unzeroed array, unseeded random, wall-clock, dictionary order | see `docs/PRODUCTION-CHECKLIST.md`, "Reading a digest mismatch" |
+| digests differ only after you changed the generator | stale generated code | delete `obj/SvPack/.svpack.key` and rebuild |
+
+---
+
+## 12. Known limits and open risks
+
+Honest list.
+
+- **One Unity editor.** Only Unity 7000.0.0a16 (an alpha, CoreCLR only, C# 9) is supported, as for tl.unity. Unity 6 is not.
+- **Players.** Only a Linux CoreCLR player has been run. Windows, macOS, mobile and console players, and IL2CPP, have not.
+- **tl at a million.** tl's own kind job takes about 8.45 ms at 1,000,000 rows on its own, so sv plus tl at that size does not fit a 30 Hz budget of 8.3 ms. That is tl's cost (issue 0149); size your scenes for both.
+- **Random load.** A million records with random targets **and** random sources per frame costs about 18 ms (decision D20). Timeline and gameplay load that is grouped by entity is inside the gate.
+- **Reaction depth.** A record can cause records up to depth 3 (thorns of thorns of thorns). Deeper chains are cut.
+- **Sizes.** At most 4,194,303 entities (22-bit slots), 256 channels and 256 kinds per pack, 64 exclusive gate groups, masks of 64 bits.
+- **Same-frame lethal check.** A revive acts one frame late.
+- **History memory.** With the full rewind ring and heavy activity, memory grows to about 450-760 bytes per entity (`docs/BENCH-REPORT.md`).
+- **tl's ECS timeline path in Unity** (SubScene, Playable Director) is not built for the sv glue; tl's plain host is.
+- **Install** is by `file:` path or git; there is no package registry release yet.
+
+---
+
+## 13. Cheat sheet
+
+```
+values.sv.json   stat | intrinsic | event | channel | kind        what every entity has
+rules.sv.json    gate (priority) -> emit -> flow -> fold -> event -> edge; chain tags
+cards.sv.json    a card turns rules on, and can carry stat modifiers
+templates.sv.json  starting values, cards, forwards (part -> owner)
+
+build            build/Sv.Pack.targets -> Values, Kernels, HostKernels, PackData (.g.cs)
+.NET             new FrameLoop<HostKernels>(PackData.Create(), options)
+Unity            PackWorld.Create(options)  (sv pack --host unity)
+tl               sv pack --glue tl; Outbox.Send per channel before Step; TimelineRequests.Apply after
+frame            Send / Modify / Spawn / Kill  ->  Step  ->  Read / Level / Events  ->  LastDigest
+prove            bash eng/v3-verify.sh   (Unity: eng/m8-run/gate.sh, eng/player-smoke.sh)
+```
+
+---
+
+## 14. Repository
+
+| Path | What |
+|---|---|
+| `src/Sv.Core`, `src/Sv.Host` | the engine: lanes, records, the frame, digest, rewind |
+| `src/Sv.Rules` | the pack reader, the reference interpreter (the oracle) and the code generator |
+| `src/Sv.Pack` | the `sv` tool: `sv pack`, `sv run` |
+| `src/Sv.Web`, `src/Sv.Wasm` | the browser designer and simulator (`docs/WEB.md`) |
+| `packages/com.sv.engine`, `packages/com.sv.unity.v4` | the Unity packages |
+| `packs/reference`, `packs/lego` | the two big example packs |
+| `samples/Sv.Hello` | chapter 1 |
+| `tests/` | laws, scenarios, differential tests (compiled against the oracle), twin journals, NorthStar3 (tl) |
+| `contract/` | the contract texts; `issues/` the decisions and their receipts; `docs/` the guides |
+| `docs/PRODUCTION-CHECKLIST.md` | what to do for a real project test |
+
+Agents: read `AGENTS.md` first.
+
+**Licence:** MIT. See `LICENSE`.
