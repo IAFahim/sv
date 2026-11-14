@@ -574,7 +574,7 @@ namespace Sv
             }
 
             var sorted = Sort(segment, temp, count, rows);
-            return level == 2 ? CoalesceByKey(sorted, count, segment) : CoalesceByChannel(sorted, count, segment);
+            return CoalesceByChannel(sorted, count, segment);
         }
 
         public static void DegradeAll(in SealView view, int level)

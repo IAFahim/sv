@@ -54,3 +54,5 @@ Receipts: `bash eng/v3-verify.sh` -> `v3-verify: all green` (Laws 573, Scenario 
 Cost: Seal now reads a 4-word channel mask and compares the source per record. Interleaved runs against main on a loaded machine (a fuzz campaign at about 700% CPU was running) gave Seal B 2.35-2.59 ms vs 2.20-2.46 ms on main, about +0.2 ms; totals were too noisy to read (main itself measured 8.1-9.3 ms against 7.7 ms quiet). Re-measure on a quiet machine; B is expected near 7.9 ms, inside the 8.3 ms gate.
 
 Pinned re-measure (same session, both builds `taskset -c 2-11` while a 2-CPU fuzz campaign held CPUs 0-1, 5 interleaved processes each, `v3-lego-b --ms 1000`): Seal median 2.31 ms on main vs 2.46 ms with the fix (+0.15 ms); frame total median 8.89 vs 8.93 ms (within noise). Absolute numbers are higher than the quiet 12-CPU 7.7 ms baseline because only 10 CPUs were used.
+
+Quiet re-measure (rc.4, 2026-11-14, `docs/BENCH-REPORT.md` Update rc.4): B total 7.59 -> 7.66 ms (gate 8.3: pass), r total 17.44 -> 17.64 ms (ceiling 19.0: pass), A 2.30 -> 2.33 ms; Seal +0.11 ms on B, +0.18 ms on r; digests unchanged.

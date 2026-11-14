@@ -372,9 +372,14 @@ namespace Sv.Rules
             {
                 var rows = schema.Of(c);
                 var seen = new System.Collections.Generic.Dictionary<string, string>();
+                var limit = c == ValueClass.Channel || c == ValueClass.Kind ? 255 : 65535;
                 for (var i = 0; i < rows.Length; i++)
                 {
                     CheckIdentifier(seen, rows[i].Name, PackSource.ValuesFile, rows[i].Offset);
+                    if (rows[i].Id < 0 || rows[i].Id > limit)
+                    {
+                        Diagnostics.Error(DiagnosticCode.IdOutOfRange, PackSource.ValuesFile, rows[i].Offset, -1, -1, rows[i].Name + " has number " + rows[i].Id.ToString(CultureInfo.InvariantCulture) + ", outside 0.." + limit.ToString(CultureInfo.InvariantCulture));
+                    }
                 }
             }
 

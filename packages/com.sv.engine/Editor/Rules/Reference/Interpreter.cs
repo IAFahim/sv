@@ -528,19 +528,28 @@ namespace Sv.Rules.Reference
                 var basis = keyed[order[at]];
                 var total = 0L;
                 var depth = 0;
+                var origin = first.Origin;
+                var groupSize = 0;
                 while (at < order.Length && keys[at] == key)
                 {
                     var record = records[order[at]];
                     total = ReferenceLaw.Add(total, ReferenceLaw.Term(record.Amount, record.Hits));
                     depth = record.Depth > depth ? record.Depth : depth;
+                    origin = record.Origin > origin ? record.Origin : origin;
+                    groupSize++;
                     at++;
                 }
 
-                var origin = level == 1 ? first.Origin : RecordOrigin.Direct;
+                if (groupSize == 1)
+                {
+                    merged.Add(new RefRecord(basis.Target, basis.Source, basis.Kind, basis.Channel, first.Origin, first.Depth, first.Amount, first.Hits));
+                    continue;
+                }
+
                 var amount = ReferenceLaw.Saturate(total);
                 if (amount != 0)
                 {
-                    merged.Add(new RefRecord(basis.Target, basis.Source, basis.Kind, basis.Channel, origin, level == 1 ? first.Depth : depth, amount, 1));
+                    merged.Add(new RefRecord(basis.Target, basis.Source, basis.Kind, basis.Channel, origin, depth, amount, 1));
                 }
             }
 

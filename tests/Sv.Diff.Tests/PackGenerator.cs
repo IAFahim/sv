@@ -556,7 +556,17 @@ namespace DiffTests
                     {
                         var earlier = Pick(added);
                         added.Remove(earlier);
-                        modifiers.Add("{\"frame\":" + N(earlier.Frame + 1 + random.Next(frames - earlier.Frame)) + ",\"entity\":\"E" + N(earlier.Entity) + "\",\"stat\":\"S0\",\"op\":\"remove\",\"source\":" + N(earlier.Source) + "}");
+                        var removeFrame = Chance(25) ? earlier.Frame : earlier.Frame + 1 + random.Next(frames - earlier.Frame);
+                        modifiers.Add("{\"frame\":" + N(removeFrame) + ",\"entity\":\"E" + N(earlier.Entity) + "\",\"stat\":\"S0\",\"op\":\"remove\",\"source\":" + N(earlier.Source) + "}");
+                        if (removeFrame < frames && Chance(50))
+                        {
+                            var refreshShape = Pick(Shapes);
+                            var refreshStat = random.Next(stats);
+                            var refreshValue = refreshShape == "Additive" || refreshShape == "Multi" ? (random.Next(41) - 20) * 500 : (1 + random.Next(30)) * statScale[refreshStat];
+                            added.Add((removeFrame, earlier.Entity, earlier.Source));
+                            modifiers.Add("{\"frame\":" + N(removeFrame) + ",\"entity\":\"E" + N(earlier.Entity) + "\",\"stat\":\"S" + N(refreshStat) + "\",\"shape\":\"" + refreshShape + "\",\"value\":" + N(refreshValue) + ",\"source\":" + N(earlier.Source) + "}");
+                        }
+
                         continue;
                     }
 

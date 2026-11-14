@@ -104,11 +104,13 @@ namespace DiffTests
             }
         }
 
-        public static RunTrace Reference(PackPlan plan, SvScenario scenario)
+        public static RunTrace Reference(PackPlan plan, SvScenario scenario) => Reference(plan, scenario, int.MaxValue);
+
+        public static RunTrace Reference(PackPlan plan, SvScenario scenario, int arenaCapacity)
         {
             var trace = new RunTrace();
             var pack = HostPack.From(plan);
-            var interpreter = new Ref.Interpreter(plan);
+            var interpreter = new Ref.Interpreter(plan, new Ref.InterpreterOptions { ArenaCapacity = arenaCapacity });
             var state = interpreter.NewWorld(scenario.Capacity);
             var carried = new List<Ref.RefRecord>();
             for (var frame = 0L; frame < scenario.Frames; frame++)
@@ -178,7 +180,7 @@ namespace DiffTests
         {
             var trace = new RunTrace();
             var pack = HostPack.From(plan);
-            options.EntityCapacity = Math.Max(options.EntityCapacity, scenario.Capacity);
+            options.EntityCapacity = Math.Max(options.EntityCapacity, ((scenario.Capacity - 1) & ~(Slot.Rows - 1)) + 1);
             using var host = new FrameLoop<TKernels>(pack, options);
             var kindLane = plan.Schema.KindIntrinsic;
             for (var frame = 0L; frame < scenario.Frames; frame++)

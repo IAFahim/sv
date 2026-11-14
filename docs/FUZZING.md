@@ -22,7 +22,7 @@ A finding is any input where one of these is false.
 
 | # | Promise | How it is checked today |
 |---|---|---|
-| O1 | Compiled kernels give the same values and digest as the reference interpreter, every frame | `tests/Sv.Diff.Tests` (`values`, `noabsorb`, `cardmodifiers`, `statops`, `bricks-values`) |
+| O1 | Compiled kernels give the same values and digest as the reference interpreter, every frame, also with a hard-capped arena (3, 6, 24 records) and a capacity that is not a multiple of 64 | `tests/Sv.Diff.Tests` (`values`, `noabsorb`, `cardmodifiers`, `statops`, `bricks-values`, `hardcap`, `tightcapacity`) |
 | O2 | Digests do not depend on worker count (1, 2, 4, 7, 11) or parts (16, 64) | `Sv.Diff.Tests` `workers`, `bricks-workers` |
 | O3 | Dense storage gives the same as shared storage | `Sv.Diff.Tests` `dense` |
 | O4 | Digests do not depend on the CPU's instruction set (AVX2 off, all SIMD off) | run any of the above with `DOTNET_EnableAVX2=0` or `DOTNET_EnableHWIntrinsic=0` |
@@ -56,8 +56,8 @@ bash eng/fuzz.sh 1000000 25 default
 **Reading the output:** one line per round.
 
 ```
-ok   offset 1000000 (default):  Passed: 20
-FAIL offset 1010000 (default):  Passed: 19 Failed: 1 -> fuzz-out/offset-1010000-default
+ok   offset 1000000 (default):  Passed: 50
+FAIL offset 1010000 (default):  Passed: 49 Failed: 1 -> fuzz-out/offset-1010000-default
 ```
 
 On `FAIL`, the folder holds a **receipt per failing seed** (`<check>-seed<N>.txt`: what differed, then the four pack files and the scenario) and the generated C# (`seed<N>/`). The full test log is `fuzz-out/offset-<offset>-<mode>.log`. Copy the folder before you run again (each run clears the test's own receipts).

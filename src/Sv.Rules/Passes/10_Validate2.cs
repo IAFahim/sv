@@ -1,6 +1,4 @@
-using System.Collections.Generic;
 using System.Globalization;
-using Sv.Rules.Emit;
 
 namespace Sv.Rules.Passes
 {
@@ -23,19 +21,6 @@ namespace Sv.Rules.Passes
 
                 unit.Diagnostics.Warning(DiagnosticCode.Shadowed, PackSource.RulesFile, rule.Offset, rule.Id, -1,
                     rule.Name + " (" + rule.Id.ToString(CultureInfo.InvariantCulture) + ") compiles to nothing: its condition is never true or it changes nothing");
-            }
-
-            for (var c = ValueClass.Stat; c <= ValueClass.Kind; c++)
-            {
-                var rows = schema.Of(c);
-                var limit = c == ValueClass.Channel || c == ValueClass.Kind ? 255 : 65535;
-                for (var i = 0; i < rows.Length; i++)
-                {
-                    if (rows[i].Id < 0 || rows[i].Id > limit)
-                    {
-                        unit.Diagnostics.Error(DiagnosticCode.IdOutOfRange, PackSource.ValuesFile, rows[i].Offset, -1, -1, rows[i].Name + " has number " + rows[i].Id.ToString(CultureInfo.InvariantCulture) + ", above " + limit.ToString(CultureInfo.InvariantCulture));
-                    }
-                }
             }
 
             if (unit.Options.Previous != null)
