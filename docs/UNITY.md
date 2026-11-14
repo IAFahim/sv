@@ -20,7 +20,9 @@ Unity 7000.0.0a16 (newest editor only), Entities 7.0.0, Collections 7.0.0, Burst
 
 `COMPILE_ONLY=1 T=c1 bash m8-run/locked.sh m8-run/gate.sh` then the same without `COMPILE_ONLY` (scripts in `eng/m8-run`, set-up in `docs/M8-HANDOFF.md`). Expect 0 `error CS`, 0 `warning CS`, 0 `error BC` and every EditMode test green. Every generated job carries a probe: 1 means it ran as a Burst job.
 
-## Player builds (Linux, CoreCLR, Burst AOT)
+## Player builds (Burst AOT; Linux CoreCLR proven, Windows and IL2CPP selectable)
+
+The target follows the OS (`linux64`, or `win64` under Git Bash on Windows; override with `SMOKE_TARGET`) and the backend is `SMOKE_BACKEND=coreclr` (default) or `il2cpp`; the build fails if the backend did not take. The run line also prints `il2cpp=yes|no` (a `GameAssembly` file next to the player). On Windows set `U` to `Unity.exe`, for example `U="/c/Program Files/Unity/Hub/Editor/7000.0.0a16/Editor/Unity.exe" SMOKE_BACKEND=il2cpp bash eng/player-smoke.sh`.
 
 `bash eng/player-smoke.sh` builds a Linux player from a throwaway project (the three test packs as a runtime assembly, the 37 twin journals under StreamingAssets), runs it headless and replays every journal at 1 and 11 job workers: every per-frame digest must equal the .NET host's and every phase must run as Burst (`SvProbe.ManagedRuns` 0). Set `KEEP=1` to keep the project, `U` for another editor. Result on 2026-11-14 (Unity 7000.0.0a16, `LinuxStandaloneSupport` CoreCLR player): build Succeeded, 0 error CS, 0 error BC, `lib_burst_generated.so` present; `SVSMOKE summary cases 74 frames 324 failures 0 maxJobWorkers 11 managedRuns 0`. This editor ships CoreCLR players only (no Mono, no IL2CPP variation installed), so those backends are not covered.
 
