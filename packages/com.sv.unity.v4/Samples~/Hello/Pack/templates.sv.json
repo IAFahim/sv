@@ -1,0 +1,6 @@
+{"schema":1,"rows":[
+{"id":1,"name":"hero","values":{"Health":100,"MaxHealth":100.0}},
+{"id":2,"name":"knight","values":{"Health":100,"MaxHealth":100.0,"Shield":15},"cards":{"fire_ward":1}},
+{"id":3,"name":"goblin","values":{"Kind":1}},
+{"id":4,"name":"dragon","values":{"Kind":2}}
+]}

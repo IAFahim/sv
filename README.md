@@ -369,6 +369,7 @@ Runs every suite under three CPU modes (default, no AVX2, scalar), the integrati
 | a revive does not save the entity this frame | there is no same-frame lethal check | design for one frame of delay (chapter 12) |
 | an event fires for many rows as "dense" | more edges than `EventCapacity` on a channel this frame | read the edge words, or raise the capacity |
 | digests differ between two runs on one machine | glue code: an unzeroed array, unseeded random, wall-clock, dictionary order | see `docs/PRODUCTION-CHECKLIST.md`, "Reading a digest mismatch" |
+| CS0104 `'Event' is an ambiguous reference` in a MonoBehaviour | the pack's generated `Event` enum and `UnityEngine.Event` are both imported | add `using Event = MyGame.Sv.Event;` (the Unity sample does) |
 | digests differ only after you changed the generator | stale generated code | delete `obj/SvPack/.svpack.key` and rebuild |
 
 ---

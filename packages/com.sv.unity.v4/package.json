@@ -9,5 +9,12 @@
         "com.unity.entities": "7.0.0",
         "com.unity.burst": "2.0.0",
         "com.unity.collections": "7.0.0"
-    }
+    },
+    "samples": [
+        {
+            "displayName": "Hello sv",
+            "description": "A hero and a knight, a shield and a fire ward: the same numbers and digests as the .NET Hello sample, editable from four JSON files.",
+            "path": "Samples~/Hello"
+        }
+    ]
 }
