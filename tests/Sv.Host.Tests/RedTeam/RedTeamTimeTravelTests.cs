@@ -145,4 +145,46 @@ public sealed unsafe class RedTeamTimeTravelTests
         Assert.True(host.Rewind(host.World.Epoch));
         Assert.Equal(frameBefore, host.Frame);
     }
+
+    [Fact]
+    public void A_capped_input_log_never_lets_a_resolve_silently_replay_less_than_was_played()
+    {
+        static FrameLoop<ReferenceKernels> Make() => new FrameLoop<ReferenceKernels>(PackData.Create(), new HostOptions { Workers = 1, EntityCapacity = 256, InputLogFrameLimit = 2 });
+        int[] Feed(FrameLoop<ReferenceKernels> host, int[] targets, long frame)
+        {
+            foreach (var target in targets)
+            {
+                host.Send(target, -1, 0, (int)Channel.Physical, 1 + (int)frame);
+            }
+
+            return targets;
+        }
+
+        using var straight = Make();
+        var heroes = Enumerable.Range(0, 5).Select(_ => straight.Spawn((int)Template.player)).ToArray();
+        for (var frame = 0L; frame < 6; frame++)
+        {
+            Feed(straight, heroes, frame);
+            if (frame == 2)
+            {
+                straight.Send(heroes[0], -1, 0, (int)Channel.Healing, 3);
+            }
+
+            straight.Step();
+        }
+
+        using var host = Make();
+        heroes = Enumerable.Range(0, 5).Select(_ => host.Spawn((int)Template.player)).ToArray();
+        for (var frame = 0L; frame < 6; frame++)
+        {
+            Feed(host, heroes, frame);
+            host.Step();
+        }
+
+        var late = new LoggedRecord(EffectKey.Pack(heroes[0], EffectKey.NoSource, 0, (byte)Channel.Healing, Origin.Direct, 0), 3, 1);
+        Assert.Equal(2L, host.Late(2, &late, 1));
+        var resolved = host.Resolve();
+        output.WriteLine("resolved " + resolved + ", dropped from log " + host.Log.DroppedRecords + ", digest " + Packs.Hex(host.LastDigest) + ", straight " + Packs.Hex(straight.LastDigest));
+        Assert.True(!resolved || host.LastDigest == straight.LastDigest, "Resolve returned true but the replay lost logged input");
+    }
 }

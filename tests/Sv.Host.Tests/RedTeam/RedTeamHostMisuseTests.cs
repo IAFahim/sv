@@ -18,7 +18,8 @@ public sealed class RedTeamDuo<TKernels> : IDisposable
     {
         this.plan = plan;
         pack = HostPack.From(plan);
-        interpreter = new Ref.Interpreter(plan, new Ref.InterpreterOptions { EventCapacity = options.EventCapacity });
+        var limit = options.Arena == ArenaPolicy.HardCap ? options.CanonicalLimit : int.MaxValue;
+        interpreter = new Ref.Interpreter(plan, new Ref.InterpreterOptions { EventCapacity = options.EventCapacity, ArenaCapacity = limit });
         state = interpreter.NewWorld(options.EntityCapacity);
         Host = new FrameLoop<TKernels>(pack, options);
     }
@@ -181,6 +182,49 @@ public sealed unsafe class RedTeamHostMisuseTests
         var charges = host.Read(hero, (int)Intrinsic.ImmuneCharges);
         output.WriteLine("ImmuneCharges " + charges + " of " + (threadCount * PerThread));
         Assert.Equal(threadCount * PerThread, charges);
+    }
+
+    static string Overflow<TKernels>(PackPlan plan, int limit, int targets)
+        where TKernels : struct, IPackKernels
+    {
+        using var duo = new RedTeamDuo<TKernels>(plan, new HostOptions { Workers = 1, EntityCapacity = 256, Arena = ArenaPolicy.HardCap, CanonicalLimit = limit });
+        var victims = Enumerable.Range(0, targets).Select(_ => duo.Spawn(1)).ToArray();
+        var snipers = Enumerable.Range(0, 3).Select(_ => duo.Spawn(2)).ToArray();
+        var riflemen = Enumerable.Range(0, 3).Select(_ => duo.Spawn(3)).ToArray();
+        duo.Step();
+        for (var frame = 0; frame < 3; frame++)
+        {
+            foreach (var victim in victims)
+            {
+                foreach (var sniper in snipers)
+                {
+                    duo.Send(victim, sniper, 1, 0, 4 + frame);
+                }
+
+                foreach (var rifleman in riflemen)
+                {
+                    duo.Send(victim, rifleman, 2, 0, 3);
+                    duo.Send(victim, rifleman, 2, 1, 2);
+                }
+            }
+
+            duo.Step();
+        }
+
+        var line = "limit " + limit + ", targets " + targets + ": overflow " + duo.Host.Canonical.Overflow + ", digest compiled " + Packs.Hex(duo.Host.Digest()) + ", reference " + Packs.Hex(duo.ReferenceDigest);
+        Assert.True(duo.Host.Digest() == duo.ReferenceDigest, line);
+        return line;
+    }
+
+    [Theory]
+    [InlineData(1_000_000, 4)]
+    [InlineData(40, 4)]
+    [InlineData(12, 4)]
+    [InlineData(8, 4)]
+    [InlineData(3, 4)]
+    public void A_hard_capped_canonical_arena_merges_like_the_reference(int limit, int targets)
+    {
+        output.WriteLine((string)Packs.Call(typeof(RedTeamHostMisuseTests), nameof(Overflow), typeof(ReferenceKernels), Packs.Reference, limit, targets)!);
     }
 
     [Theory]
