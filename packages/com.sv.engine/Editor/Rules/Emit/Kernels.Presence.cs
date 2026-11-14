@@ -92,7 +92,9 @@ namespace Sv.Rules.Emit
             return "(present & " + Names.Hex(mask) + ") != 0ul";
         }
 
-        string CallGuard(Condition when, long[]? channels)
+        string CallGuard(Condition when, long[]? channels) => CallGuard(when, channels == null ? null : new[] { channels });
+
+        string CallGuard(Condition when, long[][]? required)
         {
             var parts = new List<string>();
             if (when.Guard >= 0)
@@ -105,16 +107,19 @@ namespace Sv.Rules.Emit
                 parts.Add("(v.M" + Text(OptimisePass.MaskIndex(kernel, when.Masks[m])) + " & self) != 0ul");
             }
 
-            var present = Presence(channels);
-            if (present != null)
+            for (var r = 0; required != null && r < required.Length; r++)
             {
-                parts.Add(present);
+                var present = Presence(required[r]);
+                if (present != null)
+                {
+                    parts.Add(present);
+                }
             }
 
             return parts.Count == 0 ? "true" : string.Join(" && ", parts);
         }
 
-        long[]? TriggerChannels(EmitIr emit, bool selfPart)
+        long[][]? TriggerChannels(EmitIr emit, bool selfPart)
         {
             var rule = emit.Rule;
             if (rule.Per == EmitPer.Source || rule.Per == EmitPer.Frame)
@@ -122,6 +127,13 @@ namespace Sv.Rules.Emit
                 return AggregateChannels(emit.When.Rest);
             }
 
+            var single = RecordChannels(emit, selfPart);
+            return single == null ? null : new[] { single };
+        }
+
+        long[]? RecordChannels(EmitIr emit, bool selfPart)
+        {
+            var rule = emit.Rule;
             var channels = ExprTools.ChannelsOf(emit.When.Rest);
             var over = new List<long>();
             var acts = false;
@@ -151,25 +163,25 @@ namespace Sv.Rules.Emit
             return channels == null ? covered : Intersect(channels, covered);
         }
 
-        static long[]? AggregateChannels(Expression rest)
+        static long[][]? AggregateChannels(Expression rest)
         {
             if (rest.Op == Op.BoolConst && rest.Integer == 0)
             {
-                return new long[0];
+                return new[] { new long[0] };
             }
 
             var parts = ExprTools.Conjuncts(rest);
-            long[]? narrowest = null;
+            var eachNeeded = new List<long[]>();
             for (var i = 0; i < parts.Length; i++)
             {
                 var needed = AggregateNeeds(parts[i]);
                 if (needed != null)
                 {
-                    narrowest = narrowest == null ? needed : Intersect(narrowest, needed);
+                    eachNeeded.Add(needed);
                 }
             }
 
-            return narrowest;
+            return eachNeeded.Count == 0 ? null : eachNeeded.ToArray();
         }
 
         static long[]? AggregateNeeds(Expression e)

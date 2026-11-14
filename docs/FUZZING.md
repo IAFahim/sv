@@ -13,7 +13,7 @@ Read first, in this order: `AGENTS.md`, `README.md` chapters 2 and 8, this file.
 5. **Every claim has a receipt:** the exact command, the seed or file, the output line. "It seemed to fail" is not a finding.
 6. **Do not run while someone benchmarks.** If `~/sv-proto/_work/bench.lock` exists, wait. `eng/fuzz.sh` checks this for you.
 7. **No Unity.** Unity runs are the lead's (they take the Unity lock and minutes per run).
-8. **Do not push to main.** Work on a branch named `fuzz/<your-name>`, commit your issue files and harnesses there, push the branch, report.
+8. **Do not push to main.** Work on a branch named `fuzz/<your-name>`, commit your issue files and harnesses there, push the branch, report. Start every campaign from the latest `origin/main` (rebase your branch on it): a seed that fails only because your branch lacks a merged fix is not a finding.
 9. **Stop and report** after 3 findings, or after your time budget, whichever comes first. Do not keep going with a broken tree.
 
 ## 2. What sv promises (the oracles)
@@ -64,7 +64,9 @@ On `FAIL`, the folder holds a **receipt per failing seed** (`<check>-seed<N>.txt
 
 **Budget:** start with 25 rounds per mode (about 21,000 packs per mode). If all four modes are clean, report that with the offsets: a clean campaign is a result too.
 
-## 4. New harnesses to build (only after section 3 is clean)
+## 4. New harnesses to build (after your section 3 campaign is filed)
+
+Start these once every failure from your section 3 campaign is filed as an issue (an open issue does not block you). Rebase on main first (`git fetch origin && git rebase origin/main`) so fixes the lead already merged are in.
 
 Each one is a new test class in a **new file** under `tests/Sv.Diff.Tests/` (it can use `PackGenerator`, `KernelCompiler`, `Runs` and `Seeds` there). Follow this shape exactly:
 
