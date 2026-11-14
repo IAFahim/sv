@@ -21,7 +21,7 @@ For a first real-project test of sv v3 on .NET 10 or Unity 7. The previous engin
    - Unity: `sv pack <folder> --host unity --namespace <ns> --out <dir>` or the window's Regenerate.
    - With tl: add `--glue tl` for `Glue.g.cs`: `[TlState]` outbox columns, `[TlKind]` feeds, clips, tracks and `TimelineRequests`.
 3. **Pin `PackHash`** (`Layout.PackHash`) in your own test next to your game's state hash. The host throws `sv: the compiled kernels were built against another pack` if the kernels and pack differ.
-4. **Create the host.** .NET: `new FrameLoop<HostKernels>(HostPack.From(plan), new HostOptions { ... })`. Unity: `PackWorld.Create(new HostOptions { ... })`, then `SvEntities.Publish` and `SvEntities.Attach` for ECS. Options that matter:
+4. **Create the host.** .NET: `new FrameLoop<HostKernels>(PackData.Create(), new HostOptions { ... })` (`PackData.g.cs` is the pack as generated code; no JSON is read at run time). Unity: `PackWorld.Create(new HostOptions { ... })`, then `SvEntities.Publish` and `SvEntities.Attach` for ECS. Options that matter:
 
 | Option | Default | Set it to |
 |---|---|---|
@@ -56,7 +56,7 @@ Rules that keep it deterministic:
 
 - `bash eng/v3-verify.sh` (set `TL_ROOT` to your tl checkout). It runs the engine mirror and tl generator checks, Laws, Scenario, Diff, Lego and Host under default, `DOTNET_EnableAVX2=0` and `DOTNET_EnableHWIntrinsic=0`, then Twin.Fixtures, NorthStar3 and Web, the checked build (`-p:SvChecked=true`) and the README chapter 1 sample. Expect `v3-verify: all green`.
 - Unity: `eng/m8-run/gate.sh` (set-up in `docs/M8-HANDOFF.md`, tl in `docs/UNITY.md`): 0 `error CS`, 0 `warning CS`, 0 `error BC`, every EditMode test green (97 with com.tl.unity, 87 without). Every generated job reports probe 1 (ran as Burst).
-- Unity player: `bash eng/player-smoke.sh` builds and runs a Linux player; expect `failures 0` and `managedRuns 0`.
+- Unity player: `bash eng/player-smoke.sh` builds and runs a Linux player; expect `failures 0` and `managedRuns 0`. `SV_GIT_REF=v3.0.0-rc.3` builds it from the git packages instead of the checkout.
 - Pins that must not move: worked example `E0F445186E2C3672`; reference PackHash `BD70627B1C671888`; lego PackHash `9A043301EA06000E`; NorthStar3 `A566FAEC8837BA57` and `2D6A06776AE25DCB`; bench digests A `DAF3A1D9BD73BA10`, B `6E7618BF0900D3F8`, C `D3C714D46555B7CE`, D `7413F619472566C4`, r `9CFD52083A9DA3FB`.
 
 ## Expected numbers (measured, Ryzen 5 8500G 6C/12T, 11 workers, 1,000,000 entities, lego pack)

@@ -22,11 +22,18 @@ cp "$root/packages/com.sv.unity.v4/Runtime/csc.rsp" "$P/Assets/Smoke/Runtime/csc
 cp "$root/eng/player-smoke/SmokeRunner.cs" "$P/Assets/Smoke/Runtime/"
 cp "$root/eng/player-smoke/SmokeBuild.cs" "$P/Assets/Editor/"
 
+if [ -n "${SV_GIT_REF:-}" ]; then
+  engine_package="https://github.com/IAFahim/sv.git?path=/packages/com.sv.engine#$SV_GIT_REF"
+  adapter_package="https://github.com/IAFahim/sv.git?path=/packages/com.sv.unity.v4#$SV_GIT_REF"
+else
+  engine_package="file:$root/packages/com.sv.engine"
+  adapter_package="file:$root/packages/com.sv.unity.v4"
+fi
 cat > "$P/Packages/manifest.json" <<EOF
 {
   "dependencies": {
-    "com.sv.engine": "file:$root/packages/com.sv.engine",
-    "com.sv.unity.v4": "file:$root/packages/com.sv.unity.v4",
+    "com.sv.engine": "$engine_package",
+    "com.sv.unity.v4": "$adapter_package",
     "com.unity.entities": "7.0.0",
     "com.unity.burst": "2.0.0",
     "com.unity.collections": "7.0.0",
@@ -48,6 +55,7 @@ asmdef "$P/Assets/Editor/SvSmoke.Editor.asmdef" SvSmoke.Editor "" '"Editor"' tru
 
 "$U" -batchmode -nographics -projectPath "$P" -executeMethod SmokeBuild.Build -logFile "$P/out/build.log"
 built=$?
+echo "packages: $engine_package"
 echo "build exit=$built errorCS=$(grep -c 'error CS' "$P/out/build.log") warningCS=$(grep -c 'warning CS' "$P/out/build.log") errorBC=$(grep -c 'error BC' "$P/out/build.log")"
 grep -E "SVSMOKE build" "$P/out/build.log"
 status=1
