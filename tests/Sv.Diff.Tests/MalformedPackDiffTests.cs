@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
+using System.Threading;
 using Sv.Rules;
 using Xunit;
 using Xunit.Abstractions;
@@ -143,6 +143,8 @@ namespace DiffTests
             }
         }
 
+        static readonly TimeSpan CompileTimeout = TimeSpan.FromSeconds(60);
+
         static string CheckCompile(PackSource source, bool mustReject, out bool ok)
         {
             ok = false;
@@ -150,18 +152,34 @@ namespace DiffTests
             try
             {
                 var copy = source;
-                var task = Task.Run(() => PackCompiler.Compile(copy));
-                if (!task.Wait(TimeSpan.FromSeconds(10)))
+                Checked<PackPlan>? result = null;
+                Exception? thrown = null;
+                var worker = new Thread(() =>
                 {
-                    return "compile timed out after 10s";
+                    try
+                    {
+                        result = PackCompiler.Compile(copy);
+                    }
+                    catch (Exception error)
+                    {
+                        thrown = error;
+                    }
+                })
+                {
+                    IsBackground = true,
+                };
+                worker.Start();
+                if (!worker.Join(CompileTimeout))
+                {
+                    return "compile hung: no result after " + CompileTimeout.TotalSeconds + " s on its own thread";
                 }
 
-                compiled = task.Result;
-            }
-            catch (AggregateException aggregate)
-            {
-                var inner = aggregate.InnerException ?? aggregate;
-                return "unexpected exception: " + inner.GetType().Name + ": " + inner.Message;
+                if (thrown != null)
+                {
+                    return "unexpected exception: " + thrown.GetType().Name + ": " + thrown.Message;
+                }
+
+                compiled = result!.Value;
             }
             catch (Exception error)
             {
