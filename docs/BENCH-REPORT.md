@@ -262,3 +262,15 @@ Unity / Burst and the netstandard2.1 host; the 10,000-rule kernels running a 1M 
 late-input `Resolve` (rewind + replay) cost; Collect from real tl outboxes (records come from precomputed lists); the M1 rule
 (64-row loop through the table within 10 % of a flat array); M4's "throughput halves between partition sizes"; 2,000 warm frames
 for the 0 B gate (250 measured per scenario); 60 Hz is derived from the same numbers, not run separately.
+
+## Update rc.4 (2026-11-14, Linux, Ryzen 5 8500G, quiet machine)
+
+Red-team and 0511 fixes against the commit before them (`395a41c`), 5 interleaved processes per side, `--ms 1000`, medians of the 5 per-process medians (ms). Digests identical on both sides: A DAF3A1D9BD73BA10, B 6E7618BF0900D3F8, r 9CFD52083A9DA3FB.
+
+| Shape | Seal before | Seal rc.4 | Total before | Total rc.4 | Limit |
+|---|---|---|---|---|---|
+| A | 0.683 | 0.695 | 2.298 | 2.325 | |
+| B | 2.063 | 2.175 | 7.591 | 7.658 | gate 8.3: pass |
+| r | 4.251 | 4.431 | 17.444 | 17.641 | ceiling 19.0 (D20): pass |
+
+The cost is Seal's per-record check of the channel and source (issue 0504): +0.11 ms on B, +0.18 ms on r (about 1 percent of the frame).
