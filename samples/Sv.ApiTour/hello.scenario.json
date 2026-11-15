@@ -1,0 +1,14 @@
+{"schema":1,"name":"hello","frames":2,
+"entities":[{"name":"Hero","template":"hero"},{"name":"Knight","template":"knight"},{"name":"Goblin","template":"goblin"},{"name":"Dragon","template":"dragon"}],
+"sends":[
+{"frame":0,"target":"Hero","source":"Goblin","channel":"Physical","amount":30},
+{"frame":0,"target":"Hero","source":"Dragon","channel":"Fire","amount":45},
+{"frame":0,"target":"Knight","source":"Goblin","channel":"Physical","amount":30},
+{"frame":0,"target":"Knight","source":"Dragon","channel":"Fire","amount":45},
+{"frame":1,"target":"Hero","source":"Hero","channel":"Healing","amount":50}
+],
+"expect":[
+{"frame":0,"entity":"Hero","value":"Health","equals":25},
+{"frame":0,"entity":"Knight","value":"Health","equals":85},
+{"frame":0,"entity":"Knight","value":"Shield","equals":0},
+{"frame":1,"entity":"Hero","value":"Health","equals":75}]}
