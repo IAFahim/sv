@@ -1,4 +1,10 @@
 <Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Sv.Columns/Sv.Columns.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Sv.Columns.Tests/Sv.Columns.Tests.csproj" />
+  </Folder>
   <Project Path="benchmarks/Sv.Bench/Sv.Bench.csproj" />
   <Project Path="src/Sv.Core/Sv.Core.csproj" />
   <Project Path="src/Sv.Rules/Sv.Rules.csproj" />
