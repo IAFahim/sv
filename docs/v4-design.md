@@ -4,18 +4,20 @@ Status: proposal with a measured prototype (`proto/Sv.V4`). Nothing in `src/`, `
 
 ## 1. The answer first
 
-| Load (same shape as `v3-scale`) | sv v3 today | v4 prototype | Speed-up |
+| Load (same shape as `v3-scale`, 4 cores) | sv v3 today | v4 prototype | Speed-up |
 |---|---|---|---|
-| 20,000 entities x 500 records, 4 cores | 246 to 254 ms | 10.4 to 14.0 ms | about 20x |
-| 1,000,000 entities x 10 records, 4 cores | 322 to 333 ms | 74 to 77 ms | about 4.4x |
-| 20,000 entities x 500 column ops, 4 cores | 255 ms (as records) | 1.25 ms, 0.65 ms folded | about 200x, 390x folded |
-| 1,000,000 entities x 500 column ops, 4 cores | about 12.7 s (as records, extrapolated) | 63 ms, 35 ms folded | about 200x, 360x folded |
+| 20,000 entities x 500 column ops | 236 to 240 ms (as records) | 0.41 ms | about 580x |
+| 1,000,000 entities x 500 column ops | about 15 s (as records, at v3's measured 30 ns per record) | 22 ms | about 680x |
+| 20,000 entities x 500 records, canonical order | 236 to 240 ms | 5.2 to 8.7 ms (median of runs 5.7) | about 41x (27x to 46x) |
+| 20,000 entities x 500 records, shuffled order | (v3 needs its sort) | 20.7 ms | about 11x |
+| 1,000,000 entities x 10 records | 295 to 302 ms | 19.8 to 20.7 ms | about 15x |
+| 1,000,000 entities x (500 column ops + 10 records) | about 15 s | 38 ms | about 400x |
 
-Every v4 number is bit-exact against a slow per-record reference law (digest per frame), allocates 0 B warm, and was measured interleaved with v3 on the same VM (4-core Xeon 2.1 GHz with AVX-512, .NET 10, `DOTNET_TieredCompilation=0`).
+Every v4 number is bit-exact against a slow per-record reference law (a world digest per frame, see section 4), allocates 0 B warm, and was measured interleaved with v3 on the same VM (4-core Xeon 2.1 GHz with AVX-512, .NET 10; v4 with `DOTNET_TieredCompilation=0`, v3 with its default JIT settings).
 
-**100x is not reachable while every op is a 16-byte record that sv must read.** Reading the 160 MB of records in a 20k x 500 frame once, with no work at all, costs 2.8 ms on 4 cores (from L3) and 24 to 26 ms on one core. 100x of 255 ms is 2.55 ms, which is under that floor. The record path tops out around 20x to 50x.
+**100x is reached when ops are columns**: 580x at 20k x 500 and 680x at 1M x 500. Ops that live with a template, card or timeline run as whole-chunk SIMD kernels, folded at compile time. That is the same reason tl handles millions of timelines: it skips work, it does not brute-force it.
 
-**100x and beyond comes from not sending records at all**: ops that live as columns per chunk (from templates, cards, timelines) and run as whole-chunk SIMD kernels, folded at compile time. That is the same reason tl handles millions of timelines: it skips work, it does not brute-force it.
+**100x is not reachable while every op is a 16-byte record that sv must read.** Reading the 160 MB of records in a 20k x 500 frame once, doing nothing with them, costs 5.3 to 7.7 ms on 4 cores on this VM (24 to 30 GB/s; 2.8 ms was seen once on a quieter host). 100x of 236 ms is 2.4 ms, below that floor. v4's record path now runs at that floor: its 5.2 to 8.7 ms is the cost of reading the input once.
 
 ## 2. Where v3's time goes
 
@@ -30,95 +32,165 @@ Every v4 number is bit-exact against a slow per-record reference law (digest per
 | end | 10.7 | commit, events, journal |
 | total | 255.4 | 25.5 ns per record |
 
-Two phases are 78% of the frame, and both exist because v3 treats every record as individually meaningful: it sorts them so a target's records are adjacent and ordered, then walks them one by one. For most rules that order and identity do not matter. Integer addition is commutative, so a sum of terms is the same in any order on any thread count.
+Seal and decide are 78% of the frame, and both exist because v3 treats every record as individually meaningful: it sorts them so a target's records are adjacent and ordered, then walks them one by one. For most rules that order and identity do not matter. Integer addition is commutative, so a sum of terms is the same in any order on any thread count.
 
 ## 3. The v4 idea: tiers by what a rule needs to see
 
-A rule only needs per-record identity when its result depends on which record is which. Most do not. v4 sorts work into three tiers, chosen by the pack compiler per (template, channel):
+A rule needs per-record identity only when its result depends on which record is which. Most do not. v4 sorts work into three tiers, chosen by the pack compiler per (template, channel):
 
 | Tier | What flows | Cost here | Used when |
 |---|---|---|---|
-| S, record | v3 path unchanged | 25 ns/record | a rule reads a single record's outcome: per-hit absorb BySource, roll, thorns or lifesteal back to the source |
-| R, reduced | class sums per row | 1 to 1.4 ns/record dense | rules depend only on sums per class |
-| C, column | ops as columns per chunk | 0.07 to 0.13 ns/op | ops are known per template, card or timeline, not sent per frame |
+| S, record | v3 path unchanged | 24 to 30 ns per record | a rule reads one record's outcome: per-hit absorb BySource, rolls, thorns or lifesteal back to the source |
+| R, reduced | per-row class sums | 0.5 to 2 ns per record | rules depend only on sums per class |
+| C, column | compiled ops per template | 0.04 ns per entity-op | ops are known per template, card or timeline, not sent per frame |
 
-### 3.1 Tier R: reduce at send, fold once per chunk
+Both R and C feed the same per-chunk class totals, and one fold applies the rules to them. A frame can mix all three.
 
-**Class.** A class is the set of record attributes that any rule in the pack can tell apart. In the prototype pack it is `channel x source kind x source-executes x sign`, 80 classes, packed as `(channel<<4)|(kind<<2)|(executes<<1)|loss`.
-- Channel and source kind come from the key.
-- "Source executes" is a source flag read from a commit-only intrinsic lane (`Execute`). It is fixed for the frame, so it can be read at send.
-- Sign matters because shield absorb only eats positive damage. Keeping gains and losses in separate classes makes absorb exact on sums.
+### 3.1 Classes and the per-target context
 
-**Reduce.** Each writer adds `Term(amount, hits)` into its own per-chunk block of int64 class sums `[class][64 rows]`. No sort, no shared writes, no atomics. The AVX2 loop handles four records per step: unpack keys, multiply, clamp to plus or minus 2^32, gather the source flag, compute the cell, add (`proto/Sv.V4/ClassSums.cs`).
+**Classes.** A class is a set of record attributes that a rule can still tell apart after gating. In the prototype pack that is `channel x sign`: 5 channels times gain or loss, 10 classes, `SumClass.Of(channel, loss) = channel*2 + loss` (`BenchPack.cs`). Sign matters because shield absorb only eats positive damage, so gains and losses stay apart and absorb is exact on sums.
 
-**Fold.** Per chunk, sum the writers' blocks, then run the whole rule set once per row as branch-free masks over `Vector256<long>`, four rows at a time (`ChunkFold.cs`):
-1. Gate: zero the classes the target is immune to (`ImmuneMask` by channel, `KindMask` by source kind).
-2. Threshold: physical from executing sources counts double when health is below 20% of max.
-3. Conversion: fire becomes healing while the Converter card is active.
-4. Absorb: `taken = min(max(shield, 0), positive damage)`; shield and damage both drop by `taken`.
-5. Flow: `health + healing - damage`, clamped once to `[0, max]` (D4: sum, then clamp once).
-6. Events: Dead, LowHealth (below 25%).
-7. Next-frame emits: a poison tick while `PoisonTicks > 0`, regen while `RegenCard > 0`, into next frame's emit blocks.
+The first prototype carried source kind and "source executes" in the class (80 classes). They are not needed in the class, because both only decide whether a record counts and whether it doubles. v4 decides that at reduce time from a per-target context word, so a 1M x 10 frame clears and folds 5 KB per touched chunk instead of 40 KB.
 
-These are exactly the owner's examples: "if health is less than X do Y" (threshold, events), "20 fire damage converts into health when a card is active" (conversion), damage types (channels and kinds), ordering (absorb before flow, clamp once).
+**Per-target context.** `TargetContext` is one `uint` per slot (`SlotTables.Contexts`, refreshed by the fold when it commits a chunk):
+- bits 0 to 19: admit bit for each `(channel << 2) | sourceKind`, built from `ImmuneMask` and `KindMask`. One multiply spreads the five channel bits and the four kind bits into the 20-bit grid.
+- bit 20: health x 100 < max x 20, the execute line.
 
-### 3.2 What is exact on sums and what is not
+**Execute bitset.** "Source executes" is a commit-only intrinsic of the source, so it is fixed for the frame. It lives in one `ulong` per chunk (`SlotTables.ExecuteBits`, 512 KB for 4M slots), read only when a record could double.
+
+### 3.2 Tier R: reduce at send, fold once per chunk
+
+**Reduce** (`ClassSums.cs`). Each writer adds `Term(amount, hits)` into its own per-chunk block of int64 sums `[10 classes][64 rows]`. No sort, no shared writes, no atomics. For one record:
+
+```
+term     = clamp(amount * hits, +-2^32)
+admitted = context[target] >> AdmitShift(channel, kind) & 1
+doubles  = below(target) & executes(source) & (channel == Physical)
+term     = (term << doubles) & -admitted
+cell     = SumClass.Of(channel, term < 0) * 64 + row(target)
+```
+
+Invalid records (target past the slot limit, unknown channel or kind) are counted, not added. Two AVX-512 paths do eight records per step:
+- **Target runs.** When the 1st and 8th records of a batch share a target (records grouped by target, as v3's send produces), the batch adds into eight channel accumulators held in registers ("all" and "loss", where loss is `min(term, 0)`), and flushes gain = all - loss once per run.
+- **Mixed batches.** Otherwise the terms are computed as vectors, contexts are fetched with eight scalar loads, and each lane adds into its cell. If all eight targets are in the current chunk the adds go straight in; otherwise each lane is placed with a constant-index extract (see the pitfalls in section 4.3).
+
+The order of records changes nothing: the shuffled stream gives the same digest as the canonical one.
+
+**Fold** (`RecordFold.cs`). Per chunk, sum the writers' blocks, add the Tier C totals, then run the whole rule set once per row as branch-free masks over `Vector256<long>`, four rows at a time:
+1. Gate and threshold already happened at reduce; emits from last frame are gated here by the kind-0 and channel admit bits.
+2. Conversion: fire becomes healing while the Converter card is active.
+3. Absorb: `taken = min(max(shield, 0), positive damage)`; shield and damage both drop by `taken`.
+4. Flow: `health + healing - damage`, clamped once to `[0, max]` (D4: sum, then clamp once).
+5. Events: Dead, LowHealth (below 25%).
+6. Next-frame emits: a poison tick while `PoisonTicks > 0`, regen while `RegenCard > 0`.
+7. Refresh: write each row's new context word and execute bit.
+
+These are exactly the owner's examples: "if health is less than X do Y" (threshold, events, `AddIfHealthBelowPercent`), "fire damage converts into health when a card is active" (conversion), damage types (channels and kinds), ordering (absorb before flow, clamp once).
+
+### 3.3 Tier C: compiled column ops
+
+When an op is known per template, card or timeline rather than sent per frame, it does not need to be a record. The prototype authors 500 ops per template of four kinds (`ColumnPrograms.cs`):
+
+| Kind | Meaning |
+|---|---|
+| `AddConstant` | add N to a channel |
+| `AddLaneTimes` | add lane x N (poison ticks x 3, regen rate x 2, ...) |
+| `AddIfLaneAbove` | add N if a lane is above a threshold |
+| `AddIfHealthBelowPercent` | add N if health is below P% of max |
+
+Each op also carries a channel, a source kind and an executes flag, so the same gates and threshold apply as for records. 1 in 8 amounts are negative.
+
+**Compile.** Ops are grouped by their gate (channel, source kind, executes), at most 24 groups (physical splits by executes), and folded inside a group with exact integer algebra:
+- constants sum into one gain and one loss constant;
+- lane terms sum per (lane, sign), so `3x + 5x` becomes `8x` and a positive and a negative factor stay apart for absorb;
+- lane tests sum per (lane, threshold), health tests per threshold.
+
+500 authored ops become about 267 compiled entries per template. Amounts are limited to 16 bits so the folded sums stay exact in int64 at any lane value.
+
+**Kernel** (`ColumnBench.cs`, `ColumnKernel.AddChunk`). Eight rows at a time with AVX-512: load the 11 lanes widened to int64, then for each group accumulate "all" and "loss" in registers over its constants, terms and tests, apply the group's admit bit and execute doubling, and add gain and loss into the chunk's class totals. The fold then runs exactly as for records. The scalar twin (`ColumnLaw.AddChunk`) applies the raw, uncompiled ops one at a time per row, so the check compares the compiler and the kernel together against the plain law.
+
+This is how tl already works: lazy stepping, due-tick scans, generated per-kind kernels. tl's outbox is the natural producer of Tier C programs.
+
+### 3.4 What is exact on sums and what is not
 
 This is the core of correctness, so it is listed plainly.
 
 Exact on class sums:
 - Any sum, gate, channel conversion, threshold on frozen state, clamp once, events.
-- Absorb by amount descending, when nothing downstream reads which record was absorbed. Sorting positive terms largest first and absorbing until the shield is gone gives the same total taken as `min(shield, sum)`.
-- Multipliers by a power of two or any integer factor applied to a class sum (`2 x sum = sum of 2 x term`).
+- Absorb by amount descending, when nothing downstream reads which record was absorbed. Absorbing the largest positive terms first until the shield is gone takes the same total as `min(shield, sum)`.
+- Multipliers by a power of two or any integer factor applied to a class sum (`2 x sum = sum of 2 x term`), which is how execute doubling works.
 
 Not exact on class sums (stays Tier S, or needs an owner decision):
 - Truncating multipliers per record, such as minus 50% with integer truncation or additive rage scaling. `trunc(a/2) + trunc(b/2)` is not `trunc((a+b)/2)`.
-- Absorb BySource or per hit, where order of sources decides who gets blocked.
+- Absorb BySource or per hit, where the order of sources decides who gets blocked.
 - Rolls, and emits back to a specific source (thorns, lifesteal).
-- Anything at send time that reads mutable self state or stats. Send may read only the record and commit-only intrinsics; self state is read at fold time.
+- Anything at send that reads mutable state. Reduce may read only the record, the target's context (frozen at last commit) and commit-only intrinsics.
 
-### 3.3 Tier C: column ops
-
-When an op is known per template, card or timeline rather than sent per frame, it does not need to be a record. The prototype stores ops as small programs per template (`AddConstant`, `AddLaneTimes`, `AddIfLaneAbove`, `AddIfHealthBelowPercent`) and runs each op across a whole 64-row chunk with `Vector256` (`ColumnBench.cs`). Ops with the same shape fold at compile time (500 authored ops became 255), which is exact integer algebra.
-
-This is where 100x lives, and it is how tl already works: lazy stepping, due-tick scans, generated per-kind kernels. tl's outbox is the natural producer of Tier C programs.
+One law difference between tiers is by design: a record term is clamped to plus or minus 2^32 (v3's `EffectLaw.Term`), while a column op has no per-op clamp and relies on the 16-bit amount limit instead.
 
 ## 4. Prototype and how to check it
 
 ```
 cd proto/Sv.V4
 dotnet build -c Release
-DOTNET_TieredCompilation=0 dotnet bin/Release/net10.0/Sv.V4.dll records 20000 500 4 32 10
-DOTNET_TieredCompilation=0 dotnet bin/Release/net10.0/Sv.V4.dll columns 20000 500 4 32
-DOTNET_TieredCompilation=0 dotnet bin/Release/net10.0/Sv.V4.dll stream 20000 500 4
+export DOTNET_TieredCompilation=0
+dotnet bin/Release/net10.0/Sv.V4.dll records 20000 500 4 32 10
+SV4_ORDER=shuffled dotnet bin/Release/net10.0/Sv.V4.dll records 20000 500 4 32 10
+dotnet bin/Release/net10.0/Sv.V4.dll records 1000000 10 4 32 10
+dotnet bin/Release/net10.0/Sv.V4.dll columns 20000 500 4 32 8 0
+dotnet bin/Release/net10.0/Sv.V4.dll columns 1000000 500 4 16 4 10
+dotnet bin/Release/net10.0/Sv.V4.dll stream 20000 500 4
 ```
 
-Arguments: `mode entities perEntity threads frames checkFrames`.
+Arguments: `mode entities perEntity threads frames checkFrames`, and for `columns` a sixth argument, records per entity mixed into the same frame. `SV4_SCALAR=1` times the record engine without the run path.
 
-- `records` first runs an equivalence check: 4,000 entities x 500 signed records at a twentieth of normal health, so shields break and 1,967 entities die in 10 frames. Reference law, scalar fold and vector fold must give the same digest every frame. Then it times the vector engine on the full stream.
-- The stream replicates `ScaleBench.Fill`: same xorshift seeds, grouped targets, mixed sources, channel mix, amounts 1 to 8, hits 1 to 2, canonical order per writer.
-- Three deliberate bugs were planted to prove the check bites: absorbing losses (caught on both paths, frame 0), a health floor of 1 on the scalar path (caught at frame 8), and a missing source flag gate. All were caught and reverted.
-- `columns` checks scalar, vector and folded programs against each other by digest, then times each.
-- `stream` measures the memory floor.
+- `records` first runs an equivalence check: 4,000 entities x 500 signed records at a twentieth of normal health, so shields break and 1,967 entities die in 10 frames. The reference law, the scalar engine and the vector engine must give the same digest every frame, in canonical and in shuffled record order. Then it times the vector engine on the full stream.
+- The stream replicates `ScaleBench.Fill`: same xorshift seeds, grouped targets, mixed sources, channel mix, amounts 1 to 8, hits 1 to 2. `SV4_ORDER=shuffled` shuffles each writer's list after the canonical sort.
+- `columns` checks the scalar law against the compiled AVX-512 engine by digest every frame at a twentieth of health (deaths, shield breaks and low health all happen), with records mixed in when asked, then times both.
+- `stream` measures the memory floor: one pass over the record lists, summing a field.
+- Deliberate bugs planted in the first prototype (absorbing losses, a health floor of 1, a missing source gate) were all caught by the check, then reverted.
 
 The prototype is a standalone project. It references `Sv.Core` and `Sv.Host` (for `Effect` and `Workers`) and is not in `sv.slnx`.
 
 ### 4.1 Measured numbers
 
-All on 4 cores unless noted, medians.
+Interleaved with v3 on the same VM, 4 cores, medians over 32 frames after warm-up.
 
-- Tier R, 20k x 500: 10.4 to 14.0 ms over three interleaved runs (v3: 246 to 254 ms). Reduce is 10 to 13 ms of that, fold 0.4 to 0.6 ms. One core: 43 ms.
-- Tier R, 4k x 500: 2.1 ms, about 1 ns per record.
-- Tier R, 1M x 10: 74 to 77 ms (v3: 322 to 333 ms), reduce 42 ms, fold 31 ms. At 10 records per entity the dense 80-class blocks are mostly zeros: each touched chunk costs 40 KB per writer to clear and fold. A pack-sized class set (the lego pack needs about 10 live classes, not 80) and writer-owned chunk ranges should cut this by several times; not yet built.
-- Tier C, 20k x 500: one entity at a time 12.05 ms, whole chunk per op 1.25 ms, folded 0.65 ms.
-- Tier C, 1M x 500 (500M entity-ops): 566 ms scalar, 63 ms vector, 35 ms folded.
-- Memory floor, 20k x 500 records: 2.8 ms on 4 cores, 24 to 26 ms on one.
+| Run | v4 total | Reduce | Columns and fold | Digest |
+|---|---|---|---|---|
+| 20k x 500 records, canonical, three runs | 8.7, 5.2, 5.7 ms | 8.6, 5.1, 5.6 ms | 0.12 to 0.14 ms | E90B8BC1FC98DCB6 |
+| 20k x 500 records, shuffled | 20.7 ms | 20.5 ms | 0.16 ms | E90B8BC1FC98DCB6 |
+| 1M x 10 records, two runs | 20.7, 19.8 ms | 15.6, 14.5 ms | 5.1, 5.3 ms | 0D689455AA1758E3 |
+| 20k x 500 column ops, scalar law | 14.4 ms | | 14.4 ms | |
+| 20k x 500 column ops, compiled | 0.41 ms | | 0.37 ms | |
+| 1M x 500 column ops, compiled | 22.0 ms | | 21.6 ms | |
+| 1M x (500 column ops + 10 records) | 38.0 ms | 14.5 ms | 22.5 ms | |
+| Memory floor, 160 MB once | 5.3 to 6.5 ms | | | |
+
+v3 in the same session: 236.3 to 239.6 ms at 20k x 500, 294.7 to 302.3 ms at 1M x 10. VM noise moves the v4 record runs between 5 and 9 ms; every run is at or near the floor measured next to it.
+
+What is left in each case:
+- **20k x 500 records**: input bandwidth. The reduce is within 1 ms of a plain read.
+- **Shuffled records**: random adds into 10 classes x 64 rows per chunk for the whole world, which spills L2. Still 11x v3 with no sort.
+- **1M x 10 records**: about 15 ms of reduce over 10M records spread across 15,625 chunks, plus 5 ms to gather and fold every chunk. Writer-owned chunk ranges would cut the gather; not yet built.
+- **Column ops**: 0.04 ns per entity-op. Further gains need fewer compiled entries (coarser groups) or int32 lanes, which fit 16 rows per vector instead of 8.
+
+### 4.2 Owner examples as column ops
+
+The rule examples run in both tiers. In the column check, 136 of 4,000 entities died, 1,245 crossed the low-health line and 888 kept some shield after 4 frames, with records and columns in the same frame and digests equal every frame.
+
+### 4.3 Pitfalls found on the way
+
+- **.NET 10 JIT bug.** `Avx512F.Multiply(x.AsInt32(), Vector512.Create(longValue).AsInt32())` gives wrong products when `longValue` is not a constant. `Vector512.Create((int)value)` is correct. The digest check found it (op kinds 1 and 3 differed); the kernel uses the int form.
+- **Variable-index `Vector512.GetElement(i)` in a loop** costs about 20 ns per record because the JIT spills the vector each time. Unrolling with constant indexes cut the shuffled case from 46 ms to 20.7 ms (208 to 86 ms on one core).
+- **An int executes table of 16 MB** read for every record cost more than all other work in the sparse case. The 512 KB bitset fixed it and also took 20k x 500 from 9.8 to 7.5 ms at the time.
+- **.NET has no 512-bit gather API.** The reduce uses AVX2 gathers or scalar loads; a Burst port has the same constraint on AVX2 machines.
 
 ## 5. What ess, bond, needle-cs and tl contribute
 
-**ess is not a damage-rules library.** It is a command-line wrapper around StateSmith 0.22.2 that turns PlantUML state diagrams into unmanaged C# state-machine structs for Unity ECS. It has no health, damage type, conversion or card concepts; guards and actions are opaque C# text written in the diagram. "If health is less than X, do Y" is possible in ess only because you can type that C# into a guard. A scalar machine costs about 10 ns per entity-op; a SIMD rewrite we tried runs at 0.73 to 1.1 ns and is bit-equal, but the hot logic would still be hand-written guards. Best use: a host-side reactor for status lifecycles (stunned, burning, card phases), or a source format for those. The conditional and conversion logic belongs in sv packs, which already express it (`below`, `gt`, channels, priority, absorb order, the Converter card rules 2012 and 3012 in `packs/lego`).
+**ess is not a damage-rules library.** It is a command-line wrapper around StateSmith 0.22.2 that turns PlantUML state diagrams into unmanaged C# state-machine structs for Unity ECS. It has no health, damage type, conversion or card concepts; guards and actions are opaque C# text written in the diagram. "If health is less than X, do Y" is possible in ess only because you can type that C# into a guard. A scalar machine costs about 10 ns per entity-op; a SIMD rewrite we tried runs at 0.73 to 1.1 ns and is bit-equal, but the hot logic would still be hand-written guards. Best use: a host-side reactor for status lifecycles (stunned, burning, card phases), or a source format for those. The conditional and conversion logic belongs in sv packs, which already express it (`below`, `gt`, channels, priority, absorb order, the Converter card rules 2012 and 3012 in `packs/lego`), and in Tier C ops (`AddIfHealthBelowPercent`, `AddIfLaneAbove`).
 
-**bond** is the command admission, journal, rewind and rule authoring layer between untrusted input and sv, tl, gi and sa. It runs around `sv.Step`, not inside it. v4 must keep what bond depends on: `PackEmitter`/`PackPlan`, lane, channel and kind id spaces, `FrameLoop.Send`/`Modify`/`StatOp` with non-negative sv sources (bond uses bit 31), 64-row chunks, one-frame delay, depth 3, event hysteresis, and the pinned Unity and bond hashes. bond carries its own copy of the generated lego kernels, so a v4 kernel change means regenerating bond's copy. Opportunities: bulk chunk-mask ops into Tier C, compiling bond rules straight into fold kernels (bond issue 13), per-chunk event bitmasks.
+**bond** is the command admission, journal, rewind and rule authoring layer between untrusted input and sv, tl, gi and sa. It runs around `sv.Step`, not inside it. v4 must keep what bond depends on: `PackEmitter`/`PackPlan`, lane, channel and kind id spaces, `FrameLoop.Send`/`Modify`/`StatOp` with non-negative sv sources (bond uses bit 31), 64-row chunks, one-frame delay, depth 3, event hysteresis, and the pinned Unity and bond hashes. bond carries its own copy of the generated lego kernels, so a v4 kernel change means regenerating bond's copy. Opportunities: bond rules compiled straight into Tier C groups (bond issue 13), bulk chunk-mask ops, per-chunk event bitmasks.
 
 **needle-cs** is a float SIMD inference engine (Needle text, Whistle voice) on its own threads, 46 to 84 ms per call. It is an input device that feeds bond. It never touches the sv hot loop.
 
@@ -126,25 +198,26 @@ All on 4 cores unless noted, medians.
 
 ## 6. What v4 keeps
 
-- **Determinism.** Tier R uses int64 addition, which is order- and thread-count-independent; the fold is pure integer masks with no FMA. Results are bit-identical on any core count.
+- **Determinism.** Tiers R and C use int64 addition, which is order- and thread-count-independent; the fold is pure integer masks with no FMA. Results are bit-identical on any core count and in any record order.
 - **Digests.** World digests stay the contract. Tier R can reproduce v3 digests exactly wherever the pack is reducible.
-- **Replay.** Log what the frame needs to replay. For Tier R that is the reduced class sums per chunk (kilobytes per touched chunk) instead of 128 MB of records; for Tier C it is the program version and the inputs that changed. Record-level logging stays available as a debug mode.
+- **Replay.** Log what the frame needs to replay. For Tier R that is the reduced class sums per touched chunk (5 KB each) instead of 128 MB of records; for Tier C it is the program version and the inputs that changed. Record-level logging stays available as a debug mode.
 - **Journal and bond's hashes.** Unchanged where tiers produce the same commits.
-- **0 B warm, C# 9, netstandard2.1, `#if NET` intrinsics with a scalar law twin.** The prototype already has the scalar twin for every vector path.
+- **0 B warm, C# 9, netstandard2.1, `#if NET` intrinsics with a scalar law twin.** Every vector path in the prototype has its scalar twin, and the checks compare them.
 
 ## 7. Migration path
 
-1. **Reducibility classifier in the pack compiler.** For each (template, channel), decide S, R or C from the rules that read it. Emit the class map and the fold kernel next to today's per-target kernels. No runtime change yet.
+1. **Reducibility classifier in the pack compiler.** For each (template, channel), decide S, R or C from the rules that read it. Emit the class map, the context layout and the fold kernel next to today's per-target kernels. No runtime change yet.
 2. **Tier R behind a flag.** Route records of reducible channels to class-sum blocks; keep everything else on the v3 path in the same frame. Equivalence test: v3 digest equals v4 digest on lego and every fuzz corpus.
-3. **Shrink class sets per pack** and give writers chunk ranges, to fix the sparse case (1M x 10).
-4. **Tier C API.** Template and card programs, the tl outbox as a producer, bulk chunk-mask ops from bond.
-5. **Unity Burst port** of the reduce and fold, then the rule 16 gate: at least 2x at owner scale in both .NET and Unity Burst, hash-exact, 0 B, before any v3 code is replaced.
+3. **Tier C API.** Template and card programs and their compiler, the tl outbox as a producer, bond rules as a source.
+4. **Writer-owned chunk ranges** for the sparse case (1M x 10), so the gather reads one block per chunk.
+5. **Unity Burst port** of reduce, column kernel and fold, then the rule 16 gate: at least 2x at owner scale in both .NET and Unity Burst, hash-exact, 0 B, before any v3 code is replaced.
 6. **Retire Tier S paths** only where the owner accepts a contract change (section 8).
 
 ## 8. Decisions for the owner
 
-1. **Truncating multipliers.** Should "minus 50%" and similar rules apply to the sum per class (fast, Tier R) or per record as today (exact v3 behaviour, Tier S)? This is a contract change if sums are chosen.
-2. **Where ops come from.** 100x needs ops authored per template, card or timeline (Tier C), not sent per frame as records. Is that how games should author sv?
-3. **Burst target.** AVX2 as the baseline (what Burst on most players gets) or AVX-512 paths too?
-4. **Contract amendment.** Tiers change what is logged and what replay means. That needs a v4 contract section before code lands in `src/`.
-5. **tl generator pin.** Update sv's vendored tl Unity generator to current tl, and fix `NorthStar3Timelines.cs` accordingly.
+1. **Where ops come from.** 100x needs ops authored per template, card or timeline (Tier C), not sent per frame as records. Is that how games should author sv? Records stay for one-off hits.
+2. **Truncating multipliers.** Should "minus 50%" and similar rules apply to the sum per class (fast, Tier R or C) or per record as today (exact v3 behaviour, Tier S)? This is a contract change if sums are chosen.
+3. **Column amount limit.** Column ops are limited to 16-bit amounts with no per-op clamp, where records clamp each term to plus or minus 2^32. Accept the limit, or keep a per-op clamp at some cost.
+4. **Burst target.** AVX2 as the baseline (what Burst gets on most players) or AVX-512 paths too? The prototype's best numbers use AVX-512.
+5. **Contract amendment.** Tiers change what is logged and what replay means. That needs a v4 contract section before code lands in `src/`.
+6. **tl generator pin.** Update sv's vendored tl Unity generator to current tl, and fix `NorthStar3Timelines.cs` accordingly.
