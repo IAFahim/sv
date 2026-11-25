@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased (after rc.4)
+
+No behaviour or digest changes; every pinned digest is the same.
+
+### Fixed
+- Unity: `SvStepSystem` frees the sv world handles of its ECS world when the system is destroyed, so disposing an ECS world no longer keeps its sv world alive (IAFahim/sv#107).
+- Docs: the repository is public; README chapter 6, `docs/API-BRIEF.md` and `docs/DEMO.md` no longer say it is private.
+
+### Faster
+- Seal: a chunk made of a few long sorted runs plus some unsorted records (the usual shape: a sender's sorted stream plus last frame's reaction records) is merged instead of fully re-sorted. 20k entities x 500 records per frame on 4 workers: Seal.Order 125 -> 52 ms, frame 295 -> 207 ms. `docs/BENCH-REPORT.md`, update "scale".
+
+### Added
+- `v3-scale` benchmark: millions of entities x records per entity x live modifiers per entity.
+- Unity CI on a self-hosted runner (`.github/workflows/unity.yml`, `eng/unity-ci.sh`, `eng/unity-bench/SvUnityBench.cs`): adapter compile, EditMode, PlayMode and a Unity-side million-entity benchmark. The job waits until a runner labelled `self-hosted, unity` is registered; `docs/CI-RUNNER.md` says how.
+
 ## v3.0.0-rc.4 (2026-11-14)
 
 Fixes everything a fuzzing campaign and a red team found after rc.3. Upgrade: change `#v3.0.0-rc.3` to `#v3.0.0-rc.4` in both Unity package URLs (README chapter 6). Package versions stay 3.0.0 (engine) and 4.0.0 (adapter).

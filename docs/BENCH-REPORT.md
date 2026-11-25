@@ -23,6 +23,33 @@ nothing else on the CPU, Vector256 on. Every frame number is the median of 5 pro
 
 The 8.3 ms gate covers chunk-bucketed load (records from timelines and Collect): A 2.4-2.8 ms and B 7.7-7.8 ms pass. Scenario r (1M uniformly random cross-entity records) is a stress benchmark with a no-regression ceiling of 19.0 ms (median of 5 x 50 frames); it is 17.6-18.1 ms on a quiet box. C and D are reported only. See plan.md D20 and issue 0374.
 
+## Update scale (2026-11-25, millions of entities x records per entity, branch claude/project-thread-lkmr40)
+
+New scenario `v3-scale` (`benchmarks/Sv.Bench/ScaleBench.cs`). Machine: 4-vCPU Intel Xeon 2.1 GHz VM, 15 GB, `SV_BENCH_WORKERS=4`, .NET 10.0.115, Linux. Calibration against the owner's Ryzen 5 8500G with 11 workers: lego-b 12.03 vs 7.66 ms (1.6x), lego-r 40.8 vs 17.6 ms (2.3x); lego-r 9CFD52083A9DA3FB, lego-b 6E7618BF0900D3F8 and lego-a 6EC63A7DFCD50159 are unchanged by the Seal change below. Median frame of 40 frames, grouped targets, mixed sources (1/4 sourceless, 1/4 random, 1/2 same chunk), key-sorted input from one writer per worker, input log off unless noted. Before = main eff6833, after = this branch; the VM is noisy, so read differences under 10 % as noise.
+
+| entities x records/entity/frame | records/frame | before ms | after ms | seal before / after | decide after | private |
+|---|---|---|---|---|---|---|
+| 1M x 1 (log on) | 1M | 37 | 57 (noise: seal and decide both slower) | 6 / 11 | 26 | 0.9 GB |
+| 1M x 4 (log on) | 4M | 115 | 138 | 32 / 40 | 66 | 1.4 GB |
+| 1M x 16 | 16M | 394 | 449 | 134 / 152 | 222 | 3.1 GB |
+| 4M x 1 | 4M | 158 | 189 | 28 / 37 | 94 | 2.9 GB |
+| 4M x 4 | 16M | 488 | 527 | 142 / 155 | 264 | 4.8 GB |
+| 20k x 200 | 4M | 125 | 104 | 65 / 43 | 45 | 0.8 GB |
+| 20k x 500 | 10M | 305 | 281 | 180 / 135 | 102 | 1.7 GB |
+| 20k x 500, canonical input | 10M | 289 | 226 | n/a / 87 | 99 | 1.7 GB |
+| 20k x 500, unsorted input | 10M | n/a | 444 | n/a / 305 | 95 | 1.7 GB |
+| 100k x 500 | 50M | 1565 | 1290 | 914 / 604 | 462 | 7.9 GB |
+| 1M x 16, random targets and sources | 16M | 500 | 477 | 206 / 216 | 185 | 3.1 GB |
+| 1M x 16, no sources | 16M | 301 | 295 | 155 / 152 | 86 | 2.2 GB |
+
+Same-session A/B on 20k x 500 (16 frames, Seal split by step): Seal.Order 125 -> 52 ms on canonical input, 147 -> 83 ms on key-sorted input, 269 -> 267 ms unsorted; frame 295 -> 207 and 303 -> 247 ms; digest 1C2CFCA7C11149D1 both.
+
+Where the time goes. The frame costs about 20-30 ns per sent record on this machine (35-54 M records/s on 4 workers), roughly constant from 1M to 50M records: it scales with records per frame, not with entities. Seal is 40-60 % (Count/route 20 ms, Scatter 12, Order the rest at 10M records), Decide 30-40 %, the rest is small. Sourced records cost more than sourceless ones (24.6 vs 18.8 ns/record at 1M x 16). Before this change every chunk that held a sender's sorted stream plus the reaction records of the previous frame (written in emitter order) failed the "already sorted" check and was fully re-sorted; that was most chunks after the first frame.
+
+Modifiers (standing stat state, not per-frame records). 20k entities x 500 live modifiers (10M), 200 entities replace one modifier per frame: stats 2.2 ms, about 11 µs per changed entity, 3.25 GB private; 100k x 50 with 1000 changes: 1.9 ms. Cost is linear in modifiers per entity because the stat machine walks the whole per-entity list for each dirty stat and for RemoveSource, and insertion-sorts the gathered terms. Candidates (bit-exact): one chain per (entity, stat), an O(n log n) term sort, and a per-source index for RemoveSource. Stats is single-threaded.
+
+Against tl. tl.unity's PERF-UNITY-LIMITS measures 20,000 entities x 200 playbacks (4M playbacks) at 1.0-4.7 ms a frame with 11 Unity workers, because a timeline is evaluated lazily from its clock. sv materialises every record: 20k x 200 records per frame is 4M 16-byte records through route, sort, rules and commit, 104 ms here, about 45-60 ms expected on the owner's 11-worker Ryzen. So sv handles millions of entities with a few records each per frame (1M x 1 to 4M x 1 in 37-190 ms here), and 500 operations per entity works as 500 standing modifiers or timelines feeding a few records per frame, not as 500 new records per entity every frame. The Unity-side numbers come from `eng/unity-bench/SvUnityBench.cs` on the self-hosted runner (`docs/CI-RUNNER.md`).
+
 ## Update P3 (2026-11-14, agent worktree branch from v3/m8-unity 6c219e2, merged into v3/m8-unity 94311ca)
 
 Ryzen 5 8500G, Linux 7.2, .NET SDK 10.0.403, Release, 11 workers, 64 parts, digest every frame. Every number is the median of
