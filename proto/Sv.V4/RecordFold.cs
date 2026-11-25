@@ -5,11 +5,11 @@ using System.Runtime.Intrinsics;
 
 namespace Sv.V4
 {
-    public static unsafe class ChunkFold
+    public static unsafe class RecordFold
     {
         const int Rows = LaneWorld.Rows;
 
-        public static void GatherClassSums(long* totals, ClassSumBlocks** writers, int writerCount, int chunk, long* emittedLastFrame)
+        public static void GatherClassSums(long* totals, ClassSumBlocks** writers, int writerCount, int chunk)
         {
             Memory.Clear(totals, ClassSumBlocks.BlockLongs * sizeof(long));
             for (var w = 0; w < writerCount; w++)
@@ -19,11 +19,6 @@ namespace Sv.V4
                 {
                     AddInto(totals, block, ClassSumBlocks.BlockLongs);
                 }
-            }
-
-            for (var emitClass = 0; emitClass < EmitClass.Count; emitClass++)
-            {
-                AddInto(totals + EmitClass.SumClassOf(emitClass) * Rows, emittedLastFrame + emitClass * Rows, Rows);
             }
         }
 
@@ -45,12 +40,21 @@ namespace Sv.V4
             }
         }
 
-        public static void ResolveChunkScalar(int* lanes, long* totals, long* emitNextFrame)
+        public static void ResolveChunkScalar(int* lanes, long* totals, long* emittedLastFrame, long* emitNextFrame, SlotTables tables, int firstSlot)
         {
             for (var row = 0; row < Rows; row++)
             {
-                ResolveRowLaw(lanes, totals, emitNextFrame, row);
+                ResolveRowLaw(lanes, totals, emittedLastFrame, emitNextFrame, row);
+                RefreshSlot(lanes, tables, firstSlot, row);
             }
+        }
+
+        static void RefreshSlot(int* lanes, SlotTables tables, int firstSlot, int row)
+        {
+            tables.Contexts[firstSlot + row] = TargetContext.Of(lanes[Lane.Health * Rows + row], lanes[Lane.MaxHealth * Rows + row], lanes[Lane.ImmuneMask * Rows + row], lanes[Lane.KindMask * Rows + row]);
+            var bit = 1ul << row;
+            var word = tables.ExecuteBits + (firstSlot >> EffectKey.RowBits);
+            *word = (*word & ~bit) | (lanes[Lane.Execute * Rows + row] != 0 ? bit : 0ul);
         }
 
         static long AllowedMask(int bits, int index) => ((bits >> index) & 1) == 0 ? -1L : 0L;
@@ -59,7 +63,9 @@ namespace Sv.V4
 
         static long Max(long a, long b) => a > b ? a : b;
 
-        public static void ResolveRowLaw(int* lanes, long* totals, long* emitNextFrame, int row)
+        static long Sum(long* totals, int sumClass, int row) => totals[sumClass * Rows + row];
+
+        public static void ResolveRowLaw(int* lanes, long* totals, long* emittedLastFrame, long* emitNextFrame, int row)
         {
             var health = (long)lanes[Lane.Health * Rows + row];
             var maxHealth = (long)lanes[Lane.MaxHealth * Rows + row];
@@ -70,32 +76,18 @@ namespace Sv.V4
             var poisonTicks = (long)lanes[Lane.PoisonTicks * Rows + row];
             var regenCard = lanes[Lane.RegenCard * Rows + row];
             var regenRate = (long)lanes[Lane.RegenRate * Rows + row];
-            var belowExecuteLine = health * 100 < maxHealth * Threshold.ExecuteBelowPercent ? -1L : 0L;
+            var emitKindAllowed = AllowedMask(kindMask, 0);
+            var poisonEmitAllowed = emitKindAllowed & AllowedMask(immuneMask, Channel.Poison);
+            var healingEmitAllowed = emitKindAllowed & AllowedMask(immuneMask, Channel.Healing);
 
-            long physicalGain = 0, physicalLoss = 0, poisonGain = 0, poisonLoss = 0, fireGain = 0, fireLoss = 0, healing = 0, tickHits = 0;
-            for (var kind = 0; kind < SumClass.Kinds; kind++)
-            {
-                var kindAllowed = AllowedMask(kindMask, kind);
-                var executedGain = totals[SumClass.PhysicalOf(kind, 1, 0) * Rows + row];
-                var executedLoss = totals[SumClass.PhysicalOf(kind, 1, 1) * Rows + row];
-                physicalGain += kindAllowed & (totals[SumClass.PhysicalOf(kind, 0, 0) * Rows + row] + executedGain + (executedGain & belowExecuteLine));
-                physicalLoss += kindAllowed & (totals[SumClass.PhysicalOf(kind, 0, 1) * Rows + row] + executedLoss + (executedLoss & belowExecuteLine));
-                poisonGain += kindAllowed & totals[SumClass.PoisonOf(kind, 0) * Rows + row];
-                poisonLoss += kindAllowed & totals[SumClass.PoisonOf(kind, 1) * Rows + row];
-                fireGain += kindAllowed & totals[SumClass.FireOf(kind, 0) * Rows + row];
-                fireLoss += kindAllowed & totals[SumClass.FireOf(kind, 1) * Rows + row];
-                healing += kindAllowed & (totals[SumClass.HealingOf(kind) * Rows + row] + totals[SumClass.HealingLossOf(kind) * Rows + row]);
-                tickHits += kindAllowed & (totals[SumClass.TickOf(kind) * Rows + row] + totals[SumClass.TickLossOf(kind) * Rows + row]);
-            }
-
-            physicalGain &= AllowedMask(immuneMask, Channel.Physical);
-            physicalLoss &= AllowedMask(immuneMask, Channel.Physical);
-            poisonGain &= AllowedMask(immuneMask, Channel.Poison);
-            poisonLoss &= AllowedMask(immuneMask, Channel.Poison);
-            fireGain &= AllowedMask(immuneMask, Channel.Fire);
-            fireLoss &= AllowedMask(immuneMask, Channel.Fire);
-            healing &= AllowedMask(immuneMask, Channel.Healing);
-            tickHits &= AllowedMask(immuneMask, Channel.Tick);
+            var physicalGain = Sum(totals, SumClass.PhysicalGain, row);
+            var physicalLoss = Sum(totals, SumClass.PhysicalLoss, row);
+            var poisonGain = Sum(totals, SumClass.PoisonGain, row) + (emittedLastFrame[EmitClass.PoisonGain * Rows + row] & poisonEmitAllowed);
+            var poisonLoss = Sum(totals, SumClass.PoisonLoss, row) + (emittedLastFrame[EmitClass.PoisonLoss * Rows + row] & poisonEmitAllowed);
+            var fireGain = Sum(totals, SumClass.FireGain, row);
+            var fireLoss = Sum(totals, SumClass.FireLoss, row);
+            var healing = Sum(totals, SumClass.HealingGain, row) + Sum(totals, SumClass.HealingLoss, row) + (emittedLastFrame[EmitClass.Healing * Rows + row] & healingEmitAllowed);
+            var tickHits = Sum(totals, SumClass.TickGain, row) + Sum(totals, SumClass.TickLoss, row);
 
             healing += (fireGain + fireLoss) & fireHeals;
             fireGain &= ~fireHeals;
@@ -129,13 +121,15 @@ namespace Sv.V4
             return Vector256.Create(Vector128.WidenLower(four), Vector128.WidenUpper(four));
         }
 
-        static void StoreNarrow(Vector256<long> value, int* lanes, int lane, int row) =>
-            Vector128.Narrow(value.GetLower(), value.GetUpper()).Store(lanes + lane * Rows + row);
+        static void StoreNarrow(Vector256<long> value, int* into) =>
+            Vector128.Narrow(value.GetLower(), value.GetUpper()).Store(into);
 
         static Vector256<long> AllowedMask(Vector256<long> bits, int index) =>
             Vector256.Equals(Vector256.ShiftRightLogical(bits, index) & Vector256<long>.One, Vector256<long>.Zero);
 
-        static Vector256<long> Sum(long* totals, int sumClass, int row) => Vector256.Load(totals + sumClass * Rows + row);
+        static Vector256<long> Sums(long* totals, int sumClass, int row) => Vector256.Load(totals + sumClass * Rows + row);
+
+        static Vector256<long> Emitted(long* emitted, int emitClass, int row) => Vector256.Load(emitted + emitClass * Rows + row);
 
         static Vector256<long> Saturate32(Vector256<long> value) =>
             Vector256.Min(Vector256.Max(value, Vector256.Create((long)int.MinValue)), Vector256.Create((long)int.MaxValue));
@@ -143,7 +137,19 @@ namespace Sv.V4
         static Vector256<long> Term(Vector256<long> amount, Vector256<long> hits) =>
             Vector256.Min(Vector256.Max(amount * hits, Vector256.Create(-EffectLaw.TermLimit)), Vector256.Create(EffectLaw.TermLimit));
 
-        public static void ResolveChunkVector(int* lanes, long* totals, long* emitNextFrame)
+        static Vector256<long> Admits(Vector256<long> immuneMask, Vector256<long> kindMask)
+        {
+            var channels = Vector256.AndNot(Vector256.Create(31L), immuneMask);
+            var kinds = Vector256.AndNot(Vector256.Create(15L), kindMask);
+            var spread = (channels & Vector256.Create(1L))
+                | Vector256.ShiftLeft(channels & Vector256.Create(2L), 3)
+                | Vector256.ShiftLeft(channels & Vector256.Create(4L), 6)
+                | Vector256.ShiftLeft(channels & Vector256.Create(8L), 9)
+                | Vector256.ShiftLeft(channels & Vector256.Create(16L), 12);
+            return kinds * spread;
+        }
+
+        public static void ResolveChunkVector(int* lanes, long* totals, long* emittedLastFrame, long* emitNextFrame, SlotTables tables, int firstSlot)
         {
             var zero = Vector256<long>.Zero;
             for (var row = 0; row < Rows; row += 4)
@@ -157,32 +163,18 @@ namespace Sv.V4
                 var poisonTicks = LoadWide(lanes, Lane.PoisonTicks, row);
                 var regenCard = Vector256.GreaterThan(LoadWide(lanes, Lane.RegenCard, row), zero);
                 var regenRate = LoadWide(lanes, Lane.RegenRate, row);
-                var belowExecuteLine = Vector256.LessThan(health * 100L, maxHealth * Threshold.ExecuteBelowPercent);
+                var emitKindAllowed = AllowedMask(kindMask, 0);
+                var poisonEmitAllowed = emitKindAllowed & AllowedMask(immuneMask, Channel.Poison);
+                var healingEmitAllowed = emitKindAllowed & AllowedMask(immuneMask, Channel.Healing);
 
-                Vector256<long> physicalGain = zero, physicalLoss = zero, poisonGain = zero, poisonLoss = zero, fireGain = zero, fireLoss = zero, healing = zero, tickHits = zero;
-                for (var kind = 0; kind < SumClass.Kinds; kind++)
-                {
-                    var kindAllowed = AllowedMask(kindMask, kind);
-                    var executedGain = Sum(totals, SumClass.PhysicalOf(kind, 1, 0), row);
-                    var executedLoss = Sum(totals, SumClass.PhysicalOf(kind, 1, 1), row);
-                    physicalGain += kindAllowed & (Sum(totals, SumClass.PhysicalOf(kind, 0, 0), row) + executedGain + (executedGain & belowExecuteLine));
-                    physicalLoss += kindAllowed & (Sum(totals, SumClass.PhysicalOf(kind, 0, 1), row) + executedLoss + (executedLoss & belowExecuteLine));
-                    poisonGain += kindAllowed & Sum(totals, SumClass.PoisonOf(kind, 0), row);
-                    poisonLoss += kindAllowed & Sum(totals, SumClass.PoisonOf(kind, 1), row);
-                    fireGain += kindAllowed & Sum(totals, SumClass.FireOf(kind, 0), row);
-                    fireLoss += kindAllowed & Sum(totals, SumClass.FireOf(kind, 1), row);
-                    healing += kindAllowed & (Sum(totals, SumClass.HealingOf(kind), row) + Sum(totals, SumClass.HealingLossOf(kind), row));
-                    tickHits += kindAllowed & (Sum(totals, SumClass.TickOf(kind), row) + Sum(totals, SumClass.TickLossOf(kind), row));
-                }
-
-                physicalGain &= AllowedMask(immuneMask, Channel.Physical);
-                physicalLoss &= AllowedMask(immuneMask, Channel.Physical);
-                poisonGain &= AllowedMask(immuneMask, Channel.Poison);
-                poisonLoss &= AllowedMask(immuneMask, Channel.Poison);
-                fireGain &= AllowedMask(immuneMask, Channel.Fire);
-                fireLoss &= AllowedMask(immuneMask, Channel.Fire);
-                healing &= AllowedMask(immuneMask, Channel.Healing);
-                tickHits &= AllowedMask(immuneMask, Channel.Tick);
+                var physicalGain = Sums(totals, SumClass.PhysicalGain, row);
+                var physicalLoss = Sums(totals, SumClass.PhysicalLoss, row);
+                var poisonGain = Sums(totals, SumClass.PoisonGain, row) + (Emitted(emittedLastFrame, EmitClass.PoisonGain, row) & poisonEmitAllowed);
+                var poisonLoss = Sums(totals, SumClass.PoisonLoss, row) + (Emitted(emittedLastFrame, EmitClass.PoisonLoss, row) & poisonEmitAllowed);
+                var fireGain = Sums(totals, SumClass.FireGain, row);
+                var fireLoss = Sums(totals, SumClass.FireLoss, row);
+                var healing = Sums(totals, SumClass.HealingGain, row) + Sums(totals, SumClass.HealingLoss, row) + (Emitted(emittedLastFrame, EmitClass.Healing, row) & healingEmitAllowed);
+                var tickHits = Sums(totals, SumClass.TickGain, row) + Sums(totals, SumClass.TickLoss, row);
 
                 healing += (fireGain + fireLoss) & fireHeals;
                 fireGain = Vector256.AndNot(fireGain, fireHeals);
@@ -204,11 +196,21 @@ namespace Sv.V4
 
                 var dead = Vector256.Equals(nextHealth, zero) & Vector256.Create((long)EventBit.Dead);
                 var low = Vector256.LessThan(nextHealth * 100L, maxHealth * Threshold.LowHealthBelowPercent) & Vector256.Create((long)EventBit.LowHealth);
-                StoreNarrow(nextHealth, lanes, Lane.Health, row);
-                StoreNarrow(shield - absorbed, lanes, Lane.Shield, row);
-                StoreNarrow(nextPoisonTicks, lanes, Lane.PoisonTicks, row);
-                StoreNarrow(dead | low, lanes, Lane.Events, row);
+                var belowExecuteLine = Vector256.LessThan(nextHealth * 100L, maxHealth * Threshold.ExecuteBelowPercent) & Vector256.Create(1L << TargetContext.BelowExecuteLine);
+                StoreNarrow(nextHealth, lanes + Lane.Health * Rows + row);
+                StoreNarrow(shield - absorbed, lanes + Lane.Shield * Rows + row);
+                StoreNarrow(nextPoisonTicks, lanes + Lane.PoisonTicks * Rows + row);
+                StoreNarrow(dead | low, lanes + Lane.Events * Rows + row);
+                StoreNarrow(Admits(immuneMask, kindMask) | belowExecuteLine, (int*)tables.Contexts + firstSlot + row);
             }
+
+            var executeBits = 0ul;
+            for (var row = 0; row < Rows; row += 8)
+            {
+                executeBits |= (ulong)Vector256.GreaterThan(Vector256.Load(lanes + Lane.Execute * Rows + row), Vector256<int>.Zero).ExtractMostSignificantBits() << row;
+            }
+
+            tables.ExecuteBits[firstSlot >> EffectKey.RowBits] = executeBits;
         }
 #endif
     }

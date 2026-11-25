@@ -41,23 +41,40 @@ namespace Sv.V4
 
     public static class SumClass
     {
+        public const int PhysicalGain = 0;
+        public const int PhysicalLoss = 1;
+        public const int PoisonGain = 2;
+        public const int PoisonLoss = 3;
+        public const int FireGain = 4;
+        public const int FireLoss = 5;
+        public const int HealingGain = 6;
+        public const int HealingLoss = 7;
+        public const int TickGain = 8;
+        public const int TickLoss = 9;
+        public const int Count = 10;
+
+        public static int Of(int channel, int loss) => (channel << 1) | loss;
+    }
+
+    public static class TargetContext
+    {
         public const int Kinds = 4;
-        public const int Count = Channel.Count * 16;
+        public const int BelowExecuteLine = 20;
 
-        public static int Of(int channel, int kind, int executes, int loss) => (channel << 4) | (kind << 2) | (executes << 1) | loss;
+        public static int AdmitShift(int channel, int kind) => (channel << 2) | kind;
 
-        public static int PhysicalOf(int kind, int executes, int loss) => Of(Channel.Physical, kind, executes, loss);
+        public static uint Admits(int immuneMask, int kindMask)
+        {
+            var channels = ~(uint)immuneMask & 31u;
+            var kinds = ~(uint)kindMask & 15u;
+            var spread = (channels & 1u) | ((channels & 2u) << 3) | ((channels & 4u) << 6) | ((channels & 8u) << 9) | ((channels & 16u) << 12);
+            return kinds * spread;
+        }
 
-        public static int PoisonOf(int kind, int loss) => Of(Channel.Poison, kind, 0, loss);
-
-        public static int FireOf(int kind, int loss) => Of(Channel.Fire, kind, 0, loss);
-
-        public static int HealingOf(int kind) => Of(Channel.Healing, kind, 0, 0);
-
-        public static int HealingLossOf(int kind) => Of(Channel.Healing, kind, 0, 1);
-
-        public static int TickOf(int kind) => Of(Channel.Tick, kind, 0, 0);
-
-        public static int TickLossOf(int kind) => Of(Channel.Tick, kind, 0, 1);
+        public static uint Of(int health, int maxHealth, int immuneMask, int kindMask)
+        {
+            var below = (long)health * 100 < (long)maxHealth * Threshold.ExecuteBelowPercent ? 1u : 0u;
+            return Admits(immuneMask, kindMask) | (below << BelowExecuteLine);
+        }
     }
 }

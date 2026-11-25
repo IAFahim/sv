@@ -5,117 +5,78 @@ using System.Globalization;
 using Sv.Host;
 #if NET
 using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.X86;
 #endif
 
 namespace Sv.V4
 {
-    public static class ColumnOpKind
+    public unsafe struct TemplateColumns
     {
-        public const int AddConstant = 0;
-        public const int AddLaneTimes = 1;
-        public const int AddIfLaneAbove = 2;
-        public const int AddIfHealthBelowPercent = 3;
+        public ColumnOp* Raw;
+        public int RawCount;
+        public GateGroup* Groups;
+        public int GroupCount;
+        public LaneTerm* LaneTerms;
+        public int LaneTermCount;
+        public LaneTest* LaneAbove;
+        public int LaneAboveCount;
+        public LaneTest* HealthBelow;
+        public int HealthBelowCount;
     }
 
-    public struct ColumnOp
+    public sealed unsafe class CompiledColumns : IDisposable
     {
-        public int Kind;
-        public int SumClass;
-        public int Lane;
-        public int Amount;
-        public int Threshold;
-    }
+        public readonly TemplateColumns* Templates;
+        public readonly int CompiledEntries;
 
-    public static class ColumnPrograms
-    {
-        static readonly int[] ReadableLanes = { Lane.PoisonTicks, Lane.RegenRate, Lane.Converter, Lane.Execute, Lane.RegenCard };
-
-        public static ColumnOp[][] Author(int opsPerEntity)
+        public CompiledColumns(ColumnOp[][] programs)
         {
-            var programs = new ColumnOp[Templates.Count][];
-            for (var template = 0; template < Templates.Count; template++)
-            {
-                var state = 0x2545F491u ^ (uint)(template * 2654435761u) | 1u;
-                var program = new ColumnOp[opsPerEntity];
-                for (var at = 0; at < opsPerEntity; at++)
-                {
-                    var roll = Next(ref state);
-                    var kindRoll = roll % 20u;
-                    var kind = kindRoll < 8u ? ColumnOpKind.AddConstant : kindRoll < 14u ? ColumnOpKind.AddLaneTimes : kindRoll < 17u ? ColumnOpKind.AddIfLaneAbove : ColumnOpKind.AddIfHealthBelowPercent;
-                    var channel = (int)((roll >> 5) % 5u);
-                    var sourceKind = (int)((roll >> 9) & 3u);
-                    var amount = 1 + (int)((roll >> 12) & 7u);
-                    program[at] = new ColumnOp
-                    {
-                        Kind = kind,
-                        SumClass = ClassOf(channel, sourceKind, (int)((roll >> 15) & 1u)),
-                        Lane = ReadableLanes[(roll >> 16) % (uint)ReadableLanes.Length],
-                        Amount = amount,
-                        Threshold = kind == ColumnOpKind.AddIfHealthBelowPercent ? 10 + (int)((roll >> 20) % 40u) : (int)((roll >> 20) & 63u),
-                    };
-                }
-
-                programs[template] = program;
-            }
-
-            return programs;
-        }
-
-        static int ClassOf(int channel, int sourceKind, int executes) =>
-            channel == Channel.Physical ? SumClass.PhysicalOf(sourceKind, executes, 0)
-            : channel == Channel.Poison ? SumClass.PoisonOf(sourceKind, 0)
-            : channel == Channel.Fire ? SumClass.FireOf(sourceKind, 0)
-            : channel == Channel.Healing ? SumClass.HealingOf(sourceKind)
-            : SumClass.TickOf(sourceKind);
-
-        public static ColumnOp[][] FoldEqualTerms(ColumnOp[][] programs)
-        {
-            var folded = new ColumnOp[programs.Length][];
+            Templates = (TemplateColumns*)Memory.AllocZeroed((nuint)programs.Length, (nuint)sizeof(TemplateColumns));
             for (var template = 0; template < programs.Length; template++)
             {
-                var merged = new Dictionary<(int, int, int, int), int>();
-                var order = new List<(int, int, int, int)>();
-                foreach (var op in programs[template])
-                {
-                    var shape = op.Kind == ColumnOpKind.AddConstant ? (op.Kind, op.SumClass, 0, 0)
-                        : op.Kind == ColumnOpKind.AddLaneTimes ? (op.Kind, op.SumClass, op.Lane, 0)
-                        : op.Kind == ColumnOpKind.AddIfLaneAbove ? (op.Kind, op.SumClass, op.Lane, op.Threshold)
-                        : (op.Kind, op.SumClass, 0, op.Threshold);
-                    if (!merged.ContainsKey(shape))
-                    {
-                        merged[shape] = 0;
-                        order.Add(shape);
-                    }
-
-                    merged[shape] += op.Amount;
-                }
-
-                order.Sort();
-                folded[template] = new ColumnOp[order.Count];
-                for (var at = 0; at < order.Count; at++)
-                {
-                    var (kind, sumClass, lane, threshold) = order[at];
-                    folded[template][at] = new ColumnOp { Kind = kind, SumClass = sumClass, Lane = lane, Amount = merged[order[at]], Threshold = threshold };
-                }
+                var groups = new List<GateGroup>();
+                var laneTerms = new List<LaneTerm>();
+                var laneAbove = new List<LaneTest>();
+                var healthBelow = new List<LaneTest>();
+                ColumnPrograms.Compile(programs[template], groups, laneTerms, laneAbove, healthBelow);
+                var into = Templates + template;
+                into->Raw = Copy(programs[template], out into->RawCount);
+                into->Groups = Copy(groups.ToArray(), out into->GroupCount);
+                into->LaneTerms = Copy(laneTerms.ToArray(), out into->LaneTermCount);
+                into->LaneAbove = Copy(laneAbove.ToArray(), out into->LaneAboveCount);
+                into->HealthBelow = Copy(healthBelow.ToArray(), out into->HealthBelowCount);
+                CompiledEntries += into->GroupCount + into->LaneTermCount + into->LaneAboveCount + into->HealthBelowCount;
             }
-
-            return folded;
         }
 
-        static uint Next(ref uint state)
+        static T* Copy<T>(T[] values, out int count) where T : unmanaged
         {
-            state ^= state << 13;
-            state ^= state >> 17;
-            state ^= state << 5;
-            return state;
+            count = values.Length;
+            var copy = (T*)Memory.Alloc((nuint)Math.Max(1, values.Length), (nuint)sizeof(T));
+            values.AsSpan().CopyTo(new Span<T>(copy, values.Length));
+            return copy;
+        }
+
+        public void Dispose()
+        {
+            for (var template = 0; template < V4.Templates.Count; template++)
+            {
+                Memory.Free(Templates[template].Raw);
+                Memory.Free(Templates[template].Groups);
+                Memory.Free(Templates[template].LaneTerms);
+                Memory.Free(Templates[template].LaneAbove);
+                Memory.Free(Templates[template].HealthBelow);
+            }
+
+            Memory.Free(Templates);
         }
     }
 
-    public static unsafe class ColumnKernels
+    public static unsafe class ColumnLaw
     {
         const int Rows = LaneWorld.Rows;
 
-        public static long TermOfOneEntity(int* lanes, in ColumnOp op, int row)
+        public static long TermOf(int* lanes, in ColumnOp op, int row)
         {
             switch (op.Kind)
             {
@@ -130,213 +91,151 @@ namespace Sv.V4
             }
         }
 
-        public static void RunOneEntityAtATime(int* lanes, long* totals, ColumnOp* program, int length)
+        public static void AddChunk(int* lanes, uint* contexts, in TemplateColumns columns, long* totals)
         {
             for (var row = 0; row < Rows; row++)
             {
-                for (var at = 0; at < length; at++)
+                var context = contexts[row];
+                var below = (context >> TargetContext.BelowExecuteLine) & 1u;
+                for (var at = 0; at < columns.RawCount; at++)
                 {
-                    totals[program[at].SumClass * Rows + row] += TermOfOneEntity(lanes, program[at], row);
+                    var op = columns.Raw[at];
+                    var admitted = (long)((context >> TargetContext.AdmitShift(op.Channel, op.SourceKind)) & 1u);
+                    var doubles = (int)(below & (uint)op.Executes);
+                    var term = (TermOf(lanes, op, row) << doubles) & -admitted;
+                    var loss = (int)((ulong)term >> 63);
+                    totals[SumClass.Of(op.Channel, loss) * Rows + row] += term;
                 }
             }
         }
+    }
 
 #if NET
-        static Vector256<long> LoadWide(int* lanes, int lane, int row)
-        {
-            var four = Vector128.Load(lanes + lane * Rows + row);
-            return Vector256.Create(Vector128.WidenLower(four), Vector128.WidenUpper(four));
-        }
-
-        public static void RunWholeChunkPerOp(int* lanes, long* totals, ColumnOp* program, int length)
-        {
-            for (var at = 0; at < length; at++)
-            {
-                var op = program[at];
-                var into = totals + op.SumClass * Rows;
-                var amount = Vector256.Create((long)op.Amount);
-                switch (op.Kind)
-                {
-                    case ColumnOpKind.AddConstant:
-                        for (var row = 0; row < Rows; row += 4)
-                        {
-                            (Vector256.Load(into + row) + amount).Store(into + row);
-                        }
-
-                        break;
-                    case ColumnOpKind.AddLaneTimes:
-                        for (var row = 0; row < Rows; row += 4)
-                        {
-                            (Vector256.Load(into + row) + LoadWide(lanes, op.Lane, row) * amount).Store(into + row);
-                        }
-
-                        break;
-                    case ColumnOpKind.AddIfLaneAbove:
-                        var threshold = Vector256.Create((long)op.Threshold);
-                        for (var row = 0; row < Rows; row += 4)
-                        {
-                            (Vector256.Load(into + row) + (Vector256.GreaterThan(LoadWide(lanes, op.Lane, row), threshold) & amount)).Store(into + row);
-                        }
-
-                        break;
-                    default:
-                        var percent = Vector256.Create((long)op.Threshold);
-                        for (var row = 0; row < Rows; row += 4)
-                        {
-                            var below = Vector256.LessThan(LoadWide(lanes, Lane.Health, row) * 100L, LoadWide(lanes, Lane.MaxHealth, row) * percent);
-                            (Vector256.Load(into + row) + (below & amount)).Store(into + row);
-                        }
-
-                        break;
-                }
-            }
-        }
-#endif
-    }
-
-    public unsafe struct ColumnFrame
+    public static unsafe class ColumnKernel
     {
-        public LaneView World;
-        public ColumnOp** Programs;
-        public int* ProgramLengths;
-        public long* TotalsScratch;
-        public long* EmittedLastFrame;
-        public long* EmitNextFrame;
-        public int Parts;
-        public int Mode;
-    }
+        const int Rows = LaneWorld.Rows;
+                public static bool Supported => Avx512F.IsSupported && Vector512.IsHardwareAccelerated;
 
-    public sealed unsafe class ColumnEngine : IDisposable
-    {
-        public const int OneEntityAtATime = 0;
-        public const int WholeChunkPerOp = 1;
-        readonly Workers workers;
-        readonly ColumnFrame* frame;
-
-        public ColumnEngine(LaneWorld world, ColumnOp[][] programs, Workers workers, int mode)
+        public static void AddChunk(int* lanes, uint* contexts, in TemplateColumns columns, long* totals, Vector512<long>* laneValues)
         {
-            this.workers = workers;
-            frame = (ColumnFrame*)Memory.AllocZeroed(1, (nuint)sizeof(ColumnFrame));
-            frame->World = world.View;
-            frame->Programs = (ColumnOp**)Memory.AllocZeroed((nuint)programs.Length, (nuint)sizeof(ColumnOp*));
-            frame->ProgramLengths = (int*)Memory.AllocZeroed((nuint)programs.Length, sizeof(int));
-            for (var template = 0; template < programs.Length; template++)
+            var zero = Vector512<long>.Zero;
+            var one = Vector512<long>.One;
+            for (var row = 0; row < Rows; row += 8)
             {
-                frame->ProgramLengths[template] = programs[template].Length;
-                frame->Programs[template] = (ColumnOp*)Memory.Alloc((nuint)Math.Max(1, programs[template].Length), (nuint)sizeof(ColumnOp));
-                for (var at = 0; at < programs[template].Length; at++)
+                for (var lane = 0; lane < Lane.Count; lane++)
                 {
-                    frame->Programs[template][at] = programs[template][at];
+                    laneValues[lane] = Avx512F.ConvertToVector512Int64(Vector256.Load(lanes + lane * Rows + row));
+                }
+
+                var context = Avx512F.ConvertToVector512Int64(Vector256.Load((int*)contexts + row));
+                var below = Vector512.Equals(Vector512.ShiftRightLogical(context, TargetContext.BelowExecuteLine) & one, one);
+                var health100 = Avx512F.Multiply(laneValues[Lane.Health].AsInt32(), Vector512.Create(100));
+                var maxHealth = laneValues[Lane.MaxHealth].AsInt32();
+                for (var g = 0; g < columns.GroupCount; g++)
+                {
+                    var group = columns.Groups[g];
+                    var all = Vector512.Create(group.ConstantGain + group.ConstantLoss);
+                    var loss = Vector512.Create(group.ConstantLoss);
+                    var terms = columns.LaneTerms + group.TermFirst;
+                    for (var at = 0; at < group.TermCount; at++)
+                    {
+                        var value = Avx512F.Multiply(laneValues[terms[at].Lane].AsInt32(), Vector512.Create((int)terms[at].Amount));
+                        all += value;
+                        loss += Vector512.Min(value, zero);
+                    }
+
+                    var above = columns.LaneAbove + group.AboveFirst;
+                    for (var at = 0; at < group.AboveCount; at++)
+                    {
+                        var passes = Vector512.GreaterThan(laneValues[above[at].Lane], Vector512.Create(above[at].Threshold));
+                        all += passes & Vector512.Create(above[at].Gain + above[at].Loss);
+                        loss += passes & Vector512.Create(above[at].Loss);
+                    }
+
+                    var belowTests = columns.HealthBelow + group.BelowFirst;
+                    for (var at = 0; at < group.BelowCount; at++)
+                    {
+                        var passes = Vector512.LessThan(health100, Avx512F.Multiply(maxHealth, Vector512.Create((int)belowTests[at].Threshold)));
+                        all += passes & Vector512.Create(belowTests[at].Gain + belowTests[at].Loss);
+                        loss += passes & Vector512.Create(belowTests[at].Loss);
+                    }
+
+                    var admitted = Vector512.Equals(Vector512.ShiftRightLogical(context, group.AdmitShift) & one, one);
+                    var doubles = group.Doubles != 0 ? below : zero;
+                    var gain = all - loss;
+                    gain = (gain + (gain & doubles)) & admitted;
+                    loss = (loss + (loss & doubles)) & admitted;
+                    var gainAt = totals + SumClass.Of(group.Channel, 0) * Rows + row;
+                    var lossAt = totals + SumClass.Of(group.Channel, 1) * Rows + row;
+                    (Vector512.Load(gainAt) + gain).Store(gainAt);
+                    (Vector512.Load(lossAt) + loss).Store(lossAt);
                 }
             }
-
-            frame->Parts = WorkRange.PartsFor(world.Chunks, workers.Count * 8);
-            frame->TotalsScratch = (long*)Memory.Alloc((nuint)((long)frame->Parts * ClassSumBlocks.BlockLongs), sizeof(long));
-            frame->EmittedLastFrame = (long*)Memory.AllocZeroed((nuint)((long)world.Chunks * EmitClass.BlockLongs), sizeof(long));
-            frame->EmitNextFrame = (long*)Memory.AllocZeroed((nuint)((long)world.Chunks * EmitClass.BlockLongs), sizeof(long));
-            frame->Mode = mode;
         }
-
-        public void StepOneFrame()
-        {
-            workers.Run(&ResolveChunks, frame, frame->Parts);
-            var swap = frame->EmittedLastFrame;
-            frame->EmittedLastFrame = frame->EmitNextFrame;
-            frame->EmitNextFrame = swap;
-        }
-
-        static void ResolveChunks(void* state, int part)
-        {
-            var frame = (ColumnFrame*)state;
-            WorkRange.Of(frame->World.Chunks, part, frame->Parts, out var from, out var to);
-            var totals = frame->TotalsScratch + (long)part * ClassSumBlocks.BlockLongs;
-            for (var chunk = from; chunk < to; chunk++)
-            {
-                var template = Templates.OfChunk(chunk);
-                var lanes = frame->World.ChunkLanes(chunk);
-                var emitNext = frame->EmitNextFrame + (long)chunk * EmitClass.BlockLongs;
-                ChunkFold.GatherClassSums(totals, null, 0, chunk, frame->EmittedLastFrame + (long)chunk * EmitClass.BlockLongs);
-#if NET
-                if (frame->Mode == WholeChunkPerOp)
-                {
-                    ColumnKernels.RunWholeChunkPerOp(lanes, totals, frame->Programs[template], frame->ProgramLengths[template]);
-                    ChunkFold.ResolveChunkVector(lanes, totals, emitNext);
-                    continue;
-                }
+    }
 #endif
-                ColumnKernels.RunOneEntityAtATime(lanes, totals, frame->Programs[template], frame->ProgramLengths[template]);
-                ChunkFold.ResolveChunkScalar(lanes, totals, emitNext);
-            }
-        }
-
-        public void Dispose()
-        {
-            for (var template = 0; template < Templates.Count; template++)
-            {
-                Memory.Free(frame->Programs[template]);
-            }
-
-            Memory.Free(frame->Programs);
-            Memory.Free(frame->ProgramLengths);
-            Memory.Free(frame->TotalsScratch);
-            Memory.Free(frame->EmittedLastFrame);
-            Memory.Free(frame->EmitNextFrame);
-            Memory.Free(frame);
-        }
-    }
 
     public static class ColumnBench
     {
-        public static int Run(int entities, int opsPerEntity, int threads, int frames, int checkFrames)
+        public static int Run(int entities, int opsPerEntity, int recordsPerEntity, int threads, int frames, int checkFrames)
         {
             using var workers = new Workers(threads);
             var authored = ColumnPrograms.Author(opsPerEntity);
-            var folded = ColumnPrograms.FoldEqualTerms(authored);
-            var foldedLengths = 0;
-            foreach (var program in folded)
-            {
-                foldedLengths += program.Length;
-            }
-
+            using var columns = new CompiledColumns(authored);
+            var equal = Check(Math.Min(entities, 4_000), recordsPerEntity, threads, checkFrames, workers, columns);
+            using var world = new LaneWorld(entities);
+            Templates.Spawn(world, 1);
+            using var stream = recordsPerEntity > 0 ? new RecordStream(world, recordsPerEntity, threads, "mixed", false) : null;
             Console.WriteLine(string.Format(CultureInfo.InvariantCulture,
-                "v4 columns: entities {0}, ops per entity {1} (authored per template), {2:0.0} ops per entity after folding equal terms, threads {3}, entity-ops per frame {4}",
-                entities, opsPerEntity, foldedLengths / (double)folded.Length, threads, (long)entities * opsPerEntity));
-
-            using var reference = new LaneWorld(entities);
-            Templates.Spawn(reference, 1);
-            using var naiveWorld = new LaneWorld(entities);
-            using var foldedWorld = new LaneWorld(entities);
-            naiveWorld.CopyFrom(reference);
-            foldedWorld.CopyFrom(reference);
-            using var oneAtATime = new ColumnEngine(reference, authored, workers, ColumnEngine.OneEntityAtATime);
-            using var naive = new ColumnEngine(naiveWorld, authored, workers, ColumnEngine.WholeChunkPerOp);
-            using var foldedEngine = new ColumnEngine(foldedWorld, folded, workers, ColumnEngine.WholeChunkPerOp);
-            var equal = true;
-            for (var f = 0; f < checkFrames; f++)
+                "v4 columns: entities {0}, column ops per entity {1} (authored per template, {2:0.0} compiled entries per template), records per entity {3}, threads {4}, entity-ops per frame {5}",
+                entities, opsPerEntity, columns.CompiledEntries / (double)Templates.Count, recordsPerEntity, threads, (long)entities * (opsPerEntity + recordsPerEntity)));
+            var allocated = 0L;
+            using (var scalar = new LaneEngine(world, stream, columns, workers, false, false))
             {
-                oneAtATime.StepOneFrame();
-                naive.StepOneFrame();
-                foldedEngine.StepOneFrame();
-                var expected = reference.Digest();
-                var same = expected == naiveWorld.Digest() && expected == foldedWorld.Digest();
-                equal &= same;
-                Console.WriteLine(string.Format(CultureInfo.InvariantCulture, "  frame {0}: one entity at a time {1:X16} whole chunk per op {2:X16} folded {3:X16} {4}",
-                    f, expected, naiveWorld.Digest(), foldedWorld.Digest(), same ? "equal" : "DIFFERENT"));
+                allocated += Time("scalar law, one op at a time", scalar, world, entities, opsPerEntity + recordsPerEntity, Math.Min(frames, 4));
             }
 
-            Console.WriteLine("  " + Program.Census(reference));
-            var allocated = 0L;
-            allocated += Time("one entity at a time (scalar)", entities, opsPerEntity, threads, authored, ColumnEngine.OneEntityAtATime, Math.Min(frames, 4), workers);
-            allocated += Time("whole chunk per op (Vector256)", entities, opsPerEntity, threads, authored, ColumnEngine.WholeChunkPerOp, frames, workers);
-            allocated += Time("folded program (Vector256)", entities, opsPerEntity, threads, folded, ColumnEngine.WholeChunkPerOp, frames, workers);
+            using (var vector = new LaneEngine(world, stream, columns, workers, true, true))
+            {
+                allocated += Time("compiled groups (AVX-512)", vector, world, entities, opsPerEntity + recordsPerEntity, frames);
+            }
+
             return equal && allocated == 0 ? 0 : 1;
         }
 
-        static long Time(string label, int entities, int opsPerEntity, int threads, ColumnOp[][] programs, int mode, int frames, Workers workers)
+        static bool Check(int entities, int recordsPerEntity, int threads, int checkFrames, Workers workers, CompiledColumns columns)
         {
-            using var world = new LaneWorld(entities);
-            Templates.Spawn(world, 1);
-            using var engine = new ColumnEngine(world, programs, workers, mode);
+            using var scalarWorld = new LaneWorld(entities);
+            Templates.Spawn(scalarWorld, 20);
+            using var vectorWorld = new LaneWorld(entities);
+            vectorWorld.CopyFrom(scalarWorld);
+            using var stream = recordsPerEntity > 0 ? new RecordStream(scalarWorld, recordsPerEntity, threads, "mixed", true) : null;
+            using var scalar = new LaneEngine(scalarWorld, stream, columns, workers, false, false);
+            using var vector = new LaneEngine(vectorWorld, stream, columns, workers, true, true);
+            var equal = true;
+            Console.WriteLine(string.Format(CultureInfo.InvariantCulture,
+                "check: scalar law vs compiled AVX-512, {0} entities at health / 20, 1 in 8 column amounts negative, {1} records per entity, {2} frames", entities, recordsPerEntity, checkFrames));
+            for (var f = 0; f < checkFrames; f++)
+            {
+                scalar.StepOneFrame();
+                vector.StepOneFrame();
+                var same = scalarWorld.Digest() == vectorWorld.Digest();
+                equal &= same;
+                Console.WriteLine(string.Format(CultureInfo.InvariantCulture, "  frame {0}: scalar {1:X16} compiled {2:X16} {3}", f, scalarWorld.Digest(), vectorWorld.Digest(), same ? "equal" : "DIFFERENT"));
+            }
+
+            if (checkFrames > 0)
+            {
+                Console.WriteLine("  " + Program.Census(scalarWorld));
+            }
+
+            return equal;
+        }
+
+        static long Time(string label, LaneEngine engine, LaneWorld world, int entities, int opsPerEntity, int frames)
+        {
+            using var copy = new LaneWorld(entities);
+            copy.CopyFrom(world);
             for (var f = 0; f < Math.Min(frames, 8); f++)
             {
                 engine.StepOneFrame();
@@ -353,10 +252,11 @@ namespace Sv.V4
                 allocated += GC.GetAllocatedBytesForCurrentThread() - before;
             }
 
+            world.CopyFrom(copy);
             var median = Program.Median(samples);
             Console.WriteLine(string.Format(CultureInfo.InvariantCulture,
-                "  {0,-32} median {1,9:0.000} ms (p10 {2:0.000}, p90 {3:0.000}) = {4:0.0000} ns per entity-op; alloc(main) {5} B",
-                label, median, Program.Percentile(samples, 10), Program.Percentile(samples, 90), median * 1e6 / ((double)entities * opsPerEntity), allocated));
+                "  {0,-30} median {1,9:0.000} ms (p10 {2:0.000}, p90 {3:0.000}) = {4:0.0000} ns per entity-op; records {5:0.000} ms, columns and fold {6:0.000} ms; alloc(main) {7} B",
+                label, median, Program.Percentile(samples, 10), Program.Percentile(samples, 90), median * 1e6 / ((double)entities * opsPerEntity), engine.ReduceMilliseconds, engine.ResolveMilliseconds, allocated));
             return allocated;
         }
     }

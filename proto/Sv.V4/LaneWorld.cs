@@ -78,7 +78,7 @@ namespace Sv.V4
 
         public static int OfChunk(int chunk) => chunk % Count;
 
-        public static byte KindOf(int template) => (byte)(template % SumClass.Kinds);
+        public static byte KindOf(int template) => (byte)(template % TargetContext.Kinds);
 
         public static void Spawn(LaneWorld world, int healthDivisor)
         {

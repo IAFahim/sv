@@ -11,7 +11,7 @@ namespace Sv.V4
         public readonly int* Counts;
         public readonly long Total;
 
-        public RecordStream(LaneWorld world, int recordsPerEntity, int writers, string sources, bool someNegativeAmounts)
+        public RecordStream(LaneWorld world, int recordsPerEntity, int writers, string sources, bool someNegativeAmounts, bool shuffled = false)
         {
             Writers = writers;
             Lists = (Effect**)Memory.AllocZeroed((nuint)writers, (nuint)sizeof(Effect*));
@@ -41,6 +41,15 @@ namespace Sv.V4
                 }
 
                 new Span<Effect>(Lists[w], Counts[w]).Sort((a, b) => EffectLaw.Compare(a, b));
+                if (shuffled)
+                {
+                    for (var i = Counts[w] - 1; i > 0; i--)
+                    {
+                        var j = (int)(Next(ref state) % (uint)(i + 1));
+                        (Lists[w][i], Lists[w][j]) = (Lists[w][j], Lists[w][i]);
+                    }
+                }
+
                 Total += Counts[w];
             }
         }

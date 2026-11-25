@@ -20,7 +20,7 @@ namespace Sv.V4
                 return StreamFloor(entities, perEntity, threads, frames);
             }
 
-            return mode == "columns" ? ColumnBench.Run(entities, perEntity, threads, frames, checkFrames) : RecordBench(entities, perEntity, threads, frames, checkFrames);
+            return mode == "columns" ? ColumnBench.Run(entities, perEntity, Arg(args, 6, 0), threads, frames, checkFrames) : RecordBench(entities, perEntity, threads, frames, checkFrames);
         }
 
         static int Arg(string[] args, int at, int fallback) =>
@@ -29,14 +29,16 @@ namespace Sv.V4
         static int RecordBench(int entities, int recordsPerEntity, int threads, int frames, int checkFrames)
         {
             using var workers = new Workers(threads);
-            var equal = CheckAgainstReference(Math.Min(entities, 4_000), recordsPerEntity, threads, checkFrames, workers);
+            var equal = CheckAgainstReference(Math.Min(entities, 4_000), recordsPerEntity, threads, checkFrames, workers, false);
+            equal &= CheckAgainstReference(Math.Min(entities, 4_000), recordsPerEntity, threads, checkFrames, workers, true);
+            var order = Environment.GetEnvironmentVariable("SV4_ORDER") == "shuffled";
             using var world = new LaneWorld(entities);
             Templates.Spawn(world, 1);
-            using var stream = new RecordStream(world, recordsPerEntity, threads, "mixed", false);
+            using var stream = new RecordStream(world, recordsPerEntity, threads, "mixed", false, order);
             Console.WriteLine(string.Format(CultureInfo.InvariantCulture,
-                "v4 records: entities {0}, records per entity {1} (grouped targets, mixed sources, canonical order), threads {2}, records per frame {3}",
-                entities, recordsPerEntity, threads, stream.Total));
-            using var timed = new LaneEngine(world, stream, workers, true);
+                "v4 records: entities {0}, records per entity {1} (grouped targets, mixed sources, {4} order), threads {2}, records per frame {3}",
+                entities, recordsPerEntity, threads, stream.Total, order ? "shuffled" : "canonical"));
+            using var timed = new LaneEngine(world, stream, null, workers, true, Environment.GetEnvironmentVariable("SV4_SCALAR") == null);
             for (var f = 0; f < 16; f++)
             {
                 timed.StepOneFrame();
@@ -64,22 +66,22 @@ namespace Sv.V4
             return equal && allocated == 0 && timed.Unsupported == 0 ? 0 : 1;
         }
 
-        static bool CheckAgainstReference(int entities, int recordsPerEntity, int threads, int checkFrames, Workers workers)
+        static bool CheckAgainstReference(int entities, int recordsPerEntity, int threads, int checkFrames, Workers workers, bool shuffled)
         {
             using var reference = new LaneWorld(entities);
             Templates.Spawn(reference, 20);
-            using var stream = new RecordStream(reference, recordsPerEntity, threads, "mixed", true);
+            using var stream = new RecordStream(reference, recordsPerEntity, threads, "mixed", true, shuffled);
             using var scalarWorld = new LaneWorld(entities);
             using var vectorWorld = new LaneWorld(entities);
             scalarWorld.CopyFrom(reference);
             vectorWorld.CopyFrom(reference);
-            using var scalar = new LaneEngine(scalarWorld, stream, workers, false);
-            using var vector = new LaneEngine(vectorWorld, stream, workers, true);
+            using var scalar = new LaneEngine(scalarWorld, stream, null, workers, false, false);
+            using var vector = new LaneEngine(vectorWorld, stream, null, workers, true, true);
             var sent = checkFrames > 0 ? stream.Gather() : Array.Empty<Effect>();
             var emitted = Array.Empty<Effect>();
             var equal = true;
             Console.WriteLine(string.Format(CultureInfo.InvariantCulture,
-                "check against the per-record reference: {0} entities at health / 20, {1} records per entity, 1 in 16 amounts negative, {2} frames", entities, recordsPerEntity, checkFrames));
+                "check against the per-record reference: {0} entities at health / 20, {1} records per entity, 1 in 16 amounts negative, {3} order, {2} frames", entities, recordsPerEntity, checkFrames, shuffled ? "shuffled" : "canonical"));
             for (var f = 0; f < checkFrames; f++)
             {
                 emitted = RecordReference.StepOneFrame(reference, sent, emitted);
