@@ -9,7 +9,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   unity:
-    name: Unity adapter compile, EditMode, PlayMode, million-entity bench
+    name: Unity adapter compile, EditMode tests, million-entity bench
     runs-on: [self-hosted, unity]
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     timeout-minutes: 90

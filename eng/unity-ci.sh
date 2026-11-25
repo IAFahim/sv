@@ -26,7 +26,7 @@ fi
 version="$(basename "$(dirname "$(dirname "$unity")")")"
 probe="${SV_UNITY_PROBE:-${XDG_CACHE_HOME:-$HOME/.cache}/sv-unity-probe-$version}"
 out="${SV_UNITY_OUT:-$root/artifacts/sv-unity}"
-steps="${SV_UNITY_STEPS:-compile EditMode PlayMode bench}"
+steps="${SV_UNITY_STEPS:-compile EditMode bench}"
 echo "unity $unity ($version), probe $probe, steps: $steps"
 bash "$root/eng/engine-sync.sh" check || exit 1
 if pgrep -af 'Unity' | grep -F -- "-projectPath $probe" >/dev/null; then echo "an Editor already has $probe open" >&2; exit 1; fi
@@ -114,6 +114,7 @@ if [ -n "$metas" ]; then
   (cd "$root" && printf '%s\n' $metas | while read -r meta; do mkdir -p "$out/metas/$(dirname "$meta")"; cp "$meta" "$out/metas/$meta"; done)
   echo "Unity wrote .meta files that the repository lacks; commit them (copies under $out/metas):"
   printf '  %s\n' $metas
+  (cd "$root" && for meta in $metas; do echo "--- $meta"; cat "$meta"; echo "--- end"; done)
   status=1
 fi
 exit $status
