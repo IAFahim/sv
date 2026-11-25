@@ -29,7 +29,7 @@ bash eng/tl-plain-sync.sh check || failed=1
 note "build"
 dotnet build -c Release src/Sv.Pack -v q -p:NuGetAudit=false >/dev/null || { echo "FAIL build Sv.Pack"; exit 1; }
 
-core="Sv.Laws.Tests Sv.Scenario.Tests Sv.Diff.Tests Sv.Lego.Tests Sv.Host.Tests"
+core="Sv.Laws.Tests Sv.Scenario.Tests Sv.Diff.Tests Sv.Lego.Tests Sv.Host.Tests Sv.Columns.Tests"
 extra="Sv.Twin.Fixtures Sv.NorthStar3 Sv.Web.Tests"
 for leg in default noavx2 scalar; do
   case $leg in

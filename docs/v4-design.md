@@ -1,6 +1,6 @@
 # sv v4 design: how fast can sv go, and how
 
-Status: proposal with a measured prototype (`proto/Sv.V4`). Nothing in `src/`, `contract/`, tests or pinned digests changes in this PR.
+Status: decided (section 8) and built as `src/Sv.Columns` (section 9, spec in `docs/v4-spec.md`). The measured prototype stays in `proto/Sv.V4`. Nothing in `contract/`, v3 tests or pinned digests changes.
 
 ## 1. The answer first
 
@@ -224,3 +224,34 @@ The owner delegated these with one principle: build a system that does one thing
 5. **Records are 8 bytes.** A record is one `ulong`: target slot (22 bits), channel (4), source kind (2), the source's frozen rule flags (8), amount (28). The source's kind and flags are read at send, so reduce never touches the source. Reason: the record path is bound by memory bandwidth (section 1), so halving the record halves its floor.
 6. **The v4 contract starts as `docs/v4-spec.md`.** It becomes normative when the owner merges it, and moves to `contract/` as a new file then; no existing contract file changes. Replay in v4 is the initial world plus each frame's inputs (records, lane sets, spawns, despawns), re-executed; the 32-epoch journal is not part of v4.0.
 7. **tl generator pin.** Tracked as an sv issue; unrelated to v4 and not blocking it.
+
+## 9. Built: Sv.Columns
+
+`src/Sv.Columns` is the product of section 8: one pack model, one compiler with every limit checked, 8-byte records, one frame law with a scalar definition (`Law`), Vector256 kernels (`Kernels`), and a slow interpreter of the pack itself (`Reference.ReferenceWorld`). `Sv.Host.ColumnRunner` steps a world on `Workers`. `PackJson` reads packs, with conditions as text (`"Health < 30% of MaxHealth and not event Dead"`). The normative law is `docs/v4-spec.md`.
+
+Checks (`tests/Sv.Columns.Tests`, 30 tests, green under default, `DOTNET_EnableAVX2=0` and `DOTNET_EnableHWIntrinsic=0`):
+- ten owner examples with hand-computed numbers (fire to healing with a card, execute doubling, shield absorb, poison ticks, regen, immunity, low-health hysteresis, phoenix revive, burning, hits and saturation);
+- scalar, Vector256 and the reference in lockstep on the arena pack under random traffic, and on 200 random packs;
+- record order, writer count, part count and kernel choice give equal digests; grouped target runs with dead targets and undeclared channels match the scalar law, drop counts included;
+- 0 B per warm frame; every compiler limit and name error is reported; the JSON arena pack equals the C# one.
+
+`benchmarks/Sv.Columns.Bench` (same VM, 4 cores, Vector256 only, medians after a 2 s warm-up, every run checked against the scalar law first, 0 B warm):
+
+| Load | v3 (section 4.1) | Prototype, AVX-512 | Sv.Columns, Vector256 | vs v3 |
+|---|---|---|---|---|
+| 20k x 500 column ops | about 240 ms as records | 0.41 ms | 0.58 ms | about 400x |
+| 1M x 500 column ops | about 15 s as records | 22.0 ms | 32.3 ms | about 460x |
+| 20k x 500 records | 236 to 240 ms | 5.2 to 8.7 ms | 8.1 ms | about 29x |
+| 1M x 10 records | 295 to 302 ms | 19.8 to 20.7 ms | 22.8 ms | about 13x |
+| 1M x (500 ops + 10 records) | about 15 s | 38.0 ms | 49.8 ms | about 300x |
+
+The product is a little slower than the prototype because it uses 256-bit vectors (decision 4) and runs a general pack (any conditions, scale, convert, absorb, events, gates) where the prototype hard-coded one. The records rows sit near the memory floor measured in section 4.1. Ops reach 100x and more because they are compiled per template and never travel as records; that is the path to use for millions of entities with hundreds of ops each.
+
+What the work found:
+- **Tiered JIT.** A method called once per frame stays in tier 0 or on-stack-replacement code for the first frames. The benchmark warms up for 2 s; the reduce loop is a small static method marked `AggressiveOptimization` so it is fully optimized from the first frame.
+- **Register pressure.** One big reduce loop spilled every local to the stack (about 50 instructions per record). Splitting the chunk change out and running four same-target records per Vector256 step took 20k x 500 records from 24 ms to 8 ms.
+- **Loop order.** Rules outer and rows inner (64 rows per rule) cut the fold and gate refresh from 2.5 to 1.3 microseconds per chunk. Condition masks computed 8 rows at a time as int32, and op terms summed in 16-row register accumulators, took 1M x 500 ops from 89 ms to 32 ms.
+- **Self-referencing bounds.** `bounds L [M, L]` must read both bounds before applying either. The random-pack fuzz caught a kernel that applied the floor first.
+
+Not done here: the Unity adapter for v4 and its CI leg need a Unity editor and the self-hosted runner, neither reachable from this environment. The library is netstandard2.1, C# 9, unmanaged and allocation-free, so it can be mirrored into `packages/com.sv.engine` the way `eng/engine-sync.sh` mirrors v3, with the Vector256 kernels replaced by Burst jobs that keep the scalar law as their twin.
+

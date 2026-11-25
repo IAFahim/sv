@@ -11,7 +11,7 @@ fi
 
 sources() {
   (cd "$root/src/Sv.Core" && find . -name '*.cs' -not -path './bin/*' -not -path './obj/*' | sed 's#^\./##' | sort | sed 's#^#Runtime/Core/#')
-  (cd "$root/src/Sv.Host" && find . -name '*.cs' -not -path './bin/*' -not -path './obj/*' -not -name 'HostPack.Plan.cs' | sed 's#^\./##' | sort | sed 's#^#Runtime/Host/#')
+  (cd "$root/src/Sv.Host" && find . -name '*.cs' -not -path './bin/*' -not -path './obj/*' -not -name 'HostPack.Plan.cs' -not -name 'ColumnRunner.cs' | sed 's#^\./##' | sort | sed 's#^#Runtime/Host/#')
   (cd "$root/src/Sv.Rules" && find . -name '*.cs' -not -path './bin/*' -not -path './obj/*' | sed 's#^\./##' | sort | sed 's#^#Editor/Rules/#')
 }
 
