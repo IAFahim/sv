@@ -229,9 +229,9 @@ The owner delegated these with one principle: build a system that does one thing
 
 `src/Sv.Columns` is the product of section 8: one pack model, one compiler with every limit checked, 8-byte records, one frame law with a scalar definition (`Law`), Vector256 kernels (`Kernels`), and a slow interpreter of the pack itself (`Reference.ReferenceWorld`). `Sv.Host.ColumnRunner` steps a world on `Workers`. `PackJson` reads packs, with conditions as text (`"Health < 30% of MaxHealth and not event Dead"`). The normative law is `docs/v4-spec.md`.
 
-Checks (`tests/Sv.Columns.Tests`, 30 tests, green under default, `DOTNET_EnableAVX2=0` and `DOTNET_EnableHWIntrinsic=0`):
+Checks (`tests/Sv.Columns.Tests`, 43 tests, green under default, `DOTNET_EnableAVX2=0` and `DOTNET_EnableHWIntrinsic=0`):
 - ten owner examples with hand-computed numbers (fire to healing with a card, execute doubling, shield absorb, poison ticks, regen, immunity, low-health hysteresis, phoenix revive, burning, hits and saturation);
-- scalar, Vector256 and the reference in lockstep on the arena pack under random traffic, and on 200 random packs;
+- scalar, Vector, Vector256 and the reference in lockstep on the arena pack under random traffic, and on 200 random packs; Vector also on lanes too wide for int32 sums;
 - record order, writer count, part count and kernel choice give equal digests; grouped target runs with dead targets and undeclared channels match the scalar law, drop counts included;
 - 0 B per warm frame; every compiler limit and name error is reported; the JSON arena pack equals the C# one.
 
@@ -253,5 +253,16 @@ What the work found:
 - **Loop order.** Rules outer and rows inner (64 rows per rule) cut the fold and gate refresh from 2.5 to 1.3 microseconds per chunk. Condition masks computed 8 rows at a time as int32, and op terms summed in 16-row register accumulators, took 1M x 500 ops from 89 ms to 32 ms.
 - **Self-referencing bounds.** `bounds L [M, L]` must read both bounds before applying either. The random-pack fuzz caught a kernel that applied the floor first.
 
-Not done here: the Unity adapter for v4 and its CI leg need a Unity editor and the self-hosted runner, neither reachable from this environment. The library is netstandard2.1, C# 9, unmanaged and allocation-free, so it can be mirrored into `packages/com.sv.engine` the way `eng/engine-sync.sh` mirrors v3, with the Vector256 kernels replaced by Burst jobs that keep the scalar law as their twin.
+Unity: `packages/com.sv.columns` mirrors `src/Sv.Columns` verbatim and adds `ColumnStepper` (a frame on the job system) and `ColumnHost` (a MonoBehaviour that opens a pack, steps it and disposes it). Unity 7000.0.0a21 runs CoreCLR (.NET 10) but compiles packages against netstandard2.1 without the `NET` define, so the Vector256 kernels are compiled out there even though the CPU has AVX2. `Simd` closes that gap: ops and condition masks in `System.Numerics.Vector<int>`, summed in int32 only when a per-chunk bound proves it exact, with the scalar law per group otherwise (spec section 6). It also serves any other netstandard2.1 host and ARM through NEON.
 
+The `sv Unity columns` job (self-hosted runner, AMD Ryzen 5 8500G, 12 threads, Unity jobs, every run checked against the scalar law first, 0 B warm) runs 14 EditMode tests, all green, including the canon digest equal to .NET on every kernel and on jobs, and a play-mode host test. Medians:
+
+| Load | Unity, scalar | Unity, Vector | Speed-up |
+|---|---|---|---|
+| 20k x 500 column ops | 2.59 ms | 0.48 ms | 5.4x |
+| 1M x 500 column ops | 125.0 ms | 20.3 ms | 6.2x |
+| 20k x 500 records | 6.9 ms | 6.8 ms | records stay scalar |
+| 1M x 10 records | 18.5 ms | 18.2 ms | records stay scalar |
+| 1M x (500 ops + 10 records) | 133.8 ms | 28.1 ms | 4.8x |
+
+On .NET, one thread, 20k x 500 ops: scalar 18.6 ms, `Vector` 3.3 ms, Vector256 2.2 ms. Vector256 stays the .NET choice because it also vectorizes the fold and the reduce. Burst was not needed: the managed job path with `Vector<int>` already runs 500 ops for a million entities in about 20 ms.

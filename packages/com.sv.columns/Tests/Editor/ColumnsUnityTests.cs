@@ -159,7 +159,7 @@ namespace Sv.Columns.Unity.Tests
                 windows[w] = GC.GetAllocatedBytesForCurrentThread() - before;
             }
 
-            Debug.Log("SVCOLUMNS warm allocation per 64 frames, after an empty window of " + windows[0] + " B: " + string.Join(", ", windows, 1, windows.Length - 1) + " B");
+            Debug.Log("SVCOLUMNS warm allocation per 64 frames, after an empty window of " + windows[0] + " B: " + string.Join(", ", Array.ConvertAll(windows, w => w.ToString()), 1, windows.Length - 1) + " B");
             Assert.AreEqual(0L, windows[windows.Length - 1] - windows[0]);
             Assert.GreaterOrEqual(world.Get(0, health), 0);
         }
