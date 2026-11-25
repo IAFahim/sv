@@ -99,6 +99,102 @@ namespace Sv.Columns
             return mask;
         }
 
+        public static int AddInChunk(ulong* records, int at, int count, int chunk, long* block, SlotGate* chunkGates, ulong aliveWord, ulong allAdmit, long* factors, bool scaled, out long missed)
+        {
+            var lost = 0L;
+            var amountMask = Vector256.Create(Record.AmountMask);
+            var amountSign = Vector256.Create(Record.AmountSign);
+            var sixBits = Vector256.Create(63UL);
+            var fifteen = Vector256.Create(15UL);
+            var oneBit = Vector256<ulong>.One;
+            var allVector = Vector256.Create(allAdmit);
+            var invalid = Vector256<ulong>.Zero;
+            var last = count - 4;
+            while (at < count)
+            {
+                var record = records[at];
+                var target = (int)(record >> Record.TargetShift);
+                if ((target >> 6) != chunk)
+                {
+                    break;
+                }
+
+                var row = target & (Rows - 1);
+                if (((aliveWord >> row) & 1ul) == 0)
+                {
+                    lost++;
+                    at++;
+                    continue;
+                }
+
+                var gate = chunkGates + row;
+                var blockRow = block + row;
+                if (at <= last)
+                {
+                    var targetBits = Vector256.Create(record >> Record.TargetShift);
+                    var admitVector = Vector256.Create(gate->Admit);
+                    var flagsVector = Vector256.Create((ulong)gate->Flags);
+                    while (at <= last)
+                    {
+                        var four = Vector256.Load(records + at);
+                        if (!Vector256.EqualsAll(Vector256.ShiftRightLogical(four, Record.TargetShift), targetBits))
+                        {
+                            break;
+                        }
+
+                        var shift = Vector256.ShiftRightLogical(four, Record.KindShift) & sixBits;
+                        var admitted = Avx2.ShiftRightLogicalVariable(admitVector, shift) & oneBit;
+                        var valid = Avx2.ShiftRightLogicalVariable(allVector, shift) & oneBit;
+                        invalid += oneBit - valid;
+                        var amount = (((four & amountMask) ^ amountSign) - amountSign).AsInt64();
+                        var channel = Vector256.ShiftRightLogical(four, Record.ChannelShift) & fifteen & (Vector256<ulong>.Zero - valid);
+                        if (scaled)
+                        {
+                            var index = Vector256.ShiftLeft(channel, 8) | (flagsVector & Vector256.ShiftRightLogical(four, Record.FlagsShift) & Vector256.Create(255UL));
+                            amount = TimesSmall(amount, Avx2.GatherVector256(factors, index.AsInt64(), 8));
+                        }
+
+                        var term = amount & (Vector256<long>.Zero - admitted.AsInt64());
+                        var cell = Vector256.ShiftLeft(Vector256.ShiftLeft(channel, 1) | Vector256.ShiftRightLogical(term.AsUInt64(), 63), 6).AsInt64();
+                        blockRow[cell.GetElement(0)] += term.GetElement(0);
+                        blockRow[cell.GetElement(1)] += term.GetElement(1);
+                        blockRow[cell.GetElement(2)] += term.GetElement(2);
+                        blockRow[cell.GetElement(3)] += term.GetElement(3);
+                        at += 4;
+                    }
+
+                    if (at >= count)
+                    {
+                        break;
+                    }
+
+                    record = records[at];
+                    if ((record >> Record.TargetShift) != (ulong)target)
+                    {
+                        continue;
+                    }
+                }
+
+                var single = (int)(record >> Record.ChannelShift) & 15;
+                var singleShift = (int)(record >> Record.KindShift) & 63;
+                if (((allAdmit >> singleShift) & 1ul) == 0)
+                {
+                    lost++;
+                    at++;
+                    continue;
+                }
+
+                var admittedOne = -(long)((gate->Admit >> singleShift) & 1ul);
+                var amountOne = (long)((record & Record.AmountMask) ^ Record.AmountSign) - (long)Record.AmountSign;
+                var termOne = amountOne * factors[(single << 8) | (int)(gate->Flags & (uint)(record >> Record.FlagsShift) & 255u)] & admittedOne;
+                blockRow[((single << 1) | (int)((ulong)termOne >> 63)) * Rows] += termOne;
+                at++;
+            }
+
+            missed = lost + (long)Vector256.Sum(invalid);
+            return at;
+        }
+
         public static void ResolveChunk(PackTables* pack, TemplateTable* template, int* lanes, SlotGate* gates, ulong alive, Scratch area)
         {
             AddOps(pack, template, lanes, gates, area);
@@ -629,6 +725,12 @@ namespace Sv.Columns
         static int BitIndex(ulong value) => System.Numerics.BitOperations.TrailingZeroCount(value);
 #else
         public static bool Supported => false;
+
+        public static int AddInChunk(ulong* records, int at, int count, int chunk, long* block, SlotGate* chunkGates, ulong aliveWord, ulong allAdmit, long* factors, bool scaled, out long missed)
+        {
+            missed = 0;
+            return at;
+        }
 
         public static void ResolveChunk(PackTables* pack, TemplateTable* template, int* lanes, SlotGate* gates, ulong alive, Scratch area)
         {

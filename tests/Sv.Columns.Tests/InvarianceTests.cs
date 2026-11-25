@@ -150,4 +150,60 @@ public sealed class InvarianceTests
             Assert.Equal(0, GC.GetAllocatedBytesForCurrentThread() - before);
         }
     }
+
+    [Fact]
+    public void GroupedTargetRunsWithDeadTargetsAndBadChannelsMatchTheScalarLaw()
+    {
+        using var pack = ArenaPack.Build().Compile();
+        using var scalar = new ColumnWorld(pack, 2048, 1, 1, KernelChoice.Scalar);
+        using var best = new ColumnWorld(pack, 2048, 1, 1);
+        var dice = new Dice(31);
+        var slots = new List<int>();
+        for (var i = 0; i < 900; i++)
+        {
+            var template = pack.Template(dice.Pick(pack.TemplateNames));
+            var slot = scalar.Spawn(template);
+            Assert.Equal(slot, best.Spawn(template));
+            slots.Add(slot);
+        }
+
+        for (var frame = 0; frame < 30; frame++)
+        {
+            for (var i = 0; i < 20; i++)
+            {
+                var gone = dice.Pick(slots);
+                if (scalar.IsAlive(gone))
+                {
+                    scalar.Despawn(gone);
+                    best.Despawn(gone);
+                }
+            }
+
+            foreach (var target in slots)
+            {
+                var run = dice.Range(0, 40);
+                for (var r = 0; r < run; r++)
+                {
+                    var channel = dice.Range(0, 7);
+                    var amount = dice.Chance(3) ? (long)dice.Range(-1, 1) << 30 : dice.Range(-50, 80);
+                    var kind = dice.Range(0, 3);
+                    var flags = (uint)dice.Range(0, 255);
+                    var record = Record.Pack(dice.Chance(2) ? 4_000_000 : target, channel, kind, flags, amount);
+                    scalar.Writer(0).SendRecord(record);
+                    best.Writer(0).SendRecord(record);
+                    if (dice.Chance(20))
+                    {
+                        var source = dice.Pick(slots);
+                        scalar.Writer(0).Send(target, source, channel % 6, amount);
+                        best.Writer(0).Send(target, source, channel % 6, amount);
+                    }
+                }
+            }
+
+            scalar.Step();
+            best.Step();
+            Assert.Equal(scalar.Digest(), best.Digest());
+            Assert.Equal(scalar.Dropped, best.Dropped);
+        }
+    }
 }

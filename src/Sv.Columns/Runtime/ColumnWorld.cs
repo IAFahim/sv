@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System;
 using System.Collections.Generic;
 
@@ -316,32 +317,67 @@ namespace Sv.Columns
             var writerBlocks = blocks + (long)writer * chunkCount;
             var writerStamps = stamps + (long)writer * chunkCount;
             var lost = 0L;
-            var lastChunk = -1;
-            long* block = null;
-            for (var i = 0; i < count; i++)
+            var capacity = (uint)Capacity;
+            var allAdmit = tables->AllAdmit;
+            var factors = tables->Factors;
+            var i = 0;
+            while (i < count)
             {
-                var record = records[i];
-                var target = Record.Target(record);
-                var chunk = target / Rows;
-                if (target >= Capacity || ((alive[chunk] >> (target % Rows)) & 1ul) == 0 || Record.Channel(record) >= tables->ChannelCount || Record.Kind(record) >= tables->KindCount)
+                var target = (int)(records[i] >> Record.TargetShift);
+                if ((uint)target >= capacity)
                 {
                     lost++;
+                    i++;
                     continue;
                 }
 
-                if (chunk != lastChunk)
-                {
-                    block = BlockFor(writerBlocks, writerStamps, chunk);
-                    lastChunk = chunk;
-                }
-
-                Law.ReduceRecord(tables, gates, record, block);
+                var chunk = target >> 6;
+                var block = BlockFor(writerBlocks, writerStamps, chunk);
+                long missed;
+                i = Vectorized
+                    ? Kernels.AddInChunk(records, i, count, chunk, block, gates + (long)chunk * Rows, alive[chunk], allAdmit, factors, tables->ScaleCount > 0, out missed)
+                    : AddInChunk(records, i, count, chunk, block, gates + (long)chunk * Rows, alive[chunk], allAdmit, factors, out missed);
+                lost += missed;
             }
 
             dropped[writer * 8] += lost;
             source.Clear();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        static int AddInChunk(ulong* records, int at, int count, int chunk, long* block, SlotGate* chunkGates, ulong aliveWord, ulong allAdmit, long* factors, out long missed)
+        {
+            var lost = 0L;
+            for (; at < count; at++)
+            {
+                var record = records[at];
+                var target = (int)(record >> Record.TargetShift);
+                if ((target >> 6) != chunk)
+                {
+                    break;
+                }
+
+                var row = target & (Rows - 1);
+                var channel = (int)(record >> Record.ChannelShift) & 15;
+                var shift = (channel << 2) | ((int)(record >> Record.KindShift) & 3);
+                if (((aliveWord >> row) & (allAdmit >> shift) & 1ul) == 0)
+                {
+                    lost++;
+                    continue;
+                }
+
+                var gate = chunkGates + row;
+                var admitted = -(long)((gate->Admit >> shift) & 1ul);
+                var amount = (long)((record & Record.AmountMask) ^ Record.AmountSign) - (long)Record.AmountSign;
+                var term = amount * factors[(channel << 8) | (int)(gate->Flags & (uint)(record >> Record.FlagsShift) & 255u)] & admitted;
+                block[((channel << 1) | (int)((ulong)term >> 63)) * Rows + row] += term;
+            }
+
+            missed = lost;
+            return at;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
         long* BlockFor(long** writerBlocks, int* writerStamps, int chunk)
         {
             var block = writerBlocks[chunk];
