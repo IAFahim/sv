@@ -344,7 +344,9 @@ namespace Sv.Columns
             source.Clear();
         }
 
+#if NET
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         static int AddInChunk(ulong* records, int at, int count, int chunk, long* block, SlotGate* chunkGates, ulong aliveWord, ulong allAdmit, long* factors, out long missed)
         {
             var lost = 0L;
