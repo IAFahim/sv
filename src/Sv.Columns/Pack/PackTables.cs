@@ -104,6 +104,10 @@ namespace Sv.Columns
         public int AdmitShift;
         public int TermFirst;
         public int TermCount;
+        public long ConstGain;
+        public long ConstLoss;
+        public int CondConstEnd;
+        public int LaneEnd;
     }
 
     [StructLayout(LayoutKind.Sequential)]

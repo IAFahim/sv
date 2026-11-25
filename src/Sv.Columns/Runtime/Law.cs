@@ -150,8 +150,8 @@ namespace Sv.Columns
                         continue;
                     }
 
-                    var all = 0L;
-                    var loss = 0L;
+                    var all = group.ConstGain + group.ConstLoss;
+                    var loss = group.ConstLoss;
                     for (var t = 0; t < group.TermCount; t++)
                     {
                         var term = template->Terms[group.TermFirst + t];

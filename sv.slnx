@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/Sv.Columns.Bench/Sv.Columns.Bench.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/Sv.Columns/Sv.Columns.csproj" />
   </Folder>

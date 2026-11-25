@@ -492,6 +492,8 @@ namespace Sv.Columns
         public readonly long* Masks;
         public readonly ulong* Admit;
         public readonly ulong* OpFlags;
+        public readonly long* Work0;
+        public readonly long* Work1;
         public readonly bool* Preds;
 
         public Scratch(byte* at, PackTables* pack)
@@ -502,7 +504,9 @@ namespace Sv.Columns
             Masks = Gain + PackLimits.Channels * Law.Rows;
             Admit = (ulong*)(Masks + MaxPreds(pack) * Law.Rows);
             OpFlags = Admit + Law.Rows;
-            Preds = (bool*)(OpFlags + Law.Rows);
+            Work0 = (long*)(OpFlags + Law.Rows);
+            Work1 = Work0 + Law.Rows;
+            Preds = (bool*)(Work1 + Law.Rows);
         }
 
         static int MaxPreds(PackTables* pack)
@@ -517,6 +521,6 @@ namespace Sv.Columns
         }
 
         public static int BytesFor(PackTables* pack) =>
-            ((pack->ClassCount + pack->LaneCount + PackLimits.Channels + MaxPreds(pack) + 2) * Law.Rows * 8 + MaxPreds(pack) + 63) & ~63;
+            ((pack->ClassCount + pack->LaneCount + PackLimits.Channels + MaxPreds(pack) + 4) * Law.Rows * 8 + MaxPreds(pack) + 63) & ~63;
     }
 }

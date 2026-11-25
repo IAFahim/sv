@@ -740,12 +740,41 @@ namespace Sv.Columns
 
                 foreach (var pair in groupKeys)
                 {
-                    var group = new OpGroup { Channel = pair.Key / PackLimits.Kinds, AdmitShift = pair.Key, TermFirst = build.Terms.Count, TermCount = pair.Value.Count };
-                    foreach (var term in pair.Value)
+                    var group = new OpGroup { Channel = pair.Key / PackLimits.Kinds, AdmitShift = pair.Key, TermFirst = build.Terms.Count };
+                    for (var category = 1; category <= 3; category++)
                     {
-                        build.Terms.Add(new OpTerm { Pred = term.Key.Pred, Lane = term.Key.Lane, Amount = term.Value.Amount, Gain = term.Value.Gain, Loss = term.Value.Loss });
+                        foreach (var term in pair.Value)
+                        {
+                            var key = term.Key;
+                            if (key.Lane < 0 && key.Pred < 0)
+                            {
+                                if (category == 1)
+                                {
+                                    group.ConstGain += term.Value.Gain;
+                                    group.ConstLoss += term.Value.Loss;
+                                }
+
+                                continue;
+                            }
+
+                            var of = key.Lane < 0 ? 1 : key.Pred < 0 ? 2 : 3;
+                            if (of == category)
+                            {
+                                build.Terms.Add(new OpTerm { Pred = key.Pred, Lane = key.Lane, Amount = term.Value.Amount, Gain = term.Value.Gain, Loss = term.Value.Loss });
+                            }
+                        }
+
+                        if (category == 1)
+                        {
+                            group.CondConstEnd = build.Terms.Count - group.TermFirst;
+                        }
+                        else if (category == 2)
+                        {
+                            group.LaneEnd = build.Terms.Count - group.TermFirst;
+                        }
                     }
 
+                    group.TermCount = build.Terms.Count - group.TermFirst;
                     build.Groups.Add(group);
                 }
 
