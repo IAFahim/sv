@@ -19,7 +19,10 @@ namespace Sv.Columns.Unity.Tests
         {
             using var pack = PackJson.Read(Arena()).Compile();
             using var world = new ColumnWorld(pack, CanonRun.Capacity);
-            Debug.Log("SVCOLUMNS runtime " + RuntimeInformation.FrameworkDescription + " " + RuntimeInformation.ProcessArchitecture + ", kernels " + (world.Vectorized ? "Vector256" : "scalar") + ", job workers " + JobsUtility.JobWorkerCount);
+            var avx2 = Type.GetType("System.Runtime.Intrinsics.X86.Avx2, System.Private.CoreLib");
+            var supported = avx2?.GetProperty("IsSupported")?.GetValue(null);
+            Debug.Log("SVCOLUMNS runtime " + RuntimeInformation.FrameworkDescription + " " + RuntimeInformation.ProcessArchitecture + ", kernels " + (world.Vectorized ? "Vector256" : "scalar") + ", runtime Avx2 " + (supported ?? "absent") + ", job workers " + JobsUtility.JobWorkerCount);
+            Debug.Log("SVCOLUMNS defines " + string.Join(" ", UnityEditor.EditorUserBuildSettings.activeScriptCompilationDefines));
             Assert.AreEqual(pack.TemplateNames.Count, 9);
         }
 
@@ -107,7 +110,7 @@ namespace Sv.Columns.Unity.Tests
             CanonRun.Run(world, world.Step);
             var health = pack.Lane("Health");
             var fire = pack.Channel("Fire");
-            for (var f = 0; f < 4; f++)
+            for (var f = 0; f < 256; f++)
             {
                 world.Writer(f & 1).Send(0, fire, 3);
                 world.Step();

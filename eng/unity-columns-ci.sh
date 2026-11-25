@@ -69,6 +69,12 @@ for step in $steps; do
       code=$?
       echo "compile exit=$code $(counts "$log")"
       grep -E 'warning CS' "$log" | grep -F 'com.sv.columns' | sort -u | head -20
+      rsp="$(find "$probe/Library/Bee" -name 'Sv.Columns.rsp' 2>/dev/null | head -1)"
+      if [ -n "$rsp" ]; then
+        echo "Sv.Columns csc defines: $(grep -o -- '-define:[A-Za-z0-9_]*' "$rsp" | sed 's/-define://' | sort -u | tr '\n' ' ')"
+        echo "Sv.Columns csc references: $(grep -c -- '-r:' "$rsp"), for example:"
+        grep -o -- '-r:"[^"]*"' "$rsp" | grep -iE 'netstandard|System.Runtime|System.Private|mscorlib' | head -6
+      fi
       if [ $code -ne 0 ] || [ "$(grep -c 'error CS' "$log")" -ne 0 ]; then
         status=1; grep -E 'error CS' "$log" | sort -u | head -20 >&2
       fi

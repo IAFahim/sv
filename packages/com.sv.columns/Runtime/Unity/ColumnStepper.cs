@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.InteropServices;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 
 namespace Sv.Columns.Unity
@@ -51,6 +52,7 @@ namespace Sv.Columns.Unity
 
         struct BeginJob : IJob
         {
+            [NativeDisableUnsafePtrRestriction]
             public IntPtr State;
 
             public void Execute() => Of(State).BeginFrame();
@@ -58,6 +60,7 @@ namespace Sv.Columns.Unity
 
         struct ReduceJob : IJobParallelFor
         {
+            [NativeDisableUnsafePtrRestriction]
             public IntPtr State;
 
             public void Execute(int index) => Of(State).Reduce(index);
@@ -65,6 +68,7 @@ namespace Sv.Columns.Unity
 
         struct ResolveJob : IJobParallelFor
         {
+            [NativeDisableUnsafePtrRestriction]
             public IntPtr State;
 
             public void Execute(int index) => Of(State).Resolve(index);
@@ -72,6 +76,7 @@ namespace Sv.Columns.Unity
 
         struct EndJob : IJob
         {
+            [NativeDisableUnsafePtrRestriction]
             public IntPtr State;
 
             public void Execute() => Of(State).EndFrame();

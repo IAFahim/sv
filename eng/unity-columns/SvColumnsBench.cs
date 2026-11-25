@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using Sv.Columns;
 using Sv.Columns.Bench;
 using Sv.Columns.Unity;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using Unity.Jobs.LowLevel.Unsafe;
 using UnityEngine;
@@ -21,6 +22,7 @@ public static class SvColumnsBench
 
     struct SendJob : IJobParallelFor
     {
+        [NativeDisableUnsafePtrRestriction]
         public IntPtr State;
 
         public void Execute(int part)
