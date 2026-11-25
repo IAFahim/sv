@@ -145,3 +145,16 @@ The scalar law (`Law`) is the definition. The Vector256 kernels (`Kernels`, `#if
 ```
 
 Unknown keys, fractions, duplicate keys and broken JSON are errors with their place (`pack.rules[3].convert: ...`, `json line 4 column 9: ...`). `packs/columns/arena.json` is the worked example.
+
+## 8. Unity
+
+`packages/com.sv.columns` (Unity 7, no package dependencies) holds `Sv.Columns` copied verbatim by `eng/columns-sync.sh sync`; `eng/columns-sync.sh check` (part of `eng/v3-verify.sh`) fails when the copy and `src/Sv.Columns` differ. Beside it:
+
+| Type | Does |
+|---|---|
+| `ColumnStepper(world)` | `Schedule(dependsOn)` runs a frame on the job system: begin, one job per writer for the reduces, one per part for the resolves, end. `Step()` schedules and completes. Nothing may send, `Set`, spawn or despawn until the handle completes. |
+| `ColumnHost` (MonoBehaviour) | Opens a world from a JSON `TextAsset` (or `Open(json, capacity, writers, parts, useJobs, kernels)`), steps it in `LateUpdate`, `FixedUpdate` or only on `Step()`, raises `Stepped`, and disposes everything when its object is destroyed. Resolve parts default to four per job thread. |
+
+Game code sends records with `host.World.Writer(w).Send(...)` before the step, one writer per thread. To tie slots to entities, keep the slot in a component.
+
+`Tests/Editor/Canon/Canon.cs` is the mirrored `tests/Sv.Columns.Tests/Canon/Canon.cs`: the .NET suite and the Unity EditMode suite run the same 48 frames on `arena.json` and assert the same pinned digest, on scalar and best kernels, in one thread, on `Workers` and on Unity jobs, and through `ColumnHost`. The Unity job `sv Unity columns` (`eng/unity-columns-ci.sh` on the self-hosted `unity` runner) compiles the package, runs those tests and prints `SVCOLUMNS` benchmark lines for the same shapes as `Sv.Columns.Bench`.

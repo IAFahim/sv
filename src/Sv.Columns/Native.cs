@@ -18,7 +18,7 @@ namespace Sv.Columns
             var raw = Marshal.AllocHGlobal((IntPtr)((long)size + Alignment + sizeof(IntPtr)));
             var aligned = ((long)raw + sizeof(IntPtr) + Alignment - 1) & ~(long)(Alignment - 1);
             ((IntPtr*)aligned)[-1] = raw;
-            new Span<byte>((void*)aligned, (int)size).Clear();
+            Clear((void*)aligned, (long)size);
             return (void*)aligned;
 #endif
         }

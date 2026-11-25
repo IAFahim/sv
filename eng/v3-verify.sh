@@ -24,6 +24,7 @@ run() {
 
 note "mirrors"
 bash eng/engine-sync.sh check || failed=1
+bash eng/columns-sync.sh check || failed=1
 bash eng/tl-plain-sync.sh check || failed=1
 
 note "build"

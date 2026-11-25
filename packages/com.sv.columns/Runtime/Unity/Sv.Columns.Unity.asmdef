@@ -1,0 +1,16 @@
+{
+    "name": "Sv.Columns.Unity",
+    "rootNamespace": "Sv.Columns.Unity",
+    "references": [
+        "Sv.Columns"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

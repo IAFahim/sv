@@ -1,0 +1,64 @@
+{
+  "lanes": [
+    { "name": "Health", "default": 100 },
+    { "name": "MaxHealth", "default": 100 },
+    { "name": "Shield", "default": 0 },
+    { "name": "PoisonTicks", "default": 0 },
+    { "name": "RegenRate", "default": 0 },
+    { "name": "RegenCard", "default": 0 },
+    { "name": "Converter", "default": 0 },
+    { "name": "Execute", "default": 0 },
+    { "name": "ImmuneMask", "default": 0 },
+    { "name": "KindMask", "default": 0 },
+    { "name": "Kind", "default": 0 },
+    { "name": "ReviveCharges", "default": 0 },
+    { "name": "FireTaken", "default": 0 }
+  ],
+  "channels": ["Physical", "Poison", "Fire", "Healing", "PoisonTime", "ReviveSpend"],
+  "kinds": ["None", "Sniper", "Rifle", "Beast"],
+  "kindLane": "Kind",
+  "cards": [
+    { "name": "poison", "lane": "PoisonTicks", "ops": [
+      { "channel": "Poison", "amount": 4 },
+      { "channel": "PoisonTime", "amount": -1 }
+    ] },
+    { "name": "regen", "lane": "RegenCard", "ops": [
+      { "channel": "Healing", "amount": 1, "times": "RegenRate" }
+    ] },
+    { "name": "converter", "lane": "Converter", "ops": [] },
+    { "name": "revive", "lane": "ReviveCharges", "ops": [
+      { "channel": "Healing", "amount": 50, "when": "entered Dead" },
+      { "channel": "ReviveSpend", "amount": -1, "when": "entered Dead" }
+    ] }
+  ],
+  "templates": [
+    { "name": "dummy" },
+    { "name": "poisoned", "values": { "PoisonTicks": 3 } },
+    { "name": "regen", "values": { "Health": 25, "RegenRate": 4 }, "cards": { "regen": 1 } },
+    { "name": "shielded", "values": { "Shield": 30 } },
+    { "name": "converter", "values": { "Health": 50 }, "cards": { "converter": 1 } },
+    { "name": "executioner", "values": { "Execute": 1 } },
+    { "name": "sniper", "values": { "Kind": 1 } },
+    { "name": "phoenix", "values": { "Health": 30 }, "cards": { "revive": 1 } },
+    { "name": "burning", "ops": [
+      { "channel": "Fire", "amount": 3 },
+      { "channel": "Fire", "amount": 2, "when": "Health < 50% of MaxHealth" }
+    ] }
+  ],
+  "rules": [
+    { "denyByMask": { "lane": "ImmuneMask", "byKind": false } },
+    { "denyByMask": { "lane": "KindMask", "byKind": true } },
+    { "scale": { "channels": ["Physical"], "times": 2, "when": "Health < 20% of MaxHealth", "sourceWhen": "Execute > 0" } },
+    { "convert": { "from": "Fire", "to": "Healing", "numerator": 1, "denominator": 1, "when": "Converter > 0" } },
+    { "absorb": { "budget": "Shield", "channels": ["Physical", "Poison", "Fire"] } },
+    { "flow": { "lane": "Health", "add": ["Healing"], "subtract": ["Physical", "Poison", "Fire"] } },
+    { "flow": { "lane": "FireTaken", "add": ["Fire"] } },
+    { "flow": { "lane": "PoisonTicks", "add": ["PoisonTime"] } },
+    { "flow": { "lane": "ReviveCharges", "add": ["ReviveSpend"] } },
+    { "bounds": { "lane": "Health", "floor": 0, "ceiling": "MaxHealth" } },
+    { "bounds": { "lane": "PoisonTicks", "floor": 0 } },
+    { "bounds": { "lane": "ReviveCharges", "floor": 0 } },
+    { "event": { "name": "Dead", "enter": "Health <= 0" } },
+    { "event": { "name": "LowHealth", "enter": "Health < 30% of MaxHealth", "stay": "Health < 40% of MaxHealth" } }
+  ]
+}
