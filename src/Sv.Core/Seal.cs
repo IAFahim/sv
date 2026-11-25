@@ -30,6 +30,8 @@ namespace Sv
         public const int MinimumRange = 16;
         public const int SmallSort = 24;
         public const int RunLength = 16;
+        public const int LongRun = 64;
+        public const int LongRuns = 15;
         public const int TotalCount = 0;
         public const int TotalActive = 1;
         public const int TotalShifted = 2;
@@ -215,6 +217,7 @@ namespace Sv
         public static void Order(in SealView view, int chunkFrom, int chunkTo)
         {
             var rows = stackalloc int[EffectKey.Rows];
+            var runs = stackalloc int[2 * LongRuns + 2];
             for (var chunk = chunkFrom; chunk < chunkTo; chunk++)
             {
                 var count = view.Merged[chunk];
@@ -231,7 +234,207 @@ namespace Sv
                     continue;
                 }
 
-                view.Merged[chunk] = shape == 1 || count <= SmallSort ? Merge(shape == 1 ? segment : Small(segment, count), count, segment) : SortedRows(segment, view.Scratch + offset, count, rows);
+                if (shape == 1 || count <= SmallSort)
+                {
+                    view.Merged[chunk] = Merge(shape == 1 ? segment : Small(segment, count), count, segment);
+                    continue;
+                }
+
+                var mostly = Mostly(segment, view.Scratch + offset, count, rows, runs, out var skipped);
+                view.Base[chunk] = offset + skipped;
+                view.Merged[chunk] = mostly >= 0 ? mostly : SortedRows(segment, view.Scratch + offset, count, rows);
+            }
+        }
+
+        static int Mostly(Effect* data, Effect* temp, int count, int* rows, int* runs, out int skipped)
+        {
+            skipped = 0;
+            var longs = 0;
+            var kept = 0;
+            var start = 0;
+            var groups = 0;
+            var least = count >> 5 > LongRun ? count >> 5 : LongRun;
+            for (var at = 1; at <= count; at++)
+            {
+                if (at < count && data[at].Key >= data[at - 1].Key)
+                {
+                    groups |= data[at].Key == data[at - 1].Key & data[at].Amount < data[at - 1].Amount ? 1 : 0;
+                    continue;
+                }
+
+                if (at - start >= least)
+                {
+                    if (longs == LongRuns)
+                    {
+                        return -1;
+                    }
+
+                    runs[2 * longs] = start;
+                    runs[2 * longs + 1] = at;
+                    longs++;
+                    kept += at - start;
+                }
+
+                start = at;
+            }
+
+            var residue = count - kept;
+            if (residue * 2 > count)
+            {
+                return -1;
+            }
+
+            var gathered = 0;
+            var from = 0;
+            for (var run = 0; run < longs; run++)
+            {
+                var gap = runs[2 * run] - from;
+                Memory.Copy(data + from, temp + gathered, (nuint)gap * (nuint)sizeof(Effect));
+                gathered += gap;
+                from = runs[2 * run + 1];
+            }
+
+            Memory.Copy(data + from, temp + gathered, (nuint)(count - from) * (nuint)sizeof(Effect));
+            var packed = 0;
+            for (var run = 0; run < longs; run++)
+            {
+                var low = runs[2 * run];
+                var length = runs[2 * run + 1] - low;
+                if (low != packed)
+                {
+                    Memory.Copy(data + low, data + packed, (nuint)length * (nuint)sizeof(Effect));
+                }
+
+                runs[run] = packed;
+                packed += length;
+            }
+
+            if (groups != 0)
+            {
+                Groups(data, temp + residue, packed);
+            }
+
+            if (longs == 1 && residue > 0)
+            {
+                var tail = Sort(temp, data + packed, residue, rows);
+                if (tail != temp)
+                {
+                    Memory.Copy(tail, temp, (nuint)residue * (nuint)sizeof(Effect));
+                }
+
+                skipped = Behind(data, packed, temp, residue);
+                return count - skipped;
+            }
+
+            var used = longs;
+            if (residue > 0)
+            {
+                var sorted = Sort(temp, data + packed, residue, rows);
+                if (sorted != data + packed)
+                {
+                    Memory.Copy(sorted, data + packed, (nuint)residue * (nuint)sizeof(Effect));
+                }
+
+                runs[used++] = packed;
+            }
+
+            runs[used] = count;
+            var source = data;
+            var target = temp;
+            while (used > 1)
+            {
+                var merged = 0;
+                for (var run = 0; run < used; run += 2)
+                {
+                    var low = runs[run];
+                    var middle = runs[run + 1];
+                    if (run + 1 < used)
+                    {
+                        MergeRuns(source + low, middle - low, source + middle, runs[run + 2] - middle, target + low);
+                    }
+                    else
+                    {
+                        Memory.Copy(source + low, target + low, (nuint)(middle - low) * (nuint)sizeof(Effect));
+                    }
+
+                    runs[merged++] = low;
+                }
+
+                runs[merged] = count;
+                used = merged;
+                var swap = source;
+                source = target;
+                target = swap;
+            }
+
+            return Merge(source, count, data);
+        }
+
+        static int Behind(Effect* data, int length, Effect* tail, int tailLength)
+        {
+            var l = length - 1;
+            var r = tailLength - 1;
+            var o = length + tailLength;
+            var key = 0ul;
+            var amount = 0;
+            var hits = 0L;
+            var open = false;
+            while (l >= 0 | r >= 0)
+            {
+                var takeLeft = r < 0 || (l >= 0 && EffectLaw.Precedes(tail[r], data[l]));
+                var item = takeLeft ? data[l] : tail[r];
+                l -= takeLeft ? 1 : 0;
+                r -= takeLeft ? 0 : 1;
+                if (open && item.Key == key && item.Amount == amount)
+                {
+                    hits += item.Hits;
+                    continue;
+                }
+
+                if (open)
+                {
+                    o--;
+                    data[o] = new Effect(key, amount, EffectLaw.Saturate32(hits));
+                }
+
+                key = item.Key;
+                amount = item.Amount;
+                hits = item.Hits;
+                open = true;
+            }
+
+            o--;
+            data[o] = new Effect(key, amount, EffectLaw.Saturate32(hits));
+            return o;
+        }
+
+        static void Groups(Effect* data, Effect* spare, int count)
+        {
+            var at = 0;
+            while (at < count)
+            {
+                var key = data[at].Key;
+                var end = at + 1;
+                var descents = 0;
+                while (end < count && data[end].Key == key)
+                {
+                    descents |= data[end].Amount < data[end - 1].Amount ? 1 : 0;
+                    end++;
+                }
+
+                if (descents != 0)
+                {
+                    if (end - at > SmallSort)
+                    {
+                        MergeSort(data + at, spare, end - at);
+                    }
+                    else
+                    {
+                        Insertion(data + at, end - at);
+                    }
+                }
+
+                at = end;
             }
         }
 
