@@ -103,7 +103,7 @@ PY
     bench)
       log="$out/bench.log"
       "$unity" -batchmode -nographics -projectPath "$probe" -executeMethod SvColumnsBench.Run -logFile "$log" \
-        -svColumnsShapes "${SV_COLUMNS_SHAPES:-ops:20000x500,ops:1000000x500,records:20000x500,records:1000000x10,mixed:1000000x500+10}" -svColumnsFrames "${SV_COLUMNS_FRAMES:-24}"
+        -svColumnsShapes "${SV_COLUMNS_SHAPES:-ops:20000x500,ops:1000000x500,records:20000x500,records:1000000x10,mixed:1000000x500+10}" -svColumnsFrames "${SV_COLUMNS_FRAMES:-24}" -svColumnsKernels "${SV_COLUMNS_KERNELS:-best,scalar}"
       code=$?
       echo "bench exit=$code"
       grep -E '^SVCOLUMNS' "$log" | sort -u

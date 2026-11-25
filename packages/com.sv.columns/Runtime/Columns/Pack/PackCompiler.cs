@@ -613,6 +613,8 @@ namespace Sv.Columns
                     into->GroupCount = build.Groups.Count;
                     into->Terms = Copy(build.Terms);
                     into->TermCount = build.Terms.Count;
+                    into->TimesLanes = Copy(build.TimesLanes);
+                    into->TimesLaneCount = build.TimesLanes.Count;
                 }
 
                 return new CompiledPack(pack, tables, Names(lanes), Names(channels), Names(kinds), Names(events), Names(templates), Names(cards));
@@ -642,6 +644,7 @@ namespace Sv.Columns
                 public int[] Defaults = Array.Empty<int>();
                 public List<int> Preds = new List<int>();
                 public List<OpGroup> Groups = new List<OpGroup>();
+                public List<int> TimesLanes = new List<int>();
                 public List<OpTerm> Terms = new List<OpTerm>();
             }
 
@@ -775,6 +778,27 @@ namespace Sv.Columns
                     }
 
                     group.TermCount = build.Terms.Count - group.TermFirst;
+                    long condGain = 0;
+                    long condLoss = 0;
+                    for (var t = group.TermFirst; t < build.Terms.Count; t++)
+                    {
+                        var term = build.Terms[t];
+                        if (term.Lane < 0)
+                        {
+                            condGain += term.Gain;
+                            condLoss -= term.Loss;
+                        }
+                        else
+                        {
+                            group.LaneAmount += Math.Abs(term.Amount);
+                            if (!build.TimesLanes.Contains(term.Lane))
+                            {
+                                build.TimesLanes.Add(term.Lane);
+                            }
+                        }
+                    }
+
+                    group.CondBound = Math.Max(condGain, condLoss);
                     build.Groups.Add(group);
                 }
 

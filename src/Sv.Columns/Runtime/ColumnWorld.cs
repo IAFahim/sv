@@ -43,7 +43,8 @@ namespace Sv.Columns
             chunkCount = (capacity + Rows - 1) / Rows;
             Capacity = chunkCount * Rows;
             parts = Math.Max(1, resolveParts);
-            Vectorized = kernels != KernelChoice.Scalar && Kernels.Supported;
+            KernelPath = kernels == KernelChoice.Best && Kernels.Supported ? KernelPath.Vector256 : kernels != KernelChoice.Scalar && Simd.Supported ? KernelPath.Vector : KernelPath.Scalar;
+            Vectorized = KernelPath == KernelPath.Vector256;
             lanes = Native.Zeroed<int>((long)chunkCount * chunkInts);
             chunkTemplates = Native.Zeroed<int>(chunkCount);
             for (var c = 0; c < chunkCount; c++)
@@ -84,6 +85,8 @@ namespace Sv.Columns
         public int ResolveParts => parts;
 
         public bool Vectorized { get; }
+
+        public KernelPath KernelPath { get; }
 
         public int Frame => frame;
 
@@ -432,7 +435,15 @@ namespace Sv.Columns
                     continue;
                 }
 
-                Law.AddOps(tables, template, chunkLanes, chunkGates, chunkAlive, area.Totals, area.Preds);
+                if (KernelPath == KernelPath.Vector)
+                {
+                    Simd.AddOps(tables, template, chunkLanes, chunkGates, chunkAlive, area);
+                }
+                else
+                {
+                    Law.AddOps(tables, template, chunkLanes, chunkGates, chunkAlive, area.Totals, area.Preds);
+                }
+
                 for (var row = 0; row < Rows; row++)
                 {
                     if (((chunkAlive >> row) & 1ul) != 0)
@@ -520,6 +531,14 @@ namespace Sv.Columns
     {
         Best = 0,
         Scalar = 1,
+        Vector = 2,
+    }
+
+    public enum KernelPath
+    {
+        Scalar = 0,
+        Vector = 1,
+        Vector256 = 2,
     }
 
     internal unsafe readonly struct Scratch

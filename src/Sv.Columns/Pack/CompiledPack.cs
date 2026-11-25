@@ -84,6 +84,7 @@ namespace Sv.Columns
                 Native.Free(template->Preds);
                 Native.Free(template->Groups);
                 Native.Free(template->Terms);
+                Native.Free(template->TimesLanes);
             }
 
             Native.Free(tables->Templates);

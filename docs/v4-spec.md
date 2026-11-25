@@ -99,7 +99,7 @@ The result of a frame depends only on the world before it and the multiset of re
 
 - the order of records and how they are split across writers;
 - the number of writers and resolve parts;
-- the kernels: `KernelChoice.Scalar`, `Best` with Vector256, and `Best` with `DOTNET_EnableAVX2=0` or `DOTNET_EnableHWIntrinsic=0` give equal digests;
+- the kernels: `KernelChoice.Scalar`, `Vector`, `Best` with Vector256, and each of them with `DOTNET_EnableAVX2=0` or `DOTNET_EnableHWIntrinsic=0` give equal digests;
 - the slow reference (`Sv.Columns.Reference.ReferenceWorld`), which interprets the `ColumnPack` directly, gives the same lanes.
 
 `ColumnWorld.Digest()` hashes slot, template and every lane of every alive slot in slot order. Replay is the initial world plus the records and edits of each frame; v4.0 keeps no journal.
@@ -119,7 +119,17 @@ A warm frame allocates 0 bytes on the managed heap. Record buffers grow by doubl
 
 ## 6. Kernels
 
-The scalar law (`Law`) is the definition. The Vector256 kernels (`Kernels`, `#if NET`, used when AVX2 is accelerated) process 16 rows per pass for ops, 8 rows per pass for condition masks, and runs of four records with the same target for the reduce. Both are checked against each other and against the reference on fixed examples and on random packs.
+The scalar law (`Law`) is the definition. Two kernels compute the same thing faster; `ColumnWorld.KernelPath` says which one a world uses.
+
+| Path | Chosen by | Does |
+|---|---|---|
+| `Vector256` | `Best`, when compiled for `net10.0` (`#if NET`) and AVX2 is accelerated | ops 16 rows per pass, condition masks 8 rows per pass, the fold and the reduce (runs of four records with one target) |
+| `Vector` | `Vector`, or `Best` when Vector256 is not there, when `System.Numerics.Vector` is accelerated with 4 to 16 ints | ops and condition masks in `Vector<int>`; the fold and the reduce stay scalar. This is the path a netstandard2.1 build such as Unity's takes |
+| `Scalar` | `Scalar`, or nothing above is accelerated | `Law` |
+
+The `Vector` path sums a group's terms in int32. It does so only when that is exact: per chunk it takes the largest absolute value M of every lane that a template's ops multiply, and per group it needs `sum of conditional constants + sum of absolute lane amounts * M <= int.MaxValue`; otherwise that group is summed for that chunk by the scalar law. Unconditional constants and the factor are applied in int64 as in the law.
+
+All three are checked against each other and against the reference on fixed examples, on random packs and on lanes too wide for int32 sums.
 
 ## 7. JSON
 
@@ -157,4 +167,4 @@ Unknown keys, fractions, duplicate keys and broken JSON are errors with their pl
 
 Game code sends records with `host.World.Writer(w).Send(...)` before the step, one writer per thread. To tie slots to entities, keep the slot in a component.
 
-`Tests/Editor/Canon/Canon.cs` is the mirrored `tests/Sv.Columns.Tests/Canon/Canon.cs`: the .NET suite and the Unity EditMode suite run the same 48 frames on `arena.json` and assert the same pinned digest, on scalar and best kernels, in one thread, on `Workers` and on Unity jobs, and through `ColumnHost`. The Unity job `sv Unity columns` (`eng/unity-columns-ci.sh` on the self-hosted `unity` runner) compiles the package, runs those tests and prints `SVCOLUMNS` benchmark lines for the same shapes as `Sv.Columns.Bench`.
+`Tests/Editor/Canon/Canon.cs` is the mirrored `tests/Sv.Columns.Tests/Canon/Canon.cs`: the .NET suite and the Unity EditMode suite run the same 48 frames on `arena.json` and assert the same pinned digest, on the scalar, vector and best kernels, in one thread, on `Workers` and on Unity jobs, and through `ColumnHost`. The Unity job `sv Unity columns` (`eng/unity-columns-ci.sh` on the self-hosted `unity` runner) compiles the package, runs those tests and prints `SVCOLUMNS` benchmark lines for the same shapes as `Sv.Columns.Bench`.

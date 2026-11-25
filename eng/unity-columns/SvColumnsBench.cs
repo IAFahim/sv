@@ -36,6 +36,7 @@ public static class SvColumnsBench
     {
         var shapes = Argument("-svColumnsShapes", "ops:20000x500,ops:1000000x500,records:20000x500,records:1000000x10,mixed:1000000x500+10");
         var frames = int.Parse(Argument("-svColumnsFrames", "24"), CultureInfo.InvariantCulture);
+        var choices = Argument("-svColumnsKernels", "best");
         var failures = 0;
         Report("SVCOLUMNS unity " + Application.unityVersion + " runtime " + RuntimeInformation.FrameworkDescription + " jobWorkers " + JobsUtility.JobWorkerCount + " processors " + SystemInfo.processorCount + " cpu " + SystemInfo.processorType);
         foreach (var shape in shapes.Split(','))
@@ -48,7 +49,10 @@ public static class SvColumnsBench
                 var counts = sizes[1].Split('+');
                 var ops = name == "records" ? 0 : int.Parse(counts[0], CultureInfo.InvariantCulture);
                 var records = name == "records" ? int.Parse(counts[0], CultureInfo.InvariantCulture) : counts.Length > 1 ? int.Parse(counts[1], CultureInfo.InvariantCulture) : 0;
-                failures += Measure(name, entities, ops, records, frames);
+                foreach (var choice in choices.Split(','))
+                {
+                    failures += Measure(name, entities, ops, records, frames, (KernelChoice)Enum.Parse(typeof(KernelChoice), choice, true));
+                }
             }
             catch (Exception error)
             {
@@ -64,14 +68,14 @@ public static class SvColumnsBench
         }
     }
 
-    static int Measure(string name, int entities, int ops, int records, int frames)
+    static int Measure(string name, int entities, int ops, int records, int frames, KernelChoice kernels)
     {
         const int templates = 8;
         var threads = JobsUtility.JobWorkerCount + 1;
         using var pack = BenchPack.Build(templates, ops, 12345).Compile();
-        var same = Check(pack, Math.Min(entities, 3_000), records, threads);
+        var same = Check(pack, Math.Min(entities, 3_000), records, threads, kernels);
         var capacity = ((entities + templates * 64 + 63) / 64) * 64;
-        using var world = new ColumnWorld(pack, capacity, threads, threads * 8);
+        using var world = new ColumnWorld(pack, capacity, threads, threads * 8, kernels);
         using var stepper = new ColumnStepper(world);
         var traffic = new Traffic { World = world, Slots = Spawn(world, pack, entities, templates), PerEntity = records };
         var handle = GCHandle.Alloc(traffic);
@@ -104,7 +108,7 @@ public static class SvColumnsBench
             var median = Percentile(steps, 50);
             Report(string.Format(CultureInfo.InvariantCulture,
                 "SVCOLUMNS {0} entities {1} ops {2} records {3} threads {4} kernels {5}: step median {6:0.000} ms (p10 {7:0.000}, p90 {8:0.000}) = {9:0.000} ns per entity-op; send {10:0.000} ms; alloc {11} B; scalar twin {12}; digest {13:X16}",
-                name, entities, ops, records, threads, world.Vectorized ? "Vector256" : "scalar", median, Percentile(steps, 10), Percentile(steps, 90),
+                name, entities, ops, records, threads, world.KernelPath, median, Percentile(steps, 10), Percentile(steps, 90),
                 median * 1e6 / ((double)entities * (ops + records)), Percentile(sends, 50), allocated, same ? "equal" : "DIFFERENT", world.Digest()));
             return same ? 0 : 1;
         }
@@ -164,11 +168,11 @@ public static class SvColumnsBench
         }
     }
 
-    static bool Check(CompiledPack pack, int entities, int records, int threads)
+    static bool Check(CompiledPack pack, int entities, int records, int threads, KernelChoice kernels)
     {
         var capacity = ((entities + 8 * 64 + 63) / 64) * 64;
         using var scalar = new ColumnWorld(pack, capacity, threads, threads, KernelChoice.Scalar);
-        using var best = new ColumnWorld(pack, capacity, threads, threads * 3);
+        using var best = new ColumnWorld(pack, capacity, threads, threads * 3, kernels);
         using var stepper = new ColumnStepper(best);
         var scalarSlots = Spawn(scalar, pack, entities, 8);
         var bestSlots = Spawn(best, pack, entities, 8);

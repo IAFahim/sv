@@ -70,6 +70,13 @@ namespace Sv.Columns.Bench
             return failures == 0 ? 0 : 1;
         }
 
+        static readonly KernelChoice Choice = Environment.GetEnvironmentVariable("SV_COLUMNS_KERNELS") switch
+        {
+            "scalar" => KernelChoice.Scalar,
+            "vector" => KernelChoice.Vector,
+            _ => KernelChoice.Best,
+        };
+
         static int Arg(string[] args, int at, int fallback) =>
             args.Length > at && int.TryParse(args[at], NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) ? value : fallback;
 
@@ -79,7 +86,7 @@ namespace Sv.Columns.Bench
             using var pack = BenchPack.Build(templates, ops, 12345).Compile();
             var same = Check(pack, Math.Min(entities, 3_000), records, threads, workers);
             var capacity = ((entities + templates * 64 + 63) / 64) * 64;
-            using var world = new ColumnWorld(pack, capacity, threads, threads * 8);
+            using var world = new ColumnWorld(pack, capacity, threads, threads * 8, Choice);
             var traffic = new Traffic { World = world, Slots = Spawn(world, pack, entities, templates), PerEntity = records };
             using var runner = new ColumnRunner(world, workers);
             var handle = GCHandle.Alloc(traffic);
@@ -116,7 +123,7 @@ namespace Sv.Columns.Bench
             var median = Median(totals);
             Console.WriteLine(string.Format(CultureInfo.InvariantCulture,
                 "v4-{0} {1:N0} entities x ({2} ops + {3} records), {4} threads, {5}: step median {6:0.000} ms (p10 {7:0.000}, p90 {8:0.000}) = {9:0.000} ns per entity-op; reduce {10:0.000} ms, resolve {11:0.000} ms; send {12:0.000} ms; alloc {13} B; scalar twin {14}; digest {15:X16}",
-                name, entities, ops, records, threads, world.Vectorized ? "Vector256" : "scalar", median, Percentile(totals, 10), Percentile(totals, 90), median * 1e6 / work,
+                name, entities, ops, records, threads, world.KernelPath, median, Percentile(totals, 10), Percentile(totals, 90), median * 1e6 / work,
                 Median(reduces), Median(resolves), Median(sends), allocated, same ? "equal" : "DIFFERENT", world.Digest()));
             return same && allocated == 0 ? 0 : 1;
         }
@@ -181,7 +188,7 @@ namespace Sv.Columns.Bench
         {
             var capacity = ((entities + 8 * 64 + 63) / 64) * 64;
             using var scalar = new ColumnWorld(pack, capacity, threads, threads, KernelChoice.Scalar);
-            using var best = new ColumnWorld(pack, capacity, threads, threads * 3);
+            using var best = new ColumnWorld(pack, capacity, threads, threads * 3, Choice);
             var scalarSlots = Spawn(scalar, pack, entities, 8);
             var bestSlots = Spawn(best, pack, entities, 8);
             using var runner = new ColumnRunner(best, workers);

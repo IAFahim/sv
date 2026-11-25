@@ -22,6 +22,8 @@ public sealed class CanonTests
     [InlineData(KernelChoice.Best, 1, 1)]
     [InlineData(KernelChoice.Best, 3, 7)]
     [InlineData(KernelChoice.Scalar, 4, 16)]
+    [InlineData(KernelChoice.Vector, 1, 1)]
+    [InlineData(KernelChoice.Vector, 3, 7)]
     public void TheCanonRunHasThePinnedDigest(KernelChoice kernels, int writers, int parts)
     {
         using var pack = PackJson.Read(Arena()).Compile();

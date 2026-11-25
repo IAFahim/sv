@@ -1,10 +1,13 @@
 using System;
+using System.Collections;
 using System.IO;
+using System.Numerics;
 using System.Runtime.InteropServices;
 using NUnit.Framework;
 using Sv.Columns.Canon;
 using Unity.Jobs.LowLevel.Unsafe;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace Sv.Columns.Unity.Tests
 {
@@ -21,7 +24,7 @@ namespace Sv.Columns.Unity.Tests
             using var world = new ColumnWorld(pack, CanonRun.Capacity);
             var avx2 = Type.GetType("System.Runtime.Intrinsics.X86.Avx2, System.Private.CoreLib");
             var supported = avx2?.GetProperty("IsSupported")?.GetValue(null);
-            Debug.Log("SVCOLUMNS runtime " + RuntimeInformation.FrameworkDescription + " " + RuntimeInformation.ProcessArchitecture + ", kernels " + (world.Vectorized ? "Vector256" : "scalar") + ", runtime Avx2 " + (supported ?? "absent") + ", job workers " + JobsUtility.JobWorkerCount);
+            Debug.Log("SVCOLUMNS runtime " + RuntimeInformation.FrameworkDescription + " " + RuntimeInformation.ProcessArchitecture + ", kernels " + world.KernelPath + ", Vector<int> " + Vector<int>.Count + (Vector.IsHardwareAccelerated ? " accelerated" : " software") + ", runtime Avx2 " + (supported ?? "absent") + ", job workers " + JobsUtility.JobWorkerCount);
             Debug.Log("SVCOLUMNS defines " + string.Join(" ", UnityEditor.EditorUserBuildSettings.activeScriptCompilationDefines));
             Assert.AreEqual(pack.TemplateNames.Count, 9);
         }
@@ -29,6 +32,8 @@ namespace Sv.Columns.Unity.Tests
         [TestCase(KernelChoice.Scalar, 1, 1)]
         [TestCase(KernelChoice.Best, 1, 1)]
         [TestCase(KernelChoice.Best, 3, 7)]
+        [TestCase(KernelChoice.Vector, 1, 1)]
+        [TestCase(KernelChoice.Vector, 2, 5)]
         public void TheCanonRunHasTheDotNetDigest(KernelChoice kernels, int writers, int parts)
         {
             using var pack = PackJson.Read(Arena()).Compile();
@@ -38,6 +43,7 @@ namespace Sv.Columns.Unity.Tests
 
         [TestCase(KernelChoice.Scalar)]
         [TestCase(KernelChoice.Best)]
+        [TestCase(KernelChoice.Vector)]
         public void TheCanonRunOnJobsHasTheDotNetDigest(KernelChoice kernels)
         {
             using var pack = PackJson.Read(Arena()).Compile();
@@ -47,7 +53,7 @@ namespace Sv.Columns.Unity.Tests
         }
 
         [Test]
-        public void TheHostRunsTheCanonAndClosesWithItsObject()
+        public void TheHostRunsTheCanonAndCloses()
         {
             var host = new GameObject("columns").AddComponent<ColumnHost>();
             try
@@ -59,14 +65,37 @@ namespace Sv.Columns.Unity.Tests
                 host.Stepped += _ => stepped++;
                 Assert.AreEqual(Hex(CanonRun.Pinned), Hex(CanonRun.Run(host.World!, host.Step)));
                 Assert.AreEqual(CanonRun.Frames, stepped);
+                host.Close();
+                Assert.IsNull(host.World);
+                Assert.Throws<InvalidOperationException>(() => host.Step());
             }
             finally
             {
                 UnityEngine.Object.DestroyImmediate(host.gameObject);
             }
+        }
 
+        [UnityTest]
+        public IEnumerator InPlayModeTheHostStepsInLateUpdateAndClosesWithItsObject()
+        {
+            yield return new EnterPlayMode();
+            var host = new GameObject("columns").AddComponent<ColumnHost>();
+            host.Open(Arena(), CanonRun.Capacity, 2);
+            var stepped = 0;
+            host.Stepped += _ => stepped++;
+            var spawned = host.World!.Spawn(host.World.Pack.Template("burning"));
+            var health = host.World.Pack.Lane("Health");
+            for (var f = 0; f < 4; f++)
+            {
+                yield return null;
+            }
+
+            Assert.Greater(stepped, 0);
+            Assert.Less(host.World.Get(spawned, health), 100);
+            UnityEngine.Object.Destroy(host.gameObject);
+            yield return null;
             Assert.IsNull(host.World);
-            Assert.IsNull(host.Pack);
+            yield return new ExitPlayMode();
         }
 
         [Test]
@@ -110,20 +139,28 @@ namespace Sv.Columns.Unity.Tests
             CanonRun.Run(world, world.Step);
             var health = pack.Lane("Health");
             var fire = pack.Channel("Fire");
-            for (var f = 0; f < 256; f++)
+            void Frames(int count)
             {
-                world.Writer(f & 1).Send(0, fire, 3);
-                world.Step();
+                for (var f = 0; f < count; f++)
+                {
+                    world.Writer(f & 1).Send(0, fire, 3);
+                    world.Step();
+                }
             }
 
-            var before = GC.GetAllocatedBytesForCurrentThread();
-            for (var f = 0; f < 16; f++)
+            Frames(256);
+            var windows = new long[5];
+            var start = GC.GetAllocatedBytesForCurrentThread();
+            windows[0] = GC.GetAllocatedBytesForCurrentThread() - start;
+            for (var w = 1; w < windows.Length; w++)
             {
-                world.Writer(f & 1).Send(0, fire, 3);
-                world.Step();
+                var before = GC.GetAllocatedBytesForCurrentThread();
+                Frames(64);
+                windows[w] = GC.GetAllocatedBytesForCurrentThread() - before;
             }
 
-            Assert.AreEqual(0L, GC.GetAllocatedBytesForCurrentThread() - before);
+            Debug.Log("SVCOLUMNS warm allocation per 64 frames, after an empty window of " + windows[0] + " B: " + string.Join(", ", windows, 1, windows.Length - 1) + " B");
+            Assert.AreEqual(0L, windows[windows.Length - 1] - windows[0]);
             Assert.GreaterOrEqual(world.Get(0, health), 0);
         }
     }

@@ -108,6 +108,8 @@ namespace Sv.Columns
         public long ConstLoss;
         public int CondConstEnd;
         public int LaneEnd;
+        public long CondBound;
+        public long LaneAmount;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -130,6 +132,8 @@ namespace Sv.Columns
         public int GroupCount;
         public OpTerm* Terms;
         public int TermCount;
+        public int* TimesLanes;
+        public int TimesLaneCount;
     }
 
     [StructLayout(LayoutKind.Sequential)]
