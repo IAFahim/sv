@@ -86,5 +86,19 @@ namespace Sv.Unity
 
             world.Step();
         }
+
+        public void OnDestroy(ref SystemState state)
+        {
+            var entities = handles.ToEntityArray(Allocator.Temp);
+            for (var at = 0; at < entities.Length; at++)
+            {
+                var handle = state.EntityManager.GetComponentData<SvWorldHandle>(entities[at]);
+                if (handle.Value != IntPtr.Zero)
+                {
+                    GCHandle.FromIntPtr(handle.Value).Free();
+                    state.EntityManager.SetComponentData(entities[at], new SvWorldHandle { Value = IntPtr.Zero });
+                }
+            }
+        }
     }
 }
