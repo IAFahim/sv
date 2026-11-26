@@ -157,6 +157,11 @@ namespace Sv.Pack
                 files.Add(HostGlue.EmitTl(plan, rootNamespace));
             }
 
+            if (glue && unity)
+            {
+                files.Add(HostGlue.EmitTlEntities(plan, rootNamespace));
+            }
+
             Directory.CreateDirectory(output);
             var written = 0;
             for (var i = 0; i < files.Count; i++)

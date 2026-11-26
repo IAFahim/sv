@@ -1,0 +1,31 @@
+{
+    "name": "Sv.Unity.V4.Tl",
+    "rootNamespace": "Sv.Unity.Timelines",
+    "references": [
+        "Sv.Engine.Core",
+        "Sv.Engine.Host",
+        "Sv.Unity.V4",
+        "Tl.Core",
+        "Tl.Unity",
+        "Unity.Entities",
+        "Unity.Burst",
+        "Unity.Collections"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "SV_TL_UNITY"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.tl.unity",
+            "expression": "0.0.0",
+            "define": "SV_TL_UNITY"
+        }
+    ],
+    "noEngineReferences": false
+}

@@ -1,6 +1,6 @@
 # 0528 sv and tl.unity in Entities: no ECS pairing, and the two step on different clocks
 
-Status: open
+Status: in progress (Entities glue, one clock and the EditMode proof done for v3 and v4; SubScene sample and v4 generated glue remain)
 
 ## Need
 A game that uses sv and tl.unity together in Entities should be able to drop both packages in, bake, and have timeline ticks reach sv and sv events start timelines, with no managed code on the hot path. Today it can't:
@@ -21,7 +21,19 @@ Glue stays in a host package, per the layer rule: sv and tl never reference each
 4. Proof: the NorthStar3 digest through tl.unity in Entities equals the digest through the plain host and through hand-written sends, at 30, 60 and 144 fps render rates.
 5. CI: the Entities sample and its digest test join the tl leg that the pinned tl.unity already runs.
 
-## Not done yet because
-- v4's half waits on 0525: cards first or outbox first as the default changes what the glue emits.
-- It builds on PR 114 (Burst host, `ColumnsState` Sender), still open.
-- It needs tl.unity changes too (a request blob reader the glue can call from Burst), which belong in tl.unity.
+## Done
+- One clock, v3: `SvClock.FixedStep` (tag `SvFixedStep` on the handle entity) moves sv into `SvFixedStepGroup`, last in `FixedStepSimulationSystemGroup`: `SvOpenFrameSystem`, `SvSendGroup`, `SvFixedStepSystem`, `SvEventGroup`. `SvStepSystem` (render frame) stays the default and skips tagged handles, so exactly one path steps. `SvTimelineClockSystem` switches automatically when a `TimelineLibrary` exists. sv references no tl type.
+- One clock, v4: `ColumnsFixedStep` on the config entity (authoring: `Fixed Step`) moves the frame to `ColumnsFixedStepSystem` in `ColumnsFixedStepGroup` after `ColumnsSendGroup`; `ColumnsStepSystem` keeps the untagged default.
+- Glue as hand-written generic Burst systems, not per-pack code: `SvOutboxSystem<TCell : ISvOutboxCell>` (in `com.sv.unity.v4`, no tl reference) and `SvTimelineRequestSystem` (in `Sv.Unity.V4.Tl`, compiled only with `com.tl.unity` via `versionDefines` `SV_TL_UNITY`). The event to timeline table is a `SvTimelineRule` buffer on the handle entity, filled once on the main thread with `TlLibrary.Find`, so no tl.unity change was needed.
+- `sv pack --glue tl --host unity` also emits `GlueEntities.g.cs`: the `ISvOutboxCell` partials, the generic system registrations and `TimelineRules.AddTo`. Byte-equality tests in `tests/Sv.NorthStar3/UnityLegTests.cs`.
+- v4, cards first: `ColumnsState.Sets` (lane edits applied between frames), `ColumnsCardSystem<TCell : IColumnsCardCell>` (a cell sets a card lane; the card's timer channel ends it) and `ColumnsOutboxSystem<TCell : IColumnsOutboxCell>` (`SendFrom`, as v3's `Outbox.Send`).
+- Proof: `Sv.Unity.V4.TlEntitiesTests` replays the five NorthStar3 journals through tl.unity's Entities systems and sv's fixed-step systems at 30, 60 and 144 rendered fps (1 and 11 workers): every per-frame digest equals the journal (pins `A566FAEC8837BA57`, `2D6A06776AE25DCB`), tl's cells equal the journal's timeline sends, and the glue reports Burst. `ColumnsClockTests` proves the v4 cards and outbox against a hand-stepped `ColumnWorld` at the same three rates.
+
+## Remaining
+- A sample SubScene (baked `PlayableDirector`, poison track, one slot) and its digest test (proposal 3).
+- v4 generated glue (cells, sv event to tl request rules for column packs): issue 0525. The v4 tl request system waits on it.
+
+## Earlier blockers, now cleared
+- 0525's default: the owner chose cards first, with the outbox kept for ported v3 code.
+- PR 114 (Burst host, `ColumnsState` Sender) merged.
+- No tl.unity change was needed: timeline names resolve once on the main thread into a `SvTimelineRule` buffer, which the Burst system reads.
