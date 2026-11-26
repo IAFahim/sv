@@ -690,4 +690,36 @@ public sealed class HistoryTests
         Assert.Throws<ObjectDisposedException>(() => world.Inputs(0));
         Assert.Throws<ObjectDisposedException>(() => world.BeginResimulate());
     }
+
+    [Theory]
+    [InlineData(32)]
+    [InlineData(64)]
+    public void AWideWindowReplaysAnEditAtItsOldestFrame(int history)
+    {
+        using var pack = Arena();
+        using var fresh = new ColumnWorld(pack, 256, 2);
+        using var world = new ColumnWorld(pack, 256, 2, 1, KernelChoice.Best, history);
+        var heroFresh = fresh.Spawn(pack.Template("regen"));
+        var hero = world.Spawn(pack.Template("regen"));
+        var frames = history + 16;
+        for (var f = 0; f < frames; f++)
+        {
+            Traffic(fresh, heroFresh, f);
+            if (f == 16)
+            {
+                fresh.Writer(0).Send(heroFresh, 0, 13);
+            }
+
+            fresh.Step();
+            Traffic(world, hero, f);
+            world.Step();
+        }
+
+        Assert.Equal(16, world.OldestFrame);
+        world.Inputs(16).AddAction(ColumnAction.Send(hero, 0, 13));
+        world.Resimulate();
+        Assert.Equal(frames, world.Frame);
+        Assert.Equal(fresh.Digest().ToString("X16"), world.Digest().ToString("X16"));
+        Assert.Equal(fresh.Dropped, world.Dropped);
+    }
 }

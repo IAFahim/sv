@@ -210,3 +210,17 @@ Cost (`Sv.Columns.Bench history`, 4 threads, Vector256, the bench pack: 14 lanes
 
 Memory per entity is `(H + 1) * (4 * lanes + 16)` bytes for checkpoints plus `(H + 1) * 8` bytes per record sent per entity per frame, at capacity.
 
+Choosing H. History is off unless the host opens it, and nothing in the library fixes a window: the 8 above is the value the tests, the sample and this table use. Size it as the longest rollback you will accept, in frames: `H = ceil(max rollback latency in seconds x tick rate)`, where the latency is the slowest input you still correct (round trip plus input delay and jitter margin), and a later input is dropped or handled by the host. A 128 Hz game that corrects inputs up to 250 ms late needs `H = 32`; at 60 Hz the same 250 ms is 15; 500 ms at 128 Hz is 64. A wider window costs memory and the worst-case replay, not frame time: the per-frame checkpoint copy is one ring slot whatever H is, and a rewind is one slot copied back. The first lap around the ring is slower while the operating system maps the new slots' pages; after H frames the cost is the steady one below.
+
+Wider windows (`Sv.Columns.Bench history <entities> 500 4 <frames> <H>`, same machine and pack, one run each, after the ring's first lap; the step with no history was 0.85 to 1.05 ms at 20k and 46.5 to 47.8 ms at 1M in these runs):
+
+| | H = 8 | H = 32 | H = 64 |
+|---|---|---|---|
+| memory per entity (checkpoints + record log) | 650 B + 720 B | 2.4 KB + 2.6 KB | 4.7 KB + 5.2 KB |
+| at 1M entities | 1.4 GB | 5.0 GB | 9.9 GB |
+| step overhead, 20k / 1M | +0.09 ms / +8.0 ms | +0.23 ms / +6.8 ms | +0.30 ms / not run |
+| `Rewind`, 20k / 1M | 0.21 / 13.2 ms | 0.20 / 12.6 ms | 0.21 ms / not run |
+| `Resimulate` the whole window, 20k / 1M | 10.2 / 537 ms | 41.6 / 2118 ms | 93.2 ms / not run |
+
+Replaying costs about one step per frame replayed, so the window a game can afford is set by how many frames it can replay inside one tick: a full 32-frame replay of 20k entities takes about 42 ms on 4 threads, more than five 128 Hz ticks of 7.8 ms, so a game that rolls back that far does it rarely, or keeps in the rollback world only the entities that need it, since replay work grows with the entities that take part.
+
