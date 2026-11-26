@@ -1,5 +1,7 @@
 # Issue 0071 — Atom 63 (roadmap 2.4): modifier instance pool — 32 B records, the `PairMods` pages deleted
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Roadmap [issues/0058](issues/0058-roadmap-1m-entities-5us.md) phase 2, atom 2.4 —
 S1. Labels: `ai`, `area:core`, `kind:feat`. Contract: none (ids stay 32-bit;
 the 64-bit id bump is roadmap 1.5, bus-first).

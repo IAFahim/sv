@@ -1,5 +1,7 @@
 # Issue 0076 — Atom 68 (roadmap 3.1): sparse change rows — `changedTouched` exposed per stat
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Roadmap [issues/0058](0058-roadmap-1m-entities-5us.md) phase 3, atom 3.1
 (§4.6, S4). Labels: `ai`, `area:core`, `kind:feat`. Contract: additive —
 new accessors beside `ChangedWords`, no existing signature moves.

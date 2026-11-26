@@ -1,5 +1,7 @@
 # Issue 0024 — Atom 19: checked-only `BindOutput`/`BindExternal` column length (implements 0021)
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Filed as GitHub issue #24 (pending — see receipts). Labels: `ai`, `area:core`,
 `kind:feat`.
 

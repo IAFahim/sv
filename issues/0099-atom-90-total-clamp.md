@@ -1,5 +1,7 @@
 # Issue 0099 — Atom 90 (roadmap 1.3): total clamp — crossed bounds are ceiling-wins, `applied` saturates
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Roadmap [issues/0058](0058-roadmap-1m-entities-5us.md) 1.3, fixes F8 + F9.
 Labels: `ai`, `area:core`, `kind:feat`. Contract: the v1.2 batch items 1–2
 (decisions 0044 + 0043 batch approval; bus relay 0052, correction 0053 —

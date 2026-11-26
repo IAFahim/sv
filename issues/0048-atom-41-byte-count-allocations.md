@@ -1,5 +1,7 @@
 # Issue 0048 — Atom 41: byte-count allocations — remove two-argument Alloc misuse (review atom 2)
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Filed as GitHub issue #28 (numbering offset — see issue #24 provenance note). Labels:
 `ai`, `area:core`, `kind:feat`. Source: design review 2026-10-20
 ([issues/0044](0044-2026-10-20-design-review.md), GitHub #24) §10 atom 2 / receipts —

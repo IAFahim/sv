@@ -1,5 +1,7 @@
 # Issue 0113 — Atom 104 (roadmap 7.5, §4.11 conditionals): conditional modifiers via crossings — no per-frame predicate
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 ## Changes
 
 None to production code — this atom is the §4.11 **facts receipt** proving the
