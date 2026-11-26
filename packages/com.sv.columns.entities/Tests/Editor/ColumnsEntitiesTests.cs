@@ -234,7 +234,7 @@ namespace Sv.Columns.Entities.Tests
                 {
                     for (var i = 0; i < slots.Length; i++)
                     {
-                        traffic.Send(slots[i], fire, 1);
+                        traffic.Send(slots[i], fire, 1, 1);
                     }
 
                     host.World.Writer(f & 1).Send(slots[f % slots.Length], fire, 2);
