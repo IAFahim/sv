@@ -343,6 +343,20 @@ namespace Sv.Columns.Entities.Tests
                         live = Alive(classic);
                     }
 
+                    if (dice.Next(4) == 0)
+                    {
+                        var template = dice.Next(pack.TemplateNames.Count);
+                        Assert.AreEqual(classic.Spawn(template), host.World.Spawn(template));
+                    }
+
+                    if (dice.Next(6) == 0 && live.Count > 1)
+                    {
+                        var gone = live[dice.Next(live.Count)];
+                        classic.Despawn(gone);
+                        host.World.Despawn(gone);
+                    }
+
+                    live = Alive(classic);
                     for (var i = dice.Next(0, 1200); i > 0; i--)
                     {
                         var target = dice.Next(5) == 0 ? dice.Next(-3, 2100) : live[dice.Next(live.Count)];
@@ -372,19 +386,6 @@ namespace Sv.Columns.Entities.Tests
                             classic.Writer(0).Send(target, channel, amount, 1);
                             traffic.Send(target, channel, amount, 1);
                         }
-                    }
-
-                    if (dice.Next(4) == 0)
-                    {
-                        var template = dice.Next(pack.TemplateNames.Count);
-                        Assert.AreEqual(classic.Spawn(template), host.World.Spawn(template));
-                    }
-
-                    if (dice.Next(6) == 0 && live.Count > 1)
-                    {
-                        var gone = live[dice.Next(live.Count)];
-                        classic.Despawn(gone);
-                        host.World.Despawn(gone);
                     }
 
                     classic.Step();

@@ -1,6 +1,6 @@
 # 0526 v4: Burst frames with many records per entity are slower than the managed Vector path
 
-Status: open (2026-11-26)
+Status: closed (2026-11-26, PR #126)
 
 Found by: the `sv Unity columns` bench on the branch that adds `com.sv.columns.entities` (Unity 7000.0.0a21, Ryzen 5 8500G, 12 job threads).
 
@@ -29,3 +29,13 @@ Each must keep the digests equal to `Step()`; `FusedFrameTests` and the Unity lo
 
 ## First fix
 Writers send records in the order their game code sends them, which in the bench (and in most games, which iterate entities in slot order) is already chunk order. `ColumnFrame.Bucket` now notices that in its counting pass and buckets such a set in place, so the scatter pass and its second copy of the records are gone; a set out of order still goes through the counting sort. Numbers from the Unity bench on this change are below.
+
+| Shape | Managed Vector | Burst rows |
+|---|---|---|
+| 20k entities x 500 ops | 0.44 ms | 0.36 ms |
+| 1M entities x 500 ops | 20.9 ms | 17.2 ms |
+| 1M x 500 ops + 10 records | 28.2 ms | 22.8 ms |
+| 20k entities x 500 records | 6.71 ms | 6.19 ms |
+| 1M entities x 10 records | 18.4 ms | 14.7 ms |
+
+Step medians from one run of the `sv Unity columns` job on PR #126 (same runner). Burst is now faster than the managed Vector path on every shape, with 0 B allocated and equal digests, so this issue is closed. The ideas above stay open as further speedups for records sent out of chunk order.
