@@ -23,5 +23,5 @@ Glue stays in a host package, per the layer rule: sv and tl never reference each
 
 ## Not done yet because
 - v4's half waits on 0525: cards first or outbox first as the default changes what the glue emits.
-- It builds on PR 114 (Burst host, `ColumnsState` Sender) and PR 115 (tl pin d87d1998), both still open.
+- It builds on PR 114 (Burst host, `ColumnsState` Sender), still open.
 - It needs tl.unity changes too (a request blob reader the glue can call from Burst), which belong in tl.unity.
