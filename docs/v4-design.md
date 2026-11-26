@@ -229,7 +229,7 @@ The owner delegated these with one principle: build a system that does one thing
 
 `src/Sv.Columns` is the product of section 8: one pack model, one compiler with every limit checked, 8-byte records, one frame law with a scalar definition (`Law`), Vector256 kernels (`Kernels`), and a slow interpreter of the pack itself (`Reference.ReferenceWorld`). `Sv.Host.ColumnRunner` steps a world on `Workers`. `PackJson` reads packs, with conditions as text (`"Health < 30% of MaxHealth and not event Dead"`). The normative law is `docs/v4-spec.md`.
 
-Checks (`tests/Sv.Columns.Tests`, 43 tests, green under default, `DOTNET_EnableAVX2=0` and `DOTNET_EnableHWIntrinsic=0`):
+Checks (`tests/Sv.Columns.Tests`, 43 tests at first, 62 after the hardening pass below, green under default, `DOTNET_EnableAVX2=0` and `DOTNET_EnableHWIntrinsic=0`):
 - ten owner examples with hand-computed numbers (fire to healing with a card, execute doubling, shield absorb, poison ticks, regen, immunity, low-health hysteresis, phoenix revive, burning, hits and saturation);
 - scalar, Vector, Vector256 and the reference in lockstep on the arena pack under random traffic, and on 200 random packs; Vector also on lanes too wide for int32 sums;
 - record order, writer count, part count and kernel choice give equal digests; grouped target runs with dead targets and undeclared channels match the scalar law, drop counts included;
@@ -252,6 +252,13 @@ What the work found:
 - **Register pressure.** One big reduce loop spilled every local to the stack (about 50 instructions per record). Splitting the chunk change out and running four same-target records per Vector256 step took 20k x 500 records from 24 ms to 8 ms.
 - **Loop order.** Rules outer and rows inner (64 rows per rule) cut the fold and gate refresh from 2.5 to 1.3 microseconds per chunk. Condition masks computed 8 rows at a time as int32, and op terms summed in 16-row register accumulators, took 1M x 500 ops from 89 ms to 32 ms.
 - **Self-referencing bounds.** `bounds L [M, L]` must read both bounds before applying either. The random-pack fuzz caught a kernel that applied the floor first.
+
+Hardening pass (2026-11-26, issues 0513 to 0521): a lockstep harness (`Lockstep`), 16 edge tests (`EdgeTests`) and a deep fuzz at the pack limits (`DeepFuzzTests`, `eng/columns-fuzz.sh`) found eight engine faults and one reference fault, all fixed with the canon digest unchanged:
+- the sourced send is `SendFrom(source, target, ...)`; with one name, a four-`int` call silently took the other overload, and six existing call sites did;
+- out-of-range targets and channels are refused at send and counted in `Dropped` instead of wrapping onto another slot or channel;
+- `amount * hits` and convert's `gain * numerator` are exact at every size (convert also made the scalar and Vector256 paths disagree past 2^63);
+- calls after `Dispose` throw instead of reading freed memory; spawn, despawn and set throw during a frame;
+- a chunk is listed at most once as having room, which fixed spawns of the wrong template after reclaim and a leak under churn.
 
 Unity: `packages/com.sv.columns` mirrors `src/Sv.Columns` verbatim and adds `ColumnStepper` (a frame on the job system) and `ColumnHost` (a MonoBehaviour that opens a pack, steps it and disposes it). Unity 7000.0.0a21 runs CoreCLR (.NET 10) but compiles packages against netstandard2.1 without the `NET` define, so the Vector256 kernels are compiled out there even though the CPU has AVX2. `Simd` closes that gap: ops and condition masks in `System.Numerics.Vector<int>`, summed in int32 only when a per-chunk bound proves it exact, with the scalar law per group otherwise (spec section 6). It also serves any other netstandard2.1 host and ARM through NEON.
 

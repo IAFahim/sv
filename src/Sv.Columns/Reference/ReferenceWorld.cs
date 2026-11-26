@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 
 namespace Sv.Columns
 {
@@ -68,7 +69,7 @@ namespace Sv.Columns
 
         int Channel(string name) => pack.Channels.IndexOf(name);
 
-        int Kind(string? name) => name == null ? 0 : pack.Kinds.IndexOf(name);
+        int Kind(string? name) => name == null || pack.Kinds.Count == 0 ? 0 : pack.Kinds.IndexOf(name);
 
         public void Spawn(int slot, string template)
         {
@@ -111,10 +112,10 @@ namespace Sv.Columns
                 holds[r] = scales[r].SourceWhen == null;
             }
 
-            sent.Add(new Sent(target, Channel(channel), 0, holds, Saturate(amount * hits)));
+            Keep(new Sent(target, Channel(channel), 0, holds, Saturate(amount, hits)));
         }
 
-        public void Send(int target, int source, string channel, long amount, int hits = 1)
+        public void SendFrom(int source, int target, string channel, long amount, int hits = 1)
         {
             var values = entities.TryGetValue(source, out var from) ? from.Lanes : null;
             var holds = new bool[scales.Count];
@@ -133,10 +134,18 @@ namespace Sv.Columns
                 }
             }
 
-            sent.Add(new Sent(target, Channel(channel), kind, holds, Saturate(amount * hits)));
+            Keep(new Sent(target, Channel(channel), kind, holds, Saturate(amount, hits)));
         }
 
-        static long Saturate(long amount) => Math.Max(Record.AmountMin, Math.Min(Record.AmountMax, amount));
+        void Keep(Sent record)
+        {
+            if (record.Channel >= 0)
+            {
+                sent.Add(record);
+            }
+        }
+
+        static long Saturate(long amount, int hits) => (long)BigInteger.Max(Record.AmountMin, BigInteger.Min(Record.AmountMax, (BigInteger)amount * hits));
 
         bool Holds(Cond? cond, int[] values)
         {
@@ -321,7 +330,7 @@ namespace Sv.Columns
                 if (rule is ConvertRule convert && Holds(convert.When, frozen))
                 {
                     var from = Channel(convert.From);
-                    var moved = gain[from] * convert.Numerator / convert.Denominator;
+                    var moved = (long)((BigInteger)gain[from] * convert.Numerator / convert.Denominator);
                     gain[from] -= moved;
                     gain[Channel(convert.To)] += moved;
                 }

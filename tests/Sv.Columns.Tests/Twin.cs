@@ -49,9 +49,9 @@ public sealed class Twin : IDisposable
 
     public void Send(int target, int source, string channel, long amount, int writer = 0, int hits = 1)
     {
-        scalar.Writer(writer).Send(target, source, Pack.Channel(channel), amount, hits);
-        best.Writer(writer).Send(target, source, Pack.Channel(channel), amount, hits);
-        reference.Send(target, source, channel, amount, hits);
+        scalar.Writer(writer).SendFrom(source, target, Pack.Channel(channel), amount, hits);
+        best.Writer(writer).SendFrom(source, target, Pack.Channel(channel), amount, hits);
+        reference.SendFrom(source, target, channel, amount, hits);
     }
 
     public void Step()

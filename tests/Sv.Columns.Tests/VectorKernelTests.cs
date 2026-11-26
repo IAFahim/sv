@@ -34,8 +34,8 @@ public sealed class VectorKernelTests
                 var amount = dice.Chance(5) ? (long)dice.Range(-1, 1) << 40 : dice.Range(-20, 40);
                 var writer = dice.Next(writers);
                 var hits = dice.Range(1, 3);
-                scalar.Writer(writer).Send(target, source, channel, amount, hits);
-                vector.Writer(writer).Send(target, source, channel, amount, hits);
+                scalar.Writer(writer).SendFrom(source, target, channel, amount, hits);
+                vector.Writer(writer).SendFrom(source, target, channel, amount, hits);
             }
 
             for (var i = dice.Range(0, 10); i > 0 && live.Count > 0 && lanes.Count > 0; i--)
@@ -190,7 +190,7 @@ public sealed class VectorKernelTests
         {
             for (var i = 0; i < 20000; i++)
             {
-                world.Writer(i & 1).Send(i % 3000, (i * 7) % 3000, i % pack.ChannelNames.Count, (i % 50) - 10);
+                world.Writer(i & 1).SendFrom((i * 7) % 3000, i % 3000, i % pack.ChannelNames.Count, (i % 50) - 10);
             }
 
             world.Step();

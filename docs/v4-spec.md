@@ -71,7 +71,11 @@ A record is one `ulong`:
 | 28 to 35 | source flags (the source's scale source bits, section 3 step 1) |
 | 0 to 27 | amount, two's complement, saturated to plus or minus (2^27 - 1) |
 
-`RecordWriter.Send(target, channel, amount, hits)` sends with kind 0 and the pack's no-source flags. `Send(target, source, channel, amount, hits)` reads the source's kind and source flags from its gate at send time. `amount * hits` is computed in int64 and saturated once. A record whose target is out of range or not alive, or whose (channel, kind) is not declared, is dropped and counted in `ColumnWorld.Dropped`.
+`RecordWriter.Send(target, channel, amount, hits)` sends with kind 0 and the pack's no-source flags. `SendFrom(source, target, channel, amount, hits)` reads the source's kind and source flags from its gate at send time; a source that is not alive reads as kind 0 with no flags. The two calls have different names on purpose: with one name, `Send(target, source, channel, amount)` and `Send(target, channel, amount, hits)` both accept four `int`s and the compiler silently picks the second. The stored amount is the exact product `amount * hits` saturated once to plus or minus (2^27 - 1); no intermediate wraps (`RecordWriter.AmountTimesHits`).
+
+A record is dropped and counted in `ColumnWorld.Dropped` when:
+- its target is outside `0 .. Capacity - 1` or its channel is outside `0 .. 15` (refused at send, counted at the next step, so such a target can never alias another slot through the 22-bit field);
+- its target is not alive at the step, or its (channel, kind) is not declared (counted at reduce).
 
 ## 3. Frame law
 
@@ -80,7 +84,7 @@ A record is one `ulong`:
 Per alive row, in this order. All arithmetic is int64 unless stated; there is no per-term clamp.
 
 1. **Accumulate.** Every term is zeroed unless the row's gate admits its (channel, kind), then multiplied by `factor(channel, mask)`, the product of the times of the scale rules in `mask` that cover the channel (1 when none). For a record, `mask = gate.Flags & recordFlags`; for an op, `mask = gate.Flags & (gate.Flags >> 8)`. Positive terms add to the channel's gain, negative terms to its loss. Records and ops use the gate and lanes as they were at the start of the frame.
-2. **Convert**, in pack order: when the condition holds on the frame-start lanes, `moved = (gain[from] * numerator) >> log2(denominator)`, then `gain[from] -= moved`, `gain[to] += moved`.
+2. **Convert**, in pack order: when the condition holds on the frame-start lanes, `moved = floor(gain[from] * numerator / denominator)`, then `gain[from] -= moved`, `gain[to] += moved`. The product is exact: with `denominator = 2^s`, `gain = q * 2^s + r`, the law computes `q * numerator + ((r * numerator) >> s)`, which never leaves int64 because `numerator <= denominator` and gains are never negative.
 3. **Absorb**, in pack order: `pool` = sum of gain over the listed channels; `taken = budget > 0 ? min(budget, pool) : 0`; budget lane `-= taken`; `taken` is drawn from the listed channels in the order listed.
 4. **Flow**, in pack order: lane `+= gain + loss` for each added channel and `-= gain + loss` for each subtracted channel.
 5. **Bounds**, in pack order: floor and ceiling are read before the rule (a lane bound reads the value as of this step); the floor is applied, then the ceiling.
@@ -112,8 +116,10 @@ The result of a frame depends only on the world before it and the multiset of re
 | `Spawn(template)`, `Despawn(slot)`, `IsAlive`, `TemplateOf` | slots live in 64-row chunks of one template |
 | `Get(slot, lane)`, `Set(slot, lane, value)` | `Set` refreshes the gate at once |
 | `Event(slot, e)`, `Entered(slot, e)`, `ChunkAlive`, `ChunkEntered` | read events per slot or per chunk |
-| `Writer(w).Send(...)` | one writer per thread |
+| `Writer(w).Send(target, channel, amount, hits)`, `Writer(w).SendFrom(source, target, channel, amount, hits)` | one writer per thread |
 | `Step()` or `ColumnRunner.Step()` | single thread, or reduces and resolves on `Workers` |
+
+A world is single-owner: spawn, despawn and set only between frames. Between `BeginFrame` and `EndFrame` those three calls throw `InvalidOperationException`. After `Dispose`, or once its `CompiledPack` is disposed, every call on the world and its writers throws `ObjectDisposedException`; a second `Dispose` is safe. A chunk is listed at most once as having room for its template, so spawn and despawn churn neither grows memory nor lets a reclaimed chunk take a spawn of its old template.
 
 A warm frame allocates 0 bytes on the managed heap. Record buffers grow by doubling; per-writer class-sum blocks are allocated in native memory the first time a writer touches a chunk.
 

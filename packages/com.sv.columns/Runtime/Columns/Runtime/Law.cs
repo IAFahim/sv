@@ -181,6 +181,10 @@ namespace Sv.Columns
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static long Fraction(long gain, int numerator, int shift) =>
+            (gain >> shift) * numerator + (((gain & ((1L << shift) - 1)) * numerator) >> shift);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         static long Saturate(long value) => value > int.MaxValue ? int.MaxValue : value < int.MinValue ? int.MinValue : value;
 
         public static void ResolveRow(PackTables* pack, int* lanes, long* totals, long* wide, long* gain, int row)
@@ -202,7 +206,7 @@ namespace Sv.Columns
                 var convert = pack->Converts[i];
                 if (Holds(pack, convert.Cond, lanes, row))
                 {
-                    var moved = (gain[convert.From] * convert.Numerator) >> convert.Shift;
+                    var moved = Fraction(gain[convert.From], convert.Numerator, convert.Shift);
                     gain[convert.From] -= moved;
                     gain[convert.To] += moved;
                 }
