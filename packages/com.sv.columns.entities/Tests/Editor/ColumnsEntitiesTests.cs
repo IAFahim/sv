@@ -575,9 +575,10 @@ namespace Sv.Columns.Entities.Tests
                 yield return null;
             }
 
-            using var states = manager.CreateEntityQuery(ComponentType.ReadOnly<ColumnsState>());
+            var states = manager.CreateEntityQuery(ComponentType.ReadOnly<ColumnsState>());
             states.CompleteDependency();
             var state = states.GetSingleton<ColumnsState>();
+            states.Dispose();
             Assert.Greater(state.Frame, 0);
             var slot = manager.GetComponentData<ColumnsSlot>(unit).Value;
             Assert.Less(state.View.Get(slot, compiled.Lane("Health")), 100);
