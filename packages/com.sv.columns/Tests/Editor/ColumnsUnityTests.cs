@@ -52,6 +52,17 @@ namespace Sv.Columns.Unity.Tests
             Assert.AreEqual(Hex(CanonRun.Pinned), Hex(CanonRun.Run(world, stepper.Step)));
         }
 
+        [TestCase(KernelChoice.Scalar)]
+        [TestCase(KernelChoice.Best)]
+        [TestCase(KernelChoice.Vector)]
+        public void TheCanonLateInputRunOnJobsHasTheDotNetDigest(KernelChoice kernels)
+        {
+            using var pack = PackJson.Read(Arena()).Compile();
+            using var world = new ColumnWorld(pack, CanonRun.Capacity, 3, (JobsUtility.JobWorkerCount + 1) * 4, kernels, CanonRun.LateHistory);
+            using var stepper = new ColumnStepper(world);
+            Assert.AreEqual(Hex(CanonRun.PinnedLate), Hex(CanonRun.RunWithLateInput(world, stepper.Step, stepper.Resimulate)));
+        }
+
         [Test]
         public void TheHostRunsTheCanonAndCloses()
         {

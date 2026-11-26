@@ -8,8 +8,8 @@ This file is the course: what v4 is for, a program you can run, the host API, Un
 
 | You need | Use |
 |---|---|
-| standing effects on many entities (damage over time, regen, auras, counters), plus one-off hits, at up to a million entities per frame | v4 |
-| a rule that reacts to each hit (thorns, lifesteal, per-hit absorb, rolls), statuses as entities, rewind and late input | v3 |
+| standing effects on many entities (damage over time, regen, auras, counters), plus one-off hits, at up to a million entities per frame, with optional rollback | v4 |
+| a rule that reacts to each hit (thorns, lifesteal, per-hit absorb, rolls), statuses as entities | v3 |
 
 v4 is fast because effects that live with a template or card are compiled into column kernels and never become records: 1,000,000 entities x 500 ops take 22 ms on 4 cores (v3: about 15 s as records), and 20.3 ms in Unity on jobs. One-off hits are 8-byte records reduced into the same per-entity sums before the same fold.
 
@@ -75,6 +75,7 @@ var hp = world.Get(knight, pack.Lane("Health"));
 - Spawn, despawn and set only between frames; during a frame they throw. Slots live in 64-entity chunks of one template, so keep the slot in your own entity data.
 - `Event(slot, e)`, `Entered(slot, e)` read events per entity; `ChunkAlive(chunk)` and `ChunkEntered(chunk, e)` give 64 entities as one bit mask.
 - `Dropped` counts records that hit nobody: a target outside the world, a channel past 15, a dead target, or a (channel, kind) the pack does not declare.
+- `new ColumnWorld(pack, capacity, history: H)` keeps the last H frames for rollback: `Rewind(frame)` goes back, `Inputs(frame)` edits a past frame's spawns, sets and records, and `Resimulate()` replays from the earliest edit, bit for bit what a fresh run of the corrected inputs gives. `samples/Sv.Columns.Rollback` is the whole flow; `docs/v4-spec.md` section 9 has the rules and how to choose H.
 - `Step()` runs on one thread. `new ColumnRunner(world, new Workers(n)).Step()` (`Sv.Host`) runs the reduces and resolves on `n` worker threads with the same result.
 
 ## 5. Unity
@@ -117,13 +118,14 @@ for (var slot = 0; slot < cells.Length; slot++)
 | convert a share of damage into healing | `convert` |
 | `FrameLoop.Send(target, source, kind, channel, amount, hits)` | `SendFrom(source, target, channel, amount)` (the source's kind comes from its kind lane) |
 | digest, determinism across machines | the same, `ColumnWorld.Digest()` |
+| `Journal`, `InputLog`, `Replay` | `history: H`, then `Rewind`, `Inputs(frame)`, `Resimulate` |
 
-What does not port: rules that react to each record (thorns, lifesteal, reflections, per-hit absorb, rolls), statuses as entities, rewind and late input. Keep those in v3 or in game code. A v4 pack and a v3 pack are different files; nothing converts one into the other yet.
+What does not port: rules that react to each record (thorns, lifesteal, reflections, per-hit absorb, rolls) and statuses as entities. Keep those in v3 or in game code. A v4 pack and a v3 pack are different files; nothing converts one into the other yet.
 
 ## 8. Sharp edges
 
 - **Integers only.** Lanes are int32; sums are int64 and saturate to int32 once, when stored. `convert` rounds down once per entity per frame, on the sum.
 - **Frame-start reads.** Gates, scale, convert and op conditions read the lanes as they were when the frame started: a hit that drops health below 30% turns on a low-health op or scale next frame, not this one. Events are the exception: they read the lanes just stored, so `Low` enters on the frame of the hit (sample frame 2).
 - **Big record amounts saturate.** `amount * hits` is stored exactly up to plus or minus 2^27 - 1 per record, then saturates.
-- **No journal.** Replay is the starting world plus every frame's records and edits, run again; v4.0 keeps no history of its own.
+- **History costs memory.** It is off unless you pass `history`. Each frame kept costs `4 * lanes + 16` bytes per entity plus 8 bytes per record sent, so at a million entities H = 32 is about 5 GB in the spec's bench pack, and each step takes a few milliseconds longer (spec section 9). A late record is replayed as sent; to have a corrected source read again, remove the record and add a `SendFrom` action.
 - **Preview.** The API and the pack format may change before 4.0.0; each change will be in `CHANGELOG.md`.

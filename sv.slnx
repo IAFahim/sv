@@ -28,4 +28,5 @@
   <Project Path="tests/Sv.Web.Tests/Sv.Web.Tests.csproj" />
   <Project Path="samples/Sv.Hello/Sv.Hello.csproj" />
   <Project Path="samples/Sv.Columns.Hello/Sv.Columns.Hello.csproj" />
+  <Project Path="samples/Sv.Columns.Rollback/Sv.Columns.Rollback.csproj" />
 </Solution>

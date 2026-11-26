@@ -25,6 +25,7 @@ The first stable release of sv v3. Nothing a game can see changed since rc.4, an
 
 ### Added
 - `docs/DEMO.md` (a 10-minute demo script with real outputs) and `docs/API-BRIEF.md` (the full API and architecture, with the runnable `samples/Sv.ApiTour`).
+- v4 columns rollback: `new ColumnWorld(..., history: H)` keeps the last H frames' start state and inputs; `Rewind(frame)`, `Inputs(frame)` (insert, replace or remove actions and records of a past frame) and `Resimulate()` (also `ColumnRunner.Resimulate()` and Unity's `ColumnStepper.Resimulate()`). The resimulated world equals a fresh run of the corrected inputs bit for bit (sends refused at send included in `Dropped`); keeping history changes no digest. A resimulate replays only the chunks an edit can reach (an edit that spawns or despawns replays everything): one late input over a 32-frame window at 1M entities takes 0.24 s instead of 2.1 s. Sample: `samples/Sv.Columns.Rollback`. `docs/v4-spec.md` section 9.
 - `v3-scale` benchmark: millions of entities x records per entity x live modifiers per entity.
 - Unity CI on a self-hosted runner (`.github/workflows/unity.yml`, `eng/unity-ci.sh`, `eng/unity-bench/SvUnityBench.cs`): adapter compile, EditMode, PlayMode and a Unity-side million-entity benchmark. The job waits until a runner labelled `self-hosted, unity` is registered; `docs/CI-RUNNER.md` says how.
 

@@ -8,6 +8,79 @@ namespace Sv.Columns.Canon
         public const int Frames = 48;
         public const ulong Pinned = 0x77EC257ECB72B2CFul;
 
+        public const int LateHistory = 8;
+        public const ulong PinnedLate = 0x143EFA56C94222D1ul;
+
+        public static ulong RunWithLateInput(ColumnWorld world, Action step, Action resimulate) => Late(world, step, resimulate, true);
+
+        public static ulong RunWithInputOnTime(ColumnWorld world, Action step) => Late(world, step, step, false);
+
+        static ulong Late(ColumnWorld world, Action step, Action resimulate, bool late)
+        {
+            var pack = world.Pack;
+            var slots = new int[600];
+            var count = 0;
+            for (var t = 0; t < pack.TemplateNames.Count; t++)
+            {
+                for (var i = 0; i < 60; i++)
+                {
+                    slots[count++] = world.Spawn(t);
+                }
+            }
+
+            var fire = ColumnAction.SendFrom(slots[61], slots[2], pack.Channel("Fire"), 40, 2);
+            var gone = ColumnAction.Despawn(slots[9]);
+            var channels = pack.ChannelNames.Count;
+            var state = 0x2545F491u;
+            for (var frame = 0; frame < Frames; frame++)
+            {
+                if (!late && frame == 15)
+                {
+                    world.Writer(0).SendFrom(fire.Source, fire.Slot, fire.Channel, fire.Amount, fire.Hits);
+                }
+
+                if (!late && frame == 33)
+                {
+                    world.Despawn(gone.Slot);
+                }
+
+                if (late && frame == 20)
+                {
+                    world.Inputs(15).AddAction(fire);
+                    resimulate();
+                }
+
+                if (late && frame == 36)
+                {
+                    world.Inputs(33).InsertAction(0, gone);
+                    resimulate();
+                }
+
+                for (var r = 0; r < 4000; r++)
+                {
+                    state ^= state << 13;
+                    state ^= state >> 17;
+                    state ^= state << 5;
+                    var writer = world.Writer((int)(state >> 3) % world.Writers);
+                    var target = slots[(int)((state >> 7) % (uint)count)];
+                    var channel = (int)((state >> 11) % (uint)channels);
+                    var amount = (int)((state >> 15) % 41u) - 12;
+                    if ((state & 7u) == 0)
+                    {
+                        writer.SendFrom(slots[(int)((state >> 9) % (uint)count)], target, channel, amount);
+                    }
+                    else
+                    {
+                        writer.Send(target, channel, amount);
+                    }
+                }
+
+                step();
+            }
+
+            return world.Digest();
+        }
+
         public static ulong Run(ColumnWorld world, Action step)
         {
             var pack = world.Pack;
