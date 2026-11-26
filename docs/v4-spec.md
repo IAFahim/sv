@@ -113,6 +113,8 @@ The result of a frame depends only on the world before it and the multiset of re
 | Call | Does |
 |---|---|
 | `new ColumnWorld(pack, capacity, writers, parts, kernels)` | allocates all memory up front |
+| `StepFused(FrameKernel.Rows or Scalar)` | the same frame as `Step()`, as one fused pass: records bucketed by chunk, then per chunk fold, ops, resolve, gates (section 10) |
+| `OpenFrame(kernel)`, `ColumnFrame.Bucket`, `ColumnFrame.Resolve`, `CloseFrame(refused)` | the fused frame in pieces, for a job system; `View` reads lanes without the world object |
 | `Spawn(template)`, `Despawn(slot)`, `IsAlive`, `TemplateOf` | slots live in 64-row chunks of one template |
 | `Get(slot, lane)`, `Set(slot, lane, value)` | `Set` refreshes the gate at once |
 | `Event(slot, e)`, `Entered(slot, e)`, `ChunkAlive`, `ChunkEntered` | read events per slot or per chunk |
@@ -223,3 +225,18 @@ Choosing H. History is off unless the host opens it, and nothing in the library 
 A late input now costs one pass over the logged records per frame replayed (about 6 to 7 ms per frame at 1M entities and 10M records on 4 threads) plus a step of only the chunks it reaches, so a correction to a few entities stays cheap however wide the window is. A replay of the whole world still costs about one step per frame: a game whose corrections reach everything, or that spawns and despawns in the past, should size H by how many whole frames it can replay inside a tick. Memory is the one cost that grows with H for every game.
 
 Considered and not adopted. A checkpoint every K frames (keyframes) cuts only the checkpoint half of memory, to about 1/K, and turns a rewind from one ring slot copied back into a restore plus up to K - 1 replayed whole-world frames (at 1M with H = 32 and K = 4: about 1.7 GB saved, a rewind from 12 ms to about 150 ms). Per-frame deltas (keep only what changed) save nothing in the common case, because every live chunk runs its template's ops each tick and rewrites its rows.
+
+## 10. The fused frame (Burst)
+
+`ColumnWorld.Step` reduces each writer into lazily allocated per-chunk blocks and then resolves; its kernels use `System.Numerics.Vector<T>` or Vector256 and managed buffers, which Burst cannot run. The fused frame computes the same frame from unmanaged pointers only, so a Burst job can run it:
+
+1. `OpenFrame(kernel)` begins the frame and returns a `ColumnFrame`: plain pointers to the lanes, gates, pack tables, per-part scratch and each writer's records.
+2. `Bucket(records, count, sorted, starts)` is a counting sort of one record set by target chunk (`starts` holds `Chunks + 2` ints); targets outside the world are counted and returned. `BucketWriter(w)` does it for writer `w`. Record sets need not come from writers: `ColumnView.TryRecord` and `TryRecordFrom` pack records anywhere, refusing what `RecordWriter` refuses.
+3. `Resolve(part, buckets, count)` takes the chunks of one part. Per alive chunk it zeroes the class sums, folds every bucket's records for that chunk with the same `AddInChunk` as `Reduce`, runs the ops (`FrameKernel.Rows`: a row-inner scalar loop the compiler can vectorise, with the `Vector` path's int32 exactness rule; `FrameKernel.Scalar`: `Law.AddOps`), then `Law.ResolveRow` and `Law.GateOf` per alive row. Records for a dead chunk are counted as lost.
+4. `CloseFrame(refused)` adds what was lost, refused or outside to `Dropped` and ends the frame.
+
+The fused frame keeps no history yet: on a world opened with `history > 0`, `OpenFrame` and `StepFused` throw, and that world steps through `Step()` (section 9).
+
+It equals `Step()` by construction: class sums are int64 additions, which commute, and the gates of chunk c are the frame-start gates until chunk c itself resolves, as in the two-phase frame. `FusedFrameTests` pin the canon digest on both kernels and several writer and part counts, and run the classic frame, `Rows` and `Scalar` in lockstep on the arena pack and on 300 random packs, comparing digest and `Dropped` every frame. Everything is integer arithmetic, so Burst float modes cannot change a result; the jobs are still compiled with `FloatMode.Strict`.
+
+`packages/com.sv.columns.entities` runs it as two Burst jobs (`ColumnsBurstHost`): one per record set buckets it, one per part resolves. Records come from the world's writers and from per-thread lists that Burst jobs fill through `ColumnsRecords.ParallelWriter` (`[NativeSetThreadIndex]`, no locks, no managed memory). `docs/UNITY.md` describes the ECS layer.

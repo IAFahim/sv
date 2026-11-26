@@ -4,7 +4,9 @@ using System.Globalization;
 using System.Runtime.InteropServices;
 using Sv.Columns;
 using Sv.Columns.Bench;
+using Sv.Columns.Entities;
 using Sv.Columns.Unity;
+using Unity.Burst;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using Unity.Jobs.LowLevel.Unsafe;
@@ -38,6 +40,8 @@ public static class SvColumnsBench
         var frames = int.Parse(Argument("-svColumnsFrames", "24"), CultureInfo.InvariantCulture);
         var choices = Argument("-svColumnsKernels", "best");
         var failures = 0;
+        BurstCompiler.Options.EnableBurstSafetyChecks = false;
+        JobsUtility.JobDebuggerEnabled = false;
         Report("SVCOLUMNS unity " + Application.unityVersion + " runtime " + RuntimeInformation.FrameworkDescription + " jobWorkers " + JobsUtility.JobWorkerCount + " processors " + SystemInfo.processorCount + " cpu " + SystemInfo.processorType);
         foreach (var shape in shapes.Split(','))
         {
@@ -51,7 +55,7 @@ public static class SvColumnsBench
                 var records = name == "records" ? int.Parse(counts[0], CultureInfo.InvariantCulture) : counts.Length > 1 ? int.Parse(counts[1], CultureInfo.InvariantCulture) : 0;
                 foreach (var choice in choices.Split(','))
                 {
-                    failures += Measure(name, entities, ops, records, frames, (KernelChoice)Enum.Parse(typeof(KernelChoice), choice, true));
+                    failures += Measure(name, entities, ops, records, frames, choice.Trim().ToLowerInvariant());
                 }
             }
             catch (Exception error)
@@ -68,15 +72,44 @@ public static class SvColumnsBench
         }
     }
 
-    static int Measure(string name, int entities, int ops, int records, int frames, KernelChoice kernels)
+    sealed class Arm : IDisposable
+    {
+        public ColumnWorld World = null!;
+        public Action Step = null!;
+        public string Label = string.Empty;
+        public IDisposable[] Owned = Array.Empty<IDisposable>();
+
+        public static Arm Open(CompiledPack pack, int capacity, int writers, int parts, string choice)
+        {
+            if (choice.StartsWith("burst", StringComparison.Ordinal))
+            {
+                var host = new ColumnsBurstHost(pack, capacity, writers, parts, choice == "burstscalar" ? FrameKernel.Scalar : FrameKernel.Rows);
+                return new Arm { World = host.World, Step = host.Step, Label = "burst-" + host.Kernel.ToString().ToLowerInvariant() + (BurstCompiler.IsEnabled ? "" : "-burst-off"), Owned = new IDisposable[] { host } };
+            }
+
+            var world = new ColumnWorld(pack, capacity, writers, parts, (KernelChoice)Enum.Parse(typeof(KernelChoice), choice, true));
+            var stepper = new ColumnStepper(world);
+            return new Arm { World = world, Step = stepper.Step, Label = world.KernelPath.ToString(), Owned = new IDisposable[] { stepper, world } };
+        }
+
+        public void Dispose()
+        {
+            foreach (var owned in Owned)
+            {
+                owned.Dispose();
+            }
+        }
+    }
+
+    static int Measure(string name, int entities, int ops, int records, int frames, string choice)
     {
         const int templates = 8;
         var threads = JobsUtility.JobWorkerCount + 1;
         using var pack = BenchPack.Build(templates, ops, 12345).Compile();
-        var same = Check(pack, Math.Min(entities, 3_000), records, threads, kernels);
+        var same = Check(pack, Math.Min(entities, 3_000), records, threads, choice);
         var capacity = ((entities + templates * 64 + 63) / 64) * 64;
-        using var world = new ColumnWorld(pack, capacity, threads, threads * 8, kernels);
-        using var stepper = new ColumnStepper(world);
+        using var arm = Arm.Open(pack, capacity, threads, threads * 8, choice);
+        var world = arm.World;
         var traffic = new Traffic { World = world, Slots = Spawn(world, pack, entities, templates), PerEntity = records };
         var handle = GCHandle.Alloc(traffic);
         try
@@ -86,7 +119,7 @@ public static class SvColumnsBench
             for (var f = 0; f < 16 || warm.ElapsedMilliseconds < 2000; f++)
             {
                 Send(state, traffic, threads);
-                stepper.Step();
+                arm.Step();
             }
 
             var steps = new double[frames];
@@ -98,7 +131,7 @@ public static class SvColumnsBench
                 Send(state, traffic, threads);
                 var before = GC.GetAllocatedBytesForCurrentThread();
                 var start = Stopwatch.GetTimestamp();
-                stepper.Step();
+                arm.Step();
                 var end = Stopwatch.GetTimestamp();
                 allocated += GC.GetAllocatedBytesForCurrentThread() - before;
                 sends[f] = (start - sent) * 1000.0 / Stopwatch.Frequency;
@@ -108,8 +141,14 @@ public static class SvColumnsBench
             var median = Percentile(steps, 50);
             Report(string.Format(CultureInfo.InvariantCulture,
                 "SVCOLUMNS {0} entities {1} ops {2} records {3} threads {4} kernels {5}: step median {6:0.000} ms (p10 {7:0.000}, p90 {8:0.000}) = {9:0.000} ns per entity-op; send {10:0.000} ms; alloc {11} B; scalar twin {12}; digest {13:X16}",
-                name, entities, ops, records, threads, world.KernelPath, median, Percentile(steps, 10), Percentile(steps, 90),
+                name, entities, ops, records, threads, arm.Label, median, Percentile(steps, 10), Percentile(steps, 90),
                 median * 1e6 / ((double)entities * (ops + records)), Percentile(sends, 50), allocated, same ? "equal" : "DIFFERENT", world.Digest()));
+            if (allocated != 0 && choice.StartsWith("burst", StringComparison.Ordinal))
+            {
+                Report("SVCOLUMNS FAIL " + name + " " + arm.Label + " allocated " + allocated + " B on warm frames");
+                return 1;
+            }
+
             return same ? 0 : 1;
         }
         finally
@@ -158,7 +197,7 @@ public static class SvColumnsBench
                 var amount = (int)((state >> 8) % 61) - 20;
                 if ((state & 3u) == 0)
                 {
-                    writer.Send(target, slots[(int)((state >> 4) % (uint)slots.Length)], channel, amount);
+                    writer.SendFrom(slots[(int)((state >> 4) % (uint)slots.Length)], target, channel, amount);
                 }
                 else
                 {
@@ -168,25 +207,24 @@ public static class SvColumnsBench
         }
     }
 
-    static bool Check(CompiledPack pack, int entities, int records, int threads, KernelChoice kernels)
+    static bool Check(CompiledPack pack, int entities, int records, int threads, string choice)
     {
         var capacity = ((entities + 8 * 64 + 63) / 64) * 64;
         using var scalar = new ColumnWorld(pack, capacity, threads, threads, KernelChoice.Scalar);
-        using var best = new ColumnWorld(pack, capacity, threads, threads * 3, kernels);
-        using var stepper = new ColumnStepper(best);
+        using var best = Arm.Open(pack, capacity, threads, threads * 3, choice);
         var scalarSlots = Spawn(scalar, pack, entities, 8);
-        var bestSlots = Spawn(best, pack, entities, 8);
+        var bestSlots = Spawn(best.World, pack, entities, 8);
         for (var f = 0; f < 6; f++)
         {
             for (var part = 0; part < threads; part++)
             {
                 SendSlice(scalar, scalarSlots, records, f, part, threads);
-                SendSlice(best, bestSlots, records, f, threads - 1 - part, threads);
+                SendSlice(best.World, bestSlots, records, f, threads - 1 - part, threads);
             }
 
             scalar.Step();
-            stepper.Step();
-            if (scalar.Digest() != best.Digest())
+            best.Step();
+            if (scalar.Digest() != best.World.Digest() || scalar.Dropped != best.World.Dropped)
             {
                 return false;
             }

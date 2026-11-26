@@ -22,6 +22,7 @@ The first stable release of sv v3. Nothing a game can see changed since rc.4, an
 - Unity: `"com.sv.columns": "https://github.com/IAFahim/sv.git?path=/packages/com.sv.columns#v3.0.0"`. Its CI job is `.github/workflows/unity-columns.yml` on the self-hosted runner.
 
 ### Fixed
+- Unity columns bench: its sourced quarter of records used the four-int `Send` overload removed in the v4 hardening, so it measured refused records (issue 0522).
 - Unity: `SvStepSystem` frees the sv world handles of its ECS world when the system is destroyed, so disposing an ECS world no longer keeps its sv world alive (IAFahim/sv#107).
 - Tests: `MalformedPackDiffTests` compiles each accepted mutation on its own thread with a 60 s hang limit, so one stuck compile can no longer stall CI.
 - Docs: the repository is public; README chapter 6, `docs/API-BRIEF.md` and `docs/DEMO.md` no longer say it is private.
@@ -32,6 +33,7 @@ The first stable release of sv v3. Nothing a game can see changed since rc.4, an
 ### Added
 - `docs/DEMO.md` (a 10-minute demo script with real outputs) and `docs/API-BRIEF.md` (the full API and architecture, with the runnable `samples/Sv.ApiTour`).
 - v4 columns rollback: `new ColumnWorld(..., history: H)` keeps the last H frames' start state and inputs; `Rewind(frame)`, `Inputs(frame)` (insert, replace or remove actions and records of a past frame) and `Resimulate()` (also `ColumnRunner.Resimulate()` and Unity's `ColumnStepper.Resimulate()`). The resimulated world equals a fresh run of the corrected inputs bit for bit (sends refused at send included in `Dropped`); keeping history changes no digest. A resimulate replays only the chunks an edit can reach (an edit that spawns or despawns replays everything): one late input over a 32-frame window at 1M entities takes 0.24 s instead of 2.1 s. Sample: `samples/Sv.Columns.Rollback`. `docs/v4-spec.md` section 9.
+- sv v4 in Entities and Burst: `packages/com.sv.columns.entities` runs the v4 frame as two Burst jobs with an `ISystem`, ECS components, bakers, an inspector and an Arena sample. `ColumnWorld.StepFused`, `OpenFrame`/`CloseFrame`, `ColumnFrame` and `ColumnView` give the same digests as `Step()` (`docs/v4-spec.md` section 9). The Unity bench compares Burst against the managed kernels at 20k and 1M entities.
 - `v3-scale` benchmark: millions of entities x records per entity x live modifiers per entity.
 - Unity CI on a self-hosted runner (`.github/workflows/unity.yml`, `eng/unity-ci.sh`, `eng/unity-bench/SvUnityBench.cs`): adapter compile, EditMode, PlayMode and a Unity-side million-entity benchmark. The job waits until a runner labelled `self-hosted, unity` is registered; `docs/CI-RUNNER.md` says how.
 

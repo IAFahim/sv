@@ -431,7 +431,7 @@ namespace Sv.Columns
             Buffer.MemoryCopy(gates + (long)chunk * Rows, ck->Gates + (long)chunk * Rows, gateBytes, gateBytes);
         }
 
-        void CloseFrame()
+        void KeepFrame()
         {
             if (logs == null)
             {

@@ -1,0 +1,29 @@
+{
+    "name": "Sv.Columns.Entities.Samples.Arena.Tests",
+    "rootNamespace": "Sv.Columns.Entities.Samples.Arena.Tests",
+    "references": [
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner",
+        "Sv.Columns",
+        "Sv.Columns.Entities",
+        "Sv.Columns.Entities.Samples.Arena",
+        "Unity.Burst",
+        "Unity.Collections",
+        "Unity.Entities"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -439,7 +439,7 @@ namespace Sv.Columns
 #if NET
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
-        static int AddInChunk(ulong* records, int at, int count, int chunk, long* block, SlotGate* chunkGates, ulong aliveWord, ulong allAdmit, long* factors, out long missed)
+        internal static int AddInChunk(ulong* records, int at, int count, int chunk, long* block, SlotGate* chunkGates, ulong aliveWord, ulong allAdmit, long* factors, out long missed)
         {
             var lost = 0L;
             for (; at < count; at++)
@@ -573,7 +573,7 @@ namespace Sv.Columns
         {
             Running();
             stepping = false;
-            CloseFrame();
+            KeepFrame();
         }
 
         public ulong Digest()
@@ -623,6 +623,7 @@ namespace Sv.Columns
                 return;
             }
 
+            FreeFrames();
             foreach (var writer in writers)
             {
                 writer.Dispose();

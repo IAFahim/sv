@@ -8,6 +8,8 @@ Unity 7000.0.0a16 (newest editor only), Entities 7.0.0, Collections 7.0.0, Burst
 |---|---|
 | `com.sv.engine` | `Sv.Core`, `Sv.Host` (runtime) and `Sv.Rules` (editor only) copied verbatim from `src` by `eng/engine-sync.sh sync` (`check` fails on drift) |
 | `com.sv.unity.v4` | the adapter: generated Burst jobs per frame phase, `SvWorld`, `SvStepSystem`, `SvSlot`, reload hook, pack authoring window |
+| `com.sv.columns` | sv v4: `Sv.Columns` copied verbatim by `eng/columns-sync.sh`, plus `ColumnHost` (MonoBehaviour) and `ColumnStepper` (managed jobs) |
+| `com.sv.columns.entities` | sv v4 in Entities and Burst: the frame as two Burst jobs, an `ISystem`, components, bakers and an Arena sample (below) |
 
 ## Use
 
@@ -39,3 +41,16 @@ tl runs inside Unity on its plain host: `TimelineWorld`, `PlaybackTable`, `KindS
 Proof: `Sv.Unity.V4.TlTests` replays the five NorthStar3 journals at 1 and 11 job workers. tl writes the outbox, and Collect feeds the SvWorld. Each frame, the cells tl wrote equal the timeline sends the .NET host collected, and every per-frame digest equals the journal's, including the pins `A566FAEC8837BA57` and `2D6A06776AE25DCB`. The ECS/SubScene path (Timeline assets, a baked Playable Director, Tl tracks for the glue clips) is not built; it stays a follow-up.
 
 tl glue: `sv pack <folder> --glue tl` and `docs/V3-HANDOFF.md` (M9). The old adapter v3 (`com.sv.unity`: `SvHost`, `SvLinkRegistry`, `SvJobs`) was deleted in M11; its history is in git and its issues are `issues/0127`, `0140`, `0142`.
+
+## sv v4 columns in Entities and Burst (`com.sv.columns.entities`)
+
+Add `com.sv.columns` and `com.sv.columns.entities` as `file:` packages; the second pulls Entities 7.0.0, Burst 2.0.0 and Collections 7.0.0.
+
+1. Put `ColumnsWorldAuthoring` on one GameObject in a SubScene and wire the pack JSON `TextAsset`, capacity, writers, resolve parts (0 picks four per job thread) and kernel. Its baker compiles the pack (a broken pack fails the bake with its place) and bakes it into a `ColumnsPackBlob`.
+2. Put `ColumnsEntityAuthoring` on each unit, wire the world authoring and pick the template and any lane values from the popups. The baker resolves the names to `ColumnsTemplate` and `ColumnsLaneValue`.
+3. `ColumnsStepSystem` (`ISystem`, last in `SimulationSystemGroup`) builds the world from the config on its first update and publishes it on one entity: `ColumnsState` (unmanaged: `View`, `Sender`, frame, dropped, Burst probes) and `ColumnsHostHandle`. Every update it closes the last frame, despawns the slots of destroyed entities (and of entities whose `ColumnsTemplate` was removed) in ascending slot order, spawns new ones in entity order with their lane values, adds `ColumnsSlot` and `ColumnsSlotCleanup`, and schedules the next frame. Destroying the ECS world disposes the sv world.
+4. Game systems send from Burst jobs: take `SystemAPI.GetSingleton<ColumnsState>().Sender` into an `IJobEntity` and call `Send(target, channel, amount, hits)` or `SendFrom(source, target, ...)`; a refused record counts in `Dropped`. Read lanes in later systems' jobs with `View.Get(slot, lane)`, `View.Event`, `View.IsAlive`. The step system writes `ColumnsState` and the readers read it, so Entities orders the jobs; on the main thread call `CompleteDependency()` on a `ColumnsState` query first.
+
+Outside ECS, `ColumnsBurstHost(pack, capacity, writers, parts, kernel)` runs the same frame: `Schedule(dependsOn)`, `Complete()`, `Step()`, `Sender`, `View`, `World`. The Arena sample (Package Manager > Samples) has a Burst attack system, a Burst health readout and their bakers.
+
+Proof (the `sv Unity columns` job): the canon digest `77EC257ECB72B2CF` from the Burst host on both kernels and several writer and part counts, from records sent inside a Burst `IJobParallelFor`, a lockstep against `ColumnWorld.Step` under random traffic (strays, raw records, wide values, spawn and despawn), the ECS step system against a classic world frame by frame, baking, play mode in the default world, 0 B on warm Burst frames, and Burst probes at 1. The bench prints `burst-rows` and `burst-scalar` beside the managed kernels for every shape.
