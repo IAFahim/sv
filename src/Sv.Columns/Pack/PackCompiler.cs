@@ -35,14 +35,22 @@ namespace Sv.Columns
         public static CompiledPack Compile(ColumnPack pack)
         {
             var scope = new Scope(pack);
-            scope.Check();
-            return scope.Build();
+            var named = scope.Check();
+            try
+            {
+                return scope.Build();
+            }
+            catch (Exception failed) when (!named && !(failed is PackException))
+            {
+                throw scope.Failure();
+            }
         }
 
         sealed class Scope
         {
             readonly ColumnPack pack;
             readonly List<string> problems = new List<string>();
+            readonly HashSet<string> problemSet = new HashSet<string>(StringComparer.Ordinal);
             readonly Dictionary<string, int> lanes = new Dictionary<string, int>(StringComparer.Ordinal);
             readonly Dictionary<string, int> channels = new Dictionary<string, int>(StringComparer.Ordinal);
             readonly Dictionary<string, int> kinds = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -60,7 +68,27 @@ namespace Sv.Columns
                 this.pack = pack;
             }
 
-            void Problem(string text) => problems.Add(text);
+            void Problem(string text)
+            {
+                if (problemSet.Add(text))
+                {
+                    problems.Add(text);
+                }
+            }
+
+            public PackException Failure() => new PackException(problems);
+
+            void NoNulls<T>(List<T> items, string what)
+                where T : class
+            {
+                for (var i = 0; i < items.Count; i++)
+                {
+                    if (items[i] == null)
+                    {
+                        Problem(what + "[" + i + "] is null");
+                    }
+                }
+            }
 
             static bool IsName(string name)
             {
@@ -97,8 +125,35 @@ namespace Sv.Columns
                 into[name] = into.Count;
             }
 
-            public void Check()
+            public bool Check()
             {
+                NoNulls(pack.Lanes, "lanes");
+                NoNulls(pack.Channels, "channels");
+                NoNulls(pack.Kinds, "kinds");
+                NoNulls(pack.Cards, "cards");
+                NoNulls(pack.Templates, "templates");
+                NoNulls(pack.Rules, "rules");
+                foreach (var card in pack.Cards)
+                {
+                    if (card != null)
+                    {
+                        NoNulls(card.Ops, "card '" + card.Name + "' ops");
+                    }
+                }
+
+                foreach (var template in pack.Templates)
+                {
+                    if (template != null)
+                    {
+                        NoNulls(template.Ops, "template '" + template.Name + "' ops");
+                    }
+                }
+
+                if (problems.Count > 0)
+                {
+                    throw Failure();
+                }
+
                 foreach (var lane in pack.Lanes)
                 {
                     Declare(lanes, "lane", lane.Name);
@@ -172,10 +227,7 @@ namespace Sv.Columns
                     Problem("a pack needs at least one template");
                 }
 
-                if (problems.Count > 0)
-                {
-                    throw new PackException(problems);
-                }
+                return problems.Count == 0;
             }
 
             int LaneOf(string name, string where)
@@ -238,7 +290,8 @@ namespace Sv.Columns
                 {
                     case CondOp.Event:
                     case CondOp.Entered:
-                        if (!events.TryGetValue(cond.Lane, out var bit))
+                        var bit = 0;
+                        if (cond.Lane == null || !events.TryGetValue(cond.Lane, out bit))
                         {
                             Problem(where + ": unknown event '" + cond.Lane + "'");
                         }
@@ -306,6 +359,16 @@ namespace Sv.Columns
                     c = c != 0 ? c : a.Value.CompareTo(b.Value);
                     return c != 0 ? c : a.Negated.CompareTo(b.Negated);
                 });
+                for (var i = parts.Count - 1; i > 0; i--)
+                {
+                    var a = parts[i];
+                    var b = parts[i - 1];
+                    if (a.Lane == b.Lane && a.Op == b.Op && a.Other == b.Other && a.Value == b.Value && a.Negated == b.Negated)
+                    {
+                        parts.RemoveAt(i);
+                    }
+                }
+
                 var key = string.Join(";", parts.ConvertAll(a => a.Op + "," + a.Negated + "," + a.Lane + "," + a.Other + "," + a.Value));
                 if (condByKey.TryGetValue(key, out var index))
                 {
@@ -400,13 +463,18 @@ namespace Sv.Columns
                             masks.Add(new MaskEntry { Lane = LaneOf(mask.Lane, where), ByKind = mask.ByKind ? 1 : 0 });
                             break;
                         case ScaleRule scale:
+                            if (scale.Channels == null)
+                            {
+                                Problem(where + ": scale needs its channels");
+                            }
+
                             if (scale.Times < 0 || scale.Times > PackLimits.ScaleProduct)
                             {
                                 Problem(where + ": scale times " + scale.Times + " is outside 0 to " + PackLimits.ScaleProduct);
                             }
 
                             scales.Add(new ScaleEntry { Cond = CondOf(scale.When, where), SourceCond = CondOf(scale.SourceWhen, where) });
-                            scaleTimes.Add((ChannelBits(scale.Channels, where), scale.Times));
+                            scaleTimes.Add((scale.Channels != null ? ChannelBits(scale.Channels, where) : 0ul, scale.Times));
                             break;
                         case ConvertRule convert:
                         {
@@ -441,9 +509,15 @@ namespace Sv.Columns
                         case AbsorbRule absorb:
                         {
                             var budget = LaneOf(absorb.Budget, where);
-                            absorbs.Add(new AbsorbEntry { Budget = budget, First = absorbChannels.Count, Count = absorb.Channels.Length });
+                            var listedChannels = absorb.Channels ?? Array.Empty<string>();
+                            if (absorb.Channels == null)
+                            {
+                                Problem(where + ": absorb needs its channels");
+                            }
+
+                            absorbs.Add(new AbsorbEntry { Budget = budget, First = absorbChannels.Count, Count = listedChannels.Length });
                             var seen = 0ul;
-                            foreach (var name in absorb.Channels)
+                            foreach (var name in listedChannels)
                             {
                                 var c = ChannelOf(name, where);
                                 if ((seen >> c & 1) != 0)
@@ -465,6 +539,12 @@ namespace Sv.Columns
                             var seen = 0ul;
                             foreach (var (names, sign) in new[] { (flow.Add, 1), (flow.Subtract, -1) })
                             {
+                                if (names == null)
+                                {
+                                    Problem(where + ": flow " + (sign > 0 ? "add" : "subtract") + " is null (use an empty list)");
+                                    continue;
+                                }
+
                                 foreach (var name in names)
                                 {
                                     var c = ChannelOf(name, where);
@@ -673,26 +753,27 @@ namespace Sv.Columns
                     build.Defaults[LaneOf(pack.Cards[card].Lane, where)] = pair.Value;
                 }
 
-                var ops = new List<(OpSpec Op, int Cond)>();
+                var ops = new List<(OpSpec Op, int Cond, string Where)>();
                 foreach (var op in template.Ops)
                 {
-                    ops.Add((op, CondOf(op.When, where)));
+                    ops.Add((op, CondOf(op.When, where), where));
                 }
 
                 foreach (var card in pack.Cards)
                 {
+                    var cardWhere = "card '" + card.Name + "'";
                     foreach (var op in card.Ops)
                     {
-                        ops.Add((op, CondOf(op.When, "card '" + card.Name + "'", Cond.Gt(card.Lane, 0))));
+                        ops.Add((op, CondOf(op.When, cardWhere, Cond.Gt(card.Lane, 0)), cardWhere));
                     }
                 }
 
                 var groupKeys = new SortedDictionary<int, SortedDictionary<(int Pred, int Lane, int Sign), (long Amount, long Gain, long Loss)>>();
                 var predIndex = new Dictionary<int, int>();
                 var budget = 0L;
-                foreach (var (op, cond) in ops)
+                foreach (var (op, cond, owner) in ops)
                 {
-                    var opWhere = where + " op on '" + op.Channel + "'";
+                    var opWhere = owner + " op on '" + op.Channel + "'";
                     var channel = ChannelOf(op.Channel, opWhere);
                     var kind = KindOf(op.Kind, opWhere);
                     if (op.Amount < -PackLimits.OpAmount || op.Amount > PackLimits.OpAmount)

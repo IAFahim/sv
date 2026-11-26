@@ -53,7 +53,7 @@ A condition is a conjunction of atoms. Each atom may be negated.
 | `event E` | event E is at level |
 | `entered E` | event E entered this frame |
 
-In JSON a condition is text, for example `"Health < 30% of MaxHealth and not event Dead"`. `of` is optional. Atoms are deduplicated and sorted at compile time, so equal conditions share work.
+In JSON a condition is text, for example `"Health < 30% of MaxHealth and not event Dead"`. `of` is optional. A lane named like a keyword (`not`, `event`, `entered`, `bit`, `of`) is read as a lane where a comparison follows it (`not > 3`), and after a percent `of` is the lane when nothing follows it (`H < 30% of`). Atoms are deduplicated and sorted at compile time, so equal conditions share work.
 
 ### 1.3 Ops
 

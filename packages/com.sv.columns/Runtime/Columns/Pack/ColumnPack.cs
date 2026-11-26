@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace Sv.Columns
@@ -191,7 +192,7 @@ namespace Sv.Columns
 
         public static Bound Of(int value) => new Bound(null, value, true);
 
-        public static Bound Of(string lane) => new Bound(lane, 0, true);
+        public static Bound Of(string lane) => new Bound(lane ?? throw new ArgumentNullException(nameof(lane)), 0, true);
     }
 
     public sealed class BoundsRule : RuleSpec

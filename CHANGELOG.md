@@ -9,6 +9,7 @@
 - v4 columns: `SendFrom` from a source that is not alive (despawned, never spawned, outside the world) now sends as no source, like `Send`; it used to drop every scale rule, including those without a source condition (issue 0530).
 - v4 columns: `Event`, `Entered` and `ChunkEntered` refuse an event index outside the pack instead of reading another event (issue 0531).
 - v4 columns: `BeginFrame` twice, or `Reduce`, `Resolve` or `EndFrame` with no frame open, throw instead of corrupting the frame count or, with history, wiping the current frame's logged actions (issue 0532).
+- v4 columns pack compiler (issue 0533): every problem is listed even when a name is declared twice (a name problem used to hide the rule problems after it); null lists, rules, ops and event names are `PackException` problems instead of crashes; a card-op problem is reported once and names the card; repeated atoms in one condition are merged as spec section 1.2 says; `CompiledPack.CardLane` no longer changes when the source `ColumnPack` is edited after compile; `Bound.Of(null)` throws instead of meaning a floor of 0; condition text reads lanes named `not`, `event`, `entered`, `bit` or `of`, and `+5`.
 
 ## v3.0.0 (2026-11-26)
 
