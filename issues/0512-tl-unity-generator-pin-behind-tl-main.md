@@ -27,3 +27,8 @@ Not related to v4 and not blocking it (`docs/v4-design.md` section 8, decision 7
 - The Unity glue assembly (`Tests/Tl/Glue/*.cs`) compiled outside Unity with the analyzer, against tl's `src/Tl.Core`, C# 9: old DLL + old file at `a15ea149` builds; new DLL + new file at `d87d1998` builds; new DLL + old file fails with `CS0234 'TlModule' does not exist in the namespace 'TlSystems'` at `NorthStar3Timelines.cs:46`, the failure this issue predicted.
 - The same build, run as a console port of `TlTimelineTwinTests` on `FrameLoop`: all 5 twin journals at 1 and 11 workers match every frame's outbox cells, every frame digest and the final digest.
 
+## Follow-up (2026-11-26): tl 06a1c710, no placeholder system
+- tl.unity `8c65f3f` pins tl main `06a1c710` (tl.unity #57) and its plain generator now runs on any assembly with a timeline declaration (tl.unity #58, `6d613db`). `eng/tl-plain-sync.sh sync` from a clean `8c65f3f` checkout rewrote `Tl.Gen.Plain.dll` and the stamp (`tl.unity=8c65f3f...`); `determinism.yml` checks tl out at `06a1c710`.
+- The empty `[TimelineSystem]` struct in `NorthStar3Timelines.cs` is gone.
+- Receipts: `tests/Sv.NorthStar3` 21/21 at `06a1c710`. The Unity glue without the struct, built outside Unity with the new analyzer against tl `06a1c710`'s `src/Tl.Core`, plays all 5 twin journals at 1 and 11 workers to the same outbox cells and digests; the same file with the previous analyzer fails with `CS0234 'Generated' does not exist in the namespace 'Tl'`, so the struct was needed before and is not now.
+
