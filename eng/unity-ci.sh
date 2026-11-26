@@ -110,6 +110,7 @@ for step in $steps; do
       echo "$step exit=$code total=$total passed=$passed failed=$failed $(counts "$log")"
       if [ $code -ne 0 ] || [ "$total" -eq 0 ] || [ "$failed" -ne 0 ]; then
         status=1; grep -E 'error CS|Failed|Exception' "$log" | sort -u | head -20 >&2
+        awk '/<test-case /{show=($0 ~ /result="Failed"/)} show{print} /<\/failure>/{show=0}' "$xml" 2>/dev/null | grep -v -E '^\s*<(properties|property|/properties)' | head -150 >&2
       fi
       ;;
     bench)

@@ -35,15 +35,37 @@ if [ ! -f "$probe/ProjectSettings/ProjectVersion.txt" ]; then
   rm -rf "$probe"
   "$unity" -batchmode -nographics -quit -createProject "$probe" -logFile "$out/create.log" || { echo "project creation failed: $out/create.log" >&2; exit 1; }
 fi
+tl_root="${TL_UNITY_ROOT:-}"
+tl_commit="$(sed -n 's/^tl.unity=//p' "$root/eng/tl-plain.stamp" 2>/dev/null)"
+if [ -z "$tl_root" ] && [ -n "$tl_commit" ]; then
+  tl_root="${SV_TL_UNITY_COLUMNS_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/sv-tl-unity-columns}"
+  if [ "$(git -C "$tl_root" rev-parse HEAD 2>/dev/null)" != "$tl_commit" ]; then
+    mkdir -p "$tl_root"
+    git -C "$tl_root" init -q \
+      && git -C "$tl_root" fetch -q --depth 1 "${SV_TL_UNITY_URL:-https://github.com/IAFahim/tl.unity.git}" "$tl_commit" \
+      && git -C "$tl_root" checkout -q --force --detach FETCH_HEAD \
+      || { echo "could not fetch tl.unity $tl_commit into $tl_root" >&2; exit 1; }
+  fi
+fi
+tl_package=""
+if [ -n "$tl_root" ] && [ -d "$tl_root/com.tl.unity" ]; then
+  tl_package=$'\n'"    \"com.tl.unity\": \"file:$tl_root/com.tl.unity\","
+  echo "tl leg on: com.tl.unity from $tl_root ($(git -C "$tl_root" rev-parse --short HEAD 2>/dev/null || echo 'not a git checkout'))"
+else
+  echo "tl leg off: no tl.unity= line in eng/tl-plain.stamp and no TL_UNITY_ROOT"
+fi
 cat > "$probe/Packages/manifest.json" <<JSON
 {
   "dependencies": {
     "com.sv.columns": "file:$root/packages/com.sv.columns",
-    "com.sv.columns.entities": "file:$root/packages/com.sv.columns.entities",
+    "com.sv.columns.entities": "file:$root/packages/com.sv.columns.entities",${tl_package}
     "com.unity.entities": "7.0.0",
     "com.unity.test-framework": "1.6.0",
     "com.unity.modules.jsonserialize": "1.0.0",
-    "com.unity.modules.imgui": "1.0.0"
+    "com.unity.modules.imgui": "1.0.0",
+    "com.unity.modules.physics": "1.0.0",
+    "com.unity.modules.ui": "1.0.0",
+    "com.unity.modules.uielements": "1.0.0"
   },
   "testables": ["com.sv.columns", "com.sv.columns.entities"]
 }

@@ -1,0 +1,43 @@
+{
+    "name": "Sv.Columns.Entities.TlTests",
+    "rootNamespace": "Sv.Columns.Entities.TlTests",
+    "references": [
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner",
+        "Sv.Columns",
+        "Sv.Columns.Entities",
+        "Sv.Columns.Entities.Authoring",
+        "Sv.Columns.Entities.Tl",
+        "Sv.Columns.Entities.TlTestGlue",
+        "Tl.Core",
+        "Tl.Unity",
+        "Tl.Unity.Tracks",
+        "Unity.Burst",
+        "Unity.Collections",
+        "Unity.Entities",
+        "Unity.Entities.Hybrid",
+        "Unity.Timeline"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS",
+        "SV_TL_UNITY"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.tl.unity",
+            "expression": "0.0.0",
+            "define": "SV_TL_UNITY"
+        }
+    ],
+    "noEngineReferences": false
+}

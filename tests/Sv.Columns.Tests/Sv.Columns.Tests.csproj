@@ -23,6 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Sv.Columns\Sv.Columns.csproj" />
     <ProjectReference Include="..\..\src\Sv.Host\Sv.Host.csproj" />
+    <ProjectReference Include="..\..\src\Sv.Pack\Sv.Pack.csproj" />
   </ItemGroup>
 
 </Project>

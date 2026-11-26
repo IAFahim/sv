@@ -1,0 +1,22 @@
+{
+    "name": "Sv.Columns.Entities.TestGlue",
+    "rootNamespace": "Sv.Columns.Entities.Tests.Glue",
+    "references": [
+        "Sv.Columns",
+        "Sv.Columns.Entities",
+        "Unity.Burst",
+        "Unity.Collections",
+        "Unity.Entities"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

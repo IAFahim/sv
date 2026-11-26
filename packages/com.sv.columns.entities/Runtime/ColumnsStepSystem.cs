@@ -48,6 +48,12 @@ namespace Sv.Columns.Entities
         public void OnDestroy(ref SystemState state) => stepper.Destroy(ref state);
     }
 
+    [UpdateInGroup(typeof(ColumnsFixedStepGroup))]
+    [UpdateAfter(typeof(ColumnsFixedStepSystem))]
+    public partial class ColumnsEventGroup : ComponentSystemGroup
+    {
+    }
+
     internal struct ColumnsStepper
     {
         Entity hostEntity;

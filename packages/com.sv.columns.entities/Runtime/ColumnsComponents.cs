@@ -57,6 +57,24 @@ namespace Sv.Columns.Entities
         public bool BurstResolve;
     }
 
+    [InternalBufferCapacity(4)]
+    public struct ColumnsTimelineRule : IBufferElementData
+    {
+        public int Event;
+        public ushort Timeline;
+    }
+
+    public struct ColumnsTimelineHeld : IComponentData
+    {
+        public int Events;
+    }
+
+    public static class ColumnsTimelines
+    {
+        public static DynamicBuffer<ColumnsTimelineRule> Rules(EntityManager manager, Entity config) =>
+            manager.HasBuffer<ColumnsTimelineRule>(config) ? manager.GetBuffer<ColumnsTimelineRule>(config) : manager.AddBuffer<ColumnsTimelineRule>(config);
+    }
+
     public struct ColumnsHostHandle : IComponentData
     {
         public IntPtr Value;

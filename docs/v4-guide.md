@@ -88,21 +88,23 @@ Unity 7 (CoreCLR), no package dependencies. `ColumnHost` (a MonoBehaviour) opens
 
 ## 6. With tl (timelines)
 
-v4 has no generated tl glue yet (issue 0525). Two patterns work today, both from game code between frames:
+A column pack lists what tl drives in an optional `timelines` section, and `sv pack <pack.json> --glue tl` generates the glue. The section is checked by name and changes nothing in the compiled world.
 
-- **A timeline switches a card.** When the timeline starts, set the card's lane (`world.Set(slot, pack.CardLane("burning"), 3)`); the card's ops do the per-frame work as column kernels, with no records at all, and a timer channel that flows back into the lane ends it. This is the fast path and the one to prefer.
-- **A timeline emits amounts.** tl writes one int per slot (an outbox column, as in v3). Before `Step`, send each non-zero cell with `SendFrom(slot, target, channel, cell)` and zero it, as v3's `Outbox.Send` does.
-
-```csharp
-for (var slot = 0; slot < cells.Length; slot++)
-{
-    if (cells[slot] != 0)
-    {
-        writer.SendFrom(slot, slot, channel, cells[slot]);
-        cells[slot] = 0;
-    }
+```json
+"timelines": {
+  "cards": ["poison"],
+  "outbox": [ { "channel": "Fire", "target": "Aim" }, { "channel": "Healing" } ],
+  "starts": [ { "event": "LowHealth", "timeline": "poison" } ]
 }
 ```
+
+- **cards** (prefer these): a timeline switches a card. Each card gets a `[TlState] PoisonCard` cell, a kind, a `PoisonCardClip { Level }` and a track that writes the level on the clip's first tick. The glue sets the card's lane from the cell; the card's ops then do the per-frame work as column kernels with no records, and its timer channel ends it.
+- **outbox**: a timeline emits amounts. Each channel gets a `FireOut` cell, clip and track as in v3; non-zero cells are sent with `SendFrom(slot, target, channel, cell)` and zeroed, the target read from the named aim lane (`aimed - 1`, or the slot itself when it is 0 or no lane is named).
+- **starts**: an sv event that enters starts its timeline on the slot's player, and one that leaves stops it.
+
+Plain .NET host (`Glue.g.cs`): the cells, kinds, clips, tracks and a `TimelineRequests` class. Each step: tick tl, run the generated kind system, apply the cells (`world.Set` for cards, `SendFrom` for outbox), `world.Step()`, then `requests.Apply(players, world)`. `tests/Sv.Columns.Timelines` does this and proves that every frame digest equals the same cells written by hand.
+
+Unity host (`--host unity` adds `GlueEntities.g.cs`): the cells become `IComponentData` that implement `IColumnsCardCell` or `IColumnsOutboxCell`, `ColumnsCardSystem<T>` and `ColumnsOutboxSystem<T>` are registered for each, and `TimelineRules.AddTo(ColumnsTimelines.Rules(manager, config), pack, findTimeline)` fills the event rules that `ColumnsTimelineRequestSystem` (assembly `Sv.Columns.Entities.Tl`, compiled when `com.tl.unity` is present) turns into tl `Start` and `Stop` requests after each fixed step. Use the fixed step clock (`ColumnsWorldAuthoring.FixedStep`), so one fixed tick is one tl tick and then one sv frame.
 
 ## 7. From v3 to v4
 

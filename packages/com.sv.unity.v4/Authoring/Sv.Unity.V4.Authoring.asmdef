@@ -1,0 +1,20 @@
+{
+    "name": "Sv.Unity.V4.Authoring",
+    "rootNamespace": "Sv.Unity.Authoring",
+    "references": [
+        "Sv.Engine.Core",
+        "Sv.Engine.Host",
+        "Sv.Unity.V4",
+        "Unity.Entities",
+        "Unity.Entities.Hybrid"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

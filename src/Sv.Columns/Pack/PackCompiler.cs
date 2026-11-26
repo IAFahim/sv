@@ -227,7 +227,71 @@ namespace Sv.Columns
                     Problem("a pack needs at least one template");
                 }
 
+                CheckTimelines();
                 return problems.Count == 0;
+            }
+
+            void CheckTimelines()
+            {
+                var glue = pack.Timelines;
+                var seen = new HashSet<string>(StringComparer.Ordinal);
+                for (var i = 0; i < glue.Cards.Count; i++)
+                {
+                    var where = "timelines.cards[" + i + "]";
+                    var card = glue.Cards[i];
+                    if (card == null || !cards.ContainsKey(card))
+                    {
+                        Problem(where + ": unknown card '" + card + "'");
+                    }
+                    else if (!seen.Add(card))
+                    {
+                        Problem(where + ": card '" + card + "' is listed twice");
+                    }
+                }
+
+                seen.Clear();
+                for (var i = 0; i < glue.Outbox.Count; i++)
+                {
+                    var where = "timelines.outbox[" + i + "]";
+                    var outbox = glue.Outbox[i];
+                    if (outbox == null)
+                    {
+                        Problem(where + " is null");
+                        continue;
+                    }
+
+                    ChannelOf(outbox.Channel, where);
+                    if (outbox.Channel != null && !seen.Add(outbox.Channel))
+                    {
+                        Problem(where + ": channel '" + outbox.Channel + "' is listed twice");
+                    }
+
+                    if (outbox.Target != null)
+                    {
+                        LaneOf(outbox.Target, where + ".target");
+                    }
+                }
+
+                for (var i = 0; i < glue.Starts.Count; i++)
+                {
+                    var where = "timelines.starts[" + i + "]";
+                    var start = glue.Starts[i];
+                    if (start == null)
+                    {
+                        Problem(where + " is null");
+                        continue;
+                    }
+
+                    if (start.Event == null || !events.ContainsKey(start.Event))
+                    {
+                        Problem(where + ": unknown event '" + start.Event + "'");
+                    }
+
+                    if (string.IsNullOrEmpty(start.Timeline))
+                    {
+                        Problem(where + ": a start names its timeline");
+                    }
+                }
             }
 
             int LaneOf(string name, string where)

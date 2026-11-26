@@ -11,6 +11,7 @@ on:
       - 'benchmarks/Sv.Columns.Bench/BenchPack.cs'
       - 'eng/columns-sync.sh'
       - 'eng/unity-columns-ci.sh'
+      - 'eng/tl-plain.stamp'
       - 'eng/unity-columns/**'
       - '.github/workflows/unity-columns.yml'
   pull_request:
@@ -23,6 +24,7 @@ on:
       - 'benchmarks/Sv.Columns.Bench/BenchPack.cs'
       - 'eng/columns-sync.sh'
       - 'eng/unity-columns-ci.sh'
+      - 'eng/tl-plain.stamp'
       - 'eng/unity-columns/**'
       - '.github/workflows/unity-columns.yml'
   workflow_dispatch:

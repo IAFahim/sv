@@ -227,6 +227,41 @@ namespace Sv.Columns
         public Cond? Stay { get; }
     }
 
+    public sealed class TimelineOutbox
+    {
+        public TimelineOutbox(string channel, string? target = null)
+        {
+            Channel = channel;
+            Target = target;
+        }
+
+        public string Channel { get; }
+
+        public string? Target { get; }
+    }
+
+    public sealed class TimelineStart
+    {
+        public TimelineStart(string eventName, string timeline)
+        {
+            Event = eventName;
+            Timeline = timeline;
+        }
+
+        public string Event { get; }
+
+        public string Timeline { get; }
+    }
+
+    public sealed class TimelineGlue
+    {
+        public List<string> Cards { get; } = new List<string>();
+
+        public List<TimelineOutbox> Outbox { get; } = new List<TimelineOutbox>();
+
+        public List<TimelineStart> Starts { get; } = new List<TimelineStart>();
+    }
+
     public sealed class ColumnPack
     {
         public List<LaneSpec> Lanes { get; } = new List<LaneSpec>();
@@ -242,6 +277,8 @@ namespace Sv.Columns
         public List<TemplateSpec> Templates { get; } = new List<TemplateSpec>();
 
         public List<RuleSpec> Rules { get; } = new List<RuleSpec>();
+
+        public TimelineGlue Timelines { get; } = new TimelineGlue();
 
         public CompiledPack Compile() => PackCompiler.Compile(this);
     }

@@ -20,6 +20,13 @@ namespace Sv.Unity
         public IntPtr Value;
     }
 
+    public struct SvWorldConfig : IComponentData
+    {
+        public int Capacity;
+        public int Workers;
+        public int Parts;
+    }
+
     public static class SvEntities
     {
         public static Entity Publish(EntityManager manager, ISvWorld world) => Publish(manager, world, SvClock.RenderFrame);
@@ -35,6 +42,15 @@ namespace Sv.Unity
 
             return entity;
         }
+
+        public static Entity Publish(EntityManager manager, ISvWorld world, Entity config)
+        {
+            manager.AddComponentData(config, new SvWorldHandle { Value = GCHandle.ToIntPtr(GCHandle.Alloc(world)) });
+            manager.AddComponent<SvFrame>(config);
+            return config;
+        }
+
+        public static SvClock ClockOf(EntityManager manager, Entity config) => manager.HasComponent<SvFixedStep>(config) ? SvClock.FixedStep : SvClock.RenderFrame;
 
         public static void Unpublish(EntityManager manager, Entity handleEntity)
         {
