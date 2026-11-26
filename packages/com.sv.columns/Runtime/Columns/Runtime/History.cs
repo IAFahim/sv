@@ -102,6 +102,7 @@ namespace Sv.Columns
         public ulong* Records;
         public int RecordCount;
         public int RecordCapacity;
+        public long Refused;
         public ColumnAction* Actions;
         public int ActionCount;
         public int ActionCapacity;
@@ -245,7 +246,7 @@ namespace Sv.Columns
             {
                 var from = (int)((long)count * w / writers.Length);
                 var to = (int)((long)count * (w + 1) / writers.Length);
-                writers[w].Load(log->Records + from, to - from);
+                writers[w].Load(log->Records + from, to - from, w == 0 ? log->Refused : 0);
             }
 
             ApplyLoggedActions(log);
@@ -305,7 +306,7 @@ namespace Sv.Columns
                     writers[0].Send(action.Slot, action.Channel, action.Amount, action.Hits);
                     return action.Done(action.Slot, true);
                 case ColumnActionKind.SendFrom:
-                    writers[0].Send(action.Slot, action.Source, action.Channel, action.Amount, action.Hits);
+                    writers[0].SendFrom(action.Source, action.Slot, action.Channel, action.Amount, action.Hits);
                     return action.Done(action.Slot, true);
                 default:
                     return action.Done(action.Slot, false);
@@ -322,6 +323,7 @@ namespace Sv.Columns
             var log = LogOf(frame);
             EnsureRecords(log, total);
             log->RecordCount = total;
+            log->Refused = 0;
             var at = 0;
             for (var w = 0; w < writers.Length; w++)
             {
@@ -330,14 +332,15 @@ namespace Sv.Columns
             }
         }
 
-        void LogRecords(int writer, ulong* records, int count)
+        void LogRecords(int writer, ulong* records, int count, long refused)
         {
-            if (logs == null || resimulating || count == 0)
+            if (logs == null || resimulating)
             {
                 return;
             }
 
             var log = LogOf(frame - 1);
+            log->Refused += refused;
             Buffer.MemoryCopy(records, log->Records + writerOffsets[writer], (long)count * 8, (long)count * 8);
         }
 
@@ -442,6 +445,7 @@ namespace Sv.Columns
 
             Buffer.MemoryCopy(ck->Alive, alive, (long)chunkCount * 8, (long)chunkCount * 8);
             Buffer.MemoryCopy(ck->Templates, chunkTemplates, (long)chunkCount * 4, (long)chunkCount * 4);
+            Array.Clear(listed, 0, listed.Length);
             var from = openChunks.Length;
             for (var t = 0; t < openChunks.Length; t++)
             {
@@ -449,7 +453,9 @@ namespace Sv.Columns
                 open.Clear();
                 for (var i = 0; i < ck->Open[t]; i++)
                 {
-                    open.Add(ck->Open[from++]);
+                    var chunk = ck->Open[from++];
+                    open.Add(chunk);
+                    listed[chunk] = true;
                 }
             }
 
@@ -457,6 +463,7 @@ namespace Sv.Columns
             {
                 dropped[w * 8] = ck->Dropped[w];
                 writers[w].Clear();
+                writers[w].TakeRefused();
             }
 
             Native.Clear(stamps, (long)writers.Length * chunkCount * 4);
@@ -467,6 +474,7 @@ namespace Sv.Columns
 
         void CheckHistory()
         {
+            Live();
             if (logs == null)
             {
                 throw new InvalidOperationException("this world keeps no history: open it with history > 0");
@@ -488,12 +496,17 @@ namespace Sv.Columns
 
         public void Rewind(int frame)
         {
+            Editable();
             CheckHistory();
             CheckWindow(frame, this.frame);
             Restore(frame);
             LogOf(frame)->RecordCount = 0;
             LogOf(frame)->ActionCount = 0;
-            editedFrom = int.MaxValue;
+            LogOf(frame)->Refused = 0;
+            if (editedFrom >= frame)
+            {
+                editedFrom = int.MaxValue;
+            }
         }
 
         public FrameInputs Inputs(int frame)
@@ -505,6 +518,7 @@ namespace Sv.Columns
 
         public void BeginResimulate()
         {
+            Editable();
             CheckHistory();
             for (var w = 0; w < writers.Length; w++)
             {

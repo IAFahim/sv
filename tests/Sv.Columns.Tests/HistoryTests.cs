@@ -65,7 +65,7 @@ public sealed class FrameScript
                 world.Writer(0).Send(action.Slot, action.Channel, action.Amount, action.Hits);
                 break;
             case ColumnActionKind.SendFrom:
-                world.Writer(0).Send(action.Slot, action.Source, action.Channel, action.Amount, action.Hits);
+                world.Writer(0).SendFrom(action.Source, action.Slot, action.Channel, action.Amount, action.Hits);
                 break;
         }
     }
@@ -145,7 +145,7 @@ public sealed class HistoryTests
             var amount = dice.Range(-12, 28);
             if (dice.Chance(30))
             {
-                writer.Send(target, dice.Pick(live), channel, amount, dice.Range(1, 3));
+                writer.SendFrom(dice.Pick(live), target, channel, amount, dice.Range(1, 3));
             }
             else
             {
@@ -560,5 +560,134 @@ public sealed class HistoryTests
         world.Step();
         world.Step();
         Assert.Throws<InvalidOperationException>(() => world.Resimulate());
+    }
+
+    static void Traffic(ColumnWorld world, int hero, int frame)
+    {
+        var writer = world.Writer(frame % world.Writers);
+        writer.Send(hero, 0, 3 + frame % 4);
+        writer.Send(world.Capacity + frame, 0, 1);
+        writer.Send(hero, RecordWriter.ChannelLimit + frame % 3, 1);
+        if (frame % 3 == 0)
+        {
+            world.Writer(0).SendFrom(hero, hero, 2, 2);
+        }
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(3)]
+    public void SendsRefusedAtSendCountTheSameAfterAResimulate(int writers)
+    {
+        using var pack = Arena();
+        using var fresh = new ColumnWorld(pack, 256, writers);
+        using var world = new ColumnWorld(pack, 256, writers, 1, KernelChoice.Best, history: 8);
+        var heroFresh = fresh.Spawn(pack.Template("regen"));
+        var hero = world.Spawn(pack.Template("regen"));
+        for (var f = 0; f < 12; f++)
+        {
+            Traffic(fresh, heroFresh, f);
+            if (f == 6)
+            {
+                fresh.Writer(0).Send(heroFresh, 0, 9);
+                fresh.Writer(0).Send(fresh.Capacity + 99, 0, 9);
+            }
+
+            fresh.Step();
+            Traffic(world, hero, f);
+            world.Step();
+        }
+
+        Assert.Equal(12L * 2, world.Dropped);
+        world.Inputs(6).AddAction(ColumnAction.Send(hero, 0, 9));
+        world.Inputs(6).AddAction(ColumnAction.Send(world.Capacity + 99, 0, 9));
+        world.Resimulate();
+        Assert.Equal(fresh.Digest().ToString("X16"), world.Digest().ToString("X16"));
+        Assert.Equal(fresh.Dropped, world.Dropped);
+        Assert.Equal(12L * 2 + 1, world.Dropped);
+    }
+
+    [Fact]
+    public void RewindKeepsAnEditToAFrameBeforeIt()
+    {
+        using var pack = Arena();
+        using var fresh = new ColumnWorld(pack, 256);
+        using var world = new ColumnWorld(pack, 256, history: 8);
+        var heroFresh = fresh.Spawn(pack.Template("regen"));
+        var hero = world.Spawn(pack.Template("regen"));
+        for (var f = 0; f < 10; f++)
+        {
+            Traffic(fresh, heroFresh, f);
+            if (f == 3)
+            {
+                fresh.Writer(0).Send(heroFresh, 0, 11);
+            }
+
+            fresh.Step();
+        }
+
+        for (var f = 0; f < 10; f++)
+        {
+            Traffic(world, hero, f);
+            world.Step();
+        }
+
+        world.Inputs(3).AddAction(ColumnAction.Send(hero, 0, 11));
+        world.Rewind(6);
+        for (var f = 6; f < 10; f++)
+        {
+            Traffic(world, hero, f);
+            world.Step();
+        }
+
+        world.Resimulate();
+        Assert.Equal(fresh.Digest().ToString("X16"), world.Digest().ToString("X16"));
+        Assert.Equal(fresh.Dropped, world.Dropped);
+    }
+
+    [Fact]
+    public void RewindRestoresWhichChunksAreOpenForSpawns()
+    {
+        using var pack = Arena();
+        using var world = new ColumnWorld(pack, 256, history: 8);
+        var slots = new int[65];
+        for (var i = 0; i < 65; i++)
+        {
+            slots[i] = world.Spawn(0);
+        }
+
+        world.Step();
+        world.Step();
+        world.Despawn(slots[5]);
+        world.Step();
+        world.Step();
+        world.Rewind(1);
+        Assert.True(world.IsAlive(slots[5]));
+        world.Despawn(slots[5]);
+        Assert.Equal(slots[5], world.Spawn(0));
+        world.Despawn(slots[7]);
+        Assert.Equal(slots[7], world.Spawn(0));
+    }
+
+    [Fact]
+    public void HistoryCallsAreRefusedInsideAFrameAndAfterDispose()
+    {
+        using var pack = Arena();
+        var world = new ColumnWorld(pack, 64, history: 4);
+        var hero = world.Spawn(0);
+        world.Step();
+        world.Inputs(0).AddAction(ColumnAction.Send(hero, 0, 1));
+        world.BeginFrame();
+        Assert.Throws<InvalidOperationException>(() => world.Rewind(0));
+        Assert.Throws<InvalidOperationException>(() => world.BeginResimulate());
+        world.Reduce(0);
+        world.Resolve(0);
+        world.EndFrame();
+        world.Resimulate();
+        Assert.False(world.Resimulating);
+        world.Dispose();
+        Assert.Throws<ObjectDisposedException>(() => world.Rewind(0));
+        Assert.Throws<ObjectDisposedException>(() => world.Inputs(0));
+        Assert.Throws<ObjectDisposedException>(() => world.BeginResimulate());
     }
 }

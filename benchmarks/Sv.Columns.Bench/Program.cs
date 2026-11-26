@@ -273,7 +273,7 @@ namespace Sv.Columns.Bench
                     var amount = (int)((state >> 8) % 61) - 20;
                     if ((state & 3u) == 0)
                     {
-                        writer.Send(target, slots[(int)((state >> 4) % (uint)slots.Length)], channel, amount);
+                        writer.SendFrom(slots[(int)((state >> 4) % (uint)slots.Length)], target, channel, amount);
                     }
                     else
                     {

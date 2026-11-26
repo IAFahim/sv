@@ -62,6 +62,8 @@ FAIL offset 1010000 (default):  Passed: 49 Failed: 1 -> fuzz-out/offset-1010000-
 
 On `FAIL`, the folder holds a **receipt per failing seed** (`<check>-seed<N>.txt`: what differed, then the four pack files and the scenario) and the generated C# (`seed<N>/`). The full test log is `fuzz-out/offset-<offset>-<mode>.log`. Copy the folder before you run again (each run clears the test's own receipts).
 
+**sv v4 (`src/Sv.Columns`).** `eng/columns-fuzz.sh <first-seed> <seeds> [default|noavx2|scalar|all]` drives `DeepFuzzTests`: per seed one pack at the full limits (up to 20 lanes, 16 channels, 4 kinds, extreme int values, convert denominators up to 2^16), one random pack and the arena pack, each run on the scalar, Vector and best kernels in lockstep with `ReferenceWorld`, under extreme amounts and hits, out-of-range targets and channels, floods of the largest amount, whole-chunk despawns and spawn churn. It prints one `ok` or `FAIL` line per leg; a failure names the seed, the frame and the first differing slot and lane. The unit run uses 24 seeds; the hardening pass ran seeds 1000 to 3499 clean on all three legs.
+
 **Budget:** start with 25 rounds per mode (about 21,000 packs per mode). If all four modes are clean, report that with the offsets: a clean campaign is a result too.
 
 ## 4. New harnesses to build (after your section 3 campaign is filed)

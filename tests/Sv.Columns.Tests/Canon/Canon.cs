@@ -9,7 +9,7 @@ namespace Sv.Columns.Canon
         public const ulong Pinned = 0x77EC257ECB72B2CFul;
 
         public const int LateHistory = 8;
-        public const ulong PinnedLate = 0xC32E6C06820B3D2Eul;
+        public const ulong PinnedLate = 0x143EFA56C94222D1ul;
 
         public static ulong RunWithLateInput(ColumnWorld world, Action step, Action resimulate) => Late(world, step, resimulate, true);
 
@@ -36,7 +36,7 @@ namespace Sv.Columns.Canon
             {
                 if (!late && frame == 15)
                 {
-                    world.Writer(0).Send(fire.Slot, fire.Source, fire.Channel, fire.Amount, fire.Hits);
+                    world.Writer(0).SendFrom(fire.Source, fire.Slot, fire.Channel, fire.Amount, fire.Hits);
                 }
 
                 if (!late && frame == 33)
@@ -67,7 +67,7 @@ namespace Sv.Columns.Canon
                     var amount = (int)((state >> 15) % 41u) - 12;
                     if ((state & 7u) == 0)
                     {
-                        writer.Send(target, slots[(int)((state >> 9) % (uint)count)], channel, amount);
+                        writer.SendFrom(slots[(int)((state >> 9) % (uint)count)], target, channel, amount);
                     }
                     else
                     {
@@ -123,7 +123,7 @@ namespace Sv.Columns.Canon
                     var hits = 1 + (int)((state >> 23) & 3u);
                     if ((state & 7u) == 0)
                     {
-                        writer.Send(target, slots[(int)((state >> 9) % (uint)count)], channel, amount, hits);
+                        writer.SendFrom(slots[(int)((state >> 9) % (uint)count)], target, channel, amount, hits);
                     }
                     else
                     {

@@ -15,6 +15,7 @@ namespace Sv.Columns
         readonly int chunkCount;
         readonly RecordWriter[] writers;
         readonly List<int>[] openChunks;
+        readonly bool[] listed;
         readonly int parts;
         int* lanes;
         int* chunkTemplates;
@@ -27,6 +28,7 @@ namespace Sv.Columns
         int scratchBytes;
         int frame;
         int nextChunk;
+        bool stepping;
 
         public ColumnWorld(CompiledPack pack, int capacity, int writerCount = 1, int resolveParts = 1, KernelChoice kernels = KernelChoice.Best, int history = 0)
         {
@@ -65,6 +67,7 @@ namespace Sv.Columns
             dropped = Native.Zeroed<long>(writers.Length * 8L);
             scratchBytes = Scratch.BytesFor(tables);
             scratch = (byte*)Native.Zeroed((long)parts * scratchBytes);
+            listed = new bool[chunkCount];
             openChunks = new List<int>[tables->TemplateCount];
             for (var t = 0; t < openChunks.Length; t++)
             {
@@ -101,6 +104,7 @@ namespace Sv.Columns
         {
             get
             {
+                Live();
                 var sum = 0L;
                 for (var w = 0; w < writers.Length; w++)
                 {
@@ -113,10 +117,33 @@ namespace Sv.Columns
 
         internal SlotGate GateOf(int slot) => (uint)slot < (uint)Capacity ? gates[slot] : default;
 
+        void Live()
+        {
+            if (lanes == null)
+            {
+                throw new ObjectDisposedException(nameof(ColumnWorld));
+            }
+
+            if (pack.IsDisposed)
+            {
+                throw new ObjectDisposedException(nameof(CompiledPack), "the pack this world runs was disposed before the world");
+            }
+        }
+
+        void Editable()
+        {
+            Live();
+            if (stepping)
+            {
+                throw new InvalidOperationException("a frame is running: spawn, despawn and set only before BeginFrame or after EndFrame");
+            }
+        }
+
         int* ChunkLanes(int chunk) => lanes + (long)chunk * chunkInts;
 
         public int Spawn(int template)
         {
+            Editable();
             if ((uint)template >= (uint)tables->TemplateCount)
             {
                 throw new ArgumentOutOfRangeException(nameof(template));
@@ -126,6 +153,7 @@ namespace Sv.Columns
             var open = openChunks[template];
             while (open.Count > 0 && alive[open[open.Count - 1]] == ulong.MaxValue)
             {
+                listed[open[open.Count - 1]] = false;
                 open.RemoveAt(open.Count - 1);
             }
 
@@ -156,6 +184,7 @@ namespace Sv.Columns
 
                 chunkTemplates[chunk] = template;
                 open.Add(chunk);
+                listed[chunk] = true;
             }
 
             var row = TrailingZeros(~alive[chunk]);
@@ -180,9 +209,10 @@ namespace Sv.Columns
             {
                 if (alive[c] == 0)
                 {
-                    if (chunkTemplates[c] >= 0)
+                    if (listed[c])
                     {
                         openChunks[chunkTemplates[c]].Remove(c);
+                        listed[c] = false;
                     }
 
                     return c;
@@ -206,11 +236,11 @@ namespace Sv.Columns
 
         public void Despawn(int slot)
         {
+            Editable();
             CheckAlive(slot);
             BeforeEdit();
             var chunk = slot / Rows;
             var row = slot % Rows;
-            var wasFull = alive[chunk] == ulong.MaxValue;
             alive[chunk] &= ~(1ul << row);
             var chunkLanes = ChunkLanes(chunk);
             for (var l = 0; l < laneCount; l++)
@@ -220,15 +250,20 @@ namespace Sv.Columns
 
             gates[slot] = default;
             Count--;
-            if (wasFull)
+            if (!listed[chunk])
             {
                 openChunks[chunkTemplates[chunk]].Add(chunk);
+                listed[chunk] = true;
             }
 
             Note(ColumnAction.Despawn(slot));
         }
 
-        public bool IsAlive(int slot) => (uint)slot < (uint)Capacity && ((alive[slot / Rows] >> (slot % Rows)) & 1ul) != 0;
+        public bool IsAlive(int slot)
+        {
+            Live();
+            return (uint)slot < (uint)Capacity && ((alive[slot / Rows] >> (slot % Rows)) & 1ul) != 0;
+        }
 
         void CheckAlive(int slot)
         {
@@ -257,6 +292,7 @@ namespace Sv.Columns
 
         public void Set(int slot, int lane, int value)
         {
+            Editable();
             CheckAlive(slot);
             if ((uint)lane >= (uint)(laneCount - 2))
             {
@@ -274,10 +310,15 @@ namespace Sv.Columns
 
         public bool Entered(int slot, int eventIndex) => ((uint)Get(slot, tables->EnteredLane) >> eventIndex & 1u) != 0;
 
-        public ulong ChunkAlive(int chunk) => alive[chunk];
+        public ulong ChunkAlive(int chunk)
+        {
+            Live();
+            return (uint)chunk < (uint)chunkCount ? alive[chunk] : throw new ArgumentOutOfRangeException(nameof(chunk));
+        }
 
         public ulong ChunkEntered(int chunk, int eventIndex)
         {
+            ChunkAlive(chunk);
             var entered = ChunkLanes(chunk) + tables->EnteredLane * Rows;
             var mask = 0ul;
             for (var row = 0; row < Rows; row++)
@@ -306,6 +347,7 @@ namespace Sv.Columns
 
         public void BeginFrame()
         {
+            Live();
             LoadLoggedInputs();
             var total = 0L;
             for (var w = 0; w < writers.Length; w++)
@@ -320,10 +362,12 @@ namespace Sv.Columns
 
             OpenRecordLog((int)total);
             frame++;
+            stepping = true;
         }
 
         public void Reduce(int writer)
         {
+            Live();
             var source = writers[writer];
             var records = source.Records;
             var count = source.Count;
@@ -353,8 +397,9 @@ namespace Sv.Columns
                 lost += missed;
             }
 
-            dropped[writer * 8] += lost;
-            LogRecords(writer, records, count);
+            var refused = source.TakeRefused();
+            dropped[writer * 8] += lost + refused;
+            LogRecords(writer, records, count, refused);
             source.Clear();
         }
 
@@ -413,6 +458,7 @@ namespace Sv.Columns
 
         public void Resolve(int part)
         {
+            Live();
             var from = (int)((long)chunkCount * part / parts);
             var to = (int)((long)chunkCount * (part + 1) / parts);
             var area = new Scratch(scratch + (long)part * scratchBytes, tables);
@@ -471,11 +517,14 @@ namespace Sv.Columns
 
         public void EndFrame()
         {
+            Live();
+            stepping = false;
             CloseFrame();
         }
 
         public ulong Digest()
         {
+            Live();
             var hash = 0xCBF29CE484222325ul;
             for (var chunk = 0; chunk < chunkCount; chunk++)
             {
@@ -540,6 +589,13 @@ namespace Sv.Columns
             Native.Free(alive);
             Native.Free(chunkTemplates);
             Native.Free(lanes);
+            blocks = null;
+            stamps = null;
+            dropped = null;
+            scratch = null;
+            gates = null;
+            alive = null;
+            chunkTemplates = null;
             lanes = null;
         }
     }

@@ -1,6 +1,6 @@
 # sv in 10 minutes: demo script
 
-Release `v3.0.0-rc.4`. Every output below was produced on 2026-11-14 on a Linux desktop (Ryzen 5 8500G, 6 cores, 12 threads). Run the steps in this order; each says what it proves.
+Release `v3.0.0`. Every output below was produced on 2026-11-14 at `v3.0.0-rc.4`, which v3.0.0 matches in behaviour and digests on a Linux desktop (Ryzen 5 8500G, 6 cores, 12 threads). Run the steps in this order; each says what it proves.
 
 You need: the .NET 10 SDK, a clone of this repository, and for step 4 Unity 7000.0.0a16. Step 3 needs the `wasm-tools` workload (`docs/WEB.md`).
 
@@ -56,8 +56,8 @@ What it proves: designers get the same compiler and the same answers in a 5.6 MB
 Add the two packages to a Unity 7000.0.0a16 project's `Packages/manifest.json` (with `com.unity.entities` 7.0.0, `com.unity.burst` 2.0.0, `com.unity.collections` 7.0.0):
 
 ```json
-"com.sv.engine": "https://github.com/IAFahim/sv.git?path=/packages/com.sv.engine#v3.0.0-rc.4",
-"com.sv.unity.v4": "https://github.com/IAFahim/sv.git?path=/packages/com.sv.unity.v4#v3.0.0-rc.4"
+"com.sv.engine": "https://github.com/IAFahim/sv.git?path=/packages/com.sv.engine#v3.0.0",
+"com.sv.unity.v4": "https://github.com/IAFahim/sv.git?path=/packages/com.sv.unity.v4#v3.0.0"
 ```
 
 Then: Package Manager > **sv Unity Adapter v4** > Samples > **Hello sv** > Import. Create an empty GameObject, add the **Hello Sv** component, press **Play**. The Console prints the same two lines as step 1, with the same digests:

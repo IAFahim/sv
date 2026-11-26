@@ -66,7 +66,7 @@ public sealed class InvarianceTests
                 var writer = world.Writer(dice.Next(writers));
                 if (hit.Source >= 0)
                 {
-                    writer.Send(hit.Target, hit.Source, hit.Channel, hit.Amount, hit.Hits);
+                    writer.SendFrom(hit.Source, hit.Target, hit.Channel, hit.Amount, hit.Hits);
                 }
                 else
                 {
@@ -133,7 +133,7 @@ public sealed class InvarianceTests
             {
                 for (var i = 0; i < 20000; i++)
                 {
-                    world.Writer(i & 1).Send(i % 3000, (i * 7) % 3000, i % pack.ChannelNames.Count, (i % 50) - 10);
+                    world.Writer(i & 1).SendFrom((i * 7) % 3000, i % 3000, i % pack.ChannelNames.Count, (i % 50) - 10);
                 }
 
                 world.Step();
@@ -194,8 +194,8 @@ public sealed class InvarianceTests
                     if (dice.Chance(20))
                     {
                         var source = dice.Pick(slots);
-                        scalar.Writer(0).Send(target, source, channel % 6, amount);
-                        best.Writer(0).Send(target, source, channel % 6, amount);
+                        scalar.Writer(0).SendFrom(source, target, channel % 6, amount);
+                        best.Writer(0).SendFrom(source, target, channel % 6, amount);
                     }
                 }
             }
