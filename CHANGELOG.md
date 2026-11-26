@@ -5,6 +5,11 @@
 ### Added
 - `docs/v4-guide.md`: the course for the v4 preview (when to use v4 or v3, the host API, Unity, a v3 to v4 mapping, sharp edges), walking through the new runnable `samples/Sv.Columns.Hello`, whose output `eng/v3-verify.sh` and every CI leg check.
 
+### Fixed
+- v4 columns: `SendFrom` from a source that is not alive (despawned, never spawned, outside the world) now sends as no source, like `Send`; it used to drop every scale rule, including those without a source condition (issue 0530).
+- v4 columns: `Event`, `Entered` and `ChunkEntered` refuse an event index outside the pack instead of reading another event (issue 0531).
+- v4 columns: `BeginFrame` twice, or `Reduce`, `Resolve` or `EndFrame` with no frame open, throw instead of corrupting the frame count or, with history, wiping the current frame's logged actions (issue 0532).
+
 ## v3.0.0 (2026-11-26)
 
 The first stable release of sv v3. Nothing a game can see changed since rc.4, and every pinned digest is the same. Upgrade: change `#v3.0.0-rc.4` to `#v3.0.0` in both Unity package URLs (README chapter 6). Package versions stay 3.0.0 (engine `com.sv.engine`) and 4.0.0 (adapter `com.sv.unity.v4`). The contract is final from v3.0.0 to v3.2.0: the owner approved v3.2.0 (stat layers and derived stats) on 2026-11-26 (`issues/0390-stat-layers-v3.2.0-readings.md`).
