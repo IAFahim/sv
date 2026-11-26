@@ -48,7 +48,7 @@ cat > "$probe/Packages/manifest.json" <<JSON
   "testables": ["com.sv.columns", "com.sv.columns.entities"]
 }
 JSON
-rm -rf "$probe/Assets/SvColumnsBench" "$probe/Assets/SvColumnsArena"
+find "$probe/Assets" -mindepth 1 -maxdepth 1 -name 'Sv*' -exec rm -rf {} +
 cp -r "$root/packages/com.sv.columns.entities/Samples~/Arena" "$probe/Assets/SvColumnsArena"
 mkdir -p "$probe/Assets/SvColumnsBench/Editor"
 cp "$root/eng/unity-columns/SvColumnsBench.cs" "$root/benchmarks/Sv.Columns.Bench/BenchPack.cs" "$probe/Assets/SvColumnsBench/Editor/"
