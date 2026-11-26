@@ -17,6 +17,7 @@ namespace Sv.Columns.Entities
         public int Writers;
         public int ResolveParts;
         public FrameKernel Kernel;
+        public int History;
     }
 
     public struct ColumnsFixedStep : IComponentData

@@ -20,6 +20,7 @@ namespace Sv.Columns.Entities
         RecordBucket* buckets;
         RecordBucket* dense;
         UnsafeList<ulong>* sorted;
+        UnsafeList<ulong>* spare;
         int* starts;
         long* outside;
         int* probes;
@@ -27,7 +28,7 @@ namespace Sv.Columns.Entities
         bool open;
         bool disposed;
 
-        public ColumnsBurstHost(CompiledPack pack, int capacity, int writers = 1, int resolveParts = 0, FrameKernel kernel = FrameKernel.Rows, bool ownsPack = false)
+        public ColumnsBurstHost(CompiledPack pack, int capacity, int writers = 1, int resolveParts = 0, FrameKernel kernel = FrameKernel.Rows, bool ownsPack = false, int history = 0)
         {
             if (pack == null)
             {
@@ -36,24 +37,26 @@ namespace Sv.Columns.Entities
 
             var chunks = (capacity + 63) / 64;
             var parts = resolveParts > 0 ? resolveParts : Math.Max(1, Math.Min(chunks, (JobsUtility.JobWorkerCount + 1) * 4));
-            world = new ColumnWorld(pack, capacity, writers, parts);
+            world = new ColumnWorld(pack, capacity, writers, parts, KernelChoice.Best, history);
             ownedPack = ownsPack ? pack : null;
             this.kernel = kernel;
             records = ColumnsRecords.Create(world.View, 64 + capacity / Math.Max(1, JobsUtility.ThreadIndexCount));
             sets = ColumnsLaneSets.Create(16);
             var threads = records.ThreadCount;
-            bucketCount = world.Writers + threads;
+            bucketCount = world.FrameRecordSets + threads;
             startsLength = world.Chunks + 2;
             frame = Alloc<ColumnFrame>(1);
             buckets = Alloc<RecordBucket>(bucketCount);
             dense = Alloc<RecordBucket>((long)bucketCount * world.ResolveParts);
             sorted = Alloc<UnsafeList<ulong>>(threads);
+            spare = Alloc<UnsafeList<ulong>>(threads);
             starts = Alloc<int>((long)threads * startsLength);
             outside = Alloc<long>(threads * 8L);
             probes = Alloc<int>(16);
             for (var t = 0; t < threads; t++)
             {
                 sorted[t] = new UnsafeList<ulong>(64, Allocator.Persistent);
+                spare[t] = new UnsafeList<ulong>(64, Allocator.Persistent);
             }
         }
 
@@ -81,11 +84,7 @@ namespace Sv.Columns.Entities
 
         public JobHandle Schedule(JobHandle dependsOn = default)
         {
-            if (disposed)
-            {
-                throw new ObjectDisposedException(nameof(ColumnsBurstHost));
-            }
-
+            Live();
             Complete();
             RefusedSets += sets.Apply(world);
             *frame = world.OpenFrame(kernel);
@@ -96,10 +95,11 @@ namespace Sv.Columns.Entities
                 Buckets = buckets,
                 Lists = records.Lists,
                 Sorted = sorted,
+                Spare = spare,
                 Starts = starts,
                 Outside = outside,
                 Probe = probes,
-                Writers = world.Writers,
+                Sets = world.FrameRecordSets,
                 StartsLength = startsLength,
             }.Schedule(bucketCount, 1, dependsOn);
             pending = new ResolveJob
@@ -122,21 +122,68 @@ namespace Sv.Columns.Entities
                 return;
             }
 
-            var refused = records.TakeRefused();
+            var lost = 0L;
             for (var t = 0; t < records.ThreadCount; t++)
             {
-                refused += outside[t * 8];
+                world.KeepFrameRecords(spare[t].Ptr, spare[t].Length);
+                spare[t].Clear();
+                lost += outside[t * 8];
                 outside[t * 8] = 0;
             }
 
             open = false;
-            world.CloseFrame(refused);
+            world.CloseFrame(records.TakeRefused(), lost);
         }
 
         public void Step()
         {
             Schedule();
             Complete();
+        }
+
+        public FrameInputs Inputs(int frame)
+        {
+            Live();
+            Complete();
+            return world.Inputs(frame);
+        }
+
+        public void Rewind(int frame)
+        {
+            Live();
+            Complete();
+            world.Rewind(frame);
+            records.Clear();
+            sets.Clear();
+        }
+
+        public void Resimulate()
+        {
+            Live();
+            Complete();
+            if (records.Pending > 0)
+            {
+                throw new InvalidOperationException("records are waiting for this frame: resimulate before sending them");
+            }
+
+            if (sets.Pending > 0)
+            {
+                throw new InvalidOperationException("lane edits are waiting for this frame: resimulate before queueing them");
+            }
+
+            world.BeginResimulate();
+            while (world.Resimulating)
+            {
+                Step();
+            }
+        }
+
+        void Live()
+        {
+            if (disposed)
+            {
+                throw new ObjectDisposedException(nameof(ColumnsBurstHost));
+            }
         }
 
         public void Dispose()
@@ -157,6 +204,7 @@ namespace Sv.Columns.Entities
             for (var t = 0; t < records.ThreadCount; t++)
             {
                 sorted[t].Dispose();
+                spare[t].Dispose();
             }
 
             records.Dispose();
@@ -165,6 +213,7 @@ namespace Sv.Columns.Entities
             Free(buckets);
             Free(dense);
             Free(sorted);
+            Free(spare);
             Free(starts);
             Free(outside);
             Free(probes);
@@ -201,6 +250,9 @@ namespace Sv.Columns.Entities
             public UnsafeList<ulong>* Sorted;
 
             [NativeDisableUnsafePtrRestriction]
+            public UnsafeList<ulong>* Spare;
+
+            [NativeDisableUnsafePtrRestriction]
             public int* Starts;
 
             [NativeDisableUnsafePtrRestriction]
@@ -209,7 +261,7 @@ namespace Sv.Columns.Entities
             [NativeDisableUnsafePtrRestriction]
             public int* Probe;
 
-            public int Writers;
+            public int Sets;
 
             public int StartsLength;
 
@@ -222,26 +274,29 @@ namespace Sv.Columns.Entities
                     *Probe = burst;
                 }
 
-                if (index < Writers)
+                if (index < Sets)
                 {
                     Frame->BucketWriter(index);
                     Buckets[index] = Frame->WriterBucket(index);
                     return;
                 }
 
-                var thread = index - Writers;
+                var thread = index - Sets;
                 var list = Lists + thread;
+                var sent = Spare + thread;
+                var swapped = *list;
+                *list = *sent;
+                *sent = swapped;
                 var into = Sorted + thread;
-                if (into->Capacity < list->Length)
+                if (into->Capacity < sent->Length)
                 {
-                    into->SetCapacity(Math.Max(list->Length, into->Capacity * 2));
+                    into->SetCapacity(Math.Max(sent->Length, into->Capacity * 2));
                 }
 
-                into->Length = list->Length;
+                into->Length = sent->Length;
                 var at = Starts + (long)thread * StartsLength;
-                Outside[thread * 8] = Frame->Bucket(list->Ptr, list->Length, into->Ptr, at);
-                Buckets[index] = new RecordBucket { Records = into->Ptr, Starts = at };
-                list->Clear();
+                Buckets[index] = Frame->Bucket(sent->Ptr, sent->Length, into->Ptr, at, out var lost);
+                Outside[thread * 8] = lost;
             }
         }
 

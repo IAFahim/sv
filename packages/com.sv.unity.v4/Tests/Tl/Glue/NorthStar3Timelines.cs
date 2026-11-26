@@ -5,11 +5,6 @@ using Tl;
 
 namespace Sv.Kernels.NorthStar3.Glue
 {
-    [TimelineSystem]
-    public ref partial struct TlPlainGeneratorRunsOnlyWhereATimelineSystemIsDeclared
-    {
-    }
-
     public sealed unsafe class NorthStar3Timelines : IDisposable
     {
         readonly TimelineWorld timelines;

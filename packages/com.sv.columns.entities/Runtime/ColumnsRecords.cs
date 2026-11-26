@@ -56,6 +56,16 @@ namespace Sv.Columns.Entities
 
         public ParallelWriter AsParallelWriter() => new ParallelWriter { Lists = Lists, Refused = Refused, View = View };
 
+        public void Clear()
+        {
+            for (var t = 0; t < ThreadCount; t++)
+            {
+                Lists[t].Clear();
+            }
+
+            TakeRefused();
+        }
+
         internal long TakeRefused()
         {
             var sum = 0L;

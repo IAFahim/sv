@@ -139,7 +139,7 @@ namespace Sv.Columns.Entities
             ColumnsBurstHost host;
             try
             {
-                host = new ColumnsBurstHost(pack, config.Capacity, config.Writers < 1 ? 1 : config.Writers, config.ResolveParts, config.Kernel, true);
+                host = new ColumnsBurstHost(pack, config.Capacity, config.Writers < 1 ? 1 : config.Writers, config.ResolveParts, config.Kernel, true, config.History);
             }
             catch
             {

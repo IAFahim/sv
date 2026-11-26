@@ -114,7 +114,8 @@ The result of a frame depends only on the world before it and the multiset of re
 |---|---|
 | `new ColumnWorld(pack, capacity, writers, parts, kernels)` | allocates all memory up front |
 | `StepFused(FrameKernel.Rows or Scalar)` | the same frame as `Step()`, as one fused pass: records bucketed by chunk, then per chunk fold, ops, resolve, gates (section 10) |
-| `OpenFrame(kernel)`, `ColumnFrame.Bucket`, `ColumnFrame.Resolve`, `CloseFrame(refused)` | the fused frame in pieces, for a job system; `View` reads lanes without the world object |
+| `OpenFrame(kernel)`, `ColumnFrame.Bucket`, `ColumnFrame.Resolve`, `KeepFrameRecords(records, count)`, `CloseFrame(refused, lost)` | the fused frame in pieces, for a job system; `View` reads lanes without the world object |
+| `ResimulateFused(kernel)` | `Resimulate()` on the fused frame (section 10) |
 | `Spawn(template)`, `Despawn(slot)`, `IsAlive`, `TemplateOf` | slots live in 64-row chunks of one template |
 | `Get(slot, lane)`, `Set(slot, lane, value)` | `Set` refreshes the gate at once |
 | `Event(slot, e)`, `Entered(slot, e)`, `ChunkAlive`, `ChunkEntered` | read events per slot or per chunk |
@@ -231,11 +232,11 @@ Considered and not adopted. A checkpoint every K frames (keyframes) cuts only th
 `ColumnWorld.Step` reduces each writer into lazily allocated per-chunk blocks and then resolves; its kernels use `System.Numerics.Vector<T>` or Vector256 and managed buffers, which Burst cannot run. The fused frame computes the same frame from unmanaged pointers only, so a Burst job can run it:
 
 1. `OpenFrame(kernel)` begins the frame and returns a `ColumnFrame`: plain pointers to the lanes, gates, pack tables, per-part scratch and each writer's records.
-2. `Bucket(records, count, sorted, starts)` is a counting sort of one record set by target chunk (`starts` holds `Chunks + 2` ints); targets outside the world are counted and returned. `BucketWriter(w)` does it for writer `w`. Record sets need not come from writers: `ColumnView.TryRecord` and `TryRecordFrom` pack records anywhere, refusing what `RecordWriter` refuses.
+2. `Bucket(records, count, scratch, starts, out outside)` sorts one record set by target chunk (`starts` holds `Chunks + 2` ints) and returns the buckets; records aimed outside the world are counted in `outside`. A set that is already in chunk order with nothing outside is bucketed in place, with no copy; any other set is a counting sort into `scratch`. `BucketWriter(w)` does it for record set `w`. There are `FrameRecordSets` sets: one per writer, and one more for the records the history replays (empty when not resimulating). Record sets need not come from writers: `ColumnView.TryRecord` and `TryRecordFrom` pack records anywhere, refusing what `RecordWriter` refuses.
 3. `Resolve(part, buckets, count)` takes the chunks of one part. Per alive chunk it zeroes the class sums, folds every bucket's records for that chunk with the same `AddInChunk` as `Reduce`, runs the ops (`FrameKernel.Rows`: a row-inner scalar loop the compiler can vectorise, with the `Vector` path's int32 exactness rule; `FrameKernel.Scalar`: `Law.AddOps`), then `Law.ResolveRow` and `Law.GateOf` per alive row. Records for a dead chunk are counted as lost.
-4. `CloseFrame(refused)` adds what was lost, refused or outside to `Dropped` and ends the frame.
+4. `CloseFrame(refused, lost)` adds what was refused, lost or outside to `Dropped` and ends the frame.
 
-The fused frame keeps no history yet: on a world opened with `history > 0`, `OpenFrame` and `StepFused` throw, and that world steps through `Step()` (section 9).
+The fused frame keeps history (section 9) like `Step()`. `OpenFrame` logs the writers' records into the frame's inputs; records packed outside the writers are logged with `KeepFrameRecords(records, count)` before `CloseFrame`, and the refused count passed to `CloseFrame` is logged too. Each resolved chunk is checkpointed from inside `Resolve`. While resimulating, the replay set carries the logged records, and a partial replay resolves only the chunks the edits can reach; records aimed at the other chunks are counted as lost exactly as the first run counted them. `ResimulateFused(kernel)` replays the edited frames on the fused frame, and `ColumnsBurstHost.Resimulate()` replays them as Burst jobs.
 
 It equals `Step()` by construction: class sums are int64 additions, which commute, and the gates of chunk c are the frame-start gates until chunk c itself resolves, as in the two-phase frame. `FusedFrameTests` pin the canon digest on both kernels and several writer and part counts, and run the classic frame, `Rows` and `Scalar` in lockstep on the arena pack and on 300 random packs, comparing digest and `Dropped` every frame. Everything is integer arithmetic, so Burst float modes cannot change a result; the jobs are still compiled with `FloatMode.Strict`.
 

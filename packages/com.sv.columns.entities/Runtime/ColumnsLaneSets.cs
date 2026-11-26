@@ -54,6 +54,14 @@ namespace Sv.Columns.Entities
 
         public ParallelWriter AsParallelWriter() => new ParallelWriter { Lists = Lists };
 
+        public void Clear()
+        {
+            for (var t = 0; t < ThreadCount; t++)
+            {
+                Lists[t].Clear();
+            }
+        }
+
         internal long Apply(ColumnWorld world)
         {
             var pending = Pending;

@@ -19,6 +19,10 @@ namespace Sv.Columns.Entities
 
         public FrameKernel Kernel = FrameKernel.Rows;
 
+        [Tooltip("Frames kept for Rewind, Inputs and Resimulate (0 keeps none and costs nothing)")]
+        [Range(0, ColumnWorld.HistoryLimit)]
+        public int History;
+
         [Tooltip("Step in FixedStepSimulationSystemGroup, once per fixed tick, after tl.unity's timelines. Off: once per rendered frame.")]
         public bool FixedStep;
 
@@ -52,6 +56,7 @@ namespace Sv.Columns.Entities
                     Writers = authoring.Writers,
                     ResolveParts = authoring.ResolveParts,
                     Kernel = authoring.Kernel,
+                    History = authoring.History,
                 });
             }
         }

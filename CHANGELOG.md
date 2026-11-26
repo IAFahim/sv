@@ -5,11 +5,17 @@
 ### Added
 - `docs/v4-guide.md`: the course for the v4 preview (when to use v4 or v3, the host API, Unity, a v3 to v4 mapping, sharp edges), walking through the new runnable `samples/Sv.Columns.Hello`, whose output `eng/v3-verify.sh` and every CI leg check.
 
+- v4 columns: rollback on the Burst path. The fused frame keeps history like `Step()` (it used to throw on a world with `history > 0`): `OpenFrame` logs the writers' records, `KeepFrameRecords` logs records packed elsewhere, `CloseFrame(refused, lost)` logs the refused count, each resolved chunk is checkpointed, and `ResimulateFused` replays edited frames, partially when the edits spawn nothing. `ColumnsBurstHost` gains `Inputs`, `Rewind` and `Resimulate` as Burst jobs, and `ColumnsWorldAuthoring` a `History` field. Digests equal the classic world's, 0 B warm (spec section 10).
+
+### Faster
+- v4 columns fused frame: a record set already in chunk order with nothing outside the world is bucketed in place instead of copied, which removes one pass over the records in record-heavy Burst frames (issue 0526).
+
 ### Fixed
 - v4 columns: `SendFrom` from a source that is not alive (despawned, never spawned, outside the world) now sends as no source, like `Send`; it used to drop every scale rule, including those without a source condition (issue 0530).
 - v4 columns: `Event`, `Entered` and `ChunkEntered` refuse an event index outside the pack instead of reading another event (issue 0531).
 - v4 columns: `BeginFrame` twice, or `Reduce`, `Resolve` or `EndFrame` with no frame open, throw instead of corrupting the frame count or, with history, wiping the current frame's logged actions (issue 0532).
 - v4 columns pack compiler (issue 0533): every problem is listed even when a name is declared twice (a name problem used to hide the rule problems after it); null lists, rules, ops and event names are `PackException` problems instead of crashes; a card-op problem is reported once and names the card; repeated atoms in one condition are merged as spec section 1.2 says; `CompiledPack.CardLane` no longer changes when the source `ColumnPack` is edited after compile; `Bound.Of(null)` throws instead of meaning a floor of 0; condition text reads lanes named `not`, `event`, `entered`, `bit` or `of`, and `+5`.
+- Tests: the v4 churn allocation test warms up as long as it measures and takes the least of three windows, so a runtime tier-up on Windows no longer fails it; a real allocation still does (issue 0527, IAFahim/sv#123).
 
 ## v3.0.0 (2026-11-26)
 
