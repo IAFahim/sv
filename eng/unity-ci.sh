@@ -35,9 +35,25 @@ if [ ! -f "$probe/ProjectSettings/ProjectVersion.txt" ]; then
   rm -rf "$probe"
   "$unity" -batchmode -nographics -quit -createProject "$probe" -logFile "$out/create.log" || { echo "project creation failed: $out/create.log" >&2; exit 1; }
 fi
+tl_root="${TL_UNITY_ROOT:-}"
+tl_commit="$(sed -n 's/^tl.unity=//p' "$root/eng/tl-plain.stamp" 2>/dev/null)"
+if [ -z "$tl_root" ] && [ -n "$tl_commit" ]; then
+  tl_root="${SV_TL_UNITY_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/sv-tl-unity}"
+  if [ "$(git -C "$tl_root" rev-parse HEAD 2>/dev/null)" != "$tl_commit" ]; then
+    mkdir -p "$tl_root"
+    git -C "$tl_root" init -q \
+      && git -C "$tl_root" fetch -q --depth 1 "${SV_TL_UNITY_URL:-https://github.com/IAFahim/tl.unity.git}" "$tl_commit" \
+      && git -C "$tl_root" checkout -q --force --detach FETCH_HEAD \
+      || { echo "could not fetch tl.unity $tl_commit into $tl_root" >&2; exit 1; }
+  fi
+fi
 tl_package=""
-if [ -n "${TL_UNITY_ROOT:-}" ] && [ -d "$TL_UNITY_ROOT/com.tl.unity" ]; then
-  tl_package=$'\n'"    \"com.tl.unity\": \"file:$TL_UNITY_ROOT/com.tl.unity\","
+if [ -n "$tl_root" ] && [ -d "$tl_root/com.tl.unity" ]; then
+  TL_UNITY_ROOT="$tl_root" bash "$root/eng/tl-plain-sync.sh" check || exit 1
+  tl_package=$'\n'"    \"com.tl.unity\": \"file:$tl_root/com.tl.unity\","
+  echo "tl leg on: com.tl.unity from $tl_root ($(git -C "$tl_root" rev-parse --short HEAD 2>/dev/null || echo 'not a git checkout'))"
+else
+  echo "tl leg off: no tl.unity= line in eng/tl-plain.stamp and no TL_UNITY_ROOT"
 fi
 cat > "$probe/Packages/manifest.json" <<JSON
 {

@@ -24,7 +24,7 @@ printf 'DOTNET_ROOT=%s/.dotnet\nUNITY_NO_AUTH_BROKER=1\n' "$HOME" >> .env
 sudo ./svc.sh install "$USER" && sudo ./svc.sh start
 ```
 
-Put `$HOME/.dotnet` at the front of the line in `.path` before starting the service. If the editor is not under `~/Unity/Hub/Editor/7*` or on the `unity` CLI's list, add `UNITY=/path/to/Unity` to `.env`. To pin com.tl.unity next to sv in the probe, add `TL_UNITY_ROOT=/path/to/tl.unity`.
+Put `$HOME/.dotnet` at the front of the line in `.path` before starting the service. If the editor is not under `~/Unity/Hub/Editor/7*` or on the `unity` CLI's list, add `UNITY=/path/to/Unity` to `.env`. The probe gets com.tl.unity at the commit in `eng/tl-plain.stamp` (`tl.unity=`), fetched into `~/.cache/sv-tl-unity`; leave `TL_UNITY_ROOT` unset unless you want another checkout, and then keep it at the stamp's generator or `eng/tl-plain-sync.sh check` fails the run.
 
 Then start the job once: re-run the queued `sv Unity` run from the Actions tab, or `gh workflow run unity.yml --ref <branch> -R IAFahim/sv`.
 
