@@ -245,15 +245,14 @@ public sealed unsafe class FusedFrameTests
             fixed (int* at = starts)
             {
                 open.BucketWriter(0);
-                var outside = open.Bucket(records, count, into, at);
                 buckets[0] = open.WriterBucket(0);
-                buckets[1] = new RecordBucket { Records = into, Starts = at };
+                buckets[1] = open.Bucket(records, count, into, at, out var outside);
                 for (var p = 0; p < open.Parts; p++)
                 {
                     open.Resolve(p, buckets, 2);
                 }
 
-                fused.CloseFrame(refused + outside);
+                fused.CloseFrame(refused, outside);
             }
 
             Assert.Equal(classic.Digest(), fused.Digest());
@@ -382,23 +381,6 @@ public sealed unsafe class FusedFrameTests
             Assert.False(view.Event(slots[50], 1 + e));
             Assert.False(view.Entered(slots[50], -1 - e));
         }
-    }
-
-    [Fact]
-    public void AWorldWithHistoryRefusesTheFusedFrameAndStillSteps()
-    {
-        using var pack = PackJson.Read(ArenaJson).Compile();
-        using var world = new ColumnWorld(pack, 128, history: 4);
-        using var plain = new ColumnWorld(pack, 128);
-        world.Spawn(0);
-        plain.Spawn(0);
-        Assert.Throws<InvalidOperationException>(() => world.OpenFrame());
-        Assert.Throws<InvalidOperationException>(() => world.StepFused());
-        Assert.False(world.FrameOpen);
-        world.Step();
-        plain.StepFused();
-        Assert.Equal(plain.Digest(), world.Digest());
-        Assert.Equal(1, world.Frame);
     }
 
     [Fact]

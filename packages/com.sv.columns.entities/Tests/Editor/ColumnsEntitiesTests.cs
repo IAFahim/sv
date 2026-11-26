@@ -216,6 +216,239 @@ namespace Sv.Columns.Entities.Tests
         }
 
         [Test]
+        public void TheCanonLateInputRunOnTheBurstHostIsPinned()
+        {
+            using var pack = PackJson.Read(Arena()).Compile();
+            var shapes = new[] { (FrameKernel.Rows, 1, 1), (FrameKernel.Rows, 3, 7), (FrameKernel.Scalar, 2, 5) };
+            foreach (var (kernel, writers, parts) in shapes)
+            {
+                using var host = new ColumnsBurstHost(pack, CanonRun.Capacity, writers, parts, kernel, history: CanonRun.LateHistory);
+                var digest = CanonRun.RunWithLateInput(host.World, host.Step, host.Resimulate);
+                Assert.AreEqual(Hex(CanonRun.PinnedLate), Hex(digest), kernel + " writers " + writers + " parts " + parts);
+                AssertBurst(host);
+            }
+        }
+
+        static List<int> Alive(ColumnWorld world)
+        {
+            var slots = new List<int>();
+            for (var slot = 0; slot < world.Capacity; slot++)
+            {
+                if (world.IsAlive(slot))
+                {
+                    slots.Add(slot);
+                }
+            }
+
+            return slots;
+        }
+
+        static void SameInputs(ColumnWorld classic, ColumnsBurstHost host, string where)
+        {
+            for (var f = classic.OldestFrame; f < classic.Frame; f++)
+            {
+                var expected = classic.Inputs(f);
+                var actual = host.Inputs(f);
+                Assert.AreEqual(expected.ActionCount, actual.ActionCount, where + " actions of frame " + f);
+                Assert.AreEqual(expected.RecordCount, actual.RecordCount, where + " records of frame " + f);
+                var left = new ulong[expected.RecordCount];
+                var right = new ulong[actual.RecordCount];
+                for (var i = 0; i < left.Length; i++)
+                {
+                    left[i] = expected.Record(i);
+                    right[i] = actual.Record(i);
+                }
+
+                Array.Sort(left);
+                Array.Sort(right);
+                CollectionAssert.AreEqual(left, right, where + " record set of frame " + f);
+            }
+        }
+
+        [Test]
+        public void TheBurstHostWithHistoryMatchesTheClassicWorldThroughLateInputsAndRewinds()
+        {
+            using var pack = PackJson.Read(Arena()).Compile();
+            using var traffic = new ColumnsTraffic(1200);
+            for (var seed = 1; seed <= 6; seed++)
+            {
+                var dice = new System.Random(100 + seed);
+                var writers = 1 + seed % 3;
+                var parts = 1 + seed % 5;
+                var structure = seed % 2 == 1;
+                using var host = new ColumnsBurstHost(pack, 2048, writers, parts, seed % 3 == 0 ? FrameKernel.Scalar : FrameKernel.Rows, history: 8);
+                using var classic = new ColumnWorld(pack, 2048, writers, parts, history: 8);
+                for (var i = dice.Next(50, 400); i > 0; i--)
+                {
+                    var template = dice.Next(pack.TemplateNames.Count);
+                    Assert.AreEqual(classic.Spawn(template), host.World.Spawn(template));
+                }
+
+                for (var frame = 0; frame < 40; frame++)
+                {
+                    var live = Alive(classic);
+                    var where = "seed " + seed + " frame " + frame;
+                    if (frame > 3 && dice.Next(4) == 0)
+                    {
+                        var at = Math.Max(classic.OldestFrame, classic.Frame - 1 - dice.Next(6));
+                        if (dice.Next(5) == 0)
+                        {
+                            classic.Rewind(at);
+                            host.Rewind(at);
+                            Assert.AreEqual(Hex(classic.Digest()), Hex(host.World.Digest()), where + " rewind to " + at);
+                            continue;
+                        }
+
+                        for (var i = dice.Next(1, 4); i > 0; i--)
+                        {
+                            var target = live[dice.Next(live.Count)];
+                            var road = dice.Next(structure ? 5 : 3);
+                            if (road == 0)
+                            {
+                                var raw = ((ulong)(uint)target << Record.TargetShift) | (uint)dice.Next(0, 1 << 20);
+                                classic.Inputs(at).AddRecord(raw);
+                                host.Inputs(at).AddRecord(raw);
+                            }
+                            else if (road == 1)
+                            {
+                                var send = ColumnAction.Send(target, dice.Next(pack.ChannelNames.Count), dice.Next(-20, 60), dice.Next(1, 3));
+                                classic.Inputs(at).AddAction(send);
+                                host.Inputs(at).AddAction(send);
+                            }
+                            else if (road == 2)
+                            {
+                                var send = ColumnAction.SendFrom(live[dice.Next(live.Count)], target, dice.Next(pack.ChannelNames.Count), dice.Next(-20, 60), 1);
+                                classic.Inputs(at).InsertAction(0, send);
+                                host.Inputs(at).InsertAction(0, send);
+                            }
+                            else if (road == 3)
+                            {
+                                var spawn = ColumnAction.Spawn(dice.Next(pack.TemplateNames.Count));
+                                classic.Inputs(at).AddAction(spawn);
+                                host.Inputs(at).AddAction(spawn);
+                            }
+                            else
+                            {
+                                var gone = ColumnAction.Despawn(target);
+                                classic.Inputs(at).AddAction(gone);
+                                host.Inputs(at).AddAction(gone);
+                            }
+                        }
+
+                        classic.Resimulate();
+                        host.Resimulate();
+                        Assert.AreEqual(Hex(classic.Digest()), Hex(host.World.Digest()), where + " resimulated from " + at);
+                        Assert.AreEqual(classic.Dropped, host.World.Dropped, where + " resimulated from " + at);
+                        SameInputs(classic, host, where);
+                        live = Alive(classic);
+                    }
+
+                    for (var i = dice.Next(0, 1200); i > 0; i--)
+                    {
+                        var target = dice.Next(5) == 0 ? dice.Next(-3, 2100) : live[dice.Next(live.Count)];
+                        var channel = dice.Next(5) == 0 ? dice.Next(-1, 18) : dice.Next(pack.ChannelNames.Count);
+                        var amount = dice.Next(-30, 51);
+                        var source = dice.Next(8) == 0 ? dice.Next(-2, 2100) : live[dice.Next(live.Count)];
+                        var road = dice.Next(10);
+                        if (road == 0)
+                        {
+                            var raw = ((ulong)(uint)dice.Next(0, 1 << 22) << Record.TargetShift) | (uint)dice.Next(0, 1 << 20);
+                            classic.Writer(0).SendRecord(raw);
+                            traffic.SendRecord(raw);
+                        }
+                        else if (road < 3)
+                        {
+                            var writer = dice.Next(writers);
+                            classic.Writer(writer).SendFrom(source, target, channel, amount, 1);
+                            host.World.Writer(writer).SendFrom(source, target, channel, amount, 1);
+                        }
+                        else if (road < 5)
+                        {
+                            classic.Writer(0).SendFrom(source, target, channel, amount, 2);
+                            traffic.SendFrom(source, target, channel, amount, 2);
+                        }
+                        else
+                        {
+                            classic.Writer(0).Send(target, channel, amount, 1);
+                            traffic.Send(target, channel, amount, 1);
+                        }
+                    }
+
+                    if (dice.Next(4) == 0)
+                    {
+                        var template = dice.Next(pack.TemplateNames.Count);
+                        Assert.AreEqual(classic.Spawn(template), host.World.Spawn(template));
+                    }
+
+                    if (dice.Next(6) == 0 && live.Count > 1)
+                    {
+                        var gone = live[dice.Next(live.Count)];
+                        classic.Despawn(gone);
+                        host.World.Despawn(gone);
+                    }
+
+                    classic.Step();
+                    host.Schedule(traffic.Schedule(host.Sender));
+                    host.Complete();
+                    Assert.AreEqual(Hex(classic.Digest()), Hex(host.World.Digest()), where);
+                    Assert.AreEqual(classic.Dropped, host.World.Dropped, where);
+                }
+
+                SameInputs(classic, host, "seed " + seed);
+                AssertBurst(host);
+            }
+        }
+
+        [Test]
+        public void WarmBurstFramesWithHistoryAndAWarmResimulateAllocateNothing()
+        {
+            using var pack = PackJson.Read(Arena()).Compile();
+            using var host = new ColumnsBurstHost(pack, 4096, 2, 0, history: 16);
+            using var traffic = new ColumnsTraffic(4096);
+            var fire = pack.Channel("Fire");
+            var slots = new int[3000];
+            for (var i = 0; i < slots.Length; i++)
+            {
+                slots[i] = host.World.Spawn(i % pack.TemplateNames.Count);
+            }
+
+            void Frames(int count)
+            {
+                for (var f = 0; f < count; f++)
+                {
+                    for (var i = 0; i < slots.Length; i++)
+                    {
+                        traffic.Send(slots[i], fire, 1, 1);
+                    }
+
+                    host.World.Writer(f & 1).Send(slots[f % slots.Length], fire, 2);
+                    host.Schedule(traffic.Schedule(host.Sender));
+                    host.Complete();
+                    if ((f & 7) == 7)
+                    {
+                        host.Inputs(host.World.Frame - 5).AddRecord(((ulong)(uint)slots[f] << Record.TargetShift) | (uint)fire);
+                        host.Resimulate();
+                    }
+                }
+            }
+
+            Frames(64);
+            var windows = new long[4];
+            var start = GC.GetAllocatedBytesForCurrentThread();
+            windows[0] = GC.GetAllocatedBytesForCurrentThread() - start;
+            for (var w = 1; w < windows.Length; w++)
+            {
+                var before = GC.GetAllocatedBytesForCurrentThread();
+                Frames(32);
+                windows[w] = GC.GetAllocatedBytesForCurrentThread() - before;
+            }
+
+            Debug.Log("SVCOLUMNS entities warm allocation per 32 burst frames with history and 4 resimulates, after an empty window of " + windows[0] + " B: " + string.Join(", ", Array.ConvertAll(windows, w => w.ToString()), 1, windows.Length - 1) + " B");
+            Assert.AreEqual(0L, windows[windows.Length - 1] - windows[0]);
+            AssertBurst(host);
+        }
+
+        [Test]
         public void WarmBurstFramesAllocateNothing()
         {
             using var pack = PackJson.Read(Arena()).Compile();
@@ -276,10 +509,10 @@ namespace Sv.Columns.Entities.Tests
             public readonly CompiledPack Pack;
             public readonly ColumnWorld World;
 
-            public Mirror(string json, int capacity, int parts)
+            public Mirror(string json, int capacity, int parts, int history = 0)
             {
                 Pack = PackJson.Read(json).Compile();
-                World = new ColumnWorld(Pack, capacity, 1, parts);
+                World = new ColumnWorld(Pack, capacity, 1, parts, history: history);
             }
 
             public void Dispose()
@@ -441,6 +674,90 @@ namespace Sv.Columns.Entities.Tests
         {
             var manager = world.EntityManager;
             return new WeakReference(ColumnsStepSystem.HostOf(manager, HostEntity(manager)));
+        }
+
+        [Test]
+        public void TheStepSystemKeepsHistoryAndResimulatesLateInputsLikeTheClassicWorld()
+        {
+            var json = Arena();
+            var blob = ColumnsPacks.Create(json);
+            using var mirror = new Mirror(json, 1024, 3, 8);
+            var world = new World("sv columns history test");
+            try
+            {
+                var manager = world.EntityManager;
+                var system = world.CreateSystem<ColumnsStepSystem>();
+                var config = manager.CreateEntity(typeof(ColumnsWorldConfig));
+                manager.SetComponentData(config, new ColumnsWorldConfig { Pack = blob, Capacity = 1024, Writers = 1, ResolveParts = 3, Kernel = FrameKernel.Rows, History = 8 });
+                var pack = mirror.Pack;
+                var entities = new List<Entity>();
+                for (var i = 0; i < 150; i++)
+                {
+                    var entity = manager.CreateEntity(typeof(ColumnsTemplate));
+                    manager.SetComponentData(entity, new ColumnsTemplate { Value = i % pack.TemplateNames.Count });
+                    entities.Add(entity);
+                }
+
+                var spawnOrder = new List<Entity>(entities);
+                spawnOrder.Sort();
+                var slots = new Dictionary<Entity, int>();
+                foreach (var entity in spawnOrder)
+                {
+                    slots[entity] = mirror.World.Spawn(entities.IndexOf(entity) % pack.TemplateNames.Count);
+                }
+
+                system.Update(world.Unmanaged);
+                mirror.World.Step();
+                var host = ColumnsStepSystem.HostOf(manager, HostEntity(manager));
+                host.Complete();
+                Assert.AreEqual(Hex(mirror.World.Digest()), Hex(host.World.Digest()));
+                var channels = pack.ChannelNames.Count;
+                var fire = pack.Channel("Fire");
+                for (var frame = 0; frame < 24; frame++)
+                {
+                    var sender = manager.GetComponentData<ColumnsState>(HostEntity(manager)).Sender;
+                    for (var i = 0; i < 200; i++)
+                    {
+                        var target = slots[entities[(i * 17 + frame) % entities.Count]];
+                        var channel = (i + frame) % channels;
+                        var amount = (i * 7 + frame) % 37 - 10;
+                        sender.Send(target, channel, amount);
+                        mirror.World.Writer(0).Send(target, channel, amount);
+                    }
+
+                    system.Update(world.Unmanaged);
+                    mirror.World.Step();
+                    host.Complete();
+                    Assert.AreEqual(Hex(mirror.World.Digest()), Hex(host.World.Digest()), "frame " + frame);
+                    if (frame % 6 == 5)
+                    {
+                        var at = host.World.Frame - 4;
+                        var target = slots[entities[frame]];
+                        var late = ((ulong)(uint)target << Record.TargetShift) | (uint)frame;
+                        mirror.World.Inputs(at).AddRecord(late);
+                        host.Inputs(at).AddRecord(late);
+                        var send = ColumnAction.Send(slots[entities[frame + 1]], fire, 30, 2);
+                        mirror.World.Inputs(at).AddAction(send);
+                        host.Inputs(at).AddAction(send);
+                        mirror.World.Resimulate();
+                        host.Resimulate();
+                        Assert.AreEqual(mirror.World.Frame, host.World.Frame);
+                        Assert.AreEqual(Hex(mirror.World.Digest()), Hex(host.World.Digest()), "resimulated at frame " + frame);
+                        Assert.AreEqual(mirror.World.Dropped, host.World.Dropped);
+                    }
+                }
+
+                system.Update(world.Unmanaged);
+                host.Complete();
+                var state = manager.GetComponentData<ColumnsState>(HostEntity(manager));
+                Assert.AreEqual(host.World.Frame - 1, state.Frame);
+                AssertBurst(host);
+            }
+            finally
+            {
+                world.Dispose();
+                blob.Dispose();
+            }
         }
 
         [Test]

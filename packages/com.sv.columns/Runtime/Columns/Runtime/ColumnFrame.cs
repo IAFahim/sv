@@ -31,7 +31,11 @@ namespace Sv.Columns
         internal ulong** WriterRecords;
         internal int* WriterCounts;
         internal RecordBucket* WriterBuckets;
+        internal ulong** WriterScratch;
         internal long* WriterLost;
+        internal ulong* ReplayMask;
+        internal int* KeepLanes;
+        internal SlotGate* KeepGates;
         internal FrameKernel Kernel;
         internal int Number;
 
@@ -51,11 +55,11 @@ namespace Sv.Columns
 
         public void BucketWriter(int writer)
         {
-            var bucket = WriterBuckets[writer];
-            WriterLost[writer * 8] = Bucket(WriterRecords[writer], WriterCounts[writer], bucket.Records, bucket.Starts);
+            WriterBuckets[writer] = Bucket(WriterRecords[writer], WriterCounts[writer], WriterScratch[writer], WriterBuckets[writer].Starts, out var outside);
+            WriterLost[writer * 8] = outside;
         }
 
-        public int Bucket(ulong* records, int count, ulong* sorted, int* starts)
+        public RecordBucket Bucket(ulong* records, int count, ulong* scratch, int* starts, out int outside)
         {
             var chunks = ChunkCount;
             var slots = (uint)SlotCount;
@@ -64,7 +68,9 @@ namespace Sv.Columns
                 starts[b] = 0;
             }
 
-            var outside = 0;
+            outside = 0;
+            var ordered = true;
+            var previous = 0u;
             for (var i = 0; i < count; i++)
             {
                 var target = (uint)(records[i] >> Record.TargetShift);
@@ -74,12 +80,25 @@ namespace Sv.Columns
                     continue;
                 }
 
-                starts[(target >> 6) + 2]++;
+                var chunk = target >> 6;
+                ordered &= chunk >= previous;
+                previous = chunk;
+                starts[chunk + 2]++;
             }
 
             for (var b = 2; b < chunks + 2; b++)
             {
                 starts[b] += starts[b - 1];
+            }
+
+            if (ordered && outside == 0)
+            {
+                for (var b = 0; b <= chunks; b++)
+                {
+                    starts[b] = starts[b + 1];
+                }
+
+                return new RecordBucket { Records = records, Starts = starts };
             }
 
             for (var i = 0; i < count; i++)
@@ -91,10 +110,10 @@ namespace Sv.Columns
                     continue;
                 }
 
-                sorted[starts[(target >> 6) + 1]++] = record;
+                scratch[starts[(target >> 6) + 1]++] = record;
             }
 
-            return outside;
+            return new RecordBucket { Records = scratch, Starts = starts };
         }
 
         public long Resolve(int part, RecordBucket* buckets, int bucketCount)
@@ -113,6 +132,17 @@ namespace Sv.Columns
                     for (var b = 0; b < bucketCount; b++)
                     {
                         lost += buckets[b].Starts[chunk + 1] - buckets[b].Starts[chunk];
+                    }
+
+                    continue;
+                }
+
+                if (ReplayMask != null && ((ReplayMask[chunk >> 6] >> (chunk & 63)) & 1ul) == 0)
+                {
+                    for (var b = 0; b < bucketCount; b++)
+                    {
+                        var skipped = buckets[b];
+                        ColumnWorld.CountLostInChunk(skipped.Records, skipped.Starts[chunk], skipped.Starts[chunk + 1], chunk, chunkAlive, allAdmit, ref lost);
                     }
 
                     continue;
@@ -154,6 +184,21 @@ namespace Sv.Columns
                     {
                         Law.ResolveRow(Tables, chunkLanes, totals, area.Wide, area.Gain, row);
                         chunkGates[row] = Law.GateOf(Tables, chunkLanes, row);
+                    }
+                }
+
+                if (KeepLanes != null)
+                {
+                    var keptLanes = KeepLanes + (long)chunk * ChunkInts;
+                    for (var i = 0; i < ChunkInts; i++)
+                    {
+                        keptLanes[i] = chunkLanes[i];
+                    }
+
+                    var keptGates = KeepGates + (long)chunk * Law.Rows;
+                    for (var row = 0; row < Law.Rows; row++)
+                    {
+                        keptGates[row] = chunkGates[row];
                     }
                 }
             }

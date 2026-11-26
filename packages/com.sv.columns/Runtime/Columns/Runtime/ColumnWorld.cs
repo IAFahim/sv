@@ -471,7 +471,7 @@ namespace Sv.Columns
             return at;
         }
 
-        static int CountLostInChunk(ulong* records, int at, int count, int chunk, ulong aliveWord, ulong allAdmit, ref long lost)
+        internal static int CountLostInChunk(ulong* records, int at, int count, int chunk, ulong aliveWord, ulong allAdmit, ref long lost)
         {
             for (; at < count; at++)
             {
