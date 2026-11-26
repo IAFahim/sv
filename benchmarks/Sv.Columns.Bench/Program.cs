@@ -66,6 +66,16 @@ namespace Sv.Columns.Bench
                 failures += Run("mixed", Arg(args, 1, 1_000_000), Arg(args, 2, 500), 10, threads, frames, workers);
             }
 
+            if (mode == "history")
+            {
+                var history = Arg(args, 5, 8);
+                failures += RunHistory(Arg(args, 1, 20_000), Arg(args, 2, 500), 10, threads, frames, history, workers);
+                if (args.Length < 2)
+                {
+                    failures += RunHistory(1_000_000, 500, 10, threads, frames, history, workers);
+                }
+            }
+
             Console.WriteLine(failures == 0 ? "all scenarios ok" : failures + " scenario(s) failed");
             return failures == 0 ? 0 : 1;
         }
@@ -126,6 +136,122 @@ namespace Sv.Columns.Bench
                 name, entities, ops, records, threads, world.KernelPath, median, Percentile(totals, 10), Percentile(totals, 90), median * 1e6 / work,
                 Median(reduces), Median(resolves), Median(sends), allocated, same ? "equal" : "DIFFERENT", world.Digest()));
             return same && allocated == 0 ? 0 : 1;
+        }
+
+        static double StepMedian(ColumnWorld world, ColumnRunner runner, Workers workers, void* state, int records, int threads, int frames, ref long allocated)
+        {
+            var warm = Stopwatch.StartNew();
+            for (var f = 0; f < 16 || warm.ElapsedMilliseconds < 2000; f++)
+            {
+                Send(workers, state, records, threads);
+                runner.Step();
+            }
+
+            var totals = new double[frames];
+            for (var f = 0; f < frames; f++)
+            {
+                Send(workers, state, records, threads);
+                var before = GC.GetAllocatedBytesForCurrentThread();
+                var start = Stopwatch.GetTimestamp();
+                runner.Step();
+                totals[f] = (Stopwatch.GetTimestamp() - start) * 1000.0 / Stopwatch.Frequency;
+                allocated += GC.GetAllocatedBytesForCurrentThread() - before;
+            }
+
+            return Median(totals);
+        }
+
+        static int RunHistory(int entities, int ops, int records, int threads, int frames, int history, Workers workers)
+        {
+            var templates = 8;
+            using var pack = BenchPack.Build(templates, ops, 12345).Compile();
+            var capacity = ((entities + templates * 64 + 63) / 64) * 64;
+            var allocated = 0L;
+            double plainStep;
+            using (var plain = new ColumnWorld(pack, capacity, threads, threads * 8, Choice))
+            using (var plainRunner = new ColumnRunner(plain, workers))
+            {
+                var plainTraffic = new Traffic { World = plain, Slots = Spawn(plain, pack, entities, templates), PerEntity = records };
+                var plainHandle = GCHandle.Alloc(plainTraffic);
+                plainStep = StepMedian(plain, plainRunner, workers, (void*)GCHandle.ToIntPtr(plainHandle), records, threads, frames, ref allocated);
+                plainHandle.Free();
+            }
+
+            using var world = new ColumnWorld(pack, capacity, threads, threads * 8, Choice, history);
+            using var runner = new ColumnRunner(world, workers);
+            var traffic = new Traffic { World = world, Slots = Spawn(world, pack, entities, templates), PerEntity = records };
+            var handle = GCHandle.Alloc(traffic);
+            var state = (void*)GCHandle.ToIntPtr(handle);
+            var keptStep = StepMedian(world, runner, workers, state, records, threads, frames, ref allocated);
+            var exact = true;
+            var line = new System.Text.StringBuilder();
+            var one = new[] { traffic.Slots[0] };
+            var everyChunk = OnePerChunk(traffic.Slots);
+            foreach (var edited in new[] { one, everyChunk })
+            {
+                line.Append(edited == one ? " one entity edited:" : " every chunk edited:");
+                foreach (var depth in new[] { 1, history / 2, history })
+                {
+                    var times = new double[5];
+                    for (var i = 0; i < times.Length; i++)
+                    {
+                        Send(workers, state, records, threads);
+                        runner.Step();
+                        var before = world.Digest();
+                        var inputs = world.Inputs(world.Frame - depth);
+                        for (var e = 0; e < edited.Length; e++)
+                        {
+                            inputs.AddAction(ColumnAction.Send(edited[e], 0, 0));
+                        }
+
+                        var bytes = GC.GetAllocatedBytesForCurrentThread();
+                        var start = Stopwatch.GetTimestamp();
+                        runner.Resimulate();
+                        times[i] = (Stopwatch.GetTimestamp() - start) * 1000.0 / Stopwatch.Frequency;
+                        allocated += GC.GetAllocatedBytesForCurrentThread() - bytes;
+                        exact &= world.Digest() == before;
+                    }
+
+                    line.Append(string.Format(CultureInfo.InvariantCulture, " {0} frames {1:0.000} ms;", depth, Median(times)));
+                }
+            }
+
+            var rewinds = new double[5];
+            for (var i = 0; i < rewinds.Length; i++)
+            {
+                Send(workers, state, records, threads);
+                runner.Step();
+                var start = Stopwatch.GetTimestamp();
+                world.Rewind(world.Frame - 1);
+                rewinds[i] = (Stopwatch.GetTimestamp() - start) * 1000.0 / Stopwatch.Frequency;
+                traffic.Frame--;
+            }
+
+            handle.Free();
+            var lanes = pack.LaneNames.Count;
+            var checkpointBytes = (history + 1) * ((double)world.Chunks * (lanes * 64 * 4 + 64 * 16 + 12)) / capacity;
+            var logBytes = (history + 1) * records * 8.0;
+            Console.WriteLine(string.Format(CultureInfo.InvariantCulture,
+                "v4-history {0:N0} entities x ({1} ops + {2} records), {3} lanes, history {4}, {5} threads, {6}: step {7:0.000} ms without history, {8:0.000} ms with (+{9:0.000} ms); memory {10:0} B per entity for checkpoints + {11:0} B for the record log; rewind {12:0.000} ms; resimulate:{13} alloc {14} B; resimulated digest {15}",
+                entities, ops, records, lanes, history, threads, world.KernelPath, plainStep, keptStep, keptStep - plainStep, checkpointBytes, logBytes,
+                Median(rewinds), line, allocated, exact ? "bit-identical" : "DIFFERENT"));
+            return exact && allocated == 0 ? 0 : 1;
+        }
+
+        static int[] OnePerChunk(int[] slots)
+        {
+            var chunks = new System.Collections.Generic.SortedDictionary<int, int>();
+            foreach (var slot in slots)
+            {
+                if (!chunks.ContainsKey(slot >> 6))
+                {
+                    chunks.Add(slot >> 6, slot);
+                }
+            }
+
+            var picked = new int[chunks.Count];
+            chunks.Values.CopyTo(picked, 0);
+            return picked;
         }
 
         static int[] Spawn(ColumnWorld world, CompiledPack pack, int entities, int templates)
