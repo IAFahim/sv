@@ -194,7 +194,7 @@ The rule examples run in both tiers. In the column check, 136 of 4,000 entities 
 
 **needle-cs** is a float SIMD inference engine (Needle text, Whistle voice) on its own threads, 46 to 84 ms per call. It is an input device that feeds bond. It never touches the sv hot loop.
 
-**tl** is the performance bar and the model for Tier C. It is fast because per-tick cost scales with events, not playbacks: 8-byte playbacks, due-tick SIMD scans, generated per-kind kernels, precomputed feeder tables. Measured here: 4.7 ns per active playback at 1M x 4 on one core. v4 should keep tl's outbox shape and let it emit Tier C programs. One problem found: sv's vendored tl Unity generator is pinned 136 commits behind tl main (`a15ea149`), and `NorthStar3Timelines.cs:46` calls `TlSystems.TlModule.Install()`, which current tl no longer generates.
+**tl** is the performance bar and the model for Tier C. It is fast because per-tick cost scales with events, not playbacks: 8-byte playbacks, due-tick SIMD scans, generated per-kind kernels, precomputed feeder tables. Measured here: 4.7 ns per active playback at 1M x 4 on one core. v4 should keep tl's outbox shape and let it emit Tier C programs. One problem found: sv's vendored tl Unity generator is pinned 136 commits behind tl main (`a15ea149`), and `NorthStar3Timelines.cs:46` calls `TlSystems.TlModule.Install()`, which current tl no longer generates. Fixed by `issues/0512`: both legs now pin tl `d87d1998` and the call is gone.
 
 ## 6. What v4 keeps
 
