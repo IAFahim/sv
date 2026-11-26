@@ -22,7 +22,6 @@ namespace Sv.Kernels.NorthStar3.Glue
 
         public NorthStar3Timelines(byte[] bakedLibrary, int rows, int workers)
         {
-            InstallGeneratedSystemsOnce();
             timelines = new TimelineWorld(bakedLibrary);
             players = new PlaybackTable(rows);
             kinds = new KindStore(timelines, players);
@@ -30,20 +29,6 @@ namespace Sv.Kernels.NorthStar3.Glue
             tlWorkers = workers > 1 ? new TlWorkers(workers) : null;
             poisonOutbox = new PoisonOut[rows];
             bleedingOutbox = new BleedingOut[rows];
-        }
-
-        static void InstallGeneratedSystemsOnce()
-        {
-            var glueAssembly = typeof(NorthStar3Timelines).Assembly;
-            foreach (var installed in TlGenerated.Modules)
-            {
-                if (installed.GetType().Assembly == glueAssembly)
-                {
-                    return;
-                }
-            }
-
-            TlSystems.TlModule.Install();
         }
 
         public ushort Find(string timeline) => timelines.Find(timeline);
