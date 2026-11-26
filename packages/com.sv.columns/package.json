@@ -1,0 +1,8 @@
+{
+    "name": "com.sv.columns",
+    "version": "4.0.0",
+    "displayName": "sv columns",
+    "description": "sv v4 for Unity 7: compiled ops and 8-byte records folded into integer lanes once per frame, the same result on every machine. Sv.Columns synced verbatim by eng/columns-sync.sh, plus a MonoBehaviour host and a job-system stepper.",
+    "unity": "7000.0",
+    "dependencies": {}
+}

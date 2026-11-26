@@ -1,0 +1,46 @@
+name: sv Unity columns
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/Sv.Columns/**'
+      - 'packages/com.sv.columns/**'
+      - 'packs/columns/**'
+      - 'tests/Sv.Columns.Tests/Canon/**'
+      - 'benchmarks/Sv.Columns.Bench/BenchPack.cs'
+      - 'eng/columns-sync.sh'
+      - 'eng/unity-columns-ci.sh'
+      - 'eng/unity-columns/**'
+      - '.github/workflows/unity-columns.yml'
+  pull_request:
+    paths:
+      - 'src/Sv.Columns/**'
+      - 'packages/com.sv.columns/**'
+      - 'packs/columns/**'
+      - 'tests/Sv.Columns.Tests/Canon/**'
+      - 'benchmarks/Sv.Columns.Bench/BenchPack.cs'
+      - 'eng/columns-sync.sh'
+      - 'eng/unity-columns-ci.sh'
+      - 'eng/unity-columns/**'
+      - '.github/workflows/unity-columns.yml'
+  workflow_dispatch:
+concurrency:
+  group: sv-unity-columns-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  unity:
+    name: Unity columns compile, EditMode tests, bench
+    runs-on: [self-hosted, unity]
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unity steps (newest installed Unity 7 editor, own probe project)
+        env:
+          SV_UNITY_OUT: ${{ github.workspace }}/artifacts/sv-columns-unity
+        run: bash eng/unity-columns-ci.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sv-columns-unity-logs
+          path: artifacts/sv-columns-unity
