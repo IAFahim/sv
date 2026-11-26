@@ -1,6 +1,6 @@
 # sv v4.0 columns: specification
 
-Status: normative for `src/Sv.Columns` and `Sv.Host.ColumnRunner`. When it is accepted it moves to `contract/` as a new file; the v3 contracts stay as they are. The decisions behind it, with reasons, are in `docs/v4-design.md` section 8.
+Status: normative for `src/Sv.Columns` and `Sv.Host.ColumnRunner`. When it is accepted it moves to `contract/` as a new file; the v3 contracts stay as they are. The decisions behind it, with reasons, are in `docs/v4-design.md` section 8; a tutorial with a runnable program is `docs/v4-guide.md`.
 
 v4 does one thing: it folds many integer contributions per entity into lanes, once per frame, in a fixed order, with the same result on every machine, thread count and instruction set. Contributions come from two places, and both meet in the same per-row class sums and the same fold:
 
