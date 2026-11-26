@@ -327,7 +327,9 @@ namespace Sv.Columns.Entities.Tests
                 }
 
                 var slots = new Dictionary<Entity, int>();
-                foreach (var entity in entities)
+                var spawnOrder = new List<Entity>(entities);
+                spawnOrder.Sort();
+                foreach (var entity in spawnOrder)
                 {
                     var index = entities.IndexOf(entity);
                     var slot = mirror.World.Spawn(index % pack.TemplateNames.Count);

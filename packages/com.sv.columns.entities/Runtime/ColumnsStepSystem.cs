@@ -65,11 +65,23 @@ namespace Sv.Columns.Entities
             }
 
             var manager = state.EntityManager;
-            var handle = GCHandle.FromIntPtr(manager.GetComponentData<ColumnsHostHandle>(hostEntity).Value);
-            ((ColumnsBurstHost)handle.Target!).Dispose();
-            handle.Free();
-            manager.DestroyEntity(hostEntity);
+            var entity = hostEntity;
             hostEntity = Entity.Null;
+            if (!manager.Exists(entity) || !manager.HasComponent<ColumnsHostHandle>(entity))
+            {
+                return;
+            }
+
+            var pointer = manager.GetComponentData<ColumnsHostHandle>(entity).Value;
+            manager.DestroyEntity(entity);
+            if (pointer == System.IntPtr.Zero)
+            {
+                return;
+            }
+
+            var handle = GCHandle.FromIntPtr(pointer);
+            (handle.Target as ColumnsBurstHost)?.Dispose();
+            handle.Free();
         }
 
         public static ColumnsBurstHost HostOf(EntityManager manager, Entity entity) =>

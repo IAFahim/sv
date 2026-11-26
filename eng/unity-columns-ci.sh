@@ -102,6 +102,7 @@ for step in $steps; do
       if [ $code -ne 0 ] || [ "$total" -eq 0 ] || [ "$failed" -ne 0 ]; then
         status=1
         grep -E 'error CS|Failed|Exception|Expected|But was' "$log" | sort -u | head -40 >&2
+        grep -n -A30 -E '^[A-Za-z.]*Exception: ' "$log" | head -150 >&2
         python3 - "$xml" >&2 <<'PY' || true
 import sys, xml.etree.ElementTree as ET
 for case in ET.parse(sys.argv[1]).iter("test-case"):

@@ -2,10 +2,10 @@ namespace Sv.Columns
 {
     public unsafe struct ColumnView
     {
-        internal nint LaneData;
-        internal nint AliveWords;
-        internal nint ChunkTemplates;
-        internal nint Gates;
+        internal long LaneData;
+        internal long AliveWords;
+        internal long ChunkTemplates;
+        internal long Gates;
         internal int ChunkInts;
         internal int LaneCount;
         internal int SlotCount;

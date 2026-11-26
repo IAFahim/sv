@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.IO;
 using NUnit.Framework;
 using Unity.Entities;
@@ -42,14 +44,21 @@ namespace Sv.Columns.Entities.Samples.Arena.Tests
 
                 var victimSlots = new int[victims.Length];
                 var attackerSlots = new int[attackers.Length];
-                for (var i = 0; i < victims.Length; i++)
+                var spawnOrder = new List<Entity>(victims);
+                spawnOrder.AddRange(attackers);
+                spawnOrder.Sort();
+                foreach (var entity in spawnOrder)
                 {
-                    victimSlots[i] = mirror.Spawn(pack.Template("dummy"));
-                }
-
-                for (var i = 0; i < attackers.Length; i++)
-                {
-                    attackerSlots[i] = mirror.Spawn(pack.Template("dummy"));
+                    var slot = mirror.Spawn(pack.Template("dummy"));
+                    var victim = Array.IndexOf(victims, entity);
+                    if (victim >= 0)
+                    {
+                        victimSlots[victim] = slot;
+                    }
+                    else
+                    {
+                        attackerSlots[Array.IndexOf(attackers, entity)] = slot;
+                    }
                 }
 
                 for (var frame = 0; frame < 12; frame++)

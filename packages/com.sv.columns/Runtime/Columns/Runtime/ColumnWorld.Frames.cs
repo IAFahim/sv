@@ -21,10 +21,10 @@ namespace Sv.Columns
                 Live();
                 return new ColumnView
                 {
-                    LaneData = (nint)lanes,
-                    AliveWords = (nint)alive,
-                    ChunkTemplates = (nint)chunkTemplates,
-                    Gates = (nint)gates,
+                    LaneData = (long)lanes,
+                    AliveWords = (long)alive,
+                    ChunkTemplates = (long)chunkTemplates,
+                    Gates = (long)gates,
                     ChunkInts = chunkInts,
                     LaneCount = laneCount,
                     SlotCount = Capacity,
