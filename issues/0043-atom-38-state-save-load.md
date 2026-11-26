@@ -1,5 +1,7 @@
 # Issue 0043 — Atom 38: state save/load — deterministic rollback (`SvState`)
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Filed as GitHub issue #43 (pending — see receipts). Labels: `ai`, `area:core`,
 `area:compose`, `kind:feat`, `contract:proposed`. Contract: bus 0036 amendment 5
 (new clause) — vendored contract stays v1.0.3 until ack.

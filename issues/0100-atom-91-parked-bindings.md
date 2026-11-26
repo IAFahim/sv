@@ -1,5 +1,7 @@
 # Issue 0100 — Atom 91 (roadmap 1.8): release-safe bindings — writes park while stale, length validated at bind
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Roadmap [issues/0058](0058-roadmap-1m-entities-5us.md) 1.8, fixes F13.
 Labels: `ai`, `area:core`, `kind:feat`. Contract: v1.2 batch item 4 (owner
 0043 batch approval; relay 0052, correction 0053 — implemented ahead of the

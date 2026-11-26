@@ -1,5 +1,7 @@
 # Issue 0057 — Atom 50: intrinsics integer add saturates (review C-1 resolved: SATURATE)
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Filed as GitHub issue #37 (numbering offset — see issue #24 provenance note). Labels:
 `ai`, `area:core`, `kind:feat`, `contract:proposed`. Resolves [issues/0047](0047-add-overflow-wrap-vs-saturate-bus-ruling.md)
 (GitHub #27). Decision authority: the owner delegated the [issues/0047](0047-add-overflow-wrap-vs-saturate-bus-ruling.md)

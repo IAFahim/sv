@@ -1,5 +1,7 @@
 # Issue 0094 — Atom 86 (hardening, atoms 77–83 audit): wheel sanitize on load, aligned fresh-free, bulk fault surfacing
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Follow-up to the read-only audit of atoms 77–83 (commits `0835da0..bf4482f`)
 that also root-caused issue 0092. Labels: `ai`, `area:core`, `kind:feat`.
 Contract: none.

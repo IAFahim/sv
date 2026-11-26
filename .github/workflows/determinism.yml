@@ -52,7 +52,7 @@ jobs:
           dotnet test sv.slnx -c Release --logger "console;verbosity=normal"
           dotnet test sv.slnx -c Release -p:SvChecked=true
 
-      - name: README chapter 1 sample prints the documented numbers
+      - name: README chapter 1 and v4 hello samples print the documented numbers
         shell: bash
         working-directory: sv
         run: |
@@ -60,3 +60,5 @@ jobs:
           dotnet build sv.slnx -c Release -v q
           dotnet run --no-build -c Release --project samples/Sv.Hello > hello.txt
           diff -u --strip-trailing-cr samples/Sv.Hello/expected.txt hello.txt
+          dotnet run --no-build -c Release --project samples/Sv.Columns.Hello > columns-hello.txt
+          diff -u --strip-trailing-cr samples/Sv.Columns.Hello/expected.txt columns-hello.txt

@@ -1,5 +1,7 @@
 # Issue 0010 — Atom 7 stage B: real ecs-kernels Fall in the fused tick, bit-identical
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Filed as GitHub issue #10 (closed — execution record). Labels: `ai`, `area:north-star`, `kind:test`.
 Umbrella #2 remains open only for the integrator's Unity cross-host leg.
 

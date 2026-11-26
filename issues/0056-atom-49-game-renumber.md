@@ -1,5 +1,7 @@
 # Issue 0056 — Atom 49: `Game.Renumber` permutes every game-owned column (review C-5 part 1)
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Filed as GitHub issue #36 (numbering offset — see issue #24 provenance note). Labels:
 `ai`, `area:compose`, `kind:feat`. Source: design review 2026-10-20
 ([issues/0044](0044-2026-10-20-design-review.md), GitHub #24), finding C-5 part 1 —

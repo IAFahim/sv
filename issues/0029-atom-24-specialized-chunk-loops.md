@@ -1,5 +1,7 @@
 # Issue 0029 — Atom 24: specialized chunk loops (clamp kind x delta mode x applied)
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Filed as GitHub issue #29 (pending — see receipts). Labels: `ai`, `area:simd`,
 `kind:perf`.
 

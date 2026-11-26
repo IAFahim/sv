@@ -1,5 +1,7 @@
 # Issue 0083 — Atom 75 (roadmap 5.4): Incremental keyframes — cost tracks dirty pages
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Roadmap [issues/0058](issues/0058-roadmap-1m-entities-5us.md) phase 5, atom 5.4.
 Labels: `ai`, `area:core`, `kind:feat`. Contract: none.
 

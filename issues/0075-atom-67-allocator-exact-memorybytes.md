@@ -1,5 +1,7 @@
 # Issue 0075 — Atom 67 (roadmap 2.8): tracked allocator, O(1) exact `MemoryBytes`, high-water shrink
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Roadmap [issues/0058](issues/0058-roadmap-1m-entities-5us.md) phase 2, atom 2.8
 (§4.10, S11). Labels: `ai`, `area:core`, `kind:feat`. Contract: none.
 

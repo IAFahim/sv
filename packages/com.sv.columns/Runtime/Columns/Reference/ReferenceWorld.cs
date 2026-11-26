@@ -120,6 +120,11 @@ namespace Sv.Columns
             var values = entities.TryGetValue(source, out var from) ? from.Lanes : null;
             var holds = new bool[scales.Count];
             var kind = 0;
+            for (var r = 0; r < scales.Count; r++)
+            {
+                holds[r] = scales[r].SourceWhen == null;
+            }
+
             if (values != null)
             {
                 for (var r = 0; r < scales.Count; r++)

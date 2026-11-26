@@ -1,5 +1,7 @@
 # Issue 0009 — Perf atom: benchmark harness, perf receipts, zero-allocation proofs, managed audit
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Filed as GitHub issue #9 (closed — execution record). Labels: `ai`, `area:core`, `kind:perf`.
 
 ## Shipped surface

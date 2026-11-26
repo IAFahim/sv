@@ -47,7 +47,7 @@ namespace Sv.Columns
                 return;
             }
 
-            var gate = world.GateOf(source);
+            var gate = world.SourceGateOf(source);
             Append(Record.Pack(target, channel, gate.Kind, gate.Flags >> 8, AmountTimesHits(amount, hits)));
         }
 

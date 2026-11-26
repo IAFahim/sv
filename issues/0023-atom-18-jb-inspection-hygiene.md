@@ -1,5 +1,7 @@
 # Issue 0023 — Atom 18: jb inspection hygiene pass (ReSharper CLI 2026.2.1)
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Filed as GitHub issue #23 (pending — gh unreachable this session). Labels: `ai`,
 `area:core`, `kind:test`.
 

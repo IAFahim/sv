@@ -1,5 +1,7 @@
 # Atom 100 (roadmap 7.5): `Cap` modifier kind — full-fat caps fold after `Multi`
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 ## Changes
 
 - `src/Sv/Modifier.cs` — `ModifierKind.Cap = 3` joins the enum (fourth op kind, §4.11);

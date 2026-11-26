@@ -1,5 +1,7 @@
 # Issue 0086 — Atom 78 (roadmap 6.1b): `Sv.Kernel` — the chunk verbs as static kernels, no `Board` needed
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Roadmap [issues/0058](0058-roadmap-1m-entities-5us.md) phase 6, atom 6.1,
 second slice (§5.5). Labels: `ai`, `area:core`, `kind:feat`. Contract:
 none — the `Board` verbs keep their signatures and delegate.

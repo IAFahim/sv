@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace Sv.Columns.Tests;
 
 public sealed class EdgeTests
@@ -289,20 +291,22 @@ public sealed class EdgeTests
         using var compiled = Small().Compile();
         using var world = new ColumnWorld(compiled, 256);
         var slots = Enumerable.Range(0, 64).Select(_ => world.Spawn(0)).ToArray();
-        for (var i = 0; i < 1000; i++)
-        {
-            world.Despawn(slots[i % 64]);
-            slots[i % 64] = world.Spawn(0);
-        }
+        Churn(world, slots, 1000);
 
         var before = GC.GetAllocatedBytesForCurrentThread();
-        for (var i = 0; i < 100_000; i++)
-        {
-            world.Despawn(slots[i % 64]);
-            slots[i % 64] = world.Spawn(0);
-        }
+        Churn(world, slots, 100_000);
 
         Assert.Equal(0, GC.GetAllocatedBytesForCurrentThread() - before);
         Assert.Equal(64, world.Count);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    static void Churn(ColumnWorld world, int[] slots, int cycles)
+    {
+        for (var i = 0; i < cycles; i++)
+        {
+            world.Despawn(slots[i % 64]);
+            slots[i % 64] = world.Spawn(0);
+        }
     }
 }

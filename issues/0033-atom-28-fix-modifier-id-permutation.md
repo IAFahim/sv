@@ -1,5 +1,7 @@
 # Issue 0033 — Atom 28: fix — `Recalculate` permuted stored modifier ids, `RemoveModifier` removed the wrong modifier
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Filed as GitHub issue #33 (pending — see receipts). Labels: `ai`, `area:core`,
 `kind:bug`, `severity:high`.
 

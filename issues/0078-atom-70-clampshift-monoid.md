@@ -1,5 +1,7 @@
 # Issue 0078 — Atom 70 (roadmap 4.1): `ClampShift` — the intrinsic-update monoid as a value type
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Roadmap [issues/0058](0058-roadmap-1m-entities-5us.md) phase 4, atom 4.1
 (§4.1, law L6). Labels: `ai`, `area:core`, `kind:feat`. Contract: none —
 pure addition; the drift verbs that consume it are 4.2 (bus: clauses 7,

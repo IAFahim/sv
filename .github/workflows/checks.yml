@@ -1,0 +1,32 @@
+name: checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  mirrors-and-rollback-sample:
+    name: Unity mirrors match src, v4 rollback sample output
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Unity package mirrors match their sources
+        shell: bash
+        run: |
+          bash eng/engine-sync.sh check
+          bash eng/columns-sync.sh check
+          bash eng/tl-plain-sync.sh check
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: samples/Sv.Columns.Rollback prints its expected.txt
+        shell: bash
+        run: |
+          dotnet run -c Release --project samples/Sv.Columns.Rollback > rollback.txt
+          diff -u --strip-trailing-cr samples/Sv.Columns.Rollback/expected.txt rollback.txt
