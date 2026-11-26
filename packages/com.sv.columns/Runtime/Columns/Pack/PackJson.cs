@@ -27,7 +27,7 @@ namespace Sv.Columns
                 throw new PackException(problems);
             }
 
-            Known(top, "pack", problems, "lanes", "channels", "kinds", "kindLane", "cards", "templates", "rules");
+            Known(top, "pack", problems, "lanes", "channels", "kinds", "kindLane", "cards", "templates", "rules", "timelines");
             foreach (var (item, where) in Items(top, "lanes", "pack", problems))
             {
                 var lane = Object(item, where, problems);
@@ -86,12 +86,49 @@ namespace Sv.Columns
                 }
             }
 
+            Timelines(top, pack.Timelines, problems);
             if (problems.Count > 0)
             {
                 throw new PackException(problems);
             }
 
             return pack;
+        }
+
+        static void Timelines(List<KeyValuePair<string, object?>> top, TimelineGlue glue, List<string> problems)
+        {
+            if (Field(top, "timelines") == null)
+            {
+                return;
+            }
+
+            var timelines = Object(Field(top, "timelines"), "pack.timelines", problems);
+            if (timelines == null)
+            {
+                return;
+            }
+
+            Known(timelines, "pack.timelines", problems, "cards", "outbox", "starts");
+            glue.Cards.AddRange(Names(timelines, "cards", "pack.timelines", problems));
+            foreach (var (item, where) in Items(timelines, "outbox", "pack.timelines", problems))
+            {
+                var outbox = Object(item, where, problems);
+                if (outbox != null)
+                {
+                    Known(outbox, where, problems, "channel", "target");
+                    glue.Outbox.Add(new TimelineOutbox(Text(outbox, "channel", where, problems) ?? string.Empty, Field(outbox, "target") != null ? Text(outbox, "target", where, problems) : null));
+                }
+            }
+
+            foreach (var (item, where) in Items(timelines, "starts", "pack.timelines", problems))
+            {
+                var start = Object(item, where, problems);
+                if (start != null)
+                {
+                    Known(start, where, problems, "event", "timeline");
+                    glue.Starts.Add(new TimelineStart(Text(start, "event", where, problems) ?? string.Empty, Text(start, "timeline", where, problems) ?? string.Empty));
+                }
+            }
         }
 
         static RuleSpec? Rule(object? item, string where, List<string> problems)

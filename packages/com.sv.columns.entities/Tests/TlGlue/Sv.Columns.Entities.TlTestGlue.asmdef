@@ -1,0 +1,32 @@
+{
+    "name": "Sv.Columns.Entities.TlTestGlue",
+    "rootNamespace": "Sv.Columns.Entities.TlTests.Glue",
+    "references": [
+        "Sv.Columns",
+        "Sv.Columns.Entities",
+        "Tl.Core",
+        "Tl.Unity",
+        "Unity.Burst",
+        "Unity.Collections",
+        "Unity.Entities",
+        "Unity.Mathematics"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS",
+        "SV_TL_UNITY"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.tl.unity",
+            "expression": "0.0.0",
+            "define": "SV_TL_UNITY"
+        }
+    ],
+    "noEngineReferences": false
+}

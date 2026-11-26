@@ -56,6 +56,7 @@ namespace Sv.Pack
         {
             Console.Error.WriteLine("usage:");
             Console.Error.WriteLine("  sv pack <folder> [--out <dir>] [--namespace <ns>] [--diagnostics text|json] [--host dotnet|unity] [--glue tl]");
+            Console.Error.WriteLine("  sv pack <pack.json> --glue tl [--host unity] [--out <dir>] [--namespace <ns>]   (v4 column pack: tl glue only)");
             Console.Error.WriteLine("  sv run <pack> <scenario|folder> [--host reference|compiled] [--kernels <dll>] [--workers <n>] [--parts <n>] [--policy shared|dense]");
             Console.Error.WriteLine("  sv trace <pack> <scenario> [--entity <name>] [--frame <n>]");
             return Usage;
@@ -118,12 +119,17 @@ namespace Sv.Pack
                 return Help();
             }
 
-            var output = arguments.Option("--out") ?? Path.Combine(folder, "Generated");
             var rootNamespace = arguments.Option("--namespace") ?? "Game.Sv";
             var format = arguments.Option("--diagnostics") ?? "text";
-            var source = PackFolder.Read(folder);
             var unity = arguments.Option("--host") == "unity";
             var glue = arguments.Option("--glue") == "tl";
+            if (ColumnsGlue.IsColumnPack(folder))
+            {
+                return ColumnPackCommand(folder, arguments.Option("--out") ?? Path.Combine(Path.GetDirectoryName(Path.GetFullPath(folder))!, "Generated"), rootNamespace, unity, glue);
+            }
+
+            var output = arguments.Option("--out") ?? Path.Combine(folder, "Generated");
+            var source = PackFolder.Read(folder);
             var key = PackFolder.InputKey(source, rootNamespace, Build + (unity ? "+unity" : string.Empty) + (glue ? "+glue" : string.Empty));
             var keyPath = Path.Combine(output, KeyFile);
             if (File.Exists(keyPath) && File.ReadAllText(keyPath) == key)
@@ -173,6 +179,44 @@ namespace Sv.Pack
             PackFolder.WriteIfChanged(keyPath, key);
             Console.Out.WriteLine("sv pack: " + folder + " -> " + output + ", " + (files.Count + 1).ToString(CultureInfo.InvariantCulture)
                 + " files, " + written.ToString(CultureInfo.InvariantCulture) + " written, PackHash " + ScenarioRunner.Hex(plan.Hash));
+            return Ok;
+        }
+
+        static int ColumnPackCommand(string file, string output, string rootNamespace, bool unity, bool glue)
+        {
+            if (!glue)
+            {
+                Console.Error.WriteLine(file + "(0): error SV0901: a v4 column pack emits only tl glue: pass --glue tl (and --host unity for the Entities cells)");
+                return Usage;
+            }
+
+            Sv.Columns.ColumnPack pack;
+            try
+            {
+                pack = Sv.Columns.PackJson.Read(File.ReadAllText(file));
+                pack.Compile().Dispose();
+            }
+            catch (Sv.Columns.PackException error)
+            {
+                foreach (var problem in error.Problems)
+                {
+                    Console.Error.WriteLine(file + "(0): error SV0902: " + problem);
+                }
+
+                return Failed;
+            }
+
+            var files = ColumnsGlue.Files(pack, rootNamespace, unity);
+            Directory.CreateDirectory(output);
+            var written = 0;
+            for (var i = 0; i < files.Count; i++)
+            {
+                written += PackFolder.WriteIfChanged(Path.Combine(output, files[i].Name), files[i].Text) ? 1 : 0;
+            }
+
+            Console.Out.WriteLine("sv pack: " + file + " -> " + output + ", " + files.Count.ToString(CultureInfo.InvariantCulture)
+                + " files, " + written.ToString(CultureInfo.InvariantCulture) + " written (v4 column pack, " + pack.Timelines.Cards.Count.ToString(CultureInfo.InvariantCulture)
+                + " cards, " + pack.Timelines.Outbox.Count.ToString(CultureInfo.InvariantCulture) + " outbox channels, " + pack.Timelines.Starts.Count.ToString(CultureInfo.InvariantCulture) + " starts)");
             return Ok;
         }
 

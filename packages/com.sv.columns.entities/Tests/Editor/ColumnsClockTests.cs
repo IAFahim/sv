@@ -2,60 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using NUnit.Framework;
-using Sv.Columns.Entities.Tests;
+using Sv.Columns.Entities.Tests.Glue;
 using Unity.Burst;
 using Unity.Core;
 using Unity.Entities;
 
-[assembly: RegisterGenericSystemType(typeof(Sv.Columns.Entities.ColumnsCardSystem<PoisonCardCell>))]
-[assembly: RegisterGenericSystemType(typeof(Sv.Columns.Entities.ColumnsOutboxSystem<FireOutCell>))]
-[assembly: RegisterGenericSystemType(typeof(Sv.Columns.Entities.ColumnsOutboxSystem<HealOutCell>))]
-
 namespace Sv.Columns.Entities.Tests
 {
-    public struct PoisonCardCell : IComponentData, IColumnsCardCell
-    {
-        public int Value;
-
-        public string Card => "poison";
-
-        public int Level
-        {
-            get => Value;
-            set => Value = value;
-        }
-    }
-
-    public struct FireOutCell : IComponentData, IColumnsOutboxCell
-    {
-        public int Value;
-
-        public string Channel => "Fire";
-
-        public string? TargetLane => "Aim";
-
-        public int Amount
-        {
-            get => Value;
-            set => Value = value;
-        }
-    }
-
-    public struct HealOutCell : IComponentData, IColumnsOutboxCell
-    {
-        public int Value;
-
-        public string Channel => "Healing";
-
-        public string? TargetLane => null;
-
-        public int Amount
-        {
-            get => Value;
-            set => Value = value;
-        }
-    }
-
     public sealed class CellScript
     {
         public const int FirstTick = 2;
@@ -133,17 +86,17 @@ namespace Sv.Columns.Entities.Tests
             script.Plan(script.Tick);
             foreach (var (unit, level) in script.Cards)
             {
-                EntityManager.SetComponentData(script.Units[unit], new PoisonCardCell { Value = level });
+                EntityManager.SetComponentData(script.Units[unit], new PoisonCard { Value = level });
             }
 
             foreach (var (unit, amount) in script.Fire)
             {
-                EntityManager.SetComponentData(script.Units[unit], new FireOutCell { Value = amount });
+                EntityManager.SetComponentData(script.Units[unit], new FireOut { Value = amount });
             }
 
             foreach (var (unit, amount) in script.Heal)
             {
-                EntityManager.SetComponentData(script.Units[unit], new HealOutCell { Value = amount });
+                EntityManager.SetComponentData(script.Units[unit], new HealingOut { Value = amount });
             }
         }
     }
@@ -210,17 +163,9 @@ namespace Sv.Columns.Entities.Tests
         const float FixedStep = 1f / 60f;
         const int Capacity = 1024;
         const int Parts = 3;
-        const string AimLane = "{ \"name\": \"Aim\", \"default\": 0 }";
-        const string LastLane = "{ \"name\": \"FireTaken\", \"default\": 0 }";
-
         static string Arena() => File.ReadAllText(Path.GetFullPath("Packages/com.sv.columns/Tests/Packs~/arena.json"));
 
-        static string ArenaWithAim()
-        {
-            var json = Arena();
-            Assert.That(json.Contains(LastLane), Is.True, "arena.json changed shape: the test adds its Aim lane after FireTaken");
-            return json.Replace(LastLane, LastLane + ",\n    " + AimLane);
-        }
+        static string ArenaWithAim() => File.ReadAllText(Path.GetFullPath("Packages/com.sv.columns.entities/Tests/Glue/Pack~/arena-tl.json"));
 
         bool synchronousBefore;
 
@@ -356,7 +301,7 @@ namespace Sv.Columns.Entities.Tests
             var blob = ColumnsPacks.Create(json);
             using var pack = PackJson.Read(json).Compile();
             using var mirror = new ColumnWorld(pack, Capacity, 1, Parts);
-            var world = BothClocks(typeof(ColumnsCardSystem<PoisonCardCell>), typeof(ColumnsOutboxSystem<FireOutCell>), typeof(ColumnsOutboxSystem<HealOutCell>), typeof(CellFeedSystem), typeof(CellMirrorSystem));
+            var world = BothClocks(typeof(ColumnsCardSystem<PoisonCard>), typeof(ColumnsOutboxSystem<FireOut>), typeof(ColumnsOutboxSystem<HealingOut>), typeof(CellFeedSystem), typeof(CellMirrorSystem));
             try
             {
                 var manager = world.EntityManager;
@@ -366,7 +311,7 @@ namespace Sv.Columns.Entities.Tests
                 var aim = pack.Lane("Aim");
                 for (var unit = 0; unit < templates.Length; unit++)
                 {
-                    var entity = manager.CreateEntity(typeof(ColumnsTemplate), typeof(PoisonCardCell), typeof(FireOutCell), typeof(HealOutCell));
+                    var entity = manager.CreateEntity(typeof(ColumnsTemplate), typeof(PoisonCard), typeof(FireOut), typeof(HealingOut));
                     manager.SetComponentData(entity, new ColumnsTemplate { Value = pack.Template(templates[unit]) });
                     script.Units.Add(entity);
                     script.Slots.Add(-1);
@@ -424,9 +369,9 @@ namespace Sv.Columns.Entities.Tests
                 }
 
                 var unmanaged = world.Unmanaged;
-                var cards = unmanaged.GetUnsafeSystemRef<ColumnsCardSystem<PoisonCardCell>>(world.GetExistingSystem<ColumnsCardSystem<PoisonCardCell>>());
-                var fire = unmanaged.GetUnsafeSystemRef<ColumnsOutboxSystem<FireOutCell>>(world.GetExistingSystem<ColumnsOutboxSystem<FireOutCell>>());
-                var heal = unmanaged.GetUnsafeSystemRef<ColumnsOutboxSystem<HealOutCell>>(world.GetExistingSystem<ColumnsOutboxSystem<HealOutCell>>());
+                var cards = unmanaged.GetUnsafeSystemRef<ColumnsCardSystem<PoisonCard>>(world.GetExistingSystem<ColumnsCardSystem<PoisonCard>>());
+                var fire = unmanaged.GetUnsafeSystemRef<ColumnsOutboxSystem<FireOut>>(world.GetExistingSystem<ColumnsOutboxSystem<FireOut>>());
+                var heal = unmanaged.GetUnsafeSystemRef<ColumnsOutboxSystem<HealingOut>>(world.GetExistingSystem<ColumnsOutboxSystem<HealingOut>>());
                 Assert.AreEqual(3L, cards.Set, "the card system set another number of card lanes than the script wrote");
                 Assert.Greater(fire.Sent, 0L);
                 Assert.Greater(heal.Sent, 0L);

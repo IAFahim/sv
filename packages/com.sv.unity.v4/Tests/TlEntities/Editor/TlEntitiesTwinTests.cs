@@ -38,6 +38,7 @@ namespace Sv.Unity.TlEntitiesTests
         public int PoisonStartFrame;
         public int StatusSpawn;
         public ushort Poison;
+        public bool MakePlayers = true;
         public int Next;
         public int TicksThisRender;
         public int TimelineCells;
@@ -79,7 +80,10 @@ namespace Sv.Unity.TlEntitiesTests
                     replay.Failures.Add($"frame {frame.Number}: spawn got slot {slot}, the journal says {spawn[1]}");
                 }
 
-                replay.PlayerOf[slot] = TlEntitiesTwinTests.Player(EntityManager, slot);
+                if (replay.MakePlayers && !replay.PlayerOf.ContainsKey(slot))
+                {
+                    replay.PlayerOf[slot] = TlEntitiesTwinTests.Player(EntityManager, slot);
+                }
             }
 
             foreach (var send in frame.DirectSends)
@@ -114,25 +118,8 @@ namespace Sv.Unity.TlEntitiesTests
 
             EntityManager.CompleteAllTrackedJobs();
             var wrote = new List<string>();
-            using (var query = EntityManager.CreateEntityQuery(ComponentType.ReadOnly<SvSlot>(), ComponentType.ReadOnly<PoisonOut>(), ComponentType.ReadOnly<BleedingOut>()))
-            {
-                var slots = query.ToComponentDataArray<SvSlot>(Allocator.Temp);
-                var poison = query.ToComponentDataArray<PoisonOut>(Allocator.Temp);
-                var bleeding = query.ToComponentDataArray<BleedingOut>(Allocator.Temp);
-                for (var row = 0; row < slots.Length; row++)
-                {
-                    if (poison[row].Value != 0)
-                    {
-                        wrote.Add(TlEntitiesTwinTests.SourceChannelAmount(slots[row].Value, (int)Channel.Poison, poison[row].Value));
-                    }
-
-                    if (bleeding[row].Value != 0)
-                    {
-                        wrote.Add(TlEntitiesTwinTests.SourceChannelAmount(slots[row].Value, (int)Channel.Bleeding, bleeding[row].Value));
-                    }
-                }
-            }
-
+            Cells<PoisonOut>(wrote, (int)Channel.Poison);
+            Cells<BleedingOut>(wrote, (int)Channel.Bleeding);
             var expected = new List<string>(replay.Current.TimelineSends);
             wrote.Sort(StringComparer.Ordinal);
             expected.Sort(StringComparer.Ordinal);
@@ -142,6 +129,21 @@ namespace Sv.Unity.TlEntitiesTests
             }
 
             replay.TimelineCells += wrote.Count;
+        }
+
+        void Cells<T>(List<string> wrote, int channel)
+            where T : unmanaged, IComponentData, ISvOutboxCell
+        {
+            using var query = EntityManager.CreateEntityQuery(ComponentType.ReadOnly<SvSlot>(), ComponentType.ReadOnly<T>());
+            var slots = query.ToComponentDataArray<SvSlot>(Allocator.Temp);
+            var cells = query.ToComponentDataArray<T>(Allocator.Temp);
+            for (var row = 0; row < slots.Length; row++)
+            {
+                if (cells[row].Amount != 0)
+                {
+                    wrote.Add(TlEntitiesTwinTests.SourceChannelAmount(slots[row].Value, channel, cells[row].Amount));
+                }
+            }
         }
     }
 
@@ -180,14 +182,14 @@ namespace Sv.Unity.TlEntitiesTests
 
     public sealed unsafe class TlEntitiesTwinTests
     {
-        const int StatusEntityIsTheSecondSpawn = 1;
-        const int NoPoisonStartFromTheTest = -1;
-        const int PoisonStartsOnFrameOne = 1;
+        internal const int StatusEntityIsTheSecondSpawn = 1;
+        internal const int NoPoisonStartFromTheTest = -1;
+        internal const int PoisonStartsOnFrameOne = 1;
         const float FixedStep = 1f / 60f;
 
         static string PackageFolder => PackageInfo.FindForAssembly(typeof(TlEntitiesTwinTests).Assembly)!.resolvedPath;
 
-        static string JournalPath(string journal) => Path.Combine(PackageFolder, "Tests", "Editor", "Twin", "northstar3", journal + ".twin.txt");
+        internal static string JournalPath(string journal) => Path.Combine(PackageFolder, "Tests", "Editor", "Twin", "northstar3", journal + ".twin.txt");
 
         static byte[] BakedLibrary() => File.ReadAllBytes(Path.Combine(PackageFolder, "Tests", "Tl", "Glue", "game.bytes"));
 
@@ -256,7 +258,7 @@ namespace Sv.Unity.TlEntitiesTests
             return entity;
         }
 
-        static Replay Read(string journal)
+        internal static Replay Read(string journal)
         {
             var lines = File.ReadAllLines(JournalPath(journal));
             Assert.That(lines[0], Is.EqualTo("twin 1"));

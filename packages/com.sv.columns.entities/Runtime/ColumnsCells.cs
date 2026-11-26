@@ -43,7 +43,7 @@ namespace Sv.Columns.Entities
         [BurstDiscard]
         internal static void Managed(ref int burst) => burst = 0;
 
-        internal static void Witness(ref int probe)
+        public static void Witness(ref int probe)
         {
             var burst = 1;
             Managed(ref burst);

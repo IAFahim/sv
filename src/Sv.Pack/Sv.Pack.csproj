@@ -15,5 +15,6 @@
     <ProjectReference Include="..\Sv.Core\Sv.Core.csproj" />
     <ProjectReference Include="..\Sv.Rules\Sv.Rules.csproj" />
     <ProjectReference Include="..\Sv.Host\Sv.Host.csproj" />
+    <ProjectReference Include="..\Sv.Columns\Sv.Columns.csproj" />
   </ItemGroup>
 </Project>
