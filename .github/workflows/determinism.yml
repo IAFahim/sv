@@ -37,7 +37,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           repository: IAFahim/tl
-          ref: d87d1998985e2abdb68dbcfc6b3f7a270c7e0a5d
+          ref: 06a1c71008d3b5396baafbf0a43678978cbe9374
           path: tl
 
       - uses: actions/setup-dotnet@v5
