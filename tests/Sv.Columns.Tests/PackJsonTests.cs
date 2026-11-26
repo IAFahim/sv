@@ -92,4 +92,23 @@ public sealed class PackJsonTests
         var error = Assert.Throws<PackException>(() => PackJson.Read("{ \"lanes\": [ { \"name\": \"Health\", \"default\": 1.5 } ] }"));
         Assert.Contains("whole numbers", error.Message);
     }
+
+    [Fact]
+    public void DeepNestingIsRefusedInsteadOfOverflowingTheStack()
+    {
+        var error = Assert.Throws<PackException>(() => PackJson.Read(new string('[', 100_000) + new string(']', 100_000)));
+        Assert.Contains("nesting deeper than 64", error.Message);
+        var lanes = Assert.Throws<PackException>(() => PackJson.Read("{ \"lanes\": " + new string('[', 64) + new string(']', 64) + " }"));
+        Assert.Contains("nesting deeper than 64", lanes.Message);
+    }
+
+    [Fact]
+    public void AnObjectWithManyKeysParsesInLinearTime()
+    {
+        var keys = string.Join(", ", Enumerable.Range(0, 200_000).Select(k => "\"k" + k + "\": 0"));
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        var error = Assert.Throws<PackException>(() => PackJson.Read("{ " + keys + ", \"k7\": 1 }"));
+        Assert.Contains("duplicate key 'k7'", error.Message);
+        Assert.True(clock.Elapsed.TotalSeconds < 10, "parsing took " + clock.Elapsed);
+    }
 }

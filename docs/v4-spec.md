@@ -160,7 +160,7 @@ All three are checked against each other and against the reference on fixed exam
 }
 ```
 
-Unknown keys, fractions, duplicate keys and broken JSON are errors with their place (`pack.rules[3].convert: ...`, `json line 4 column 9: ...`). `packs/columns/arena.json` is the worked example.
+Unknown keys, fractions, duplicate keys, nesting deeper than 64 and broken JSON are errors with their place (`pack.rules[3].convert: ...`, `json line 4 column 9: ...`). `packs/columns/arena.json` is the worked example.
 
 ## 8. Unity
 
