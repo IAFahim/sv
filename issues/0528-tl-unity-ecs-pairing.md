@@ -1,6 +1,6 @@
 # 0528 sv and tl.unity in Entities: no ECS pairing, and the two step on different clocks
 
-Status: in progress (Entities glue, one clock and the EditMode proof done for v3 and v4; SubScene sample and v4 generated glue remain)
+Status: closed (2026-11-26, the SubScene sample and v4 generated glue delivered in PR 130)
 
 ## Need
 A game that uses sv and tl.unity together in Entities should be able to drop both packages in, bake, and have timeline ticks reach sv and sv events start timelines, with no managed code on the hot path. Today it can't:
@@ -29,9 +29,8 @@ Glue stays in a host package, per the layer rule: sv and tl never reference each
 - v4, cards first: `ColumnsState.Sets` (lane edits applied between frames), `ColumnsCardSystem<TCell : IColumnsCardCell>` (a cell sets a card lane; the card's timer channel ends it) and `ColumnsOutboxSystem<TCell : IColumnsOutboxCell>` (`SendFrom`, as v3's `Outbox.Send`).
 - Proof: `Sv.Unity.V4.TlEntitiesTests` replays the five NorthStar3 journals through tl.unity's Entities systems and sv's fixed-step systems at 30, 60 and 144 rendered fps (1 and 11 workers): every per-frame digest equals the journal (pins `A566FAEC8837BA57`, `2D6A06776AE25DCB`), tl's cells equal the journal's timeline sends, and the glue reports Burst. `ColumnsClockTests` proves the v4 cards and outbox against a hand-stepped `ColumnWorld` at the same three rates.
 
-## Remaining
-- A sample SubScene (baked `PlayableDirector`, poison track, one slot) and its digest test (proposal 3).
-- v4 generated glue (cells, sv event to tl request rules for column packs): issue 0525. The v4 tl request system waits on it.
+- SubScene sample (proposal 3): `SvWorldAuthoring` and `SvSlotAuthoring` (assembly `Sv.Unity.V4.Authoring`) bake the world config, the fixed step clock tag and the slot; `SvEntities.Publish(manager, world, config)` puts the world on the baked entity. `TlPoisonScene` (menu `sv/Samples/Build Tl Poison Scene`) writes the poison timeline asset and a scene whose SubScene holds the world and a `PlayableDirector` on the status slot. `TlSceneTests` bakes the same objects with tl.unity's `TlDirectorBaker`, registers the timeline through `TlLibrarySystem` and `TlTimelineRegisterSystem`, and plays the two NorthStar3 poison journals at 30, 60 and 144 rendered fps: every frame digest equals the .NET host's. CI runs the bake of the same objects the menu writes, not the menu itself (creating and importing a SubScene inside an EditMode test run is left to the editor).
+- v4 generated glue and the v4 tl request system: issue 0525 (closed), with a baked v4 proof in `ColumnsTlSceneTests`.
 
 ## Earlier blockers, now cleared
 - 0525's default: the owner chose cards first, with the outbox kept for ported v3 code.
