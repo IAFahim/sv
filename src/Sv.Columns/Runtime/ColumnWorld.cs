@@ -115,7 +115,7 @@ namespace Sv.Columns
             }
         }
 
-        internal SlotGate GateOf(int slot) => (uint)slot < (uint)Capacity ? gates[slot] : default;
+        internal SlotGate SourceGateOf(int slot) => (uint)slot < (uint)Capacity && ((alive[slot / Rows] >> (slot % Rows)) & 1ul) != 0 ? gates[slot] : new SlotGate { Flags = NoSourceFlags << 8 };
 
         void Live()
         {
@@ -127,6 +127,15 @@ namespace Sv.Columns
             if (pack.IsDisposed)
             {
                 throw new ObjectDisposedException(nameof(CompiledPack), "the pack this world runs was disposed before the world");
+            }
+        }
+
+        void Running()
+        {
+            Live();
+            if (!stepping)
+            {
+                throw new InvalidOperationException("no frame is running: call BeginFrame first");
             }
         }
 
@@ -306,9 +315,11 @@ namespace Sv.Columns
             Note(ColumnAction.Set(slot, lane, value));
         }
 
-        public bool Event(int slot, int eventIndex) => ((uint)Get(slot, tables->EventsLane) >> eventIndex & 1u) != 0;
+        public bool Event(int slot, int eventIndex) => ((uint)Get(slot, tables->EventsLane) >> CheckEvent(eventIndex) & 1u) != 0;
 
-        public bool Entered(int slot, int eventIndex) => ((uint)Get(slot, tables->EnteredLane) >> eventIndex & 1u) != 0;
+        public bool Entered(int slot, int eventIndex) => ((uint)Get(slot, tables->EnteredLane) >> CheckEvent(eventIndex) & 1u) != 0;
+
+        int CheckEvent(int eventIndex) => (uint)eventIndex < (uint)tables->EventCount ? eventIndex : throw new ArgumentOutOfRangeException(nameof(eventIndex), "the pack declares " + tables->EventCount + " events");
 
         public ulong ChunkAlive(int chunk)
         {
@@ -319,6 +330,7 @@ namespace Sv.Columns
         public ulong ChunkEntered(int chunk, int eventIndex)
         {
             ChunkAlive(chunk);
+            CheckEvent(eventIndex);
             var entered = ChunkLanes(chunk) + tables->EnteredLane * Rows;
             var mask = 0ul;
             for (var row = 0; row < Rows; row++)
@@ -348,6 +360,11 @@ namespace Sv.Columns
         public void BeginFrame()
         {
             Live();
+            if (stepping)
+            {
+                throw new InvalidOperationException("a frame is already running: call EndFrame before the next BeginFrame");
+            }
+
             LoadLoggedInputs();
             var total = 0L;
             for (var w = 0; w < writers.Length; w++)
@@ -367,7 +384,7 @@ namespace Sv.Columns
 
         public void Reduce(int writer)
         {
-            Live();
+            Running();
             var source = writers[writer];
             var lost = Fold(writer, source.Records, source.Count);
             if (resimulating)
@@ -495,7 +512,7 @@ namespace Sv.Columns
 
         public void Resolve(int part)
         {
-            Live();
+            Running();
             var from = (int)((long)chunkCount * part / parts);
             var to = (int)((long)chunkCount * (part + 1) / parts);
             var area = new Scratch(scratch + (long)part * scratchBytes, tables);
@@ -554,7 +571,7 @@ namespace Sv.Columns
 
         public void EndFrame()
         {
-            Live();
+            Running();
             stepping = false;
             KeepFrame();
         }

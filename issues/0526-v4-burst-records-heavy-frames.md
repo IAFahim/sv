@@ -1,4 +1,4 @@
-# 0523 v4: Burst frames with many records per entity are slower than the managed Vector path
+# 0526 v4: Burst frames with many records per entity are slower than the managed Vector path
 
 Status: open (2026-11-26)
 

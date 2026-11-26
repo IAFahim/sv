@@ -1,4 +1,4 @@
-# 0524 v4: EdgeTests.SpawnAndDespawnChurnOnAFullChunkAllocatesNothing read 3576 B once on Windows
+# 0527 v4: EdgeTests.SpawnAndDespawnChurnOnAFullChunkAllocatesNothing read 3576 B once on Windows
 
 Status: open (2026-11-26)
 

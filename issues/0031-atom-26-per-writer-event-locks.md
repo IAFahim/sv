@@ -1,5 +1,7 @@
 # Issue 0031 — Atom 26: per-writer padded event locks, word-batched emit
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Filed as GitHub issue #31 (pending — see receipts). Labels: `ai`, `area:events`,
 `kind:perf`.
 

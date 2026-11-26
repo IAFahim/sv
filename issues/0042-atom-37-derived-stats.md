@@ -1,5 +1,7 @@
 # Issue 0042 — Atom 37: derived stats (`SchemaBuilder.Derived`)
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Filed as GitHub issue #42 (pending — see receipts). Labels: `ai`, `area:core`,
 `kind:feat`, `contract:proposed`. Contract: bus 0036 amendment 6 (clause 3, additive)
 — vendored contract stays v1.0.3 until ack.

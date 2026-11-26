@@ -1,5 +1,7 @@
 # Issue 0091 — Atom 83 (roadmap 3.2): one clock, hierarchical timing wheel, `Expire` as a declared step-3 sub-step
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Roadmap [issues/0058](issues/0058-roadmap-1m-entities-5us.md) phase 3, atom 3.2
 (§4.6, F25, §9 deletes the expiry heap). Labels: `ai`, `area:core`, `kind:feat`.
 

@@ -1,5 +1,7 @@
 # Issue 0098 — Atom 89 (roadmap 4.2): drift storage — lazy intrinsic segments `(v₀, t₀, rule)`
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Roadmap [issues/0058](0058-roadmap-1m-entities-5us.md) §4.2, law L7.
 Labels: `ai`, `area:core`, `kind:feat`. Contract: none — pure addition; the
 drift verbs that drive it are the v2.0 batch (owner decision 0046 accepted the

@@ -30,6 +30,7 @@ namespace Sv.Columns
                     SlotCount = Capacity,
                     EventsLane = tables->EventsLane,
                     EnteredLane = tables->EnteredLane,
+                    EventCount = tables->EventCount,
                     NoSourceFlags = NoSourceFlags,
                 };
             }

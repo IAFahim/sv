@@ -1,5 +1,7 @@
 # Issue 0035 — Atom 30: cross-host / cross-ISA determinism proof (baked digest + CI matrix)
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Filed as GitHub issue #35 (pending — see receipts). Labels: `ai`, `area:ci`,
 `kind:test`.
 

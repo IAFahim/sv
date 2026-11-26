@@ -1,5 +1,7 @@
 # Issue 0087 — Atom 79 (roadmap 7.1): `Column`/`Window`/`Delta`/`Bounds` — one `Run` verb
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Roadmap [issues/0058](0058-roadmap-1m-entities-5us.md) phase 7, atom 7.1
 (§5.1). Labels: `ai`, `area:core`, `kind:feat`. Contract: additive —
 the clause-5 names survive as aliases (they already delegate through

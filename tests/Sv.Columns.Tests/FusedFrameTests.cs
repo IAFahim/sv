@@ -326,6 +326,65 @@ public sealed unsafe class FusedFrameTests
     }
 
     [Fact]
+    public void ViewRecordsFromDeadOrMissingSourcesMatchTheWriter()
+    {
+        var spec = new ColumnPack();
+        spec.Lanes.Add(new LaneSpec("Health", 1000));
+        spec.Lanes.Add(new LaneSpec("Wet", 1));
+        spec.Lanes.Add(new LaneSpec("Hot"));
+        spec.Channels.Add("Fire");
+        spec.Templates.Add(new TemplateSpec("unit"));
+        spec.Rules.Add(new ScaleRule(new[] { "Fire" }, 2, Cond.Gt("Wet", 0), null));
+        spec.Rules.Add(new ScaleRule(new[] { "Fire" }, 3, null, Cond.Gt("Hot", 0)));
+        spec.Rules.Add(new FlowRule("Health", Array.Empty<string>(), new[] { "Fire" }));
+        spec.Rules.Add(new EventRule("Low", Cond.Lt("Health", 500)));
+        using var pack = spec.Compile();
+        using var classic = new ColumnWorld(pack, 256);
+        using var fused = new ColumnWorld(pack, 256);
+        var hot = pack.Lane("Hot");
+        var slots = new List<int>();
+        for (var i = 0; i < 120; i++)
+        {
+            slots.Add(classic.Spawn(0));
+            Assert.Equal(slots[^1], fused.Spawn(0));
+            classic.Set(slots[i], hot, 1);
+            fused.Set(slots[i], hot, 1);
+        }
+
+        for (var i = 0; i < 40; i++)
+        {
+            classic.Despawn(slots[i]);
+            fused.Despawn(slots[i]);
+        }
+
+        var view = fused.View;
+        var dice = new Dice(5);
+        var sources = new[] { -1, 256, 100000, slots[0], slots[7], slots[39], slots[40], slots[119] };
+        for (var frame = 0; frame < 6; frame++)
+        {
+            for (var i = 0; i < 200; i++)
+            {
+                var source = dice.Pick(sources);
+                var target = slots[40 + dice.Next(80)];
+                classic.Writer(0).SendFrom(source, target, 0, 1, 1);
+                Assert.True(view.TryRecordFrom(source, target, 0, 1, 1, out var record));
+                fused.Writer(0).SendRecord(record);
+            }
+
+            classic.Step();
+            fused.StepFused();
+            Assert.Equal(classic.Digest(), fused.Digest());
+        }
+
+        Assert.Equal(classic.Get(slots[60], pack.Lane("Health")), view.Get(slots[60], pack.Lane("Health")));
+        for (var e = 0; e < 40; e++)
+        {
+            Assert.False(view.Event(slots[50], 1 + e));
+            Assert.False(view.Entered(slots[50], -1 - e));
+        }
+    }
+
+    [Fact]
     public void AWorldWithHistoryRefusesTheFusedFrameAndStillSteps()
     {
         using var pack = PackJson.Read(ArenaJson).Compile();

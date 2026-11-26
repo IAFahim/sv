@@ -11,6 +11,7 @@ namespace Sv.Columns
         internal int SlotCount;
         internal int EventsLane;
         internal int EnteredLane;
+        internal int EventCount;
         internal uint NoSourceFlags;
 
         public bool IsCreated => LaneData != 0;
@@ -26,9 +27,9 @@ namespace Sv.Columns
         public int Get(int slot, int lane) =>
             IsAlive(slot) && (uint)lane < (uint)LaneCount ? ((int*)LaneData)[(long)(slot >> 6) * ChunkInts + lane * Law.Rows + (slot & 63)] : 0;
 
-        public bool Event(int slot, int eventIndex) => (((uint)Get(slot, EventsLane) >> eventIndex) & 1u) != 0;
+        public bool Event(int slot, int eventIndex) => (uint)eventIndex < (uint)EventCount && (((uint)Get(slot, EventsLane) >> eventIndex) & 1u) != 0;
 
-        public bool Entered(int slot, int eventIndex) => (((uint)Get(slot, EnteredLane) >> eventIndex) & 1u) != 0;
+        public bool Entered(int slot, int eventIndex) => (uint)eventIndex < (uint)EventCount && (((uint)Get(slot, EnteredLane) >> eventIndex) & 1u) != 0;
 
         public bool TryRecord(int target, int channel, long amount, int hits, out ulong record)
         {
@@ -50,7 +51,7 @@ namespace Sv.Columns
                 return false;
             }
 
-            var gate = (uint)source < (uint)SlotCount ? ((SlotGate*)Gates)[source] : default;
+            var gate = IsAlive(source) ? ((SlotGate*)Gates)[source] : new SlotGate { Flags = NoSourceFlags << 8 };
             record = Record.Pack(target, channel, gate.Kind, gate.Flags >> 8, RecordWriter.AmountTimesHits(amount, hits));
             return true;
         }

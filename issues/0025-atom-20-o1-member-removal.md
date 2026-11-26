@@ -1,5 +1,7 @@
 # Issue 0025 — Atom 20: O(1) set-member removal (per-pair member-position index)
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Filed as GitHub issue #25 (pending — see receipts). Labels: `ai`, `area:core`,
 `kind:perf`.
 

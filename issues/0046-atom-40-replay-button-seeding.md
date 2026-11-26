@@ -1,5 +1,7 @@
 # Issue 0046 — Atom 40: `BeginReplay` seeds button state from the prior ring entry (review C-2)
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Filed as GitHub issue #26 (numbering offset — see issue #24 provenance note). Labels:
 `ai`, `area:core`, `kind:feat`. Source: design review 2026-10-20
 ([issues/0044](0044-2026-10-20-design-review.md), GitHub #24), finding C-2 — verified

@@ -1,5 +1,7 @@
 # Issue 0052 — Atom 45: always-on O(1) range guards + tail-bit policing on the single-word seam (review C-6)
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Filed as GitHub issue #32 (numbering offset — see issue #24 provenance note). Labels:
 `ai`, `area:core`, `kind:feat`. Source: design review 2026-10-20
 ([issues/0044](0044-2026-10-20-design-review.md), GitHub #24), finding C-6 — verified

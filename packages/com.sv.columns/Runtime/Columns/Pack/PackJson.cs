@@ -358,8 +358,10 @@ namespace Sv.Columns
 
         sealed class Parser
         {
+            public const int DepthLimit = 64;
             readonly string text;
             int at;
+            int depth;
 
             public Parser(string text)
             {
@@ -390,9 +392,15 @@ namespace Sv.Columns
                 switch (c)
                 {
                     case '{':
-                        return ObjectValue();
+                        Nest();
+                        var map = ObjectValue();
+                        depth--;
+                        return map;
                     case '[':
-                        return ArrayValue();
+                        Nest();
+                        var list = ArrayValue();
+                        depth--;
+                        return list;
                     case '"':
                         return StringValue();
                     case 't':
@@ -415,9 +423,18 @@ namespace Sv.Columns
                 }
             }
 
+            void Nest()
+            {
+                if (++depth > DepthLimit)
+                {
+                    Fail("nesting deeper than " + DepthLimit);
+                }
+            }
+
             List<KeyValuePair<string, object?>> ObjectValue()
             {
                 var map = new List<KeyValuePair<string, object?>>();
+                var keys = new HashSet<string>(StringComparer.Ordinal);
                 at++;
                 Space();
                 if (Peek('}'))
@@ -435,12 +452,9 @@ namespace Sv.Columns
                     }
 
                     var key = StringValue();
-                    foreach (var pair in map)
+                    if (!keys.Add(key))
                     {
-                        if (pair.Key == key)
-                        {
-                            Fail("duplicate key '" + key + "'");
-                        }
+                        Fail("duplicate key '" + key + "'");
                     }
 
                     Space();

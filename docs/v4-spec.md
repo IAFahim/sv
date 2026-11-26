@@ -1,6 +1,6 @@
 # sv v4.0 columns: specification
 
-Status: normative for `src/Sv.Columns` and `Sv.Host.ColumnRunner`. When it is accepted it moves to `contract/` as a new file; the v3 contracts stay as they are. The decisions behind it, with reasons, are in `docs/v4-design.md` section 8.
+Status: normative for `src/Sv.Columns` and `Sv.Host.ColumnRunner`. When it is accepted it moves to `contract/` as a new file; the v3 contracts stay as they are. The decisions behind it, with reasons, are in `docs/v4-design.md` section 8; a tutorial with a runnable program is `docs/v4-guide.md`.
 
 v4 does one thing: it folds many integer contributions per entity into lanes, once per frame, in a fixed order, with the same result on every machine, thread count and instruction set. Contributions come from two places, and both meet in the same per-row class sums and the same fold:
 
@@ -71,7 +71,7 @@ A record is one `ulong`:
 | 28 to 35 | source flags (the source's scale source bits, section 3 step 1) |
 | 0 to 27 | amount, two's complement, saturated to plus or minus (2^27 - 1) |
 
-`RecordWriter.Send(target, channel, amount, hits)` sends with kind 0 and the pack's no-source flags. `SendFrom(source, target, channel, amount, hits)` reads the source's kind and source flags from its gate at send time; a source that is not alive reads as kind 0 with no flags. The two calls have different names on purpose: with one name, `Send(target, source, channel, amount)` and `Send(target, channel, amount, hits)` both accept four `int`s and the compiler silently picks the second. The stored amount is the exact product `amount * hits` saturated once to plus or minus (2^27 - 1); no intermediate wraps (`RecordWriter.AmountTimesHits`).
+`RecordWriter.Send(target, channel, amount, hits)` sends with kind 0 and the pack's no-source flags. `SendFrom(source, target, channel, amount, hits)` reads the source's kind and source flags from its gate at send time; a source that is not alive (despawned, never spawned or outside the world) reads as no source: kind 0 and the pack's no-source flags, exactly as `Send`, so a scale rule without a source condition still applies. The two calls have different names on purpose: with one name, `Send(target, source, channel, amount)` and `Send(target, channel, amount, hits)` both accept four `int`s and the compiler silently picks the second. The stored amount is the exact product `amount * hits` saturated once to plus or minus (2^27 - 1); no intermediate wraps (`RecordWriter.AmountTimesHits`).
 
 A record is dropped and counted in `ColumnWorld.Dropped` when:
 - its target is outside `0 .. Capacity - 1` or its channel is outside `0 .. 15` (refused at send, counted at the next step, so such a target can never alias another slot through the 22-bit field);
@@ -122,6 +122,8 @@ The result of a frame depends only on the world before it and the multiset of re
 | `Step()` or `ColumnRunner.Step()` | single thread, or reduces and resolves on `Workers` |
 | `new ColumnWorld(..., history)`, `Rewind(frame)`, `Inputs(frame)`, `Resimulate()` | rollback (section 9) |
 
+`Event`, `Entered` and `ChunkEntered` throw `ArgumentOutOfRangeException` for an event index outside the pack's events (the lane keeps 32 bits, so an unchecked index would read another event). `BeginFrame` while a frame runs, and `Reduce`, `Resolve` or `EndFrame` while none does, throw `InvalidOperationException`.
+
 A world is single-owner: spawn, despawn and set only between frames. Between `BeginFrame` and `EndFrame` those three calls throw `InvalidOperationException`. After `Dispose`, or once its `CompiledPack` is disposed, every call on the world and its writers throws `ObjectDisposedException`; a second `Dispose` is safe. A chunk is listed at most once as having room for its template, so spawn and despawn churn neither grows memory nor lets a reclaimed chunk take a spawn of its old template.
 
 A warm frame allocates 0 bytes on the managed heap. Record buffers grow by doubling; per-writer class-sum blocks are allocated in native memory the first time a writer touches a chunk.
@@ -163,7 +165,7 @@ All three are checked against each other and against the reference on fixed exam
 }
 ```
 
-Unknown keys, fractions, duplicate keys and broken JSON are errors with their place (`pack.rules[3].convert: ...`, `json line 4 column 9: ...`). `packs/columns/arena.json` is the worked example.
+Unknown keys, fractions, duplicate keys, nesting deeper than 64 and broken JSON are errors with their place (`pack.rules[3].convert: ...`, `json line 4 column 9: ...`). `packs/columns/arena.json` is the worked example.
 
 ## 8. Unity
 

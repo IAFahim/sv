@@ -1,5 +1,7 @@
 # Issue 0110 — Atom 102 (roadmap 6.4): Unity adapter v2 — SvRange, Δ-sync views, Burst ISystem frame
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Roadmap [issues/0058](0058-roadmap-1m-entities-5us.md) 6.4, §5.5 and §6 line S3.
 Labels: `ai`, `area:unity`, `kind:feat`. Built in worktree `agent-102`
 (main@6723d60); integrated onto main@c7fa211 (atoms 99/100 landed meanwhile —

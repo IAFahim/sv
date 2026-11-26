@@ -1,5 +1,7 @@
 # Issue 0069 — Atom 61 (roadmap 2.2): membershipless sets — member arrays, Pos and the dirty-set queue deleted; dense refill on bind and load
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Roadmap [issues/0058](issues/0058-roadmap-1m-entities-5us.md) phase 2, atom 2.2 —
 S1; laws L1, L4. Labels: `ai`, `area:core`, `kind:feat`. Contract: none.
 
