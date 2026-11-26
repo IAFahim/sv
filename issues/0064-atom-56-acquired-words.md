@@ -1,5 +1,7 @@
 # Issue 0064 — Atom 56 (roadmap 1.4): `AcquiredWords` — `ChangedWords` means value change only
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Roadmap [issues/0058](issues/0058-roadmap-1m-entities-5us.md) phase 1, atom 1.4 — F10.
 Labels: `ai`, `area:core`, `kind:feat`. Contract: additive (new API; `ChangedWords`
 narrows to its documented meaning).

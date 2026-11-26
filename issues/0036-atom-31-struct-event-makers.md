@@ -1,5 +1,7 @@
 # Issue 0036 — Atom 31: struct event makers (`IEventMaker<T>`) — no entry gate on .NET
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Filed as GitHub issue #36 (pending — see receipts). Labels: `ai`, `area:events`,
 `kind:feat`, `contract:proposed`. Contract: bus 0036 amendment 1 (clause 17,
 additive) — sv's vendored contract stays v1.0.3 until the integrator acks.

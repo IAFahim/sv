@@ -1,5 +1,7 @@
 # Issue 0065 — Atom 57 (roadmap 1.7): state integrity — schema-content shape, game header, validate-before-commit
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Roadmap [issues/0058](issues/0058-roadmap-1m-entities-5us.md) phase 1, atom 1.7 — F17, F18.
 Labels: `ai`, `area:core`, `area:compose`, `kind:fix`. Contract: none (state format
 evolves; states saved before this atom do not load — atom-43 precedent).

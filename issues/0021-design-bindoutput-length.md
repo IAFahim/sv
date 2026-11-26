@@ -1,5 +1,7 @@
 # Issue 0021 — Design: `BindOutput` column length is unvalidated (implemented by atom 19, [issues/0024](0024-atom-19-bind-column-length.md))
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Filed as GitHub issue #21 (open). Labels: `ai`, `area:core`, `kind:feat`.
 Contract touchpoint: clause 12 (pointer stability) — any signature change is a bus
 message first; the bus tree is absent on the working machine, so this stays a spec.

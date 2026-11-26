@@ -1,5 +1,7 @@
 # Issue 0040 — Atom 35: modifier sources + timed expiry (`RemoveSource`, `ExpireModifiers`)
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Filed as GitHub issue #40 (pending — see receipts). Labels: `ai`, `area:core`,
 `kind:feat`, `contract:proposed`. Contract: bus 0036 amendment 3 (clause 3, additive)
 — vendored contract stays v1.0.3 until ack.

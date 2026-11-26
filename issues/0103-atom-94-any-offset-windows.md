@@ -1,5 +1,7 @@
 # Issue 0103 — Atom 94 (roadmap 3.3): enabled windows at any offset — the 64-slot padding is retired
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Roadmap [issues/0058](0058-roadmap-1m-entities-5us.md) 3.3 (seam half), fixes S6.
 Labels: `ai`, `area:core`, `kind:feat`. Contract: v1.2 clause-5 wording ("windows
 at any offset"), drafted in `issues/0097`, implemented ahead of the fold per

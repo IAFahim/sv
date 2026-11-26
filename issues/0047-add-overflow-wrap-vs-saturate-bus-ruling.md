@@ -1,5 +1,7 @@
 # Issue 0047 — Intrinsics add overflow: wrap (pinned) or saturate — bus ruling needed (review C-1)
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Filed as GitHub issue #27 (numbering offset — see issue #24 provenance note). Labels:
 `ai`, `area:core`, `kind:feat`, `contract:proposed`. Bus message 0039 (to `user`)
 carries the decision; this file is the repo-side record. Status: **open — pending bus**,

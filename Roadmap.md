@@ -1,5 +1,7 @@
 # sv Roadmap — 1M entities · 5 µs · 200 MB
 
+> **Obsolete (2026-11-26):** this plan is for the sv 2.1 engine, which was removed in db8dbac on 2026-11-14 and replaced by v3.0.0. The 1M-entity work continues in the v4 columns engine: `docs/v4-spec.md` and `docs/v4-design.md`. Kept as a record.
+
 > **Baseline:** `main@0c063b1` (atom 50) · Composition Contract v1.0.3 (v1.1.0 on bus 0036 and clause 18 still pending).
 > **Method:** I only read `src/`, the README receipts and the vendored contract. Nothing was built, run or benchmarked to write this. Numbers are README receipts, byte arithmetic from the code, or labelled estimates. Every atom names the receipt that will confirm or kill it.
 > **Rules kept:** atoms that touch the contract are **bus-first** (AGENTS.md). `contract/` and `tests/Sv.Tests/StrictFloatOracle.cs` are not touched. Production code stays comment-free, unmanaged, FMA-free and deterministic. Line references point at `main@0c063b1`.

@@ -1,5 +1,7 @@
 # Issue 0030 — Atom 25: vectorized enabled run-walk (masked AVX2) + vectorized `Span` twins
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Filed as GitHub issue #30 (pending — see receipts). Labels: `ai`, `area:simd`,
 `kind:perf`.
 

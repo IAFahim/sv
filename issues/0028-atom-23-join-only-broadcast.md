@@ -1,5 +1,7 @@
 # Issue 0028 — Atom 23: join-only broadcast — Recalculate is O(changed pairs), not O(set size)
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Filed as GitHub issue #28 (pending — see receipts). Labels: `ai`, `area:core`,
 `kind:perf`.
 

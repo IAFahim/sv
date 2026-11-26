@@ -1,5 +1,7 @@
 # Issue 0070 — Atom 62 (roadmap 2.3): dirty-stat masks — the pair queue and `Queued` deleted; recompute exactly once per pair in topological order
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Roadmap [issues/0058](issues/0058-roadmap-1m-entities-5us.md) phase 2, atom 2.3 —
 F12, S1; laws L1, L2. Labels: `ai`, `area:core`, `kind:feat`. Contract: none.
 

@@ -1,5 +1,7 @@
 # Issue 0080 — Atom 72 (roadmap 5.2): Zobrist board digest + page partial sums, tape v4 (inputs + digest, bodies on demand)
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Roadmap [issues/0058](issues/0058-roadmap-1m-entities-5us.md) phase 5, atom 5.2 —
 L13. Labels: `ai`, `area:core`, `kind:feat`. Contract: none (tape format is
 sv-internal, version-bumped 3 → 4).

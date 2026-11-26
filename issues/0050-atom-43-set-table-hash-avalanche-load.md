@@ -1,5 +1,7 @@
 # Issue 0050 — Atom 43: set-table hash avalanche + 50% load + format bump (review X-1 b/c)
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Filed as GitHub issue #30 (numbering offset — see issue #24 provenance note). Labels:
 `ai`, `area:core`, `kind:perf`. Source: design review 2026-10-20
 ([issues/0044](0044-2026-10-20-design-review.md), GitHub #24), finding X-1 parts (b)
