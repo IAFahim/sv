@@ -1,5 +1,7 @@
 # Issue 0049 — Atom 42: `LoadState` keeps mirrors alive and rebroadcasts bindings (review S-2, S-3)
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Filed as GitHub issue #29 (numbering offset — see issue #24 provenance note). Labels:
 `ai`, `area:core`, `kind:feat`. Source: design review 2026-10-20
 ([issues/0044](0044-2026-10-20-design-review.md), GitHub #24), findings S-2/S-3 —

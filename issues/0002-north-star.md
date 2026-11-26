@@ -1,5 +1,7 @@
 # Issue 0002 — The North-Star Fused Test (acceptance gate)
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Seating: this repo owns the widest surface, so the fused test lives here — CI (.NET)
 and Unity Test Runner (EditMode) once the adapter atom lands. Filed as GitHub issue #2
 (open — acceptance gate). The spec below is the bus copy, vendored verbatim from

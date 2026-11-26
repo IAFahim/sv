@@ -1,5 +1,7 @@
 # Issue 0063 — Atom 55 (roadmap 1.2): bijective reconcile, exception-safe Bind/Unbind, idempotent Population.Dispose
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Roadmap [issues/0058](0058-roadmap-1m-entities-5us.md) phase 1, atom 1.2 — F4, F6, F7.
 Labels: `ai`, `area:adapter`, `kind:fix`. Contract: none.
 

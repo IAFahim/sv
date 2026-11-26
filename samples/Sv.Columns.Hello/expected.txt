@@ -1,0 +1,6 @@
+frame 1: knight 100 hp  8 shield 0 burning | cleric  48 hp | warded 100 hp | entered - | dropped 0 | digest A33AAC6BBA86AC82
+frame 2: knight  13 hp  0 shield 2 burning | cleric  51 hp | warded 100 hp | entered knight Low | dropped 0 | digest 5E481CA782A9E1B2
+frame 3: knight   8 hp  0 shield 1 burning | cleric  54 hp | warded 100 hp | entered - | dropped 0 | digest 60DE921E9A0305DB
+frame 4: knight   3 hp  0 shield 0 burning | cleric  57 hp | warded 100 hp | entered - | dropped 1 | digest 192C6EBD085898FD
+frame 5: knight   0 hp  0 shield 0 burning | cleric  60 hp | warded 100 hp | entered knight Dead | dropped 1 | digest 303628A7402FCA4C
+frame 6: knight   0 hp  0 shield 0 burning | cleric  63 hp | warded 100 hp | entered - | dropped 1 | digest B21C3D2264B0B4D2

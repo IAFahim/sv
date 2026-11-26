@@ -1,5 +1,7 @@
 # Issue 0058 — Roadmap: sv at 1M entities in < 5 µs and < 200 MB (O(Δ) frame)
 
+Status: closed (2026-11-26, obsolete: this roadmap is for the sv 2.1 engine, removed in db8dbac on 2026-11-14; GitHub #38 closed; the 1M-entity goal moved to the v4 columns engine, docs/v4-design.md)
+
 Plan: [Roadmap.md](https://github.com/IAFahim/sv/blob/main/Roadmap.md) on `main`. This issue tracks it. Each atom gets its own issue file and GitHub issue when it starts (next free: atom 51, issue 0059).
 
 ## Goal

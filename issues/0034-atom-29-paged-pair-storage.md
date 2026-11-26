@@ -1,5 +1,7 @@
 # Issue 0034 — Atom 29: paged pair storage — memory follows touched slots, not capacity
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Filed as GitHub issue #34 (pending — see receipts). Labels: `ai`, `area:core`,
 `kind:perf`. Implements the chunked/lazy direction of
 [issues/0022](0022-design-capacity-memory.md) under the user's in-session direction

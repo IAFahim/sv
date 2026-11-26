@@ -1,5 +1,7 @@
 # Issue 0038 — Atom 33: fix — `Clamp.Stat` ignored the bound column's stride
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Filed as GitHub issue #38 (pending — see receipts). Labels: `ai`, `area:core`,
 `kind:bug`.
 

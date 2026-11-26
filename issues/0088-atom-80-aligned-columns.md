@@ -1,5 +1,7 @@
 # Issue 0088 — Atom 80 (roadmap 6.5a): aligned columns — 64 B for every sv-owned column, huge-page advice for the big ones
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Roadmap [issues/0058](0058-roadmap-1m-entities-5us.md) phase 6, atom 6.5,
 first slice (§4.10, §5.6). Labels: `ai`, `area:core`, `kind:feat`.
 Contract: none.
