@@ -107,6 +107,12 @@ namespace Sv.Columns
 
         internal void Clear() => Count = 0;
 
+        internal void Replay(long refused)
+        {
+            refusedAtSend = refused;
+            Count = 0;
+        }
+
         public void Dispose()
         {
             Native.Free(records);

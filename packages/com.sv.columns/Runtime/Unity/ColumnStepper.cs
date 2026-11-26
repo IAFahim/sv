@@ -39,6 +39,16 @@ namespace Sv.Columns.Unity
 
         public void Complete() => pending.Complete();
 
+        public void Resimulate()
+        {
+            pending.Complete();
+            world.BeginResimulate();
+            while (world.Resimulating)
+            {
+                Step();
+            }
+        }
+
         public void Dispose()
         {
             pending.Complete();
