@@ -30,3 +30,9 @@ jobs:
         run: |
           dotnet run -c Release --project samples/Sv.Columns.Rollback > rollback.txt
           diff -u --strip-trailing-cr samples/Sv.Columns.Rollback/expected.txt rollback.txt
+
+      - name: tests/Sv.Fuzz replays its crash corpus and runs a short smoke
+        shell: bash
+        run: |
+          dotnet run -c Release --project tests/Sv.Fuzz -- --replay tests/Sv.Fuzz/corpus
+          dotnet run -c Release --project tests/Sv.Fuzz -- --mode v3json,v4json,v4api --seconds 20 --seed 1 --out fuzz-out

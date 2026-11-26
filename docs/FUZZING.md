@@ -30,8 +30,8 @@ A finding is any input where one of these is false.
 | O6 | Every generated pack is accepted and its kernels compile with 0 warnings | `Sv.Diff.Tests` `compile`, `warnings`, `bricks-compile` |
 | O7 | The order you `Send` records in a frame never changes the result | **no harness yet** (section 4.1) |
 | O8 | Rewind to an epoch, replay the same input: the same digests | partly in `Sv.Laws.Tests` `TimeTravelLaws`; random harness: section 4.2 |
-| O9 | A malformed pack is rejected with a diagnostic: never a crash, a hang or an exception other than a pack error | **no harness yet** (section 4.3) |
-| O10 | Writing a pack and reading it back gives the same `PackHash` | **no harness yet** (section 4.4) |
+| O9 | A malformed pack is rejected with a diagnostic: never a crash, a hang or an exception other than a pack error | `tests/Sv.Fuzz --mode v3json` (section 3.1) |
+| O10 | Writing a pack and reading it back gives the same `PackHash` | `tests/Sv.Fuzz --mode v3json` (section 3.1) |
 | O11 | Warm frames allocate 0 bytes on sv's threads | `Sv.Host.Tests` `AllocationTests` (fixed scenarios only) |
 
 ## 3. Campaigns you can run now
@@ -65,6 +65,21 @@ On `FAIL`, the folder holds a **receipt per failing seed** (`<check>-seed<N>.txt
 **sv v4 (`src/Sv.Columns`).** `eng/columns-fuzz.sh <first-seed> <seeds> [default|noavx2|scalar|all]` drives `DeepFuzzTests`: per seed one pack at the full limits (up to 20 lanes, 16 channels, 4 kinds, extreme int values, convert denominators up to 2^16), one random pack and the arena pack, each run on the scalar, Vector and best kernels in lockstep with `ReferenceWorld`, under extreme amounts and hits, out-of-range targets and channels, floods of the largest amount, whole-chunk despawns and spawn churn. It prints one `ok` or `FAIL` line per leg; a failure names the seed, the frame and the first differing slot and lane. The unit run uses 24 seeds; the hardening pass ran seeds 1000 to 3499 clean on all three legs.
 
 **Budget:** start with 25 rounds per mode (about 21,000 packs per mode). If all four modes are clean, report that with the offsets: a clean campaign is a result too.
+
+### 3.1 The mutation fuzzer (`tests/Sv.Fuzz`)
+
+A console app, not a test project. It mutates real packs and checks every result:
+
+- `v3json`: mutates the repo's v3 packs (values, rules, cards, templates). Checks O9 (only diagnostics, never another exception), O10 (`PackWriter.Write` then read gives the same `PackHash`), that emitted C# has no raw line breaks inside literals, and that `Rules.map.txt` keeps six tab fields per line.
+- `v4json`: mutates v4 pack JSON. Checks the reader and compiler only throw pack errors and the tl glue it emits is well formed.
+- `v4api`: drives `ColumnWorld` with random sends, spawns, history edits, rewinds and misuse (sends and edits inside a frame, bad indexes), on both the stepped and the fused path, and compares each digest with a fresh replay of the same inputs.
+
+```
+dotnet run -c Release --project tests/Sv.Fuzz -- --mode v3json,v4json,v4api --seconds 600 --seed 1 --out fuzz-out/run1
+dotnet run -c Release --project tests/Sv.Fuzz -- --replay tests/Sv.Fuzz/corpus
+```
+
+A finding is written under `--out` with its input and stack. Add the input to `tests/Sv.Fuzz/corpus` once it is fixed (`.v3.json` for v3 packs, `.json` for v4 packs, `.api` for an API run); CI replays the corpus on every push. Issues 0403 to 0413 came from this tool.
 
 ## 4. New harnesses to build (after your section 3 campaign is filed)
 
