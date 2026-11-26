@@ -25,7 +25,7 @@ namespace Sv.Unity.Tests
         static EcsWorld BothClocks()
         {
             var world = new EcsWorld("sv-clock-test");
-            DefaultWorldInitialization.AddSystemsToRootLevelSystemGroups(world, new List<Type> { typeof(SvStepSystem), typeof(SvOpenFrameSystem), typeof(SvFixedStepSystem) });
+            DefaultWorldInitialization.AddSystemsToRootLevelSystemGroups(world, new List<Type> { typeof(FixedStepSimulationSystemGroup), typeof(SvFixedStepGroup), typeof(SvSendGroup), typeof(SvEventGroup), typeof(SvStepSystem), typeof(SvOpenFrameSystem), typeof(SvFixedStepSystem) });
             world.GetExistingSystemManaged<FixedStepSimulationSystemGroup>().Timestep = FixedStep;
             return world;
         }

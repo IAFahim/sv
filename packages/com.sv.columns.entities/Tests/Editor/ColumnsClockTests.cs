@@ -237,7 +237,7 @@ namespace Sv.Columns.Entities.Tests
         static World BothClocks(params Type[] more)
         {
             var world = new World("sv columns clock");
-            var systems = new List<Type> { typeof(ColumnsStepSystem), typeof(ColumnsFixedStepSystem) };
+            var systems = new List<Type> { typeof(FixedStepSimulationSystemGroup), typeof(ColumnsFixedStepGroup), typeof(ColumnsSendGroup), typeof(ColumnsStepSystem), typeof(ColumnsFixedStepSystem) };
             systems.AddRange(more);
             DefaultWorldInitialization.AddSystemsToRootLevelSystemGroups(world, systems);
             world.GetExistingSystemManaged<FixedStepSimulationSystemGroup>().Timestep = FixedStep;

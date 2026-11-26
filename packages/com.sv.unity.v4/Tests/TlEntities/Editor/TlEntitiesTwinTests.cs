@@ -303,6 +303,13 @@ namespace Sv.Unity.TlEntitiesTests
             var world = new EcsWorld("sv-tl-entities");
             DefaultWorldInitialization.AddSystemsToRootLevelSystemGroups(world, new List<Type>
             {
+                typeof(FixedStepSimulationSystemGroup),
+                typeof(global::Tl.TlSimulationGroup),
+                typeof(TimelineSimulationGroup),
+                typeof(TlFeedGroup),
+                typeof(SvFixedStepGroup),
+                typeof(SvSendGroup),
+                typeof(SvEventGroup),
                 typeof(TimelineRequestSystem),
                 typeof(TimelineAdvanceSystem),
                 typeof(TimelineKindTickSystem),
@@ -413,7 +420,7 @@ namespace Sv.Unity.TlEntitiesTests
             var world = new EcsWorld("sv-tl-clock");
             try
             {
-                DefaultWorldInitialization.AddSystemsToRootLevelSystemGroups(world, new List<Type> { typeof(SvTimelineClockSystem), typeof(SvStepSystem), typeof(SvOpenFrameSystem), typeof(SvFixedStepSystem) });
+                DefaultWorldInitialization.AddSystemsToRootLevelSystemGroups(world, new List<Type> { typeof(FixedStepSimulationSystemGroup), typeof(SvFixedStepGroup), typeof(SvSendGroup), typeof(SvEventGroup), typeof(SvTimelineClockSystem), typeof(SvStepSystem), typeof(SvOpenFrameSystem), typeof(SvFixedStepSystem) });
                 var manager = world.EntityManager;
                 var handle = SvEntities.Publish(manager, sv);
                 Assert.That(manager.HasComponent<SvFixedStep>(handle), Is.False, "per-frame stepping is the default");
