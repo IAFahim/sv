@@ -38,6 +38,15 @@ namespace Sv.Host
             ResolveMilliseconds = (resolved - reduced) * 1000.0 / Stopwatch.Frequency;
         }
 
+        public void Resimulate()
+        {
+            world.BeginResimulate();
+            while (world.Resimulating)
+            {
+                Step();
+            }
+        }
+
         static ColumnRunner Of(void* state) => (ColumnRunner)GCHandle.FromIntPtr((IntPtr)state).Target!;
 
         static void ReducePart(void* state, int part) => Of(state).world.Reduce(part);
