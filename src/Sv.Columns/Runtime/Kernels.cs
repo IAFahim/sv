@@ -474,10 +474,13 @@ namespace Sv.Columns
                 var toAt = gains + convert->To * Rows;
                 var numerator = Vector256.Create((long)convert->Numerator);
                 var shift = convert->Shift;
+                var remainder = Vector256.Create((1L << shift) - 1);
                 for (var row = 0; row < Rows; row += 4)
                 {
                     var from = Vector256.Load(fromAt + row);
-                    var moved = Vector256.ShiftRightLogical(TimesSmall(from, numerator), shift) & Load(mask + row);
+                    var whole = TimesSmall(Vector256.ShiftRightLogical(from, shift), numerator);
+                    var part = Vector256.ShiftRightLogical(TimesSmall(from & remainder, numerator), shift);
+                    var moved = (whole + part) & Load(mask + row);
                     (from - moved).Store(fromAt + row);
                     (Vector256.Load(toAt + row) + moved).Store(toAt + row);
                 }

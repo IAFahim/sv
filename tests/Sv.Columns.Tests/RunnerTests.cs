@@ -32,8 +32,8 @@ public sealed class RunnerTests
                     var source = dice.Pick(slots);
                     var channel = dice.Next(pack.ChannelNames.Count);
                     var amount = dice.Range(-15, 40);
-                    single.Writer(dice.Next(threads)).Send(target, source, channel, amount);
-                    parallel.Writer(dice.Next(threads)).Send(target, source, channel, amount);
+                    single.Writer(dice.Next(threads)).SendFrom(source, target, channel, amount);
+                    parallel.Writer(dice.Next(threads)).SendFrom(source, target, channel, amount);
                 }
 
                 single.Step();

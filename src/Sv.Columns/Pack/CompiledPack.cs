@@ -33,6 +33,8 @@ namespace Sv.Columns
 
         public ColumnPack Source { get; }
 
+        internal bool IsDisposed => tables == null;
+
         public PackTables* Tables => tables != null ? tables : throw new ObjectDisposedException(nameof(CompiledPack));
 
         public IReadOnlyList<string> LaneNames { get; }

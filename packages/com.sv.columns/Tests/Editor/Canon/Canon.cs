@@ -50,7 +50,7 @@ namespace Sv.Columns.Canon
                     var hits = 1 + (int)((state >> 23) & 3u);
                     if ((state & 7u) == 0)
                     {
-                        writer.Send(target, slots[(int)((state >> 9) % (uint)count)], channel, amount, hits);
+                        writer.SendFrom(slots[(int)((state >> 9) % (uint)count)], target, channel, amount, hits);
                     }
                     else
                     {

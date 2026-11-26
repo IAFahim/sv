@@ -41,8 +41,8 @@ public sealed class PackJsonTests
                 var source = dice.Pick(slots);
                 var channel = dice.Next(a.ChannelNames.Count);
                 var amount = dice.Range(-10, 30);
-                left.Writer(0).Send(target, source, channel, amount);
-                right.Writer(0).Send(target, source, channel, amount);
+                left.Writer(0).SendFrom(source, target, channel, amount);
+                right.Writer(0).SendFrom(source, target, channel, amount);
             }
 
             left.Step();
