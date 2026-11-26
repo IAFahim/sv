@@ -87,7 +87,7 @@ Unity 7 (CoreCLR), no package dependencies. `ColumnHost` (a MonoBehaviour) opens
 
 ## 6. With tl (timelines)
 
-v4 has no generated tl glue yet (issue 0522). Two patterns work today, both from game code between frames:
+v4 has no generated tl glue yet (issue 0525). Two patterns work today, both from game code between frames:
 
 - **A timeline switches a card.** When the timeline starts, set the card's lane (`world.Set(slot, pack.CardLane("burning"), 3)`); the card's ops do the per-frame work as column kernels, with no records at all, and a timer channel that flows back into the lane ends it. This is the fast path and the one to prefer.
 - **A timeline emits amounts.** tl writes one int per slot (an outbox column, as in v3). Before `Step`, send each non-zero cell with `SendFrom(slot, target, channel, cell)` and zero it, as v3's `Outbox.Send` does.
