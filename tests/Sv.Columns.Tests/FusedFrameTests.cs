@@ -326,6 +326,23 @@ public sealed unsafe class FusedFrameTests
     }
 
     [Fact]
+    public void AWorldWithHistoryRefusesTheFusedFrameAndStillSteps()
+    {
+        using var pack = PackJson.Read(ArenaJson).Compile();
+        using var world = new ColumnWorld(pack, 128, history: 4);
+        using var plain = new ColumnWorld(pack, 128);
+        world.Spawn(0);
+        plain.Spawn(0);
+        Assert.Throws<InvalidOperationException>(() => world.OpenFrame());
+        Assert.Throws<InvalidOperationException>(() => world.StepFused());
+        Assert.False(world.FrameOpen);
+        world.Step();
+        plain.StepFused();
+        Assert.Equal(plain.Digest(), world.Digest());
+        Assert.Equal(1, world.Frame);
+    }
+
+    [Fact]
     public void WarmFusedFramesAllocateNothing()
     {
         using var pack = PackJson.Read(ArenaJson).Compile();

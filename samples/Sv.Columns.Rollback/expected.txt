@@ -1,0 +1,4 @@
+predicted: after frame 6 the hero has 70 health
+corrected: the shield was raised in frame 2 and frame 4's hit was 12, so after frame 6 the hero has 71 health and 0 shield
+a fresh run of the corrected inputs gives the same world: True
+rewound to frame 3: the hero has 90 health and 3 shield, goblin alive True

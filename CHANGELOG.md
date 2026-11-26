@@ -1,18 +1,26 @@
 # Changelog
 
-## Unreleased (after rc.4)
+## v3.0.0 (2026-11-26)
 
-No behaviour or digest changes; every pinned digest is the same.
+The first stable release of sv v3. Nothing a game can see changed since rc.4, and every pinned digest is the same. Upgrade: change `#v3.0.0-rc.4` to `#v3.0.0` in both Unity package URLs (README chapter 6). Package versions stay 3.0.0 (engine `com.sv.engine`) and 4.0.0 (adapter `com.sv.unity.v4`). The contract is final from v3.0.0 to v3.2.0: the owner approved v3.2.0 (stat layers and derived stats) on 2026-11-26 (`issues/0390-stat-layers-v3.2.0-readings.md`).
+
+### Preview: sv v4 columns
+- `src/Sv.Columns` and the Unity package `com.sv.columns` (`4.0.0-preview.1`) ship in this tag as a preview. They stand beside v3 and change nothing in it: their own pack format, their own pinned digest, no contract yet, and their API may change before 4.0.0. A v3 game does not need them.
+- What it is: one integer fold per entity per frame from compiled per-template ops and 8-byte records, bit-exact against a slow reference interpreter, 0 B allocated warm. 1,000,000 entities x 500 column ops take 22 ms on 4 cores (v3: about 15 s as records); in Unity 7 on jobs, 20.3 ms. Spec `docs/v4-spec.md`, design and numbers `docs/v4-design.md`.
+- Unity: `"com.sv.columns": "https://github.com/IAFahim/sv.git?path=/packages/com.sv.columns#v3.0.0"`. Its CI job is `.github/workflows/unity-columns.yml` on the self-hosted runner.
 
 ### Fixed
 - Unity columns bench: its sourced quarter of records used the four-int `Send` overload removed in the v4 hardening, so it measured refused records (issue 0522).
 - Unity: `SvStepSystem` frees the sv world handles of its ECS world when the system is destroyed, so disposing an ECS world no longer keeps its sv world alive (IAFahim/sv#107).
+- Tests: `MalformedPackDiffTests` compiles each accepted mutation on its own thread with a 60 s hang limit, so one stuck compile can no longer stall CI.
 - Docs: the repository is public; README chapter 6, `docs/API-BRIEF.md` and `docs/DEMO.md` no longer say it is private.
 
 ### Faster
 - Seal: a chunk made of a few long sorted runs plus some unsorted records (the usual shape: a sender's sorted stream plus last frame's reaction records) is merged instead of fully re-sorted. 20k entities x 500 records per frame on 4 workers: Seal.Order 125 -> 52 ms, frame 295 -> 207 ms. `docs/BENCH-REPORT.md`, update "scale".
 
 ### Added
+- `docs/DEMO.md` (a 10-minute demo script with real outputs) and `docs/API-BRIEF.md` (the full API and architecture, with the runnable `samples/Sv.ApiTour`).
+- v4 columns rollback: `new ColumnWorld(..., history: H)` keeps the last H frames' start state and inputs; `Rewind(frame)`, `Inputs(frame)` (insert, replace or remove actions and records of a past frame) and `Resimulate()` (also `ColumnRunner.Resimulate()` and Unity's `ColumnStepper.Resimulate()`). The resimulated world equals a fresh run of the corrected inputs bit for bit (sends refused at send included in `Dropped`); keeping history changes no digest. A resimulate replays only the chunks an edit can reach (an edit that spawns or despawns replays everything): one late input over a 32-frame window at 1M entities takes 0.24 s instead of 2.1 s. Sample: `samples/Sv.Columns.Rollback`. `docs/v4-spec.md` section 9.
 - sv v4 in Entities and Burst: `packages/com.sv.columns.entities` runs the v4 frame as two Burst jobs with an `ISystem`, ECS components, bakers, an inspector and an Arena sample. `ColumnWorld.StepFused`, `OpenFrame`/`CloseFrame`, `ColumnFrame` and `ColumnView` give the same digests as `Step()` (`docs/v4-spec.md` section 9). The Unity bench compares Burst against the managed kernels at 20k and 1M entities.
 - `v3-scale` benchmark: millions of entities x records per entity x live modifiers per entity.
 - Unity CI on a self-hosted runner (`.github/workflows/unity.yml`, `eng/unity-ci.sh`, `eng/unity-bench/SvUnityBench.cs`): adapter compile, EditMode, PlayMode and a Unity-side million-entity benchmark. The job waits until a runner labelled `self-hosted, unity` is registered; `docs/CI-RUNNER.md` says how.

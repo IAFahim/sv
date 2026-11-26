@@ -43,6 +43,11 @@ namespace Sv.Columns
                 throw new InvalidOperationException("a frame is already running: close it before opening the next");
             }
 
+            if (logs != null)
+            {
+                throw new InvalidOperationException("the fused frame keeps no history: step a world opened with history through Step()");
+            }
+
             if (frameRecords == null)
             {
                 frameRecords = (ulong**)Native.Zeroed((long)writers.Length * sizeof(ulong*));

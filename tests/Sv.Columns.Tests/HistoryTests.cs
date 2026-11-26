@@ -1,0 +1,921 @@
+using Sv.Columns.Canon;
+using Sv.Host;
+
+namespace Sv.Columns.Tests;
+
+public sealed class FrameScript
+{
+    public readonly List<List<ColumnAction>> Actions = new();
+    public readonly List<List<ulong>> Records = new();
+
+    public void Capture(ColumnWorld world, int frame)
+    {
+        while (Actions.Count <= frame)
+        {
+            Actions.Add(new List<ColumnAction>());
+            Records.Add(new List<ulong>());
+        }
+
+        var inputs = world.Inputs(frame);
+        Actions[frame].Clear();
+        Records[frame].Clear();
+        for (var i = 0; i < inputs.ActionCount; i++)
+        {
+            Actions[frame].Add(inputs.Action(i));
+        }
+
+        for (var i = 0; i < inputs.RecordCount; i++)
+        {
+            Records[frame].Add(inputs.Record(i));
+        }
+    }
+
+    public static void Apply(ColumnWorld world, ColumnAction action)
+    {
+        switch (action.Kind)
+        {
+            case ColumnActionKind.Spawn:
+                try
+                {
+                    if (action.Template >= 0 && action.Template < world.Pack.TemplateNames.Count)
+                    {
+                        world.Spawn(action.Template);
+                    }
+                }
+                catch (InvalidOperationException)
+                {
+                }
+
+                break;
+            case ColumnActionKind.Despawn:
+                if (world.IsAlive(action.Slot))
+                {
+                    world.Despawn(action.Slot);
+                }
+
+                break;
+            case ColumnActionKind.Set:
+                if (world.IsAlive(action.Slot) && action.Lane >= 0 && action.Lane < world.Pack.LaneNames.Count - 2)
+                {
+                    world.Set(action.Slot, action.Lane, action.Value);
+                }
+
+                break;
+            case ColumnActionKind.Send:
+                world.Writer(0).Send(action.Slot, action.Channel, action.Amount, action.Hits);
+                break;
+            case ColumnActionKind.SendFrom:
+                world.Writer(0).SendFrom(action.Source, action.Slot, action.Channel, action.Amount, action.Hits);
+                break;
+        }
+    }
+
+    public ulong[] Fresh(CompiledPack pack, int capacity, int frames, KernelChoice kernels = KernelChoice.Scalar)
+    {
+        using var world = new ColumnWorld(pack, capacity, 1, 1, kernels);
+        var digests = new ulong[frames + 1];
+        digests[0] = world.Digest();
+        for (var f = 0; f < frames; f++)
+        {
+            foreach (var action in Actions[f])
+            {
+                Apply(world, action);
+            }
+
+            foreach (var record in Records[f])
+            {
+                world.Writer(0).SendRecord(record);
+            }
+
+            world.Step();
+            digests[f + 1] = world.Digest();
+        }
+
+        return digests;
+    }
+}
+
+public sealed class HistoryTests
+{
+    static CompiledPack Arena() => ArenaPack.Build().Compile();
+
+    static List<int> Alive(ColumnWorld world)
+    {
+        var slots = new List<int>();
+        for (var slot = 0; slot < world.Capacity; slot++)
+        {
+            if (world.IsAlive(slot))
+            {
+                slots.Add(slot);
+            }
+        }
+
+        return slots;
+    }
+
+    static void Traffic(ColumnWorld world, Dice dice, int records, bool edits)
+    {
+        var pack = world.Pack;
+        var live = Alive(world);
+        if (edits)
+        {
+            for (var i = dice.Range(0, 3); i > 0; i--)
+            {
+                live.Add(world.Spawn(dice.Next(pack.TemplateNames.Count)));
+            }
+
+            if (live.Count > 4 && dice.Chance(40))
+            {
+                var gone = dice.Pick(live);
+                world.Despawn(gone);
+                live.Remove(gone);
+            }
+
+            for (var i = dice.Range(0, 3); i > 0 && live.Count > 0; i--)
+            {
+                world.Set(dice.Pick(live), dice.Next(pack.LaneNames.Count - 2), dice.Range(-5, 60));
+            }
+        }
+
+        for (var r = 0; r < records && live.Count > 0; r++)
+        {
+            var writer = world.Writer(dice.Next(world.Writers));
+            var target = dice.Pick(live);
+            var channel = dice.Next(pack.ChannelNames.Count);
+            var amount = dice.Range(-12, 28);
+            if (dice.Chance(30))
+            {
+                writer.SendFrom(dice.Pick(live), target, channel, amount, dice.Range(1, 3));
+            }
+            else
+            {
+                writer.Send(target, channel, amount);
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData(KernelChoice.Scalar, 1, 1)]
+    [InlineData(KernelChoice.Best, 1, 1)]
+    [InlineData(KernelChoice.Best, 3, 5)]
+    [InlineData(KernelChoice.Vector, 2, 3)]
+    public void KeepingHistoryLeavesTheCanonDigestPinned(KernelChoice kernels, int writers, int parts)
+    {
+        using var pack = PackJson.Read(File.ReadAllText(PackPath())).Compile();
+        using var world = new ColumnWorld(pack, CanonRun.Capacity, writers, parts, kernels, history: 6);
+        Assert.Equal(CanonRun.Pinned.ToString("X16"), CanonRun.Run(world, world.Step).ToString("X16"));
+    }
+
+    [Theory]
+    [InlineData(KernelChoice.Scalar, 1, 1)]
+    [InlineData(KernelChoice.Best, 1, 1)]
+    [InlineData(KernelChoice.Best, 3, 7)]
+    [InlineData(KernelChoice.Vector, 2, 5)]
+    public void TheCanonLateInputRunEqualsInputOnTimeAndIsPinned(KernelChoice kernels, int writers, int parts)
+    {
+        using var pack = PackJson.Read(File.ReadAllText(PackPath())).Compile();
+        using var onTime = new ColumnWorld(pack, CanonRun.Capacity, writers, parts, kernels);
+        using var late = new ColumnWorld(pack, CanonRun.Capacity, writers, parts, kernels, CanonRun.LateHistory);
+        var expected = CanonRun.RunWithInputOnTime(onTime, onTime.Step);
+        Assert.Equal(expected.ToString("X16"), CanonRun.RunWithLateInput(late, late.Step, late.Resimulate).ToString("X16"));
+        Assert.Equal(CanonRun.PinnedLate.ToString("X16"), expected.ToString("X16"));
+    }
+
+    [Fact]
+    public void TheCanonLateInputRunOnWorkersIsPinned()
+    {
+        using var pack = PackJson.Read(File.ReadAllText(PackPath())).Compile();
+        using var world = new ColumnWorld(pack, CanonRun.Capacity, 3, 9, KernelChoice.Best, CanonRun.LateHistory);
+        using var workers = new Workers(3);
+        using var runner = new ColumnRunner(world, workers);
+        Assert.Equal(CanonRun.PinnedLate.ToString("X16"), CanonRun.RunWithLateInput(world, runner.Step, runner.Resimulate).ToString("X16"));
+    }
+
+    static string PackPath()
+    {
+        var folder = AppContext.BaseDirectory;
+        while (folder != null && !File.Exists(Path.Combine(folder, "packs", "columns", "arena.json")))
+        {
+            folder = Path.GetDirectoryName(folder);
+        }
+
+        return Path.Combine(folder!, "packs", "columns", "arena.json");
+    }
+
+    [Theory]
+    [InlineData(KernelChoice.Scalar, 1, 1)]
+    [InlineData(KernelChoice.Best, 2, 4)]
+    [InlineData(KernelChoice.Vector, 3, 2)]
+    public void TheLogReplaysEveryFrameOfALiveRun(KernelChoice kernels, int writers, int parts)
+    {
+        using var pack = Arena();
+        const int frames = 40;
+        using var world = new ColumnWorld(pack, 1024, writers, parts, kernels, history: frames);
+        var dice = new Dice(77);
+        var live = new ulong[frames + 1];
+        live[0] = world.Digest();
+        for (var f = 0; f < frames; f++)
+        {
+            Traffic(world, dice, 300, edits: true);
+            world.Step();
+            live[f + 1] = world.Digest();
+        }
+
+        var script = new FrameScript();
+        for (var f = 0; f < frames; f++)
+        {
+            script.Capture(world, f);
+        }
+
+        Assert.Equal(live, script.Fresh(pack, 1024, frames));
+    }
+
+    [Theory]
+    [InlineData(KernelChoice.Scalar, 1, 1)]
+    [InlineData(KernelChoice.Best, 3, 5)]
+    [InlineData(KernelChoice.Vector, 2, 2)]
+    public void RewindGoesBackToTheDigestOfThatFrameAndResteppingMatches(KernelChoice kernels, int writers, int parts)
+    {
+        using var pack = Arena();
+        using var world = new ColumnWorld(pack, 1024, writers, parts, kernels, history: 8);
+        var digests = new List<ulong> { world.Digest() };
+        var seeds = new List<ulong>();
+        for (var f = 0; f < 30; f++)
+        {
+            seeds.Add((ulong)(f * 31 + 5));
+            Traffic(world, new Dice(seeds[f]), 400, edits: true);
+            world.Step();
+            digests.Add(world.Digest());
+        }
+
+        foreach (var back in new[] { 30, 29, 25, 22 })
+        {
+            world.Rewind(back);
+            Assert.Equal(back, world.Frame);
+            Assert.Equal(digests[back], world.Digest());
+            for (var f = back; f < 30; f++)
+            {
+                Traffic(world, new Dice(seeds[f]), 400, edits: true);
+                world.Step();
+                Assert.Equal(digests[f + 1], world.Digest());
+            }
+        }
+    }
+
+    [Fact]
+    public void RewindDropsWhatWasSentForTheFramesAfterIt()
+    {
+        using var pack = Arena();
+        using var world = new ColumnWorld(pack, 256, 1, 1, KernelChoice.Best, history: 4);
+        var hero = world.Spawn(pack.Template("dummy"));
+        world.Step();
+        world.Writer(0).Send(hero, pack.Channel("Physical"), 30);
+        world.Step();
+        Assert.Equal(70, world.Get(hero, pack.Lane("Health")));
+        world.Writer(0).Send(hero, pack.Channel("Physical"), 10);
+        world.Rewind(1);
+        Assert.Equal(100, world.Get(hero, pack.Lane("Health")));
+        world.Step();
+        Assert.Equal(100, world.Get(hero, pack.Lane("Health")));
+        Assert.Equal(0, world.Inputs(1).RecordCount);
+    }
+
+    [Theory]
+    [InlineData(KernelChoice.Scalar, 1, 1, 1ul)]
+    [InlineData(KernelChoice.Best, 1, 1, 2ul)]
+    [InlineData(KernelChoice.Best, 3, 5, 3ul)]
+    [InlineData(KernelChoice.Vector, 2, 3, 4ul)]
+    [InlineData(KernelChoice.Best, 4, 7, 5ul)]
+    [InlineData(KernelChoice.Scalar, 2, 2, 6ul)]
+    public void LateInputFuzzEqualsAFreshRunOfTheCorrectedInputs(KernelChoice kernels, int writers, int parts, ulong seed)
+    {
+        using var pack = Arena();
+        const int capacity = 1024;
+        const int history = 8;
+        const int frames = 60;
+        using var world = new ColumnWorld(pack, capacity, writers, parts, kernels, history);
+        var dice = new Dice(seed * 1009);
+        var script = new FrameScript();
+        var pending = 0;
+        for (var f = 0; f < frames; f++)
+        {
+            Traffic(world, dice, dice.Range(0, 300), edits: dice.Chance(70));
+            world.Step();
+            script.Capture(world, f);
+            if (pending > 0 && --pending == 0)
+            {
+                Resimulate(world, script, f + 1);
+            }
+
+            if (f < 3 || !dice.Chance(45))
+            {
+                continue;
+            }
+
+            for (var e = dice.Range(1, 4); e > 0; e--)
+            {
+                Edit(world, script, dice, world.OldestFrame + 2 + dice.Next(world.Frame - world.OldestFrame - 2));
+            }
+
+            if (dice.Chance(70))
+            {
+                Resimulate(world, script, f + 1);
+            }
+            else
+            {
+                pending = 1;
+            }
+        }
+
+        if (pending > 0)
+        {
+            Resimulate(world, script, frames);
+        }
+
+        Assert.Equal(script.Fresh(pack, capacity, frames)[frames].ToString("X16"), world.Digest().ToString("X16"));
+    }
+
+    static void Resimulate(ColumnWorld world, FrameScript script, int frames)
+    {
+        world.Resimulate();
+        Assert.Equal(frames, world.Frame);
+        Assert.False(world.Resimulating);
+        Assert.Equal(script.Fresh(world.Pack, world.Capacity, frames)[frames].ToString("X16"), world.Digest().ToString("X16"));
+    }
+
+    static void Edit(ColumnWorld world, FrameScript script, Dice dice, int frame)
+    {
+        var pack = world.Pack;
+        var inputs = world.Inputs(frame);
+        var actions = script.Actions[frame];
+        var records = script.Records[frame];
+        var slot = dice.Next(400);
+        var channel = dice.Next(pack.ChannelNames.Count);
+        ColumnAction action = dice.Next(5) switch
+        {
+            0 => ColumnAction.Send(slot, channel, dice.Range(-40, 40), dice.Range(1, 3)),
+            1 => ColumnAction.SendFrom(dice.Next(400), slot, channel, dice.Range(-40, 40), dice.Range(1, 3)),
+            2 => ColumnAction.Set(slot, dice.Next(pack.LaneNames.Count - 2), dice.Range(-5, 120)),
+            3 => ColumnAction.Despawn(slot),
+            _ => ColumnAction.Spawn(dice.Next(pack.TemplateNames.Count)),
+        };
+
+        switch (dice.Next(6))
+        {
+            case 0:
+                var at = dice.Next(actions.Count + 1);
+                inputs.InsertAction(at, action);
+                actions.Insert(at, action);
+                break;
+            case 1 when actions.Count > 0:
+                var gone = dice.Next(actions.Count);
+                inputs.RemoveAction(gone);
+                actions.RemoveAt(gone);
+                break;
+            case 2 when actions.Count > 0:
+                var replaced = dice.Next(actions.Count);
+                inputs.ReplaceAction(replaced, action);
+                actions[replaced] = action;
+                break;
+            case 3 when records.Count > 0:
+                var lost = dice.Next(records.Count);
+                inputs.RemoveRecord(lost);
+                records[lost] = records[records.Count - 1];
+                records.RemoveAt(records.Count - 1);
+                break;
+            case 4 when records.Count > 0:
+                var swapped = dice.Next(records.Count);
+                var record = Record.Pack(slot, channel, dice.Next(4), (uint)dice.Next(256), dice.Range(-40, 40));
+                inputs.ReplaceRecord(swapped, record);
+                records[swapped] = record;
+                break;
+            default:
+                var added = Record.Pack(slot, channel, 0, 0, dice.Range(-40, 40));
+                inputs.AddRecord(added);
+                records.Add(added);
+                break;
+        }
+    }
+
+    [Fact]
+    public void ResimulateOnWorkersEqualsResimulateOnOneThread()
+    {
+        using var pack = Arena();
+        using var serial = new ColumnWorld(pack, 2048, 3, 6, KernelChoice.Best, history: 6);
+        using var parallel = new ColumnWorld(pack, 2048, 3, 6, KernelChoice.Best, history: 6);
+        using var workers = new Workers(3);
+        using var runner = new ColumnRunner(parallel, workers);
+        for (var i = 0; i < 100; i++)
+        {
+            serial.Spawn(i % pack.TemplateNames.Count);
+            parallel.Spawn(i % pack.TemplateNames.Count);
+        }
+
+        for (var f = 0; f < 20; f++)
+        {
+            Traffic(serial, new Dice((ulong)f + 9), 500, edits: true);
+            Traffic(parallel, new Dice((ulong)f + 9), 500, edits: true);
+            serial.Step();
+            runner.Step();
+            if (f % 4 == 3)
+            {
+                var late = ColumnAction.SendFrom(3, 70, pack.Channel("Fire"), 9, 2);
+                serial.Inputs(f - 3).AddAction(late);
+                parallel.Inputs(f - 3).AddAction(late);
+                serial.Resimulate();
+                runner.Resimulate();
+            }
+
+            Assert.Equal(serial.Digest(), parallel.Digest());
+        }
+    }
+
+    [Fact]
+    public void ResimulateWithNoEditsChangesNothing()
+    {
+        using var pack = Arena();
+        using var world = new ColumnWorld(pack, 512, 1, 1, KernelChoice.Best, history: 4);
+        Traffic(world, new Dice(4), 100, edits: true);
+        world.Step();
+        var digest = world.Digest();
+        world.Resimulate();
+        Assert.False(world.Resimulating);
+        Assert.Equal(1, world.Frame);
+        Assert.Equal(digest, world.Digest());
+    }
+
+    [Fact]
+    public void ActionsAlreadyTakenThisFrameAreKeptAcrossAResimulate()
+    {
+        using var pack = Arena();
+        using var world = new ColumnWorld(pack, 512, 1, 1, KernelChoice.Best, history: 4);
+        var hero = world.Spawn(pack.Template("dummy"));
+        world.Step();
+        world.Step();
+        var ally = world.Spawn(pack.Template("dummy"));
+        world.Set(ally, pack.Lane("Shield"), 7);
+        world.Inputs(0).AddAction(ColumnAction.Send(hero, pack.Channel("Physical"), 25));
+        world.Resimulate();
+        Assert.Equal(75, world.Get(hero, pack.Lane("Health")));
+        Assert.True(world.IsAlive(ally));
+        Assert.Equal(7, world.Get(ally, pack.Lane("Shield")));
+        Assert.Equal(2, world.Inputs(0).ActionCount);
+        Assert.Equal(0, world.Inputs(1).ActionCount);
+    }
+
+    [Fact]
+    public void ALateSpawnReportsTheSlotItGotAndAFullWorldSkipsIt()
+    {
+        using var pack = Arena();
+        using var world = new ColumnWorld(pack, 64, 1, 1, KernelChoice.Best, history: 4);
+        for (var i = 0; i < 64; i++)
+        {
+            world.Spawn(pack.Template("dummy"));
+        }
+
+        world.Step();
+        world.Despawn(5);
+        world.Step();
+        world.Inputs(1).AddAction(ColumnAction.Spawn(pack.Template("dummy")));
+        world.Inputs(1).AddAction(ColumnAction.Spawn(pack.Template("dummy")));
+        world.Resimulate();
+        Assert.True(world.Inputs(1).Action(1).Applied);
+        Assert.Equal(5, world.Inputs(1).Action(1).Slot);
+        Assert.False(world.Inputs(1).Action(2).Applied);
+        Assert.Equal(-1, world.Inputs(1).Action(2).Slot);
+        Assert.Equal(64, world.Count);
+    }
+
+    [Fact]
+    public void AWarmFrameAndAWarmResimulateAllocateNothing()
+    {
+        using var pack = Arena();
+        using var world = new ColumnWorld(pack, 4096, 2, 4, KernelChoice.Best, history: 8);
+        for (var i = 0; i < 2000; i++)
+        {
+            world.Spawn(i % pack.TemplateNames.Count);
+        }
+
+        void Frame(int f)
+        {
+            for (var r = 0; r < 3000; r++)
+            {
+                world.Writer(r & 1).Send((r * 7 + f) % 2000, r % 6, (r % 13) - 4);
+            }
+
+            world.Step();
+            world.Inputs(Math.Max(world.OldestFrame, world.Frame - 4)).AddAction(ColumnAction.Send(f % 2000, 2, 5));
+            world.Resimulate();
+        }
+
+        for (var f = 0; f < 30; f++)
+        {
+            Frame(f);
+        }
+
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        for (var f = 30; f < 60; f++)
+        {
+            Frame(f);
+        }
+
+        Assert.Equal(0, GC.GetAllocatedBytesForCurrentThread() - before);
+    }
+
+    [Fact]
+    public void MisuseIsRefusedWithAReason()
+    {
+        using var pack = Arena();
+        using var plain = new ColumnWorld(pack, 64);
+        Assert.Throws<InvalidOperationException>(() => plain.Rewind(0));
+        Assert.Throws<InvalidOperationException>(() => plain.Inputs(0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ColumnWorld(pack, 64, history: -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ColumnWorld(pack, 64, history: ColumnWorld.HistoryLimit + 1));
+
+        using var world = new ColumnWorld(pack, 64, history: 3);
+        var hero = world.Spawn(0);
+        for (var f = 0; f < 5; f++)
+        {
+            world.Step();
+        }
+
+        Assert.Equal(2, world.OldestFrame);
+        Assert.Throws<ArgumentOutOfRangeException>(() => world.Rewind(1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => world.Inputs(5));
+        world.Inputs(3).AddAction(ColumnAction.Send(hero, 0, -1));
+        world.Writer(0).Send(hero, 0, -1);
+        Assert.Throws<InvalidOperationException>(() => world.Resimulate());
+        world.Step();
+        world.BeginResimulate();
+        Assert.True(world.Resimulating);
+        Assert.Throws<InvalidOperationException>(() => world.Spawn(0));
+        Assert.Throws<InvalidOperationException>(() => world.Rewind(5));
+        while (world.Resimulating)
+        {
+            world.Step();
+        }
+
+        world.Inputs(4).AddAction(ColumnAction.Send(hero, 0, -1));
+        world.Step();
+        world.Step();
+        world.Step();
+        Assert.Throws<InvalidOperationException>(() => world.Resimulate());
+    }
+
+    static void Traffic(ColumnWorld world, int hero, int frame)
+    {
+        var writer = world.Writer(frame % world.Writers);
+        writer.Send(hero, 0, 3 + frame % 4);
+        writer.Send(world.Capacity + frame, 0, 1);
+        writer.Send(hero, RecordWriter.ChannelLimit + frame % 3, 1);
+        if (frame % 3 == 0)
+        {
+            world.Writer(0).SendFrom(hero, hero, 2, 2);
+        }
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(3)]
+    public void SendsRefusedAtSendCountTheSameAfterAResimulate(int writers)
+    {
+        using var pack = Arena();
+        using var fresh = new ColumnWorld(pack, 256, writers);
+        using var world = new ColumnWorld(pack, 256, writers, 1, KernelChoice.Best, history: 8);
+        var heroFresh = fresh.Spawn(pack.Template("regen"));
+        var hero = world.Spawn(pack.Template("regen"));
+        for (var f = 0; f < 12; f++)
+        {
+            Traffic(fresh, heroFresh, f);
+            if (f == 6)
+            {
+                fresh.Writer(0).Send(heroFresh, 0, 9);
+                fresh.Writer(0).Send(fresh.Capacity + 99, 0, 9);
+            }
+
+            fresh.Step();
+            Traffic(world, hero, f);
+            world.Step();
+        }
+
+        Assert.Equal(12L * 2, world.Dropped);
+        world.Inputs(6).AddAction(ColumnAction.Send(hero, 0, 9));
+        world.Inputs(6).AddAction(ColumnAction.Send(world.Capacity + 99, 0, 9));
+        world.Resimulate();
+        Assert.Equal(fresh.Digest().ToString("X16"), world.Digest().ToString("X16"));
+        Assert.Equal(fresh.Dropped, world.Dropped);
+        Assert.Equal(12L * 2 + 1, world.Dropped);
+    }
+
+    [Fact]
+    public void RewindKeepsAnEditToAFrameBeforeIt()
+    {
+        using var pack = Arena();
+        using var fresh = new ColumnWorld(pack, 256);
+        using var world = new ColumnWorld(pack, 256, history: 8);
+        var heroFresh = fresh.Spawn(pack.Template("regen"));
+        var hero = world.Spawn(pack.Template("regen"));
+        for (var f = 0; f < 10; f++)
+        {
+            Traffic(fresh, heroFresh, f);
+            if (f == 3)
+            {
+                fresh.Writer(0).Send(heroFresh, 0, 11);
+            }
+
+            fresh.Step();
+        }
+
+        for (var f = 0; f < 10; f++)
+        {
+            Traffic(world, hero, f);
+            world.Step();
+        }
+
+        world.Inputs(3).AddAction(ColumnAction.Send(hero, 0, 11));
+        world.Rewind(6);
+        for (var f = 6; f < 10; f++)
+        {
+            Traffic(world, hero, f);
+            world.Step();
+        }
+
+        world.Resimulate();
+        Assert.Equal(fresh.Digest().ToString("X16"), world.Digest().ToString("X16"));
+        Assert.Equal(fresh.Dropped, world.Dropped);
+    }
+
+    [Fact]
+    public void RewindRestoresWhichChunksAreOpenForSpawns()
+    {
+        using var pack = Arena();
+        using var world = new ColumnWorld(pack, 256, history: 8);
+        var slots = new int[65];
+        for (var i = 0; i < 65; i++)
+        {
+            slots[i] = world.Spawn(0);
+        }
+
+        world.Step();
+        world.Step();
+        world.Despawn(slots[5]);
+        world.Step();
+        world.Step();
+        world.Rewind(1);
+        Assert.True(world.IsAlive(slots[5]));
+        world.Despawn(slots[5]);
+        Assert.Equal(slots[5], world.Spawn(0));
+        world.Despawn(slots[7]);
+        Assert.Equal(slots[7], world.Spawn(0));
+    }
+
+    [Fact]
+    public void HistoryCallsAreRefusedInsideAFrameAndAfterDispose()
+    {
+        using var pack = Arena();
+        var world = new ColumnWorld(pack, 64, history: 4);
+        var hero = world.Spawn(0);
+        world.Step();
+        world.Inputs(0).AddAction(ColumnAction.Send(hero, 0, 1));
+        world.BeginFrame();
+        Assert.Throws<InvalidOperationException>(() => world.Rewind(0));
+        Assert.Throws<InvalidOperationException>(() => world.BeginResimulate());
+        world.Reduce(0);
+        world.Resolve(0);
+        world.EndFrame();
+        world.Resimulate();
+        Assert.False(world.Resimulating);
+        world.Dispose();
+        Assert.Throws<ObjectDisposedException>(() => world.Rewind(0));
+        Assert.Throws<ObjectDisposedException>(() => world.Inputs(0));
+        Assert.Throws<ObjectDisposedException>(() => world.BeginResimulate());
+    }
+
+    [Theory]
+    [InlineData(32)]
+    [InlineData(64)]
+    public void AWideWindowReplaysAnEditAtItsOldestFrame(int history)
+    {
+        using var pack = Arena();
+        using var fresh = new ColumnWorld(pack, 256, 2);
+        using var world = new ColumnWorld(pack, 256, 2, 1, KernelChoice.Best, history);
+        var heroFresh = fresh.Spawn(pack.Template("regen"));
+        var hero = world.Spawn(pack.Template("regen"));
+        var frames = history + 16;
+        for (var f = 0; f < frames; f++)
+        {
+            Traffic(fresh, heroFresh, f);
+            if (f == 16)
+            {
+                fresh.Writer(0).Send(heroFresh, 0, 13);
+            }
+
+            fresh.Step();
+            Traffic(world, hero, f);
+            world.Step();
+        }
+
+        Assert.Equal(16, world.OldestFrame);
+        world.Inputs(16).AddAction(ColumnAction.Send(hero, 0, 13));
+        world.Resimulate();
+        Assert.Equal(frames, world.Frame);
+        Assert.Equal(fresh.Digest().ToString("X16"), world.Digest().ToString("X16"));
+        Assert.Equal(fresh.Dropped, world.Dropped);
+    }
+
+    static (ulong Digest, long Dropped) FreshWithDropped(FrameScript script, CompiledPack pack, int capacity, int frames)
+    {
+        using var world = new ColumnWorld(pack, capacity);
+        for (var f = 0; f < frames; f++)
+        {
+            foreach (var action in script.Actions[f])
+            {
+                FrameScript.Apply(world, action);
+            }
+
+            foreach (var record in script.Records[f])
+            {
+                world.Writer(0).SendRecord(record);
+            }
+
+            world.Step();
+        }
+
+        return (world.Digest(), world.Dropped);
+    }
+
+    static void EditWithoutSpawning(ColumnWorld world, FrameScript script, Dice dice, int frame)
+    {
+        var pack = world.Pack;
+        var inputs = world.Inputs(frame);
+        var actions = script.Actions[frame];
+        var records = script.Records[frame];
+        var slot = dice.Chance(10) ? world.Capacity + dice.Next(9) : dice.Next(world.Capacity);
+        var channel = dice.Next(pack.ChannelNames.Count);
+        ColumnAction action = dice.Next(3) switch
+        {
+            0 => ColumnAction.Send(slot, channel, dice.Range(-40, 40), dice.Range(1, 3)),
+            1 => ColumnAction.SendFrom(dice.Next(world.Capacity), slot, channel, dice.Range(-40, 40), dice.Range(1, 3)),
+            _ => ColumnAction.Set(slot, dice.Next(pack.LaneNames.Count - 2), dice.Range(-5, 120)),
+        };
+
+        var logged = actions.Count > 0 ? dice.Next(actions.Count) : -1;
+        var structural = logged >= 0 && (actions[logged].Kind == ColumnActionKind.Spawn || actions[logged].Kind == ColumnActionKind.Despawn);
+        switch (dice.Next(6))
+        {
+            case 0:
+                var at = dice.Next(actions.Count + 1);
+                inputs.InsertAction(at, action);
+                actions.Insert(at, action);
+                break;
+            case 1 when logged >= 0 && !structural:
+                inputs.RemoveAction(logged);
+                actions.RemoveAt(logged);
+                break;
+            case 2 when logged >= 0 && !structural:
+                inputs.ReplaceAction(logged, action);
+                actions[logged] = action;
+                break;
+            case 3 when records.Count > 0:
+                var lost = dice.Next(records.Count);
+                inputs.RemoveRecord(lost);
+                records[lost] = records[records.Count - 1];
+                records.RemoveAt(records.Count - 1);
+                break;
+            case 4 when records.Count > 0:
+                var swapped = dice.Next(records.Count);
+                var record = Record.Pack(slot % world.Capacity, channel, dice.Next(4), (uint)dice.Next(256), dice.Range(-40, 40));
+                inputs.ReplaceRecord(swapped, record);
+                records[swapped] = record;
+                break;
+            default:
+                var added = Record.Pack(slot % world.Capacity, channel, 0, 0, dice.Range(-40, 40));
+                inputs.AddRecord(added);
+                records.Add(added);
+                break;
+        }
+    }
+
+    [Theory]
+    [InlineData(KernelChoice.Scalar, 1, 1, 11ul)]
+    [InlineData(KernelChoice.Best, 1, 1, 12ul)]
+    [InlineData(KernelChoice.Best, 3, 5, 13ul)]
+    [InlineData(KernelChoice.Vector, 2, 3, 14ul)]
+    [InlineData(KernelChoice.Best, 4, 9, 15ul)]
+    [InlineData(KernelChoice.Scalar, 2, 2, 16ul)]
+    public void AnEditThatSpawnsNothingReplaysOnlyWhatItReachesAndEqualsAFreshRun(KernelChoice kernels, int writers, int parts, ulong seed)
+    {
+        using var pack = Arena();
+        const int capacity = 64 * 48;
+        const int frames = 50;
+        using var world = new ColumnWorld(pack, capacity, writers, parts, kernels, history: 12);
+        var dice = new Dice(seed * 7919);
+        var script = new FrameScript();
+        for (var i = 0; i < capacity * 3 / 4; i++)
+        {
+            world.Spawn(dice.Next(pack.TemplateNames.Count));
+        }
+
+        for (var i = 0; i < 300; i++)
+        {
+            var gone = dice.Next(capacity);
+            if (world.IsAlive(gone))
+            {
+                world.Despawn(gone);
+            }
+        }
+
+        var live = Alive(world);
+        for (var f = 0; f < frames; f++)
+        {
+            if (dice.Chance(30))
+            {
+                world.Set(dice.Pick(live), dice.Next(pack.LaneNames.Count - 2), dice.Range(-5, 60));
+            }
+
+            if (dice.Chance(10))
+            {
+                var gone = dice.Pick(live);
+                world.Despawn(gone);
+                live.Remove(gone);
+                live.Add(world.Spawn(dice.Next(pack.TemplateNames.Count)));
+            }
+
+            for (var r = dice.Range(0, 400); r > 0; r--)
+            {
+                var writer = world.Writer(dice.Next(world.Writers));
+                var target = dice.Chance(8) ? dice.Next(capacity) : dice.Pick(live);
+                var channel = dice.Next(pack.ChannelNames.Count);
+                if (dice.Chance(25))
+                {
+                    writer.SendFrom(dice.Pick(live), target, channel, dice.Range(-12, 28), dice.Range(1, 3));
+                }
+                else
+                {
+                    writer.Send(target, channel, dice.Range(-12, 28));
+                }
+            }
+
+            world.Step();
+            script.Capture(world, f);
+            if (f < 4 || !dice.Chance(50))
+            {
+                continue;
+            }
+
+            for (var e = dice.Range(1, 3); e > 0; e--)
+            {
+                EditWithoutSpawning(world, script, dice, world.OldestFrame + dice.Next(world.Frame - world.OldestFrame));
+            }
+
+            world.Resimulate();
+            for (var k = world.OldestFrame; k < world.Frame; k++)
+            {
+                script.Capture(world, k);
+            }
+
+            var fresh = FreshWithDropped(script, pack, capacity, f + 1);
+            Assert.Equal(fresh.Digest.ToString("X16"), world.Digest().ToString("X16"));
+            Assert.Equal(fresh.Dropped, world.Dropped);
+        }
+    }
+
+    [Fact]
+    public void ALateSendFromReadsItsSourceAsItWasInThatFrame()
+    {
+        var spec = new ColumnPack();
+        spec.Lanes.Add(new LaneSpec("Health", 100));
+        spec.Lanes.Add(new LaneSpec("MaxHealth", 100));
+        spec.Channels.Add("Physical");
+        spec.Templates.Add(new TemplateSpec("dummy"));
+        spec.Templates.Add(new TemplateSpec("executioner"));
+        spec.Rules.Add(new ScaleRule(new[] { "Physical" }, 2, Cond.Gt("Health", -1000), Cond.Below("Health", "MaxHealth", 20)));
+        spec.Rules.Add(new FlowRule("Health", System.Array.Empty<string>(), new[] { "Physical" }));
+        using var pack = spec.Compile();
+        using var fresh = new ColumnWorld(pack, 256);
+        using var world = new ColumnWorld(pack, 256, history: 16);
+        var physical = pack.Channel("Physical");
+        var targetFresh = fresh.Spawn(pack.Template("dummy"));
+        var sourceFresh = fresh.Spawn(pack.Template("executioner"));
+        var target = world.Spawn(pack.Template("dummy"));
+        var source = world.Spawn(pack.Template("executioner"));
+        for (var f = 0; f < 12; f++)
+        {
+            if (f == 3)
+            {
+                fresh.Writer(0).SendFrom(sourceFresh, targetFresh, physical, 10);
+            }
+
+            fresh.Writer(0).Send(sourceFresh, physical, 9);
+            fresh.Step();
+            world.Writer(0).Send(source, physical, 9);
+            world.Step();
+        }
+
+        Assert.True(world.Get(source, pack.Lane("Health")) < 20);
+        world.Inputs(3).AddAction(ColumnAction.SendFrom(source, target, physical, 10));
+        world.Resimulate();
+        Assert.Equal(fresh.Get(targetFresh, pack.Lane("Health")), world.Get(target, pack.Lane("Health")));
+        Assert.Equal(fresh.Digest().ToString("X16"), world.Digest().ToString("X16"));
+    }
+}
