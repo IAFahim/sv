@@ -56,6 +56,17 @@ namespace Sv.Columns
 
         internal void Clear() => Count = 0;
 
+        internal void Load(ulong* source, int count)
+        {
+            while (capacity < count)
+            {
+                Grow();
+            }
+
+            Buffer.MemoryCopy(source, records, (long)capacity * 8, (long)count * 8);
+            Count = count;
+        }
+
         public void Dispose()
         {
             Native.Free(records);

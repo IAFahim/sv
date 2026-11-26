@@ -12,6 +12,7 @@ No behaviour or digest changes; every pinned digest is the same.
 - Seal: a chunk made of a few long sorted runs plus some unsorted records (the usual shape: a sender's sorted stream plus last frame's reaction records) is merged instead of fully re-sorted. 20k entities x 500 records per frame on 4 workers: Seal.Order 125 -> 52 ms, frame 295 -> 207 ms. `docs/BENCH-REPORT.md`, update "scale".
 
 ### Added
+- v4 columns rollback: `new ColumnWorld(..., history: H)` keeps the last H frames' start state and inputs; `Rewind(frame)`, `Inputs(frame)` (insert, replace or remove actions and records of a past frame) and `Resimulate()` (also `ColumnRunner.Resimulate()` and Unity's `ColumnStepper.Resimulate()`). The resimulated world equals a fresh run of the corrected inputs bit for bit; keeping history changes no digest. `docs/v4-spec.md` section 9.
 - `v3-scale` benchmark: millions of entities x records per entity x live modifiers per entity.
 - Unity CI on a self-hosted runner (`.github/workflows/unity.yml`, `eng/unity-ci.sh`, `eng/unity-bench/SvUnityBench.cs`): adapter compile, EditMode, PlayMode and a Unity-side million-entity benchmark. The job waits until a runner labelled `self-hosted, unity` is registered; `docs/CI-RUNNER.md` says how.
 

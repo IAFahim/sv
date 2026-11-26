@@ -102,7 +102,7 @@ The result of a frame depends only on the world before it and the multiset of re
 - the kernels: `KernelChoice.Scalar`, `Vector`, `Best` with Vector256, and each of them with `DOTNET_EnableAVX2=0` or `DOTNET_EnableHWIntrinsic=0` give equal digests;
 - the slow reference (`Sv.Columns.Reference.ReferenceWorld`), which interprets the `ColumnPack` directly, gives the same lanes.
 
-`ColumnWorld.Digest()` hashes slot, template and every lane of every alive slot in slot order. Replay is the initial world plus the records and edits of each frame; v4.0 keeps no journal.
+`ColumnWorld.Digest()` hashes slot, template and every lane of every alive slot in slot order. Replay is the initial world plus the records and actions of each frame. A world opened with `history > 0` keeps the last frames itself and can go back and resimulate them (section 9).
 
 ## 5. Host API
 
@@ -114,6 +114,7 @@ The result of a frame depends only on the world before it and the multiset of re
 | `Event(slot, e)`, `Entered(slot, e)`, `ChunkAlive`, `ChunkEntered` | read events per slot or per chunk |
 | `Writer(w).Send(...)` | one writer per thread |
 | `Step()` or `ColumnRunner.Step()` | single thread, or reduces and resolves on `Workers` |
+| `new ColumnWorld(..., history)`, `Rewind(frame)`, `Inputs(frame)`, `Resimulate()` | rollback (section 9) |
 
 A warm frame allocates 0 bytes on the managed heap. Record buffers grow by doubling; per-writer class-sum blocks are allocated in native memory the first time a writer touches a chunk.
 
@@ -168,3 +169,36 @@ Unknown keys, fractions, duplicate keys and broken JSON are errors with their pl
 Game code sends records with `host.World.Writer(w).Send(...)` before the step, one writer per thread. To tie slots to entities, keep the slot in a component.
 
 `Tests/Editor/Canon/Canon.cs` is the mirrored `tests/Sv.Columns.Tests/Canon/Canon.cs`: the .NET suite and the Unity EditMode suite run the same 48 frames on `arena.json` and assert the same pinned digest, on the scalar, vector and best kernels, in one thread, on `Workers` and on Unity jobs, and through `ColumnHost`. The Unity job `sv Unity columns` (`eng/unity-columns-ci.sh` on the self-hosted `unity` runner) compiles the package, runs those tests and prints `SVCOLUMNS` benchmark lines for the same shapes as `Sv.Columns.Bench`.
+
+## 9. History: rewind and resimulate
+
+A world opened with `history = H` (1 to 4096; 0, the default, keeps nothing and costs nothing) keeps, for each of the last H frames, the state the frame started from and the inputs it consumed. Frame `f` means the world after `f` steps; the inputs of frame `f` are what the host did while `Frame == f` and the step that followed consumed.
+
+| Call | Does |
+|---|---|
+| `Rewind(f)` | the world goes back to frame `f` (`OldestFrame <= f <= Frame`): lanes, gates, which slots are alive, templates, where the next spawn goes, `Count`, `Dropped`. The inputs of frames `f` and later are dropped, and records already sent for the current frame are discarded. The host plays the frames again with whatever inputs it now has. |
+| `Inputs(f)` | the inputs of a past frame (`OldestFrame <= f < Frame`): its **actions** in order (spawn, despawn, set, send, send from a source) and its **records** (an unordered multiset of 8-byte records as they were sent). Read, add, insert, replace and remove both. Every change marks `f` as edited. |
+| `Resimulate()` | goes back to the earliest edited frame and steps forward to the frame the world was at, each step consuming that frame's logged inputs. Actions already taken in the current frame are taken again on the new state. Nothing is edited: nothing happens. |
+| `BeginResimulate()`, `Resimulating` | the same, for a host that steps the world itself: `ColumnRunner.Resimulate()` and Unity's `ColumnStepper.Resimulate()` loop `Step()` while `Resimulating`. |
+
+Law: after `Resimulate()`, the world equals, bit for bit, a fresh world that ran every frame's inputs as they now stand in the log. Tests hold it on a fuzz of random late inputs (inserted, replaced and removed actions and records, resimulated at once or a frame later), on every kernel, writer and part count, on `Workers`, and on Unity jobs through a pinned canon (`CanonRun.PinnedLate`). Keeping history does not change any digest.
+
+What a logged input means when it is replayed:
+- A logged record keeps the target, source kind and source flags it was sent with. To have a corrected source read again, remove the record and insert a `SendFrom` action: actions are resolved against the state they are replayed on, records are not.
+- Actions are total on replay: a despawn or set of a slot that is not alive, or a set of a lane that cannot be set, is skipped; a spawn in a full world is skipped. `Action(i).Applied` says whether it took effect and `Action(i).Slot` which slot a spawn got.
+- Slots are given out deterministically, so a spawn inserted into the past can move the slots later spawns get. Logged inputs keep the slot numbers they were written with, exactly as a fresh run of the same log would; a host that names entities by slot remaps them itself.
+
+Rules: `Resimulate` throws when records for the current frame are already sent (resimulate first, then send) and when an edited frame has already left the window. Spawn, despawn, set and `Rewind` throw while `Resimulating`. A warm frame and a warm resimulate allocate 0 bytes on the managed heap; the log grows by doubling in native memory.
+
+Cost (`Sv.Columns.Bench history`, 4 threads, Vector256, the bench pack: 14 lanes, 500 ops and 10 records per entity, H = 8, 0 B allocated, resimulated digest bit-identical):
+
+| | 20k entities | 1M entities |
+|---|---|---|
+| step without history | 0.76 ms | 37.9 ms |
+| step with history (keeps the checkpoint) | 0.81 ms (+0.05) | 43.3 ms (+5.5) |
+| memory per entity | 650 B checkpoints + 720 B record log | same |
+| `Rewind` | 0.23 ms | 12.4 ms |
+| `Resimulate` 1 / 4 / 8 frames | 1.2 / 4.4 / 8.4 ms | 67 / 230 / 418 ms |
+
+Memory per entity is `(H + 1) * (4 * lanes + 16)` bytes for checkpoints plus `(H + 1) * 8` bytes per record sent per entity per frame, at capacity.
+

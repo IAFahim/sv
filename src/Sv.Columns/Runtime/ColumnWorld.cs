@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace Sv.Columns
 {
-    public sealed unsafe class ColumnWorld : IDisposable
+    public sealed unsafe partial class ColumnWorld : IDisposable
     {
         public const int Rows = Law.Rows;
         readonly CompiledPack pack;
@@ -28,7 +28,7 @@ namespace Sv.Columns
         int frame;
         int nextChunk;
 
-        public ColumnWorld(CompiledPack pack, int capacity, int writerCount = 1, int resolveParts = 1, KernelChoice kernels = KernelChoice.Best)
+        public ColumnWorld(CompiledPack pack, int capacity, int writerCount = 1, int resolveParts = 1, KernelChoice kernels = KernelChoice.Best, int history = 0)
         {
             if (capacity < 1 || capacity > Record.SlotLimit)
             {
@@ -72,6 +72,7 @@ namespace Sv.Columns
             }
 
             NoSourceFlags = tables->NoSourceFlags;
+            OpenHistory(history);
         }
 
         public CompiledPack Pack => pack;
@@ -121,6 +122,7 @@ namespace Sv.Columns
                 throw new ArgumentOutOfRangeException(nameof(template));
             }
 
+            BeforeEdit();
             var open = openChunks[template];
             while (open.Count > 0 && alive[open[open.Count - 1]] == ulong.MaxValue)
             {
@@ -168,6 +170,7 @@ namespace Sv.Columns
             var slot = chunk * Rows + row;
             gates[slot] = Law.GateOf(tables, chunkLanes, row);
             Count++;
+            Note(ColumnAction.Spawned(template, slot));
             return slot;
         }
 
@@ -204,6 +207,7 @@ namespace Sv.Columns
         public void Despawn(int slot)
         {
             CheckAlive(slot);
+            BeforeEdit();
             var chunk = slot / Rows;
             var row = slot % Rows;
             var wasFull = alive[chunk] == ulong.MaxValue;
@@ -220,6 +224,8 @@ namespace Sv.Columns
             {
                 openChunks[chunkTemplates[chunk]].Add(chunk);
             }
+
+            Note(ColumnAction.Despawn(slot));
         }
 
         public bool IsAlive(int slot) => (uint)slot < (uint)Capacity && ((alive[slot / Rows] >> (slot % Rows)) & 1ul) != 0;
@@ -257,9 +263,11 @@ namespace Sv.Columns
                 throw new ArgumentOutOfRangeException(nameof(lane), "only pack lanes can be set");
             }
 
+            BeforeEdit();
             var chunkLanes = ChunkLanes(slot / Rows);
             chunkLanes[lane * Rows + slot % Rows] = value;
             gates[slot] = Law.GateOf(tables, chunkLanes, slot % Rows);
+            Note(ColumnAction.Set(slot, lane, value));
         }
 
         public bool Event(int slot, int eventIndex) => ((uint)Get(slot, tables->EventsLane) >> eventIndex & 1u) != 0;
@@ -298,6 +306,7 @@ namespace Sv.Columns
 
         public void BeginFrame()
         {
+            LoadLoggedInputs();
             var total = 0L;
             for (var w = 0; w < writers.Length; w++)
             {
@@ -309,6 +318,7 @@ namespace Sv.Columns
                 throw new InvalidOperationException("a frame holds at most " + int.MaxValue + " records");
             }
 
+            OpenRecordLog((int)total);
             frame++;
         }
 
@@ -344,6 +354,7 @@ namespace Sv.Columns
             }
 
             dropped[writer * 8] += lost;
+            LogRecords(writer, records, count);
             source.Clear();
         }
 
@@ -432,6 +443,7 @@ namespace Sv.Columns
                 if (Vectorized)
                 {
                     Kernels.ResolveChunk(tables, template, chunkLanes, chunkGates, chunkAlive, area);
+                    KeepChunk(chunk, chunkLanes);
                     continue;
                 }
 
@@ -452,11 +464,14 @@ namespace Sv.Columns
                         chunkGates[row] = Law.GateOf(tables, chunkLanes, row);
                     }
                 }
+
+                KeepChunk(chunk, chunkLanes);
             }
         }
 
         public void EndFrame()
         {
+            CloseFrame();
         }
 
         public ulong Digest()
@@ -509,6 +524,8 @@ namespace Sv.Columns
             {
                 writer.Dispose();
             }
+
+            FreeHistory();
 
             for (long i = 0; i < (long)writers.Length * chunkCount; i++)
             {
