@@ -14,7 +14,7 @@ internal static class Program
             }
         }
 
-        var failures = SvV3Bench.V3.Run(scenario, ms) + SvV3Bench.Lego1m.Run(scenario, ms);
+        var failures = SvV3Bench.V3.Run(scenario, ms) + SvV3Bench.Lego1m.Run(scenario, ms) + SvV3Bench.Scale.Run(scenario, ms);
         Console.WriteLine(failures == 0 ? "all scenarios ok" : failures + " scenario(s) failed");
         return failures == 0 ? 0 : 1;
     }

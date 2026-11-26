@@ -294,7 +294,7 @@ All of these are rows in `packs/reference` or `packs/lego`, each with scenario t
 "com.sv.unity.v4": "https://github.com/IAFahim/sv.git?path=/packages/com.sv.unity.v4#v3.0.0-rc.4"
 ```
 
-The repository is private: Unity clones with your local git credentials, so your account needs access. With a local checkout use `"file:<sv checkout>/packages/com.sv.engine"` (and the same for the adapter) instead. `SV_GIT_REF=<tag> bash eng/player-smoke.sh` builds a player from exactly these git packages.
+The repository is public, so Unity clones it without credentials. With a local checkout use `"file:<sv checkout>/packages/com.sv.engine"` (and the same for the adapter) instead. `SV_GIT_REF=<tag> bash eng/player-smoke.sh` builds a player from exactly these git packages.
 
 Generate with **Window > sv > Pack Authoring** (Regenerate) or `sv pack <folder> --host unity --namespace <ns> --out <dir>`. That adds `PackJobs.g.cs`: every frame phase as a Burst job. Then:
 
@@ -398,7 +398,7 @@ Honest list.
 - **Same-frame lethal check.** A revive acts one frame late.
 - **History memory.** With the full rewind ring and heavy activity, memory grows to about 450-760 bytes per entity (`docs/BENCH-REPORT.md`).
 - **tl's ECS timeline path in Unity** (SubScene, Playable Director) is not built for the sv glue; tl's plain host is.
-- **Install** is by git URL with a tag (chapter 6) or a `file:` path; there is no package registry release yet, and the repository is private.
+- **Install** is by git URL with a tag (chapter 6) or a `file:` path; there is no package registry release yet.
 
 ---
 

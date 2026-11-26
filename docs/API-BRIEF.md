@@ -431,7 +431,7 @@ Warm frames allocate **0 bytes** on sv's threads (tested). Memory at rest 41-46 
 - **Sizes:** at most 4,194,303 entities (22-bit slots), 256 channels and 256 kinds per pack, 64 exclusive gate groups.
 - **API sharp edges:** template index (host) vs id (reference and scenarios, section 5.1); `Send` is single-threaded (5.6); `EntityCapacity` is chunk-granular because each template fills its own 64-entity chunks; a game `Rewind` drops later logged input (5.4); `Resolve` right after `Step` only.
 - **tl's ECS timeline path in Unity** is not built for the sv glue.
-- **Distribution:** install is by git URL with a tag, from a private repository; there is no package registry release.
+- **Distribution:** install is by git URL with a tag from the public repository; there is no package registry release.
 
 ## 12. Repository map
 

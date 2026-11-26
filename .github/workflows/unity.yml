@@ -1,0 +1,26 @@
+name: sv Unity
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+concurrency:
+  group: sv-unity-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  unity:
+    name: Unity adapter compile, EditMode tests, million-entity bench
+    runs-on: [self-hosted, unity]
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unity steps (newest installed Unity 7 editor, own probe project)
+        env:
+          SV_UNITY_OUT: ${{ github.workspace }}/artifacts/sv-unity
+        run: bash eng/unity-ci.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sv-unity-logs
+          path: artifacts/sv-unity

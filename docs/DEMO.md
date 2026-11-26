@@ -2,7 +2,7 @@
 
 Release `v3.0.0-rc.4`. Every output below was produced on 2026-11-14 on a Linux desktop (Ryzen 5 8500G, 6 cores, 12 threads). Run the steps in this order; each says what it proves.
 
-You need: the .NET 10 SDK, read access to this private repository, and for step 4 Unity 7000.0.0a16. Step 3 needs the `wasm-tools` workload (`docs/WEB.md`).
+You need: the .NET 10 SDK, a clone of this repository, and for step 4 Unity 7000.0.0a16. Step 3 needs the `wasm-tools` workload (`docs/WEB.md`).
 
 ## 1. A pack runs and every machine agrees (1 minute)
 
@@ -95,4 +95,4 @@ Quiet machine, 1,000,000 entities, 1,000,000 records per frame, the 55-rule `leg
 - Windows, macOS, mobile, console or IL2CPP players: not run yet (IAFahim/sv#99). Only a Linux CoreCLR player is proven.
 - CI on ARM64, macOS and Windows for the last two merges: GitHub Actions is blocked by account billing (IAFahim/sv#103). The last fully green CI is commit cb23af8.
 - tl's ECS timeline path in Unity (SubScene, Playable Director): not built; tl runs in Unity on its plain host.
-- A package registry release: install is by git URL with the tag, and the repository is private.
+- A package registry release: install is by git URL with the tag.
