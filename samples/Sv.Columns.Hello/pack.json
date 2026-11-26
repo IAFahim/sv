@@ -1,0 +1,39 @@
+{
+  "lanes": [
+    { "name": "Health", "default": 100 },
+    { "name": "MaxHealth", "default": 100 },
+    { "name": "Shield", "default": 0 },
+    { "name": "Burning", "default": 0 },
+    { "name": "Regen", "default": 0 },
+    { "name": "BeastWard", "default": 0 },
+    { "name": "Kind", "default": 0 }
+  ],
+  "channels": ["Physical", "Fire", "Healing", "BurnTime"],
+  "kinds": ["None", "Beast"],
+  "kindLane": "Kind",
+  "cards": [
+    { "name": "burning", "lane": "Burning", "ops": [
+      { "channel": "Fire", "amount": 5 },
+      { "channel": "BurnTime", "amount": -1 }
+    ] },
+    { "name": "regen", "lane": "Regen", "ops": [
+      { "channel": "Healing", "amount": 3 }
+    ] }
+  ],
+  "templates": [
+    { "name": "knight", "values": { "Shield": 20 } },
+    { "name": "cleric", "values": { "Health": 60 }, "cards": { "regen": 1 } },
+    { "name": "warded", "values": { "BeastWard": 1 } },
+    { "name": "wolf", "values": { "Kind": 1 } }
+  ],
+  "rules": [
+    { "deny": { "channels": ["Physical"], "kinds": ["Beast"], "when": "BeastWard > 0" } },
+    { "absorb": { "budget": "Shield", "channels": ["Physical", "Fire"] } },
+    { "flow": { "lane": "Health", "add": ["Healing"], "subtract": ["Physical", "Fire"] } },
+    { "flow": { "lane": "Burning", "add": ["BurnTime"] } },
+    { "bounds": { "lane": "Health", "floor": 0, "ceiling": "MaxHealth" } },
+    { "bounds": { "lane": "Burning", "floor": 0 } },
+    { "event": { "name": "Dead", "enter": "Health <= 0" } },
+    { "event": { "name": "Low", "enter": "Health < 30% of MaxHealth", "stay": "Health < 40% of MaxHealth" } }
+  ]
+}
