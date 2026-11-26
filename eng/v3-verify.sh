@@ -31,7 +31,7 @@ note "build"
 dotnet build -c Release src/Sv.Pack -v q -p:NuGetAudit=false >/dev/null || { echo "FAIL build Sv.Pack"; exit 1; }
 
 core="Sv.Laws.Tests Sv.Scenario.Tests Sv.Diff.Tests Sv.Lego.Tests Sv.Host.Tests Sv.Columns.Tests"
-extra="Sv.Twin.Fixtures Sv.NorthStar3 Sv.Web.Tests"
+extra="Sv.Twin.Fixtures Sv.NorthStar3 Sv.Columns.Timelines Sv.Web.Tests"
 for leg in default noavx2 scalar; do
   case $leg in
     default) flags="";;

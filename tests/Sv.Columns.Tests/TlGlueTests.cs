@@ -103,6 +103,21 @@ public sealed class TlGlueTests
     }
 
     [Fact]
+    public void The_plain_host_gets_a_timeline_requests_class_and_the_unity_host_gets_rules_for_the_request_system()
+    {
+        var pack = PackJson.Read(TestPack());
+        var plain = ColumnsGlue.Emit(pack, "Game", false);
+        Assert.Contains("public sealed class TimelineRequests", plain);
+        Assert.Contains("public void Apply(PlaybackTable players, global::Sv.Columns.ColumnWorld world)", plain);
+        Assert.Contains("\"LowHealth\",", plain);
+        Assert.Contains("\"poison\",", plain);
+        Assert.Contains("players.Start(slot, resolved[i]);", plain);
+        Assert.Contains("players.Stop(slot, resolved[i]);", plain);
+        Assert.DoesNotContain("TimelineRequests", ColumnsGlue.Emit(pack, "Game", true));
+        Assert.DoesNotContain("TimelineRequests", ColumnsGlue.Emit(PackJson.Read(File.ReadAllText(Repo("packs/columns/arena.json"))), "Game", false));
+    }
+
+    [Fact]
     public void A_pack_without_timelines_emits_empty_glue_and_reads_as_before()
     {
         var arena = PackJson.Read(File.ReadAllText(Repo("packs/columns/arena.json")));

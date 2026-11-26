@@ -87,8 +87,95 @@ namespace Sv.Pack
                 code.Close();
             }
 
+            if (!entities && glue.Starts.Count > 0)
+            {
+                if (!first)
+                {
+                    code.Blank();
+                }
+
+                Requests(code, glue.Starts);
+            }
+
             code.Close();
             return code.ToString();
+        }
+
+        static void Requests(CodeWriter code, List<TimelineStart> starts)
+        {
+            code.Open("public sealed class TimelineRequests");
+            code.Line("static readonly string[] Events =");
+            code.Block();
+            foreach (var start in starts)
+            {
+                code.Line(Literal(start.Event) + ",");
+            }
+
+            code.Close("};");
+            code.Blank();
+            code.Line("static readonly string[] Timelines =");
+            code.Block();
+            foreach (var start in starts)
+            {
+                code.Line(Literal(start.Timeline) + ",");
+            }
+
+            code.Close("};");
+            code.Blank();
+            code.Line("readonly int[] events = new int[Events.Length];");
+            code.Blank();
+            code.Line("readonly ushort[] resolved = new ushort[Events.Length];");
+            code.Blank();
+            code.Line("int[] held = global::System.Array.Empty<int>();");
+            code.Blank();
+            code.Line("public long Started;");
+            code.Blank();
+            code.Line("public long Stopped;");
+            code.Blank();
+            code.Open("public TimelineRequests(TimelineWorld world, global::Sv.Columns.CompiledPack pack)");
+            code.Open("for (var i = 0; i < Events.Length; i++)");
+            code.Line("events[i] = pack.Event(Events[i]);");
+            code.Line("resolved[i] = world.Find(Timelines[i]);");
+            code.Close();
+            code.Close();
+            code.Blank();
+            code.Open("public void Apply(PlaybackTable players, global::Sv.Columns.ColumnWorld world)");
+            code.Open("if (held.Length < world.Capacity)");
+            code.Line("global::System.Array.Resize(ref held, world.Capacity);");
+            code.Close();
+            code.Blank();
+            code.Open("for (var slot = 0; slot < world.Capacity; slot++)");
+            code.Open("if (!world.IsAlive(slot))");
+            code.Line("held[slot] = 0;");
+            code.Line("continue;");
+            code.Close();
+            code.Blank();
+            code.Line("var now = 0;");
+            code.Open("for (var i = 0; i < events.Length; i++)");
+            code.Line("var bit = 1 << (events[i] & 31);");
+            code.Line("var on = world.Event(slot, events[i]);");
+            code.Open("if (on)");
+            code.Line("now |= bit;");
+            code.Close();
+            code.Blank();
+            code.Open("if (resolved[i] == 0)");
+            code.Line("continue;");
+            code.Close();
+            code.Blank();
+            code.Open("if (world.Entered(slot, events[i]))");
+            code.Line("players.Start(slot, resolved[i]);");
+            code.Line("Started++;");
+            code.Close();
+            code.Open("else if (!on && (held[slot] & bit) != 0)");
+            code.Line("players.Stop(slot, resolved[i]);");
+            code.Line("Stopped++;");
+            code.Close();
+            code.Close();
+            code.Blank();
+            code.Line("held[slot] = now;");
+            code.Close();
+            code.Close();
+            code.Close();
         }
 
         public static string EmitEntities(ColumnPack pack, string rootNamespace)

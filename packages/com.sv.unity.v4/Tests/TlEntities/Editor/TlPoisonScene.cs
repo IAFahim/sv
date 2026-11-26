@@ -14,7 +14,8 @@ namespace Sv.Unity.TlEntitiesTests
     public static class TlPoisonScene
     {
         public const string Timeline = "poison";
-        public const double Seconds = 4.0;
+        public const int Ticks = 4;
+        public const double TicksPerSecond = 60.0;
         public const int Amount = 3;
         public const string Folder = "Assets/SvTlPoison";
         public const string SceneName = "Sv Tl Poison.unity";
@@ -36,7 +37,7 @@ namespace Sv.Unity.TlEntitiesTests
             var clip = track.CreateClip<TlClip>();
             clip.displayName = "Poison";
             clip.start = 0.0;
-            clip.duration = Seconds;
+            clip.duration = Ticks / TicksPerSecond;
             ((Sv_Kernels_NorthStar3_Glue_PoisonClip_TlData)((TlClip)clip.asset).Data).Amount = Amount;
         }
 
