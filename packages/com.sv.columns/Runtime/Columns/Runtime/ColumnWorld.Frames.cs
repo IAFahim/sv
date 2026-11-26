@@ -7,9 +7,10 @@ namespace Sv.Columns
         ulong** frameRecords;
         int* frameCounts;
         RecordBucket* frameBuckets;
+        ulong** frameScratch;
         long* writerLost;
         long* partLost;
-        int[]? sortedCapacity;
+        int[]? scratchCapacity;
         bool framed;
 
         public bool FrameOpen => framed;
@@ -36,6 +37,8 @@ namespace Sv.Columns
             }
         }
 
+        public int FrameRecordSets => writers.Length + 1;
+
         public ColumnFrame OpenFrame(FrameKernel kernel = FrameKernel.Rows)
         {
             Live();
@@ -44,39 +47,39 @@ namespace Sv.Columns
                 throw new InvalidOperationException("a frame is already running: close it before opening the next");
             }
 
-            if (logs != null)
-            {
-                throw new InvalidOperationException("the fused frame keeps no history: step a world opened with history through Step()");
-            }
-
+            var sets = writers.Length + 1;
             if (frameRecords == null)
             {
-                frameRecords = (ulong**)Native.Zeroed((long)writers.Length * sizeof(ulong*));
-                frameCounts = Native.Zeroed<int>(writers.Length);
-                frameBuckets = Native.Zeroed<RecordBucket>(writers.Length);
-                writerLost = Native.Zeroed<long>(writers.Length * 8L);
+                frameRecords = (ulong**)Native.Zeroed((long)sets * sizeof(ulong*));
+                frameScratch = (ulong**)Native.Zeroed((long)sets * sizeof(ulong*));
+                frameCounts = Native.Zeroed<int>(sets);
+                frameBuckets = Native.Zeroed<RecordBucket>(sets);
+                writerLost = Native.Zeroed<long>(sets * 8L);
                 partLost = Native.Zeroed<long>(parts * 8L);
-                sortedCapacity = new int[writers.Length];
-                for (var w = 0; w < writers.Length; w++)
+                scratchCapacity = new int[sets];
+                for (var s = 0; s < sets; s++)
                 {
-                    frameBuckets[w].Starts = Native.Zeroed<int>(chunkCount + 2);
+                    frameBuckets[s].Starts = Native.Zeroed<int>(chunkCount + 2);
                 }
             }
 
+            BeginFrame();
+            framed = true;
             for (var w = 0; w < writers.Length; w++)
             {
                 var count = writers[w].Count;
-                if (count > sortedCapacity![w])
-                {
-                    var grown = Math.Max(count, Math.Max(1024, sortedCapacity[w] * 2));
-                    Native.Free(frameBuckets[w].Records);
-                    frameBuckets[w].Records = Native.Zeroed<ulong>(grown);
-                    sortedCapacity[w] = grown;
-                }
+                SetRecords(w, writers[w].Records, count);
+                LogRecords(w, writers[w].Records, count, 0);
+            }
 
-                frameRecords[w] = writers[w].Records;
-                frameCounts[w] = count;
-                writerLost[w * 8] = 0;
+            if (resimulating)
+            {
+                var log = LogOf(frame - 1);
+                SetRecords(writers.Length, log->Records, log->RecordCount);
+            }
+            else
+            {
+                SetRecords(writers.Length, null, 0);
             }
 
             for (var p = 0; p < parts; p++)
@@ -84,8 +87,7 @@ namespace Sv.Columns
                 partLost[p * 8] = 0;
             }
 
-            BeginFrame();
-            framed = true;
+            var kept = logs != null ? CheckpointOf(frame) : null;
             return new ColumnFrame
             {
                 Tables = tables,
@@ -101,17 +103,38 @@ namespace Sv.Columns
                 PartCount = parts,
                 SlotCount = Capacity,
                 PartLost = partLost,
-                WriterCount = writers.Length,
+                WriterCount = sets,
                 WriterRecords = frameRecords,
                 WriterCounts = frameCounts,
                 WriterBuckets = frameBuckets,
+                WriterScratch = frameScratch,
                 WriterLost = writerLost,
+                ReplayMask = replayMask,
+                KeepLanes = kept != null ? kept->Lanes : null,
+                KeepGates = kept != null ? kept->Gates : null,
                 Kernel = kernel,
                 Number = frame,
             };
         }
 
-        public void CloseFrame(long refusedElsewhere = 0)
+        void SetRecords(int set, ulong* records, int count)
+        {
+            if (count > scratchCapacity![set])
+            {
+                var grown = Math.Max(count, Math.Max(1024, scratchCapacity[set] * 2));
+                Native.Free(frameScratch[set]);
+                frameScratch[set] = Native.Zeroed<ulong>(grown);
+                scratchCapacity[set] = grown;
+            }
+
+            frameRecords[set] = records;
+            frameCounts[set] = count;
+            frameBuckets[set].Records = frameScratch[set];
+            frameBuckets[set].Starts[chunkCount] = 0;
+            writerLost[set * 8] = 0;
+        }
+
+        public void KeepFrameRecords(ulong* records, int count)
         {
             Live();
             if (!framed)
@@ -119,22 +142,59 @@ namespace Sv.Columns
                 throw new InvalidOperationException("no frame is open: call OpenFrame first");
             }
 
-            var lost = refusedElsewhere;
+            if (count < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(count));
+            }
+
+            if (logs == null || resimulating || count == 0)
+            {
+                return;
+            }
+
+            var log = LogOf(frame - 1);
+            if ((long)log->RecordCount + count > int.MaxValue)
+            {
+                throw new InvalidOperationException("a frame holds at most " + int.MaxValue + " records");
+            }
+
+            EnsureRecords(log, log->RecordCount + count);
+            Buffer.MemoryCopy(records, log->Records + log->RecordCount, (long)count * 8, (long)count * 8);
+            log->RecordCount += count;
+        }
+
+        public void CloseFrame(long refusedElsewhere = 0, long lostElsewhere = 0)
+        {
+            Live();
+            if (!framed)
+            {
+                throw new InvalidOperationException("no frame is open: call OpenFrame first");
+            }
+
+            var lost = refusedElsewhere + lostElsewhere;
             for (var p = 0; p < parts; p++)
             {
                 lost += partLost[p * 8];
             }
 
-            for (var w = 0; w < writers.Length; w++)
+            for (var s = 0; s <= writers.Length; s++)
             {
-                lost += writerLost[w * 8];
+                lost += writerLost[s * 8];
             }
 
             dropped[0] += lost;
+            var refused = refusedElsewhere;
             for (var w = 0; w < writers.Length; w++)
             {
-                dropped[w * 8] += writers[w].TakeRefused();
+                var writerRefused = writers[w].TakeRefused();
+                dropped[w * 8] += writerRefused;
+                refused += writerRefused;
                 writers[w].Clear();
+            }
+
+            if (logs != null && !resimulating)
+            {
+                LogOf(frame - 1)->Refused += refused;
             }
 
             framed = false;
@@ -157,6 +217,15 @@ namespace Sv.Columns
             CloseFrame();
         }
 
+        public void ResimulateFused(FrameKernel kernel = FrameKernel.Rows)
+        {
+            BeginResimulate();
+            while (resimulating)
+            {
+                StepFused(kernel);
+            }
+        }
+
         void FreeFrames()
         {
             if (frameRecords == null)
@@ -164,18 +233,20 @@ namespace Sv.Columns
                 return;
             }
 
-            for (var w = 0; w < writers.Length; w++)
+            for (var s = 0; s <= writers.Length; s++)
             {
-                Native.Free(frameBuckets[w].Records);
-                Native.Free(frameBuckets[w].Starts);
+                Native.Free(frameScratch[s]);
+                Native.Free(frameBuckets[s].Starts);
             }
 
             Native.Free(frameRecords);
+            Native.Free(frameScratch);
             Native.Free(frameCounts);
             Native.Free(frameBuckets);
             Native.Free(writerLost);
             Native.Free(partLost);
             frameRecords = null;
+            frameScratch = null;
             frameCounts = null;
             frameBuckets = null;
             writerLost = null;
