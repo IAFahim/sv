@@ -32,3 +32,7 @@ Not related to v4 and not blocking it (`docs/v4-design.md` section 8, decision 7
 - The empty `[TimelineSystem]` struct in `NorthStar3Timelines.cs` is gone.
 - Receipts: `tests/Sv.NorthStar3` 21/21 at `06a1c710`. The Unity glue without the struct, built outside Unity with the new analyzer against tl `06a1c710`'s `src/Tl.Core`, plays all 5 twin journals at 1 and 11 workers to the same outbox cells and digests; the same file with the previous analyzer fails with `CS0234 'Generated' does not exist in the namespace 'Tl'`, so the struct was needed before and is not now.
 
+
+## Follow-up (2026-11-26): tl d286cdbb, save and restore
+- tl main `d286cdbb` (tl #682, tl#681) adds `PlaybackImage` and `PlaybackTable.Save`/`Restore`; tl.unity `0514525` (tl.unity #60) pins it. `eng/tl-plain-sync.sh sync` from a clean `0514525` checkout rewrote `Tl.Gen.Plain.dll` and the stamp; `determinism.yml` checks tl out at `d286cdbb`. bond already rewinds through it (bond #22).
+- Receipts: `dotnet test sv.slnx -c Release` green with `../tl` at `d286cdbb`, `tests/Sv.NorthStar3` 21/21.
