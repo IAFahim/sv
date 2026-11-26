@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- v4 columns pack compiler (issue 0533): every problem is listed even when a name is declared twice (a name problem used to hide the rule problems after it); null lists, rules, ops and event names are `PackException` problems instead of crashes; a card-op problem is reported once and names the card; repeated atoms in one condition are merged as spec section 1.2 says; `CompiledPack.CardLane` no longer changes when the source `ColumnPack` is edited after compile; `Bound.Of(null)` throws instead of meaning a floor of 0; condition text reads lanes named `not`, `event`, `entered`, `bit` or `of`, and `+5`.
+
 ## v3.0.0 (2026-11-26)
 
 The first stable release of sv v3. Nothing a game can see changed since rc.4, and every pinned digest is the same. Upgrade: change `#v3.0.0-rc.4` to `#v3.0.0` in both Unity package URLs (README chapter 6). Package versions stay 3.0.0 (engine `com.sv.engine`) and 4.0.0 (adapter `com.sv.unity.v4`). The contract is final from v3.0.0 to v3.2.0: the owner approved v3.2.0 (stat layers and derived stats) on 2026-11-26 (`issues/0390-stat-layers-v3.2.0-readings.md`).

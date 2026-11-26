@@ -33,7 +33,7 @@ namespace Sv.Columns
         static Cond Atom(List<string> words, ref int at, string text)
         {
             var negated = false;
-            if (Word(words, at) == "not")
+            if (Word(words, at) == "not" && !IsComparison(Word(words, at + 1)))
             {
                 negated = true;
                 at++;
@@ -41,12 +41,13 @@ namespace Sv.Columns
 
             Cond atom;
             var first = Need(words, ref at, text);
-            if (first == "event" || first == "entered")
+            var keyword = !IsComparison(Word(words, at));
+            if (keyword && (first == "event" || first == "entered"))
             {
                 var name = Need(words, ref at, text);
                 atom = first == "event" ? Cond.Event(name) : Cond.Entered(name);
             }
-            else if (first == "bit")
+            else if (keyword && first == "bit")
             {
                 var lane = Need(words, ref at, text);
                 atom = Cond.Bit(lane, Number(Need(words, ref at, text), text));
@@ -58,7 +59,7 @@ namespace Sv.Columns
                 if (op == "<" && right.EndsWith("%", StringComparison.Ordinal))
                 {
                     var percent = Number(right.Substring(0, right.Length - 1), text);
-                    if (Word(words, at) == "of")
+                    if (Word(words, at) == "of" && at + 1 < words.Count && words[at + 1] != "and")
                     {
                         at++;
                     }
@@ -132,7 +133,9 @@ namespace Sv.Columns
             return words[at++];
         }
 
-        static bool IsNumber(string word) => word.Length > 0 && (char.IsDigit(word[0]) || (word[0] == '-' && word.Length > 1));
+        static bool IsComparison(string? word) => word == ">" || word == ">=" || word == "<" || word == "<=" || word == "==" || word == "!=";
+
+        static bool IsNumber(string word) => word.Length > 0 && (char.IsDigit(word[0]) || ((word[0] == '-' || word[0] == '+') && word.Length > 1));
 
         static int Number(string word, string text)
         {

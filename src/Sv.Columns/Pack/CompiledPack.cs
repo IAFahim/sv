@@ -11,6 +11,7 @@ namespace Sv.Columns
         readonly Dictionary<string, int> eventIndex = new Dictionary<string, int>(StringComparer.Ordinal);
         readonly Dictionary<string, int> templateIndex = new Dictionary<string, int>(StringComparer.Ordinal);
         readonly Dictionary<string, int> cardIndex = new Dictionary<string, int>(StringComparer.Ordinal);
+        readonly int[] cardLanes;
         PackTables* tables;
 
         internal CompiledPack(ColumnPack source, PackTables* tables, string[] lanes, string[] channels, string[] kinds, string[] events, string[] templates, string[] cards)
@@ -29,6 +30,11 @@ namespace Sv.Columns
             Index(eventIndex, events);
             Index(templateIndex, templates);
             Index(cardIndex, cards);
+            cardLanes = new int[cards.Length];
+            for (var c = 0; c < cards.Length; c++)
+            {
+                cardLanes[c] = laneIndex[source.Cards[c].Lane];
+            }
         }
 
         public ColumnPack Source { get; }
@@ -59,7 +65,7 @@ namespace Sv.Columns
 
         public int Template(string name) => Find(templateIndex, name, "template");
 
-        public int CardLane(string name) => Lane(Source.Cards[Find(cardIndex, name, "card")].Lane);
+        public int CardLane(string name) => cardLanes[Find(cardIndex, name, "card")];
 
         static void Index(Dictionary<string, int> into, string[] names)
         {
