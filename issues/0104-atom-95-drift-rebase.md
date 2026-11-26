@@ -1,5 +1,7 @@
 # Issue 0104 — Atom 95 (roadmap 4.3): drift rides the frame — rebase on rule change, renumber, rollback
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Roadmap [issues/0058](0058-roadmap-1m-entities-5us.md) 4.3, law L7 ("lazy
 intrinsics are bit-equal to the frozen eager frame loop — random schedules:
 hits, heals, bound changes, spawns, renumbers, rollbacks"). Labels: `ai`,

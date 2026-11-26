@@ -1,5 +1,7 @@
 # Issue 0022 — Design: board memory scales with capacity x stats, not liveness (loud-memory direction implemented by atom 21, [issues/0026](0026-atom-21-memory-receipt.md); chunked/lazy stays gated)
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Filed as GitHub issue #22 (open). Labels: `ai`, `area:core`, `kind:perf`.
 Contract touchpoint: clause 5 (dense slots) — allocation strategy is an implementation
 freedom, but the tradeoff below deserves a deliberate pass, not a drive-by.

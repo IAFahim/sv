@@ -1,5 +1,7 @@
 # Issue 0061 — Atom 53 (roadmap 0.3): the eager oracle, frozen
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Roadmap [issues/0058](0058-roadmap-1m-entities-5us.md) phase 0, atom 0.3 — phase 0 is
 now complete. `tests/Sv.Tests/EagerOracle.cs` + `EagerOracleTests.cs`. Labels: `ai`,
 `area:core`, `kind:test`. Contract: none.

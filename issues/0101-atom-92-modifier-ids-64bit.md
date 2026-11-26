@@ -1,5 +1,7 @@
 # Issue 0101 — Atom 92 (roadmap 1.5): 64-bit generation-tagged modifier ids — the fold can no longer wrap-reorder
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Roadmap [issues/0058](0058-roadmap-1m-entities-5us.md) 1.5, fixes F5.
 Labels: `ai`, `area:core`, `kind:feat`. Contract: v1.2 batch item 3 (owner
 decision 0045: *"Yes — 64-bit generation-tagged ModifierHandle, separate sort

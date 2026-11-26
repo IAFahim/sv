@@ -1,5 +1,7 @@
 # Issue 0062 — Atom 54 (roadmap 1.1): exact window validation — F1, F2, F3, F23 closed
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Roadmap [issues/0058](0058-roadmap-1m-entities-5us.md) phase 1, atom 1.1. Labels:
 `ai`, `area:core`, `area:adapter`, `kind:fix`. Contract: none (the seam contract
 tightens; clause 5's shapes are unchanged — the guards reject what was never legal).

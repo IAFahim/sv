@@ -1,5 +1,7 @@
 # Issue 0092 — Atom 84 (fix, roadmap 3.2): keyframe restore initializes `Wheel` — one wild unlink corrupted the heap
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Fixes atom 83 ([issues/0091](0091-atom-83-timing-wheel.md)). Roadmap
 [issues/0058](0058-roadmap-1m-entities-5us.md) phase 3. Labels: `ai`,
 `area:core`, `kind:feat`. Contract: none.

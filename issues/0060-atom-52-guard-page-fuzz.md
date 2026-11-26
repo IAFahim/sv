@@ -1,5 +1,7 @@
 # Issue 0060 — Atom 52 (roadmap 0.2): guard-page fuzz harness — F1/F2/F3/F23 reproduce as crashes
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Roadmap [issues/0058](0058-roadmap-1m-entities-5us.md) phase 0, atom 0.2. New
 `tests/Sv.Fuzz` console child + `GuardPageFuzzTests` in Sv.Tests. Labels: `ai`,
 `area:core`, `kind:test`. Contract: none.

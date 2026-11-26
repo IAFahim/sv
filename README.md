@@ -8,7 +8,7 @@ This file is the whole course. Read it top to bottom and you will know how sv wo
 
 **Who it is for:** programmers. A designer edits the four pack files (or the Pack Authoring window in Unity) and never writes C#.
 
-**Status:** release `v3.0.0` (what changed: `CHANGELOG.md`). Engine `com.sv.engine` 3.0.0, Unity adapter `com.sv.unity.v4` 4.0.0, contract v3.0.0 to v3.2.0 (`contract/`). The tag also carries a preview of sv v4 (`src/Sv.Columns`, Unity package `com.sv.columns` 4.0.0-preview.1, `docs/v4-spec.md`), which v3 games do not need.
+**Status:** release `v3.0.0` (what changed: `CHANGELOG.md`). Engine `com.sv.engine` 3.0.0, Unity adapter `com.sv.unity.v4` 4.0.0, contract v3.0.0 to v3.2.0 (`contract/`). The tag also carries a preview of sv v4 (`src/Sv.Columns`, Unity package `com.sv.columns` 4.0.0-preview.1, `docs/v4-guide.md`), which v3 games do not need.
 
 ## Contents
 
@@ -429,7 +429,7 @@ prove            bash eng/v3-verify.sh   (Unity: eng/m8-run/gate.sh, eng/player-
 | `src/Sv.Pack` | the `sv` tool: `sv pack`, `sv run` |
 | `src/Sv.Web`, `src/Sv.Wasm` | the browser designer and simulator (`docs/WEB.md`) |
 | `packages/com.sv.engine`, `packages/com.sv.unity.v4` | the Unity packages |
-| `src/Sv.Columns`, `packages/com.sv.columns` | the sv v4 preview and its Unity package (`docs/v4-spec.md`) |
+| `src/Sv.Columns`, `packages/com.sv.columns`, `samples/Sv.Columns.Hello` | the sv v4 preview, its Unity package and its sample (start with `docs/v4-guide.md`; law: `docs/v4-spec.md`) |
 | `packs/reference`, `packs/lego` | the two big example packs |
 | `samples/Sv.Hello` | chapter 1 |
 | `tests/` | laws, scenarios, differential tests (compiled against the oracle), twin journals, NorthStar3 (tl) |

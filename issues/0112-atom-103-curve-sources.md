@@ -1,5 +1,7 @@
 # Issue 0112 — Atom 103 (roadmap 7.5, §4.11 curves): curve sources — diminishing returns as one table load
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 ## Changes
 
 - `src/Sv/Schema.cs` — `SchemaBuilder.Curve(name, base, source, table, min, step)`:

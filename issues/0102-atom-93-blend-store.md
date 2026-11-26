@@ -1,5 +1,7 @@
 # Issue 0102 — Atom 93 (roadmap 6.3): blend-store masked words — one vector masked path for every ISA, the atom-54 guard-page contract kept
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Roadmap [issues/0058](0058-roadmap-1m-entities-5us.md) 6.3, owner decision 0047.
 Labels: `ai`, `area:core`, `kind:feat`. Implemented ahead of the v1.2 fold per
 owner instruction (bus 0053; 0051 precedent).

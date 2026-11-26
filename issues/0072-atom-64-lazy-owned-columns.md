@@ -1,5 +1,7 @@
 # Issue 0072 — Atom 64 (roadmap 2.5): lazy owned columns — sv-owned stat columns allocate on first read
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Roadmap [issues/0058](issues/0058-roadmap-1m-entities-5us.md) phase 2, atom 2.5.
 Labels: `ai`, `area:core`, `kind:feat`. Contract: none.
 

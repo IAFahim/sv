@@ -1,5 +1,7 @@
 # Issue 0081 — Atom 73 (roadmap 5.3): Board undo window — rollback equals the snapshot at the mark
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Roadmap [issues/0058](issues/0058-roadmap-1m-entities-5us.md) phase 5, atom 5.3
 (board half). Labels: `ai`, `area:core`, `kind:feat`. Contract: none.
 

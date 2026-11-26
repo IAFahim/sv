@@ -62,6 +62,12 @@ else
   failed=1
   echo "FAIL samples/Sv.Hello output differs from samples/Sv.Hello/expected.txt"
 fi
+if dotnet run --no-build -c Release --project samples/Sv.Columns.Hello | diff -u --strip-trailing-cr samples/Sv.Columns.Hello/expected.txt - >/dev/null; then
+  echo "ok   samples/Sv.Columns.Hello prints samples/Sv.Columns.Hello/expected.txt"
+else
+  failed=1
+  echo "FAIL samples/Sv.Columns.Hello output differs from samples/Sv.Columns.Hello/expected.txt"
+fi
 
 note "v4 rollback sample"
 if dotnet run --no-build -c Release --project samples/Sv.Columns.Rollback | diff -u --strip-trailing-cr samples/Sv.Columns.Rollback/expected.txt - >/dev/null; then

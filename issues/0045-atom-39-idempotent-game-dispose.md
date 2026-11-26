@@ -1,5 +1,7 @@
 # Issue 0045 — Atom 39: idempotent `Game.Dispose` (review C-4)
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Filed as GitHub issue #25 (numbering offset — see issue #24 provenance note). Labels:
 `ai`, `area:compose`, `kind:feat`. Source: design review 2026-10-20
 ([issues/0044](0044-2026-10-20-design-review.md), GitHub #24), finding C-4 — verified
