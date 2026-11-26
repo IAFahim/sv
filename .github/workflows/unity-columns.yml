@@ -5,6 +5,7 @@ on:
     paths:
       - 'src/Sv.Columns/**'
       - 'packages/com.sv.columns/**'
+      - 'packages/com.sv.columns.entities/**'
       - 'packs/columns/**'
       - 'tests/Sv.Columns.Tests/Canon/**'
       - 'benchmarks/Sv.Columns.Bench/BenchPack.cs'
@@ -16,6 +17,7 @@ on:
     paths:
       - 'src/Sv.Columns/**'
       - 'packages/com.sv.columns/**'
+      - 'packages/com.sv.columns.entities/**'
       - 'packs/columns/**'
       - 'tests/Sv.Columns.Tests/Canon/**'
       - 'benchmarks/Sv.Columns.Bench/BenchPack.cs'
@@ -29,7 +31,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   unity:
-    name: Unity columns compile, EditMode tests, bench
+    name: Unity columns compile, EditMode tests, Entities and Burst, bench
     runs-on: [self-hosted, unity]
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     timeout-minutes: 90

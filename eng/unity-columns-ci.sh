@@ -39,20 +39,23 @@ cat > "$probe/Packages/manifest.json" <<JSON
 {
   "dependencies": {
     "com.sv.columns": "file:$root/packages/com.sv.columns",
+    "com.sv.columns.entities": "file:$root/packages/com.sv.columns.entities",
+    "com.unity.entities": "7.0.0",
     "com.unity.test-framework": "1.6.0",
     "com.unity.modules.jsonserialize": "1.0.0",
     "com.unity.modules.imgui": "1.0.0"
   },
-  "testables": ["com.sv.columns"]
+  "testables": ["com.sv.columns", "com.sv.columns.entities"]
 }
 JSON
-rm -rf "$probe/Assets/SvColumnsBench"
+rm -rf "$probe/Assets/SvColumnsBench" "$probe/Assets/SvColumnsArena"
+cp -r "$root/packages/com.sv.columns.entities/Samples~/Arena" "$probe/Assets/SvColumnsArena"
 mkdir -p "$probe/Assets/SvColumnsBench/Editor"
 cp "$root/eng/unity-columns/SvColumnsBench.cs" "$root/benchmarks/Sv.Columns.Bench/BenchPack.cs" "$probe/Assets/SvColumnsBench/Editor/"
 cat > "$probe/Assets/SvColumnsBench/Editor/SvColumnsBench.Editor.asmdef" <<'JSON'
 {
   "name": "SvColumnsBench.Editor",
-  "references": ["Sv.Columns", "Sv.Columns.Unity"],
+  "references": ["Sv.Columns", "Sv.Columns.Unity", "Sv.Columns.Entities", "Unity.Burst"],
   "includePlatforms": ["Editor"],
   "allowUnsafeCode": true,
   "autoReferenced": false
@@ -60,7 +63,12 @@ cat > "$probe/Assets/SvColumnsBench/Editor/SvColumnsBench.Editor.asmdef" <<'JSON
 JSON
 printf '%s\n' '-nullable:enable' > "$probe/Assets/SvColumnsBench/Editor/csc.rsp"
 status=0
-counts() { echo "errorCS=$(grep -c 'error CS' "$1" 2>/dev/null) warningCS=$(grep -c 'warning CS' "$1" 2>/dev/null)"; }
+counts() { echo "errorCS=$(grep -c 'error CS' "$1" 2>/dev/null) warningCS=$(grep -c 'warning CS' "$1" 2>/dev/null) errorBC=$(grep -c 'error BC' "$1" 2>/dev/null)"; }
+burst_gate() {
+  if [ "$(grep -c 'error BC' "$1" 2>/dev/null)" -ne 0 ]; then
+    status=1; echo "Burst could not compile a job:" >&2; grep -E 'error BC' "$1" | sort -u | head -20 >&2
+  fi
+}
 for step in $steps; do
   case "$step" in
     compile)
@@ -69,6 +77,8 @@ for step in $steps; do
       code=$?
       echo "compile exit=$code $(counts "$log")"
       grep -E 'warning CS' "$log" | grep -F 'com.sv.columns' | sort -u | head -20
+      grep -E 'warning CS' "$log" | grep -F 'SvColumnsArena' | sort -u | head -20
+      burst_gate "$log"
       rsp="$(find "$probe/Library/Bee" -name 'Sv.Columns.rsp' 2>/dev/null | head -1)"
       if [ -n "$rsp" ]; then
         echo "Sv.Columns csc defines: $(grep -o -- '-define:[A-Za-z0-9_]*' "$rsp" | sed 's/-define://' | sort -u | tr '\n' ' ')"
@@ -88,6 +98,7 @@ for step in $steps; do
       total="$(attr total)"; passed="$(attr passed)"; failed="$(attr failed)"
       echo "$step exit=$code total=$total passed=$passed failed=$failed $(counts "$log")"
       grep -E '^SVCOLUMNS' "$log" | sort -u
+      burst_gate "$log"
       if [ $code -ne 0 ] || [ "$total" -eq 0 ] || [ "$failed" -ne 0 ]; then
         status=1
         grep -E 'error CS|Failed|Exception|Expected|But was' "$log" | sort -u | head -40 >&2
@@ -103,16 +114,17 @@ PY
     bench)
       log="$out/bench.log"
       "$unity" -batchmode -nographics -projectPath "$probe" -executeMethod SvColumnsBench.Run -logFile "$log" \
-        -svColumnsShapes "${SV_COLUMNS_SHAPES:-ops:20000x500,ops:1000000x500,records:20000x500,records:1000000x10,mixed:1000000x500+10}" -svColumnsFrames "${SV_COLUMNS_FRAMES:-24}" -svColumnsKernels "${SV_COLUMNS_KERNELS:-best,scalar}"
+        -svColumnsShapes "${SV_COLUMNS_SHAPES:-ops:20000x500,ops:1000000x500,records:20000x500,records:1000000x10,mixed:1000000x500+10}" -svColumnsFrames "${SV_COLUMNS_FRAMES:-24}" -svColumnsKernels "${SV_COLUMNS_KERNELS:-best,scalar,burst,burstscalar}"
       code=$?
       echo "bench exit=$code"
       grep -E '^SVCOLUMNS' "$log" | sort -u
+      burst_gate "$log"
       if [ $code -ne 0 ] || grep -q 'SVCOLUMNS FAIL' "$log" || ! grep -q 'SVCOLUMNS done failures 0' "$log"; then status=1; fi
       ;;
     *) echo "unknown step $step" >&2; status=1 ;;
   esac
 done
-metas=$(cd "$root" && git ls-files --others --exclude-standard -- 'packages/com.sv.columns/*.meta' 'packages/com.sv.columns/**/*.meta')
+metas=$(cd "$root" && git ls-files --others --exclude-standard -- 'packages/com.sv.columns/*.meta' 'packages/com.sv.columns/**/*.meta' 'packages/com.sv.columns.entities/*.meta' 'packages/com.sv.columns.entities/**/*.meta')
 if [ -n "$metas" ]; then
   mkdir -p "$out/metas"
   (cd "$root" && printf '%s\n' $metas | while read -r meta; do mkdir -p "$out/metas/$(dirname "$meta")"; cp "$meta" "$out/metas/$meta"; done)

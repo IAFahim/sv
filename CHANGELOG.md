@@ -5,6 +5,7 @@
 No behaviour or digest changes; every pinned digest is the same.
 
 ### Fixed
+- Unity columns bench: its sourced quarter of records used the four-int `Send` overload removed in the v4 hardening, so it measured refused records (issue 0522).
 - Unity: `SvStepSystem` frees the sv world handles of its ECS world when the system is destroyed, so disposing an ECS world no longer keeps its sv world alive (IAFahim/sv#107).
 - Docs: the repository is public; README chapter 6, `docs/API-BRIEF.md` and `docs/DEMO.md` no longer say it is private.
 
@@ -12,6 +13,7 @@ No behaviour or digest changes; every pinned digest is the same.
 - Seal: a chunk made of a few long sorted runs plus some unsorted records (the usual shape: a sender's sorted stream plus last frame's reaction records) is merged instead of fully re-sorted. 20k entities x 500 records per frame on 4 workers: Seal.Order 125 -> 52 ms, frame 295 -> 207 ms. `docs/BENCH-REPORT.md`, update "scale".
 
 ### Added
+- sv v4 in Entities and Burst: `packages/com.sv.columns.entities` runs the v4 frame as two Burst jobs with an `ISystem`, ECS components, bakers, an inspector and an Arena sample. `ColumnWorld.StepFused`, `OpenFrame`/`CloseFrame`, `ColumnFrame` and `ColumnView` give the same digests as `Step()` (`docs/v4-spec.md` section 9). The Unity bench compares Burst against the managed kernels at 20k and 1M entities.
 - `v3-scale` benchmark: millions of entities x records per entity x live modifiers per entity.
 - Unity CI on a self-hosted runner (`.github/workflows/unity.yml`, `eng/unity-ci.sh`, `eng/unity-bench/SvUnityBench.cs`): adapter compile, EditMode, PlayMode and a Unity-side million-entity benchmark. The job waits until a runner labelled `self-hosted, unity` is registered; `docs/CI-RUNNER.md` says how.
 

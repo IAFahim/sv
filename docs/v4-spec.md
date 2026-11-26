@@ -113,6 +113,8 @@ The result of a frame depends only on the world before it and the multiset of re
 | Call | Does |
 |---|---|
 | `new ColumnWorld(pack, capacity, writers, parts, kernels)` | allocates all memory up front |
+| `StepFused(FrameKernel.Rows or Scalar)` | the same frame as `Step()`, as one fused pass: records bucketed by chunk, then per chunk fold, ops, resolve, gates (section 9) |
+| `OpenFrame(kernel)`, `ColumnFrame.Bucket`, `ColumnFrame.Resolve`, `CloseFrame(refused)` | the fused frame in pieces, for a job system; `View` reads lanes without the world object |
 | `Spawn(template)`, `Despawn(slot)`, `IsAlive`, `TemplateOf` | slots live in 64-row chunks of one template |
 | `Get(slot, lane)`, `Set(slot, lane, value)` | `Set` refreshes the gate at once |
 | `Event(slot, e)`, `Entered(slot, e)`, `ChunkAlive`, `ChunkEntered` | read events per slot or per chunk |
@@ -174,3 +176,16 @@ Unknown keys, fractions, duplicate keys and broken JSON are errors with their pl
 Game code sends records with `host.World.Writer(w).Send(...)` before the step, one writer per thread. To tie slots to entities, keep the slot in a component.
 
 `Tests/Editor/Canon/Canon.cs` is the mirrored `tests/Sv.Columns.Tests/Canon/Canon.cs`: the .NET suite and the Unity EditMode suite run the same 48 frames on `arena.json` and assert the same pinned digest, on the scalar, vector and best kernels, in one thread, on `Workers` and on Unity jobs, and through `ColumnHost`. The Unity job `sv Unity columns` (`eng/unity-columns-ci.sh` on the self-hosted `unity` runner) compiles the package, runs those tests and prints `SVCOLUMNS` benchmark lines for the same shapes as `Sv.Columns.Bench`.
+
+## 9. The fused frame (Burst)
+
+`ColumnWorld.Step` reduces each writer into lazily allocated per-chunk blocks and then resolves; its kernels use `System.Numerics.Vector<T>` or Vector256 and managed buffers, which Burst cannot run. The fused frame computes the same frame from unmanaged pointers only, so a Burst job can run it:
+
+1. `OpenFrame(kernel)` begins the frame and returns a `ColumnFrame`: plain pointers to the lanes, gates, pack tables, per-part scratch and each writer's records.
+2. `Bucket(records, count, sorted, starts)` is a counting sort of one record set by target chunk (`starts` holds `Chunks + 2` ints); targets outside the world are counted and returned. `BucketWriter(w)` does it for writer `w`. Record sets need not come from writers: `ColumnView.TryRecord` and `TryRecordFrom` pack records anywhere, refusing what `RecordWriter` refuses.
+3. `Resolve(part, buckets, count)` takes the chunks of one part. Per alive chunk it zeroes the class sums, folds every bucket's records for that chunk with the same `AddInChunk` as `Reduce`, runs the ops (`FrameKernel.Rows`: a row-inner scalar loop the compiler can vectorise, with the `Vector` path's int32 exactness rule; `FrameKernel.Scalar`: `Law.AddOps`), then `Law.ResolveRow` and `Law.GateOf` per alive row. Records for a dead chunk are counted as lost.
+4. `CloseFrame(refused)` adds what was lost, refused or outside to `Dropped` and ends the frame.
+
+It equals `Step()` by construction: class sums are int64 additions, which commute, and the gates of chunk c are the frame-start gates until chunk c itself resolves, as in the two-phase frame. `FusedFrameTests` pin the canon digest on both kernels and several writer and part counts, and run the classic frame, `Rows` and `Scalar` in lockstep on the arena pack and on 300 random packs, comparing digest and `Dropped` every frame. Everything is integer arithmetic, so Burst float modes cannot change a result; the jobs are still compiled with `FloatMode.Strict`.
+
+`packages/com.sv.columns.entities` runs it as two Burst jobs (`ColumnsBurstHost`): one per record set buckets it, one per part resolves. Records come from the world's writers and from per-thread lists that Burst jobs fill through `ColumnsRecords.ParallelWriter` (`[NativeSetThreadIndex]`, no locks, no managed memory). `docs/UNITY.md` describes the ECS layer.

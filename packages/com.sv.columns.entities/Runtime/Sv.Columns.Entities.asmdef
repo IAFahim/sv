@@ -1,0 +1,19 @@
+{
+    "name": "Sv.Columns.Entities",
+    "rootNamespace": "Sv.Columns.Entities",
+    "references": [
+        "Sv.Columns",
+        "Unity.Burst",
+        "Unity.Collections",
+        "Unity.Entities"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
