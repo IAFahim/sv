@@ -15,6 +15,7 @@ namespace Sv.Columns.Entities
         readonly int bucketCount;
         readonly int startsLength;
         ColumnsRecords records;
+        ColumnsLaneSets sets;
         ColumnFrame* frame;
         RecordBucket* buckets;
         RecordBucket* dense;
@@ -39,6 +40,7 @@ namespace Sv.Columns.Entities
             ownedPack = ownsPack ? pack : null;
             this.kernel = kernel;
             records = ColumnsRecords.Create(world.View, 64 + capacity / Math.Max(1, JobsUtility.ThreadIndexCount));
+            sets = ColumnsLaneSets.Create(16);
             var threads = records.ThreadCount;
             bucketCount = world.Writers + threads;
             startsLength = world.Chunks + 2;
@@ -65,6 +67,12 @@ namespace Sv.Columns.Entities
 
         public ColumnsRecords.ParallelWriter Sender => records.AsParallelWriter();
 
+        public ColumnsLaneSets.ParallelWriter Sets => sets.AsParallelWriter();
+
+        public int PendingSets => sets.Pending;
+
+        public long RefusedSets { get; private set; }
+
         public bool Running => open;
 
         public bool BucketRanBurst => probes[0] == 1;
@@ -79,6 +87,7 @@ namespace Sv.Columns.Entities
             }
 
             Complete();
+            RefusedSets += sets.Apply(world);
             *frame = world.OpenFrame(kernel);
             open = true;
             var bucketed = new BucketJob
@@ -151,6 +160,7 @@ namespace Sv.Columns.Entities
             }
 
             records.Dispose();
+            sets.Dispose();
             Free(frame);
             Free(buckets);
             Free(dense);

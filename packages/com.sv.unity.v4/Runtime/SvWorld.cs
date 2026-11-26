@@ -32,6 +32,8 @@ namespace Sv.Unity
         int ProbeOf(FramePhase phase);
 
         void ClearProbes();
+
+        SvFrame View();
     }
 
     public sealed class SvWorld<TKernels> : ISvWorld
@@ -75,6 +77,20 @@ namespace Sv.Unity
         public int ProbeOf(FramePhase phase) => jobs == null ? SvProbe.Unseen : jobs.ProbeOf(phase);
 
         public void ClearProbes() => jobs?.ClearProbes();
+
+        public unsafe SvFrame View()
+        {
+            var running = Loop;
+            return new SvFrame
+            {
+                World = running.World.View,
+                Sender = running.Sender(0),
+                Events = running.Events,
+                EventCount = running.EventCount,
+                Frame = running.Frame,
+                LastDigest = running.LastDigest,
+            };
+        }
 
         public void Dispose()
         {

@@ -24,7 +24,45 @@ namespace Sv.NorthStar3
 
         static string UnityGlueFolder => Path.Combine(Root, "packages", "com.sv.unity.v4", "Tests", "Tl", "Glue");
 
+        static string UnityEntitiesGlueFolder => Path.Combine(Root, "packages", "com.sv.unity.v4", "Tests", "TlEntities", "Glue");
+
         static bool Rewrite => Environment.GetEnvironmentVariable("SV_UPDATE_TWIN") == "1";
+
+        static PackPlan NorthStar3Plan() => PackCompiler.Compile(Sv.Pack.PackFolder.Read(Path.Combine(Root, "tests", "Sv.Kernels.NorthStar3", "pack"))).Value!;
+
+        static void RewriteOrCompare(string path, string emitted)
+        {
+            if (Rewrite)
+            {
+                File.WriteAllText(path, emitted);
+                return;
+            }
+
+            Assert.Equal(File.ReadAllText(path).Replace("\r\n", "\n"), emitted);
+        }
+
+        [Fact]
+        public void The_unity_entities_leg_compiles_the_same_glue_as_the_emitter_output()
+        {
+            RewriteOrCompare(Path.Combine(UnityEntitiesGlueFolder, "Glue.g.cs"), Sv.Rules.Emit.TlGlueEmitter.Emit(NorthStar3Plan(), "Sv.Kernels.NorthStar3"));
+        }
+
+        [Fact]
+        public void The_unity_entities_glue_equals_the_emitter_output()
+        {
+            RewriteOrCompare(Path.Combine(UnityEntitiesGlueFolder, "GlueEntities.g.cs"), Sv.Rules.Emit.TlGlueEmitter.EmitEntities(NorthStar3Plan(), "Sv.Kernels.NorthStar3"));
+        }
+
+        [Fact]
+        public void The_entities_glue_points_every_timeline_channel_at_the_aim_and_kind_lanes_and_every_starting_event_at_its_timeline()
+        {
+            var emitted = Sv.Rules.Emit.TlGlueEmitter.EmitEntities(NorthStar3Plan(), "Sv.Kernels.NorthStar3");
+            Assert.Contains("SvOutboxSystem<global::Sv.Kernels.NorthStar3.Glue.PoisonOut>", emitted);
+            Assert.Contains("SvOutboxSystem<global::Sv.Kernels.NorthStar3.Glue.BleedingOut>", emitted);
+            Assert.Contains("public int TargetLane => (int)global::Sv.Kernels.NorthStar3.Intrinsic.Target;", emitted);
+            Assert.Contains("public int KindLane => (int)global::Sv.Kernels.NorthStar3.Intrinsic.Kind;", emitted);
+            Assert.Contains("Event = (int)global::Sv.Kernels.NorthStar3.Event.LowHealth, Timeline = findTimeline(\"poison\")", emitted);
+        }
 
         [Fact]
         public void The_unity_glue_equals_the_emitter_output()

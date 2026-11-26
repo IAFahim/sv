@@ -4,8 +4,51 @@ using Unity.Entities;
 
 namespace Sv.Columns.Entities
 {
+    public enum ColumnsClock
+    {
+        RenderFrame,
+        FixedStep,
+    }
+
     [UpdateInGroup(typeof(SimulationSystemGroup), OrderLast = true)]
     public partial struct ColumnsStepSystem : ISystem
+    {
+        ColumnsStepper stepper;
+
+        public void OnCreate(ref SystemState state) => stepper.Create(ref state, ColumnsClock.RenderFrame);
+
+        public void OnUpdate(ref SystemState state) => stepper.Update(ref state);
+
+        public void OnDestroy(ref SystemState state) => stepper.Destroy(ref state);
+
+        public static ColumnsBurstHost HostOf(EntityManager manager, Entity entity) =>
+            (ColumnsBurstHost)GCHandle.FromIntPtr(manager.GetComponentData<ColumnsHostHandle>(entity).Value).Target!;
+    }
+
+    [UpdateInGroup(typeof(FixedStepSimulationSystemGroup), OrderLast = true)]
+    public partial class ColumnsFixedStepGroup : ComponentSystemGroup
+    {
+    }
+
+    [UpdateInGroup(typeof(ColumnsFixedStepGroup))]
+    public partial class ColumnsSendGroup : ComponentSystemGroup
+    {
+    }
+
+    [UpdateInGroup(typeof(ColumnsFixedStepGroup))]
+    [UpdateAfter(typeof(ColumnsSendGroup))]
+    public partial struct ColumnsFixedStepSystem : ISystem
+    {
+        ColumnsStepper stepper;
+
+        public void OnCreate(ref SystemState state) => stepper.Create(ref state, ColumnsClock.FixedStep);
+
+        public void OnUpdate(ref SystemState state) => stepper.Update(ref state);
+
+        public void OnDestroy(ref SystemState state) => stepper.Destroy(ref state);
+    }
+
+    internal struct ColumnsStepper
     {
         Entity hostEntity;
         EntityQuery configs;
@@ -13,9 +56,13 @@ namespace Sv.Columns.Entities
         EntityQuery despawns;
         EntityQuery orphans;
 
-        public void OnCreate(ref SystemState state)
+        public static EntityQuery Configs(ref SystemState state, ColumnsClock clock) => clock == ColumnsClock.FixedStep
+            ? new EntityQueryBuilder(Allocator.Temp).WithAll<ColumnsWorldConfig, ColumnsFixedStep>().Build(ref state)
+            : new EntityQueryBuilder(Allocator.Temp).WithAll<ColumnsWorldConfig>().WithAbsent<ColumnsFixedStep>().Build(ref state);
+
+        public void Create(ref SystemState state, ColumnsClock clock)
         {
-            configs = state.GetEntityQuery(ComponentType.ReadOnly<ColumnsWorldConfig>());
+            configs = Configs(ref state, clock);
             spawns = new EntityQueryBuilder(Allocator.Temp).WithAll<ColumnsTemplate>().WithNone<ColumnsSlotCleanup>().Build(ref state);
             despawns = new EntityQueryBuilder(Allocator.Temp).WithAll<ColumnsSlotCleanup>().WithNone<ColumnsTemplate>().Build(ref state);
             orphans = new EntityQueryBuilder(Allocator.Temp).WithAll<ColumnsSlot>().WithNone<ColumnsTemplate>().Build(ref state);
@@ -23,16 +70,16 @@ namespace Sv.Columns.Entities
             state.RequireForUpdate(configs);
         }
 
-        public void OnUpdate(ref SystemState state)
+        public void Update(ref SystemState state)
         {
             var manager = state.EntityManager;
             if (hostEntity == Entity.Null)
             {
-                Create(manager);
+                CreateHost(manager);
             }
 
             manager.CompleteDependencyBeforeRW<ColumnsState>();
-            var host = HostOf(manager, hostEntity);
+            var host = ColumnsStepSystem.HostOf(manager, hostEntity);
             host.Complete();
             if (!despawns.IsEmpty)
             {
@@ -49,6 +96,7 @@ namespace Sv.Columns.Entities
             {
                 View = host.View,
                 Sender = host.Sender,
+                Sets = host.Sets,
                 Frame = world.Frame,
                 Dropped = world.Dropped,
                 BurstBucket = host.BucketRanBurst,
@@ -57,7 +105,7 @@ namespace Sv.Columns.Entities
             state.Dependency = host.Schedule(state.Dependency);
         }
 
-        public void OnDestroy(ref SystemState state)
+        public void Destroy(ref SystemState state)
         {
             if (hostEntity == Entity.Null)
             {
@@ -84,10 +132,7 @@ namespace Sv.Columns.Entities
             handle.Free();
         }
 
-        public static ColumnsBurstHost HostOf(EntityManager manager, Entity entity) =>
-            (ColumnsBurstHost)GCHandle.FromIntPtr(manager.GetComponentData<ColumnsHostHandle>(entity).Value).Target!;
-
-        void Create(EntityManager manager)
+        void CreateHost(EntityManager manager)
         {
             var config = configs.GetSingleton<ColumnsWorldConfig>();
             var pack = PackJson.Read(ColumnsPacks.JsonOf(ref config.Pack.Value)).Compile();
@@ -105,7 +150,7 @@ namespace Sv.Columns.Entities
             hostEntity = manager.CreateEntity(typeof(ColumnsState), typeof(ColumnsHostHandle));
             manager.SetName(hostEntity, "sv columns");
             manager.SetComponentData(hostEntity, new ColumnsHostHandle { Value = GCHandle.ToIntPtr(GCHandle.Alloc(host)) });
-            manager.SetComponentData(hostEntity, new ColumnsState { View = host.View, Sender = host.Sender });
+            manager.SetComponentData(hostEntity, new ColumnsState { View = host.View, Sender = host.Sender, Sets = host.Sets });
         }
 
         void Despawn(EntityManager manager, ColumnWorld world)

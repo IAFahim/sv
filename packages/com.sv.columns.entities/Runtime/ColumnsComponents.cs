@@ -19,6 +19,10 @@ namespace Sv.Columns.Entities
         public FrameKernel Kernel;
     }
 
+    public struct ColumnsFixedStep : IComponentData
+    {
+    }
+
     public struct ColumnsTemplate : IComponentData
     {
         public int Value;
@@ -45,6 +49,7 @@ namespace Sv.Columns.Entities
     {
         public ColumnView View;
         public ColumnsRecords.ParallelWriter Sender;
+        public ColumnsLaneSets.ParallelWriter Sets;
         public int Frame;
         public long Dropped;
         public bool BurstBucket;

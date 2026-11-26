@@ -19,6 +19,9 @@ namespace Sv.Columns.Entities
 
         public FrameKernel Kernel = FrameKernel.Rows;
 
+        [Tooltip("Step in FixedStepSimulationSystemGroup, once per fixed tick, after tl.unity's timelines. Off: once per rendered frame.")]
+        public bool FixedStep;
+
         sealed class Baker : Baker<ColumnsWorldAuthoring>
         {
             public override void Bake(ColumnsWorldAuthoring authoring)
@@ -36,7 +39,13 @@ namespace Sv.Columns.Entities
 
                 var blob = ColumnsPacks.Create(json);
                 AddBlobAsset(ref blob, out _);
-                AddComponent(GetEntity(TransformUsageFlags.None), new ColumnsWorldConfig
+                var entity = GetEntity(TransformUsageFlags.None);
+                if (authoring.FixedStep)
+                {
+                    AddComponent<ColumnsFixedStep>(entity);
+                }
+
+                AddComponent(entity, new ColumnsWorldConfig
                 {
                     Pack = blob,
                     Capacity = authoring.Capacity,

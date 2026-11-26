@@ -22,10 +22,17 @@ namespace Sv.Unity
 
     public static class SvEntities
     {
-        public static Entity Publish(EntityManager manager, ISvWorld world)
+        public static Entity Publish(EntityManager manager, ISvWorld world) => Publish(manager, world, SvClock.RenderFrame);
+
+        public static Entity Publish(EntityManager manager, ISvWorld world, SvClock clock)
         {
-            var entity = manager.CreateEntity(typeof(SvWorldHandle));
+            var entity = manager.CreateEntity(typeof(SvWorldHandle), typeof(SvFrame));
             manager.SetComponentData(entity, new SvWorldHandle { Value = GCHandle.ToIntPtr(GCHandle.Alloc(world)) });
+            if (clock == SvClock.FixedStep)
+            {
+                manager.AddComponent<SvFixedStep>(entity);
+            }
+
             return entity;
         }
 
@@ -52,16 +59,59 @@ namespace Sv.Unity
         }
     }
 
+    public static class SvHandles
+    {
+        public static EntityQuery ReleasedQuery(ref SystemState state) =>
+            new EntityQueryBuilder(Allocator.Temp).WithAll<SvSlotCleanup>().WithAbsent<SvSlot>().Build(ref state);
+
+        public static void KillReleased(EntityManager manager, EntityQuery released, ISvWorld world)
+        {
+            if (released.IsEmpty)
+            {
+                return;
+            }
+
+            var gone = released.ToComponentDataArray<SvSlotCleanup>(Allocator.Temp);
+            for (var at = 0; at < gone.Length; at++)
+            {
+                world.Kill(gone[at].Value);
+            }
+
+            manager.RemoveComponent<SvSlotCleanup>(released);
+        }
+
+        public static void FreeAll(EntityManager manager, EntityQuery handles)
+        {
+            var entities = handles.ToEntityArray(Allocator.Temp);
+            for (var at = 0; at < entities.Length; at++)
+            {
+                if (!manager.Exists(entities[at]) || !manager.HasComponent<SvWorldHandle>(entities[at]))
+                {
+                    continue;
+                }
+
+                var handle = manager.GetComponentData<SvWorldHandle>(entities[at]);
+                if (handle.Value != IntPtr.Zero)
+                {
+                    GCHandle.FromIntPtr(handle.Value).Free();
+                    manager.SetComponentData(entities[at], new SvWorldHandle { Value = IntPtr.Zero });
+                }
+            }
+        }
+    }
+
     [UpdateInGroup(typeof(SimulationSystemGroup), OrderFirst = true)]
     public partial struct SvStepSystem : ISystem
     {
         EntityQuery handles;
+        EntityQuery all;
         EntityQuery released;
 
         public void OnCreate(ref SystemState state)
         {
-            handles = new EntityQueryBuilder(Allocator.Temp).WithAll<SvWorldHandle>().Build(ref state);
-            released = new EntityQueryBuilder(Allocator.Temp).WithAll<SvSlotCleanup>().WithAbsent<SvSlot>().Build(ref state);
+            handles = new EntityQueryBuilder(Allocator.Temp).WithAll<SvWorldHandle>().WithAbsent<SvFixedStep>().Build(ref state);
+            all = new EntityQueryBuilder(Allocator.Temp).WithAll<SvWorldHandle>().Build(ref state);
+            released = SvHandles.ReleasedQuery(ref state);
             state.RequireForUpdate(handles);
         }
 
@@ -73,32 +123,10 @@ namespace Sv.Unity
                 return;
             }
 
-            if (!released.IsEmpty)
-            {
-                var gone = released.ToComponentDataArray<SvSlotCleanup>(Allocator.Temp);
-                for (var at = 0; at < gone.Length; at++)
-                {
-                    world.Kill(gone[at].Value);
-                }
-
-                state.EntityManager.RemoveComponent<SvSlotCleanup>(released);
-            }
-
+            SvHandles.KillReleased(state.EntityManager, released, world);
             world.Step();
         }
 
-        public void OnDestroy(ref SystemState state)
-        {
-            var entities = handles.ToEntityArray(Allocator.Temp);
-            for (var at = 0; at < entities.Length; at++)
-            {
-                var handle = state.EntityManager.GetComponentData<SvWorldHandle>(entities[at]);
-                if (handle.Value != IntPtr.Zero)
-                {
-                    GCHandle.FromIntPtr(handle.Value).Free();
-                    state.EntityManager.SetComponentData(entities[at], new SvWorldHandle { Value = IntPtr.Zero });
-                }
-            }
-        }
+        public void OnDestroy(ref SystemState state) => SvHandles.FreeAll(state.EntityManager, all);
     }
 }

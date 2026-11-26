@@ -5,6 +5,9 @@ namespace Sv.Rules.Emit
     public static class TlGlueEmitter
     {
         public const string FileName = "Glue.g.cs";
+        public const string EntitiesFileName = "GlueEntities.g.cs";
+        public const string KindIntrinsic = "Kind";
+        public const string TargetIntrinsic = "Target";
         public const string OutSuffix = "Out";
         public const string FeedSuffix = "Feed";
         public const string ClipSuffix = "Clip";
@@ -45,6 +48,79 @@ namespace Sv.Rules.Emit
 
             code.Close();
             return code.ToString();
+        }
+
+        public static string EmitEntities(PackPlan plan, string rootNamespace)
+        {
+            var code = new CodeWriter();
+            var channels = TimelineChannels(plan);
+            var requests = RequestEvents(plan);
+            var glue = "global::" + rootNamespace + ".Glue.";
+            for (var i = 0; i < channels.Count; i++)
+            {
+                code.Line("[assembly: global::Unity.Entities.RegisterGenericSystemType(typeof(global::Sv.Unity.SvOutboxSystem<" + glue + Names.Identifier(channels[i]) + OutSuffix + ">))]");
+            }
+
+            code.Blank();
+            code.Open("namespace " + rootNamespace + ".Glue");
+            var kindLane = LaneOf(plan, rootNamespace, KindIntrinsic);
+            var targetLane = LaneOf(plan, rootNamespace, TargetIntrinsic);
+            for (var i = 0; i < channels.Count; i++)
+            {
+                if (i > 0)
+                {
+                    code.Blank();
+                }
+
+                var name = Names.Identifier(channels[i]);
+                code.Open("public partial struct " + name + OutSuffix + " : global::Sv.Unity.ISvOutboxCell");
+                code.Line("public int Channel => (int)global::" + rootNamespace + ".Channel." + name + ";");
+                code.Blank();
+                code.Line("public int KindLane => " + kindLane + ";");
+                code.Blank();
+                code.Line("public int TargetLane => " + targetLane + ";");
+                code.Blank();
+                code.Open("public int Amount");
+                code.Line("get => Value;");
+                code.Line("set => Value = value;");
+                code.Close();
+                code.Close();
+            }
+
+            if (requests.Count > 0)
+            {
+                if (channels.Count > 0)
+                {
+                    code.Blank();
+                }
+
+                code.Open("public static class TimelineRules");
+                code.Open("public static void AddTo(global::Unity.Entities.DynamicBuffer<global::Sv.Unity.Timelines.SvTimelineRule> rules, global::System.Func<string, ushort> findTimeline)");
+                for (var i = 0; i < requests.Count; i++)
+                {
+                    code.Line("rules.Add(new global::Sv.Unity.Timelines.SvTimelineRule { Event = (int)global::" + rootNamespace + ".Event." + Names.Identifier(requests[i].Name) + ", Timeline = findTimeline(\"" + requests[i].Starts + "\") });");
+                }
+
+                code.Close();
+                code.Close();
+            }
+
+            code.Close();
+            return code.ToString();
+        }
+
+        static string LaneOf(PackPlan plan, string rootNamespace, string intrinsic)
+        {
+            var all = plan.Schema.Intrinsics;
+            for (var i = 0; i < all.Length; i++)
+            {
+                if (string.CompareOrdinal(all[i].Name, intrinsic) == 0)
+                {
+                    return "(int)global::" + rootNamespace + ".Intrinsic." + Names.Identifier(intrinsic);
+                }
+            }
+
+            return "global::Sv.Unity.SvOutbox.NoLane";
         }
 
         public static List<ValueDef> RequestEvents(PackPlan plan)

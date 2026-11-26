@@ -17,6 +17,15 @@ namespace Sv.Unity
             RanManaged(probe);
         }
 
+        public static void Witness(ref int probe)
+        {
+            probe = Burst;
+            WitnessedManaged(ref probe);
+        }
+
+        [BurstDiscard]
+        static void WitnessedManaged(ref int probe) => probe = Managed;
+
         [BurstDiscard]
         static void RanManaged(int* probe)
         {
