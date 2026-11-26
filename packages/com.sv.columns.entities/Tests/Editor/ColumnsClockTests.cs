@@ -364,23 +364,27 @@ namespace Sv.Columns.Entities.Tests
                 var script = new CellScript { Mirror = mirror, Pack = pack };
                 var templates = new[] { "dummy", "shielded", "converter", "regen", "dummy", "sniper", "phoenix", "dummy", "shielded", "burning" };
                 var aim = pack.Lane("Aim");
-                foreach (var template in templates)
-                {
-                    script.Slots.Add(mirror.Spawn(pack.Template(template)));
-                }
-
                 for (var unit = 0; unit < templates.Length; unit++)
                 {
                     var entity = manager.CreateEntity(typeof(ColumnsTemplate), typeof(PoisonCardCell), typeof(FireOutCell), typeof(HealOutCell));
                     manager.SetComponentData(entity, new ColumnsTemplate { Value = pack.Template(templates[unit]) });
-                    if (unit % 2 == 0)
-                    {
-                        var aimed = script.Slots[(unit + 3) % templates.Length] + 1;
-                        manager.AddBuffer<ColumnsLaneValue>(entity).Add(new ColumnsLaneValue { Lane = aim, Value = aimed });
-                        mirror.Set(script.Slots[unit], aim, aimed);
-                    }
-
                     script.Units.Add(entity);
+                    script.Slots.Add(-1);
+                }
+
+                var spawnOrder = new List<Entity>(script.Units);
+                spawnOrder.Sort();
+                foreach (var entity in spawnOrder)
+                {
+                    var unit = script.Units.IndexOf(entity);
+                    script.Slots[unit] = mirror.Spawn(pack.Template(templates[unit]));
+                }
+
+                for (var unit = 0; unit < templates.Length; unit += 2)
+                {
+                    var aimed = script.Slots[(unit + 3) % templates.Length] + 1;
+                    manager.AddBuffer<ColumnsLaneValue>(script.Units[unit]).Add(new ColumnsLaneValue { Lane = aim, Value = aimed });
+                    mirror.Set(script.Slots[unit], aim, aimed);
                 }
 
                 world.GetExistingSystemManaged<CellFeedSystem>().Script = script;
