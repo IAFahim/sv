@@ -1,5 +1,7 @@
 # Issue 0066 — Atom 58 (roadmap 1.9): totality fixes — pure canonical Stat, Modifier kind validation, dead intrinsic bounds deleted, README sample + Markdown alloc scan
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Roadmap [issues/0058](issues/0058-roadmap-1m-entities-5us.md) phase 1, atom 1.9 —
 F20, F21, F22, F26. Labels: `ai`, `area:core`, `kind:fix`. Contract: none.
 

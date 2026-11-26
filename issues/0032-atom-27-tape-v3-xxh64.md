@@ -1,5 +1,7 @@
 # Issue 0032 — Atom 27: tape v3 — XXH64 64-bit digest, whole-word body copy
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Filed as GitHub issue #32 (pending — see receipts). Labels: `ai`, `area:compose`,
 `kind:perf`, `breaking:tape-format`.
 

@@ -1,5 +1,7 @@
 # Issue 0026 — Atom 21: `Board.MemoryBytes` + `Board.RequestedCapacity` (implements 0022's loud-memory direction)
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Filed as GitHub issue #26 (pending — see receipts). Labels: `ai`, `area:core`,
 `kind:feat`.
 

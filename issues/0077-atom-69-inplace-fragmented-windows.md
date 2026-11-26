@@ -1,5 +1,7 @@
 # Issue 0077 — Atom 69 (roadmap 3.4): fragmented windows walk rows in place; contiguity scanned once per chunk visit
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Roadmap [issues/0058](0058-roadmap-1m-entities-5us.md) phase 3, atom 3.4
 (S3, S7, §9). Labels: `ai`, `area:core`, `kind:feat`. Contract: none.
 

@@ -1,5 +1,7 @@
 # Issue 0114 — Atom 105: Unity editor CLI — live-editor iteration without domain reload + the 1M-entity sv-stage receipt
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Unblocks the receipt deferred BLOCKED-ON-EDITOR in [issues/0110](0110-atom-102-unity-adapter-v2.md)
 (atom 102, roadmap [issues/0058](0058-roadmap-1m-entities-5us.md) "1M-entity scene: sv stage ≤ 5 µs
 on the main thread"), against the BCL audit of [issues/0111](0111-atom-101-burst-kernels.md).

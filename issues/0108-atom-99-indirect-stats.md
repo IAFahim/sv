@@ -1,5 +1,7 @@
 # Issue 0108 — Atom 99 (roadmap 7.4): indirect stats — a population-wide buff costs O(1)
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Roadmap [issues/0058](0058-roadmap-1m-entities-5us.md) 7.4 / §4.11 auras.
 Labels: `ai`, `area:core`, `kind:feat`. Contract: clause-4 wording (v2.0
 batch, drafted unsent in `issues/0097`); implemented ahead of the fold per

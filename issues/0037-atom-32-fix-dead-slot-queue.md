@@ -1,5 +1,7 @@
 # Issue 0037 — Atom 32: fix — queued pairs of released slots made dead slots set members (heap corruption after renumber)
 
+Status: closed (2026-11-26, execution record of the sv 2.1 engine, removed in db8dbac on 2026-11-14)
+
 Filed as GitHub issue #37 (pending — see receipts). Labels: `ai`, `area:core`,
 `kind:bug`, `severity:high`.
 

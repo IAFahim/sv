@@ -1,5 +1,7 @@
 # Issue 0097 — Prepared (NOT sent): contract v1.2 batch
 
+Status: closed (2026-11-26, obsolete: the v1.2 contract batch was for the sv 2.1 engine, removed in db8dbac on 2026-11-14; v3 contracts replace it)
+
 **Status: prepared, gated.** The owner approved preparation (decision 0043, relayed
 on the bus as message 0052): *send only after the integrator folds 0036 (v1.1.0),
 0042 (clause 18) and 0051 (clause 7 regularization). Not before.* When the fold
