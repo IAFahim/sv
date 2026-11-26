@@ -130,6 +130,7 @@ namespace Sv.Columns
         Checkpoint* checkpoints;
         int* writerOffsets;
         int editedFrom = int.MaxValue;
+        int oldestKept;
         int resimulateTo;
         bool resimulating;
         bool applying;
@@ -140,7 +141,7 @@ namespace Sv.Columns
 
         public int History => historyFrames;
 
-        public int OldestFrame => Math.Max(0, frame - historyFrames);
+        public int OldestFrame => Math.Max(oldestKept, frame - historyFrames);
 
         public bool Resimulating => resimulating;
 
@@ -638,11 +639,13 @@ namespace Sv.Columns
 
         FrameLog* EditLog(int at)
         {
+            Editable();
             CheckHistory();
             CheckWindow(at, frame - 1);
-            editedFrom = Math.Min(editedFrom, at);
             return LogOf(at);
         }
+
+        void Edited(int at) => editedFrom = Math.Min(editedFrom, at);
 
         internal ColumnAction ReadAction(int at, int index)
         {
@@ -667,6 +670,7 @@ namespace Sv.Columns
 
             log->Actions[index] = action;
             log->ActionCount++;
+            Edited(at);
             MarkEdited(action);
         }
 
@@ -674,6 +678,7 @@ namespace Sv.Columns
         {
             var log = EditLog(at);
             CheckIndex(index, log->ActionCount);
+            Edited(at);
             MarkEdited(log->Actions[index]);
             log->Actions[index] = action;
             MarkEdited(action);
@@ -683,6 +688,7 @@ namespace Sv.Columns
         {
             var log = EditLog(at);
             CheckIndex(index, log->ActionCount);
+            Edited(at);
             MarkEdited(log->Actions[index]);
             log->ActionCount--;
             for (var i = index; i < log->ActionCount; i++)
@@ -708,6 +714,7 @@ namespace Sv.Columns
 
             EnsureRecords(log, log->RecordCount + 1);
             log->Records[log->RecordCount++] = record;
+            Edited(at);
             MarkEdited(record);
         }
 
@@ -715,6 +722,7 @@ namespace Sv.Columns
         {
             var log = EditLog(at);
             CheckIndex(index, log->RecordCount);
+            Edited(at);
             MarkEdited(log->Records[index]);
             log->Records[index] = record;
             MarkEdited(record);
@@ -724,6 +732,7 @@ namespace Sv.Columns
         {
             var log = EditLog(at);
             CheckIndex(index, log->RecordCount);
+            Edited(at);
             MarkEdited(log->Records[index]);
             log->RecordCount--;
             log->Records[index] = log->Records[log->RecordCount];

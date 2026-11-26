@@ -123,7 +123,7 @@ The result of a frame depends only on the world before it and the multiset of re
 | `Step()` or `ColumnRunner.Step()` | single thread, or reduces and resolves on `Workers` |
 | `new ColumnWorld(..., history)`, `Rewind(frame)`, `Inputs(frame)`, `Resimulate()` | rollback (section 9) |
 
-`Event`, `Entered` and `ChunkEntered` throw `ArgumentOutOfRangeException` for an event index outside the pack's events (the lane keeps 32 bits, so an unchecked index would read another event). `BeginFrame` while a frame runs, and `Reduce`, `Resolve` or `EndFrame` while none does, throw `InvalidOperationException`.
+`Event`, `Entered` and `ChunkEntered` throw `ArgumentOutOfRangeException` for an event index outside the pack's events (the lane keeps 32 bits, so an unchecked index would read another event). `BeginFrame` while a frame runs, and `Reduce`, `Resolve` or `EndFrame` while none does, throw `InvalidOperationException`. While a frame runs (`BeginFrame` to `EndFrame`, or `OpenFrame` to `CloseFrame`), sends on any writer and edits to `Inputs(f)` throw `InvalidOperationException` too: send before the frame starts or after it ends. `Reduce(writer)` and `Resolve(part)` throw `ArgumentOutOfRangeException` for an index outside the world's writers or parts.
 
 A world is single-owner: spawn, despawn and set only between frames. Between `BeginFrame` and `EndFrame` those three calls throw `InvalidOperationException`. After `Dispose`, or once its `CompiledPack` is disposed, every call on the world and its writers throws `ObjectDisposedException`; a second `Dispose` is safe. A chunk is listed at most once as having room for its template, so spawn and despawn churn neither grows memory nor lets a reclaimed chunk take a spawn of its old template.
 
@@ -187,8 +187,8 @@ A world opened with `history = H` (1 to 4096; 0, the default, keeps nothing and 
 
 | Call | Does |
 |---|---|
-| `Rewind(f)` | the world goes back to frame `f` (`OldestFrame <= f <= Frame`): lanes, gates, which slots are alive, templates, where the next spawn goes, `Count`, `Dropped`. The inputs of frames `f` and later are dropped, and records already sent for the current frame are discarded. The host plays the frames again with whatever inputs it now has. |
-| `Inputs(f)` | the inputs of a past frame (`OldestFrame <= f < Frame`): its **actions** in order (spawn, despawn, set, send, send from a source) and its **records** (an unordered multiset of 8-byte records as they were sent). Read, add, insert, replace and remove both. Every change marks `f` as edited. |
+| `Rewind(f)` | the world goes back to frame `f` (`OldestFrame <= f <= Frame`; after a rewind, `OldestFrame` never moves back to a frame whose checkpoint was already overwritten): lanes, gates, which slots are alive, templates, where the next spawn goes, `Count`, `Dropped`. The inputs of frames `f` and later are dropped, and records already sent for the current frame are discarded. The host plays the frames again with whatever inputs it now has. |
+| `Inputs(f)` | the inputs of a past frame (`OldestFrame <= f < Frame`): its **actions** in order (spawn, despawn, set, send, send from a source) and its **records** (an unordered multiset of 8-byte records as they were sent). Read, add, insert, replace and remove both. Every change marks `f` as edited; a call refused for a bad index changes and marks nothing. |
 | `Resimulate()` | goes back to the earliest edited frame and steps forward to the frame the world was at, each step consuming that frame's logged inputs. Actions already taken in the current frame are taken again on the new state. Nothing is edited: nothing happens. |
 | `BeginResimulate()`, `Resimulating` | the same, for a host that steps the world itself: `ColumnRunner.Resimulate()` and Unity's `ColumnStepper.Resimulate()` loop `Step()` while `Resimulating`. |
 
