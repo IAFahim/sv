@@ -50,7 +50,7 @@ namespace Sv.Pack
                 code.Line("public static void Apply(in int total, ref " + cell + " card) => card.Value = total > card.Value ? total : card.Value;");
                 code.Close();
                 code.Blank();
-                code.Line("[TlClip(\"" + rootNamespace + "/" + card + " card\")]");
+                code.Line("[TlClip(" + Names.Literal(rootNamespace + "/" + card + " card") + ")]");
                 code.Line("public struct " + clip + " { public int Level; }");
                 code.Blank();
                 code.Open("public struct " + cell + TrackSuffix + " : ITlTrack<" + clip + ">");
@@ -78,7 +78,7 @@ namespace Sv.Pack
                 code.Line("public static void Apply(in int total, ref " + cell + " outbox) => outbox.Value += total;");
                 code.Close();
                 code.Blank();
-                code.Line("[TlClip(\"" + rootNamespace + "/" + outbox.Channel + "\")]");
+                code.Line("[TlClip(" + Names.Literal(rootNamespace + "/" + outbox.Channel) + ")]");
                 code.Line("public struct " + name + ClipSuffix + " { public int Amount; }");
                 code.Blank();
                 code.Open("public struct " + name + TrackSuffix + " : ITlTrack<" + name + ClipSuffix + ">");
@@ -254,8 +254,58 @@ namespace Sv.Pack
             return code.ToString();
         }
 
+        public static List<string> Problems(ColumnPack pack)
+        {
+            var problems = new List<string>();
+            var owners = new Dictionary<string, string>(StringComparer.Ordinal);
+            void Claim(string type, string owner)
+            {
+                if (owners.TryGetValue(type, out var other))
+                {
+                    if (other != owner)
+                    {
+                        problems.Add("timelines: " + other + " and " + owner + " both become the glue type " + type + "; rename one");
+                    }
+
+                    return;
+                }
+
+                owners[type] = owner;
+            }
+
+            Claim("TimelineRequests", "the timeline requests class");
+            Claim("TimelineRules", "the timeline rules class");
+            foreach (var card in pack.Timelines.Cards)
+            {
+                var cell = CardCell(card);
+                var owner = "card '" + card + "'";
+                foreach (var type in new[] { cell, cell + FeedSuffix, cell + ClipSuffix, cell + TrackSuffix })
+                {
+                    Claim(type, owner);
+                }
+            }
+
+            foreach (var outbox in pack.Timelines.Outbox)
+            {
+                var name = Pascal(outbox.Channel);
+                var owner = "outbox channel '" + outbox.Channel + "'";
+                foreach (var type in new[] { OutboxCell(outbox.Channel), name + FeedSuffix, name + ClipSuffix, name + TrackSuffix })
+                {
+                    Claim(type, owner);
+                }
+            }
+
+            return problems;
+        }
+
         public static List<EmittedFile> Files(ColumnPack pack, string rootNamespace, bool unity)
         {
+            var problems = Problems(pack);
+            if (problems.Count > 0)
+            {
+                throw new PackException(problems);
+            }
+
             var files = new List<EmittedFile> { new EmittedFile(FileName, Emit(pack, rootNamespace, unity)) };
             if (unity)
             {
@@ -285,15 +335,6 @@ namespace Sv.Pack
             return identifier[0] >= 'a' && identifier[0] <= 'z' ? char.ToUpperInvariant(identifier[0]) + identifier.Substring(1) : identifier;
         }
 
-        static string Literal(string text)
-        {
-            var quoted = new System.Text.StringBuilder(text.Length + 2).Append('"');
-            foreach (var c in text)
-            {
-                quoted.Append(c == '"' || c == '\\' ? "\\" + c : c.ToString());
-            }
-
-            return quoted.Append('"').ToString();
-        }
+        static string Literal(string text) => Names.Literal(text);
     }
 }

@@ -191,10 +191,12 @@ namespace Sv.Pack
             }
 
             Sv.Columns.ColumnPack pack;
+            List<EmittedFile> files;
             try
             {
                 pack = Sv.Columns.PackJson.Read(File.ReadAllText(file));
                 pack.Compile().Dispose();
+                files = ColumnsGlue.Files(pack, rootNamespace, unity);
             }
             catch (Sv.Columns.PackException error)
             {
@@ -206,7 +208,6 @@ namespace Sv.Pack
                 return Failed;
             }
 
-            var files = ColumnsGlue.Files(pack, rootNamespace, unity);
             Directory.CreateDirectory(output);
             var written = 0;
             for (var i = 0; i < files.Count; i++)
