@@ -1,6 +1,6 @@
 # sv: API and architecture brief for a senior engineer
 
-Release `v3.0.0-rc.4`. This document is meant to be read once, top to bottom, by someone who will judge the design. The host snippets in section 5 are excerpts of one complete program, **`samples/Sv.ApiTour/Program.cs`**, which compiles with warnings as errors; run it yourself and compare:
+Release `v3.0.0`. This document is meant to be read once, top to bottom, by someone who will judge the design. The host snippets in section 5 are excerpts of one complete program, **`samples/Sv.ApiTour/Program.cs`**, which compiles with warnings as errors; run it yourself and compare:
 
 ```sh
 dotnet run -c Release --project samples/Sv.ApiTour

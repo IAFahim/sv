@@ -1,6 +1,6 @@
 # 0390 stat layers and derived stats (v3.2.0): readings taken
 
-Status: implemented on `v3/s2-layers` (owner approval pending on `contract/CONTRACT-v3.2.0-stat-layers.md`).
+Status: closed (2026-11-26, the owner approved `contract/CONTRACT-v3.2.0-stat-layers.md` as written: "Approve both", asked together with the v3.0.0 release; shipped in v3.0.0)
 
 Additive amendments over `v3.0.1` and `v3.1.0` implementing Clauses 39 (`core` then `external` stat fold layers) and 40 (`derive` linear and curve row form on stats). Packs omitting `"layer"` and `"derive"` stay byte-identical and preserve every existing `PackHash` and digest.
 
