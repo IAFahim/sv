@@ -98,7 +98,7 @@ namespace Sv.Rules.Emit
                 code.Open("public static void AddTo(global::Unity.Entities.DynamicBuffer<global::Sv.Unity.Timelines.SvTimelineRule> rules, global::System.Func<string, ushort> findTimeline)");
                 for (var i = 0; i < requests.Count; i++)
                 {
-                    code.Line("rules.Add(new global::Sv.Unity.Timelines.SvTimelineRule { Event = (int)global::" + rootNamespace + ".Event." + Names.Identifier(requests[i].Name) + ", Timeline = findTimeline(\"" + requests[i].Starts + "\") });");
+                    code.Line("rules.Add(new global::Sv.Unity.Timelines.SvTimelineRule { Event = (int)global::" + rootNamespace + ".Event." + Names.Identifier(requests[i].Name) + ", Timeline = findTimeline(" + Names.Literal(requests[i].Starts) + ") });");
                 }
 
                 code.Close();
@@ -154,7 +154,7 @@ namespace Sv.Rules.Emit
             code.Block();
             for (var i = 0; i < events.Count; i++)
             {
-                code.Line("\"" + events[i].Starts + "\",");
+                code.Line(Names.Literal(events[i].Starts) + ",");
             }
 
             code.Close("};");
@@ -212,7 +212,7 @@ namespace Sv.Rules.Emit
             code.Line("public static void Apply(in int total, ref " + name + OutSuffix + " outbox) => outbox.Value += total;");
             code.Close();
             code.Blank();
-            code.Line("[TlClip(\"" + rootNamespace + "/" + channel + "\")]");
+            code.Line("[TlClip(" + Names.Literal(rootNamespace + "/" + channel) + ")]");
             code.Line("public struct " + name + ClipSuffix + " { public int Amount; }");
             code.Blank();
             code.Open("public struct " + name + TrackSuffix + " : ITlTrack<" + name + ClipSuffix + ">");

@@ -9,6 +9,8 @@ namespace Sv.Columns
         readonly uint slotCount;
         ulong* records;
         int capacity;
+        int limit;
+        bool locked;
         long refusedAtSend;
 
         internal RecordWriter(ColumnWorld world, int initialCapacity)
@@ -17,6 +19,7 @@ namespace Sv.Columns
             slotCount = (uint)world.Capacity;
             capacity = Math.Max(initialCapacity, 64);
             records = Native.Zeroed<ulong>(capacity);
+            limit = capacity;
         }
 
         public int Count { get; private set; }
@@ -66,6 +69,7 @@ namespace Sv.Columns
                 throw new ObjectDisposedException(nameof(RecordWriter));
             }
 
+            Unlocked();
             refusedAtSend++;
         }
 
@@ -78,7 +82,7 @@ namespace Sv.Columns
 
         void Append(ulong record)
         {
-            if (Count == capacity)
+            if (Count == limit)
             {
                 Grow();
             }
@@ -86,11 +90,26 @@ namespace Sv.Columns
             records[Count++] = record;
         }
 
+        void Unlocked()
+        {
+            if (locked)
+            {
+                throw new InvalidOperationException("a frame is running: send before BeginFrame or OpenFrame, or after EndFrame or CloseFrame");
+            }
+        }
+
         void Grow()
         {
             if (records == null)
             {
                 throw new ObjectDisposedException(nameof(RecordWriter));
+            }
+
+            Unlocked();
+            if (Count < capacity)
+            {
+                limit = capacity;
+                return;
             }
 
             if (capacity >= int.MaxValue / 2)
@@ -103,14 +122,31 @@ namespace Sv.Columns
             Native.Free(records);
             records = grown;
             capacity *= 2;
+            limit = capacity;
         }
 
-        internal void Clear() => Count = 0;
+        internal void Lock()
+        {
+            locked = true;
+            limit = Count;
+        }
+
+        internal void Unlock()
+        {
+            locked = false;
+            limit = capacity;
+        }
+
+        internal void Clear()
+        {
+            Count = 0;
+            limit = locked ? 0 : capacity;
+        }
 
         internal void Replay(long refused)
         {
             refusedAtSend = refused;
-            Count = 0;
+            Clear();
         }
 
         public void Dispose()
@@ -118,6 +154,7 @@ namespace Sv.Columns
             Native.Free(records);
             records = null;
             capacity = 0;
+            limit = 0;
             Count = 0;
         }
     }
