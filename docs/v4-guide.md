@@ -2,7 +2,7 @@
 
 sv v4 (`src/Sv.Columns`, Unity package `com.sv.columns`) does one thing: it folds many integer contributions per entity into named lanes, once per frame, in a fixed order, with the same result on every machine, thread count and instruction set. It is a preview in the v3.0.0 tag: its API may change before 4.0.0, and v3 games do not need it.
 
-This file is the course: what v4 is for, a program you can run, the host API, Unity, and how a v3 pack maps onto it. The law itself is `docs/v4-spec.md`; the reasons and the numbers are `docs/v4-design.md`.
+This file is the course: what v4 is for, a program you can run, the host API, Unity, tl, and how a v3 pack maps onto it. The law itself is `docs/v4-spec.md`; the reasons and the numbers are `docs/v4-design.md`.
 
 ## 1. When to use v4, and when v3
 
@@ -85,7 +85,25 @@ var hp = world.Get(knight, pack.Lane("Health"));
 
 Unity 7 (CoreCLR), no package dependencies. `ColumnHost` (a MonoBehaviour) opens a world from a JSON `TextAsset`, steps it in `LateUpdate`, `FixedUpdate` or on demand, raises `Stepped` and disposes everything with its object. `ColumnStepper(world).Schedule(dependsOn)` runs a frame on the job system. The package is `src/Sv.Columns` copied verbatim (`eng/columns-sync.sh`), and its EditMode tests assert the same pinned digest as .NET on every kernel, on jobs and through `ColumnHost`.
 
-## 6. From v3 to v4
+## 6. With tl (timelines)
+
+v4 has no generated tl glue yet (issue 0522). Two patterns work today, both from game code between frames:
+
+- **A timeline switches a card.** When the timeline starts, set the card's lane (`world.Set(slot, pack.CardLane("burning"), 3)`); the card's ops do the per-frame work as column kernels, with no records at all, and a timer channel that flows back into the lane ends it. This is the fast path and the one to prefer.
+- **A timeline emits amounts.** tl writes one int per slot (an outbox column, as in v3). Before `Step`, send each non-zero cell with `SendFrom(slot, target, channel, cell)` and zero it, as v3's `Outbox.Send` does.
+
+```csharp
+for (var slot = 0; slot < cells.Length; slot++)
+{
+    if (cells[slot] != 0)
+    {
+        writer.SendFrom(slot, slot, channel, cells[slot]);
+        cells[slot] = 0;
+    }
+}
+```
+
+## 7. From v3 to v4
 
 | v3 | v4 |
 |---|---|
@@ -102,7 +120,7 @@ Unity 7 (CoreCLR), no package dependencies. `ColumnHost` (a MonoBehaviour) opens
 
 What does not port: rules that react to each record (thorns, lifesteal, reflections, per-hit absorb, rolls), statuses as entities, rewind and late input. Keep those in v3 or in game code. A v4 pack and a v3 pack are different files; nothing converts one into the other yet.
 
-## 7. Sharp edges
+## 8. Sharp edges
 
 - **Integers only.** Lanes are int32; sums are int64 and saturate to int32 once, when stored. `convert` rounds down once per entity per frame, on the sum.
 - **Frame-start reads.** Gates, scale, convert and op conditions read the lanes as they were when the frame started: a hit that drops health below 30% turns on a low-health op or scale next frame, not this one. Events are the exception: they read the lanes just stored, so `Low` enters on the frame of the hit (sample frame 2).
