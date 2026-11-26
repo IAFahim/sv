@@ -722,4 +722,200 @@ public sealed class HistoryTests
         Assert.Equal(fresh.Digest().ToString("X16"), world.Digest().ToString("X16"));
         Assert.Equal(fresh.Dropped, world.Dropped);
     }
+
+    static (ulong Digest, long Dropped) FreshWithDropped(FrameScript script, CompiledPack pack, int capacity, int frames)
+    {
+        using var world = new ColumnWorld(pack, capacity);
+        for (var f = 0; f < frames; f++)
+        {
+            foreach (var action in script.Actions[f])
+            {
+                FrameScript.Apply(world, action);
+            }
+
+            foreach (var record in script.Records[f])
+            {
+                world.Writer(0).SendRecord(record);
+            }
+
+            world.Step();
+        }
+
+        return (world.Digest(), world.Dropped);
+    }
+
+    static void EditWithoutSpawning(ColumnWorld world, FrameScript script, Dice dice, int frame)
+    {
+        var pack = world.Pack;
+        var inputs = world.Inputs(frame);
+        var actions = script.Actions[frame];
+        var records = script.Records[frame];
+        var slot = dice.Chance(10) ? world.Capacity + dice.Next(9) : dice.Next(world.Capacity);
+        var channel = dice.Next(pack.ChannelNames.Count);
+        ColumnAction action = dice.Next(3) switch
+        {
+            0 => ColumnAction.Send(slot, channel, dice.Range(-40, 40), dice.Range(1, 3)),
+            1 => ColumnAction.SendFrom(dice.Next(world.Capacity), slot, channel, dice.Range(-40, 40), dice.Range(1, 3)),
+            _ => ColumnAction.Set(slot, dice.Next(pack.LaneNames.Count - 2), dice.Range(-5, 120)),
+        };
+
+        var logged = actions.Count > 0 ? dice.Next(actions.Count) : -1;
+        var structural = logged >= 0 && (actions[logged].Kind == ColumnActionKind.Spawn || actions[logged].Kind == ColumnActionKind.Despawn);
+        switch (dice.Next(6))
+        {
+            case 0:
+                var at = dice.Next(actions.Count + 1);
+                inputs.InsertAction(at, action);
+                actions.Insert(at, action);
+                break;
+            case 1 when logged >= 0 && !structural:
+                inputs.RemoveAction(logged);
+                actions.RemoveAt(logged);
+                break;
+            case 2 when logged >= 0 && !structural:
+                inputs.ReplaceAction(logged, action);
+                actions[logged] = action;
+                break;
+            case 3 when records.Count > 0:
+                var lost = dice.Next(records.Count);
+                inputs.RemoveRecord(lost);
+                records[lost] = records[records.Count - 1];
+                records.RemoveAt(records.Count - 1);
+                break;
+            case 4 when records.Count > 0:
+                var swapped = dice.Next(records.Count);
+                var record = Record.Pack(slot % world.Capacity, channel, dice.Next(4), (uint)dice.Next(256), dice.Range(-40, 40));
+                inputs.ReplaceRecord(swapped, record);
+                records[swapped] = record;
+                break;
+            default:
+                var added = Record.Pack(slot % world.Capacity, channel, 0, 0, dice.Range(-40, 40));
+                inputs.AddRecord(added);
+                records.Add(added);
+                break;
+        }
+    }
+
+    [Theory]
+    [InlineData(KernelChoice.Scalar, 1, 1, 11ul)]
+    [InlineData(KernelChoice.Best, 1, 1, 12ul)]
+    [InlineData(KernelChoice.Best, 3, 5, 13ul)]
+    [InlineData(KernelChoice.Vector, 2, 3, 14ul)]
+    [InlineData(KernelChoice.Best, 4, 9, 15ul)]
+    [InlineData(KernelChoice.Scalar, 2, 2, 16ul)]
+    public void AnEditThatSpawnsNothingReplaysOnlyWhatItReachesAndEqualsAFreshRun(KernelChoice kernels, int writers, int parts, ulong seed)
+    {
+        using var pack = Arena();
+        const int capacity = 64 * 48;
+        const int frames = 50;
+        using var world = new ColumnWorld(pack, capacity, writers, parts, kernels, history: 12);
+        var dice = new Dice(seed * 7919);
+        var script = new FrameScript();
+        for (var i = 0; i < capacity * 3 / 4; i++)
+        {
+            world.Spawn(dice.Next(pack.TemplateNames.Count));
+        }
+
+        for (var i = 0; i < 300; i++)
+        {
+            var gone = dice.Next(capacity);
+            if (world.IsAlive(gone))
+            {
+                world.Despawn(gone);
+            }
+        }
+
+        var live = Alive(world);
+        for (var f = 0; f < frames; f++)
+        {
+            if (dice.Chance(30))
+            {
+                world.Set(dice.Pick(live), dice.Next(pack.LaneNames.Count - 2), dice.Range(-5, 60));
+            }
+
+            if (dice.Chance(10))
+            {
+                var gone = dice.Pick(live);
+                world.Despawn(gone);
+                live.Remove(gone);
+                live.Add(world.Spawn(dice.Next(pack.TemplateNames.Count)));
+            }
+
+            for (var r = dice.Range(0, 400); r > 0; r--)
+            {
+                var writer = world.Writer(dice.Next(world.Writers));
+                var target = dice.Chance(8) ? dice.Next(capacity) : dice.Pick(live);
+                var channel = dice.Next(pack.ChannelNames.Count);
+                if (dice.Chance(25))
+                {
+                    writer.SendFrom(dice.Pick(live), target, channel, dice.Range(-12, 28), dice.Range(1, 3));
+                }
+                else
+                {
+                    writer.Send(target, channel, dice.Range(-12, 28));
+                }
+            }
+
+            world.Step();
+            script.Capture(world, f);
+            if (f < 4 || !dice.Chance(50))
+            {
+                continue;
+            }
+
+            for (var e = dice.Range(1, 3); e > 0; e--)
+            {
+                EditWithoutSpawning(world, script, dice, world.OldestFrame + dice.Next(world.Frame - world.OldestFrame));
+            }
+
+            world.Resimulate();
+            for (var k = world.OldestFrame; k < world.Frame; k++)
+            {
+                script.Capture(world, k);
+            }
+
+            var fresh = FreshWithDropped(script, pack, capacity, f + 1);
+            Assert.Equal(fresh.Digest.ToString("X16"), world.Digest().ToString("X16"));
+            Assert.Equal(fresh.Dropped, world.Dropped);
+        }
+    }
+
+    [Fact]
+    public void ALateSendFromReadsItsSourceAsItWasInThatFrame()
+    {
+        var spec = new ColumnPack();
+        spec.Lanes.Add(new LaneSpec("Health", 100));
+        spec.Lanes.Add(new LaneSpec("MaxHealth", 100));
+        spec.Channels.Add("Physical");
+        spec.Templates.Add(new TemplateSpec("dummy"));
+        spec.Templates.Add(new TemplateSpec("executioner"));
+        spec.Rules.Add(new ScaleRule(new[] { "Physical" }, 2, Cond.Gt("Health", -1000), Cond.Below("Health", "MaxHealth", 20)));
+        spec.Rules.Add(new FlowRule("Health", System.Array.Empty<string>(), new[] { "Physical" }));
+        using var pack = spec.Compile();
+        using var fresh = new ColumnWorld(pack, 256);
+        using var world = new ColumnWorld(pack, 256, history: 16);
+        var physical = pack.Channel("Physical");
+        var targetFresh = fresh.Spawn(pack.Template("dummy"));
+        var sourceFresh = fresh.Spawn(pack.Template("executioner"));
+        var target = world.Spawn(pack.Template("dummy"));
+        var source = world.Spawn(pack.Template("executioner"));
+        for (var f = 0; f < 12; f++)
+        {
+            if (f == 3)
+            {
+                fresh.Writer(0).SendFrom(sourceFresh, targetFresh, physical, 10);
+            }
+
+            fresh.Writer(0).Send(sourceFresh, physical, 9);
+            fresh.Step();
+            world.Writer(0).Send(source, physical, 9);
+            world.Step();
+        }
+
+        Assert.True(world.Get(source, pack.Lane("Health")) < 20);
+        world.Inputs(3).AddAction(ColumnAction.SendFrom(source, target, physical, 10));
+        world.Resimulate();
+        Assert.Equal(fresh.Get(targetFresh, pack.Lane("Health")), world.Get(target, pack.Lane("Health")));
+        Assert.Equal(fresh.Digest().ToString("X16"), world.Digest().ToString("X16"));
+    }
 }

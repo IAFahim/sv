@@ -198,29 +198,26 @@ What a logged input means when it is replayed:
 
 Rules: `Resimulate` throws when records for the current frame are already sent (resimulate first, then send) and when an edited frame has already left the window. Spawn, despawn, set and `Rewind` throw while `Resimulating`; `Rewind` and `Resimulate` throw between `BeginFrame` and `EndFrame`, and every history call throws `ObjectDisposedException` after `Dispose`. `Rewind(f)` keeps edits to frames before `f`: the next `Resimulate` starts from the earliest of them. Sends refused at send (a target outside capacity, a channel past 16) are logged as a count per frame, so `Dropped` after a resimulate equals a fresh run's. A warm frame and a warm resimulate allocate 0 bytes on the managed heap; the log grows by doubling in native memory.
 
-Cost (`Sv.Columns.Bench history`, 4 threads, Vector256, the bench pack: 14 lanes, 500 ops and 10 records per entity, H = 8, 0 B allocated, resimulated digest bit-identical):
+Partial replay. `Resimulate` replays only the chunks an edit can reach and leaves every other chunk as it is now. A chunk is replayed when an edited action or record targets a row in it, when an edited `SendFrom` action reads a source in it, or when any action logged from the edited frame to now targets it (a logged action is applied again on replay, so its chunk has to start from the checkpoint). Nothing a left chunk reads has changed: each entity folds only the records sent to it, logged records are frozen as sent, and only a `SendFrom` action reads another entity. A left chunk is not restored, folded or resolved; its records are only counted, so `Dropped` stays exact. An edit that spawns or despawns replays the whole world, because it can move the slots later spawns get. Replay reads the logged records where they are kept instead of copying them back into the writers. The law above holds as it stands, and the fuzz runs edits that spawn nothing (partial) next to edits that do (whole world), against fresh runs.
 
-| | 20k entities | 1M entities |
-|---|---|---|
-| step without history | 0.71 ms | 36.1 ms |
-| step with history (keeps the checkpoint) | 0.78 ms (+0.07) | 42.2 ms (+6.1) |
-| memory per entity | 650 B checkpoints + 720 B record log | same |
-| `Rewind` | 0.15 ms | 11.6 ms |
-| `Resimulate` 1 / 4 / 8 frames | 1.1 / 3.6 / 6.8 ms | 63 / 210 / 427 ms |
-
-Memory per entity is `(H + 1) * (4 * lanes + 16)` bytes for checkpoints plus `(H + 1) * 8` bytes per record sent per entity per frame, at capacity.
-
-Choosing H. History is off unless the host opens it, and nothing in the library fixes a window: the 8 above is the value the tests, the sample and this table use. Size it as the longest rollback you will accept, in frames: `H = ceil(max rollback latency in seconds x tick rate)`, where the latency is the slowest input you still correct (round trip plus input delay and jitter margin), and a later input is dropped or handled by the host. A 128 Hz game that corrects inputs up to 250 ms late needs `H = 32`; at 60 Hz the same 250 ms is 15; 500 ms at 128 Hz is 64. A wider window costs memory and the worst-case replay, not frame time: the per-frame checkpoint copy is one ring slot whatever H is, and a rewind is one slot copied back. The first lap around the ring is slower while the operating system maps the new slots' pages; after H frames the cost is the steady one below.
-
-Wider windows (`Sv.Columns.Bench history <entities> 500 4 <frames> <H>`, same machine and pack, one run each, after the ring's first lap; the step with no history was 0.85 to 1.05 ms at 20k and 46.5 to 47.8 ms at 1M in these runs):
+Cost (`Sv.Columns.Bench history <entities> 500 4 <frames> <H>`, 4 threads, Vector256, the bench pack: 14 lanes, 500 ops and 10 records per entity, after the ring's first lap, 0 B allocated, resimulated digest bit-identical). A step without history took 0.9 to 1.1 ms at 20k and 44 to 50 ms at 1M in these runs.
 
 | | H = 8 | H = 32 | H = 64 |
 |---|---|---|---|
 | memory per entity (checkpoints + record log) | 650 B + 720 B | 2.4 KB + 2.6 KB | 4.7 KB + 5.2 KB |
 | at 1M entities | 1.4 GB | 5.0 GB | 9.9 GB |
-| step overhead, 20k / 1M | +0.09 ms / +8.0 ms | +0.23 ms / +6.8 ms | +0.30 ms / not run |
-| `Rewind`, 20k / 1M | 0.21 / 13.2 ms | 0.20 / 12.6 ms | 0.21 ms / not run |
-| `Resimulate` the whole window, 20k / 1M | 10.2 / 537 ms | 41.6 / 2118 ms | 93.2 ms / not run |
+| step overhead, 20k / 1M | under 0.45 ms / +3.8 ms | under 0.25 ms / +13.3 ms | under 0.1 ms / +9.7 ms |
+| `Rewind`, 20k / 1M | 0.18 / 13.0 ms | 0.19 / 12.3 ms | 0.17 / 14.7 ms |
+| one late input at the oldest frame, 20k | 5.0 ms (was 10.2) | 14.2 ms (was 41.6) | 13.2 ms (was 93.2) |
+| one late input at the oldest frame, 1M | 51 ms (was 537) | 240 ms (was 2118) | 478 ms |
+| an edit in every chunk at the oldest frame, 20k / 1M | 9.3 / 483 ms | 34.8 / 1800 ms | 64.2 / 3252 ms |
 
-Replaying costs about one step per frame replayed, so the window a game can afford is set by how many frames it can replay inside one tick: a full 32-frame replay of 20k entities takes about 42 ms on 4 threads, more than five 128 Hz ticks of 7.8 ms, so a game that rolls back that far does it rarely, or keeps in the rollback world only the entities that need it, since replay work grows with the entities that take part.
+"Was" is the same measurement before partial replay; 1M at H = 64 was not run then, and the every-chunk row, which replays the whole world, stands in for it. The 20k rows are the median of three runs, since one replayed frame there is a few tenths of a millisecond and thread hand-offs dominate; the 1M rows are one run.
 
+Memory per entity is `(H + 1) * (4 * lanes + 16)` bytes for checkpoints plus `(H + 1) * 8` bytes per record sent per entity per frame, at capacity.
+
+Choosing H. History is off unless the host opens it, and nothing in the library fixes a window: 8 is only the value the tests and the sample use. Size it as the longest rollback you will accept, in frames: `H = ceil(max rollback latency in seconds x tick rate)`, where the latency is the slowest input you still correct (round trip plus input delay and jitter margin), and a later input is dropped or handled by the host. A 128 Hz game that corrects inputs up to 250 ms late needs `H = 32`; at 60 Hz the same 250 ms is 15; 500 ms at 128 Hz is 64. A wider window costs memory and the worst whole-world replay, not frame time: the per-frame checkpoint copy is one ring slot whatever H is, and a rewind is one slot copied back. The first lap around the ring is slower while the operating system maps the new slots' pages; after H frames the cost is the steady one in the table.
+
+A late input now costs one pass over the logged records per frame replayed (about 6 to 7 ms per frame at 1M entities and 10M records on 4 threads) plus a step of only the chunks it reaches, so a correction to a few entities stays cheap however wide the window is. A replay of the whole world still costs about one step per frame: a game whose corrections reach everything, or that spawns and despawns in the past, should size H by how many whole frames it can replay inside a tick. Memory is the one cost that grows with H for every game.
+
+Considered and not adopted. A checkpoint every K frames (keyframes) cuts only the checkpoint half of memory, to about 1/K, and turns a rewind from one ring slot copied back into a restore plus up to K - 1 replayed whole-world frames (at 1M with H = 32 and K = 4: about 1.7 GB saved, a rewind from 12 ms to about 150 ms). Per-frame deltas (keep only what changed) save nothing in the common case, because every live chunk runs its template's ops each tick and rewrites its rows.

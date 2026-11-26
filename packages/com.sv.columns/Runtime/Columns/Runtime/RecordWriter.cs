@@ -107,16 +107,10 @@ namespace Sv.Columns
 
         internal void Clear() => Count = 0;
 
-        internal void Load(ulong* source, int count, long refused)
+        internal void Replay(long refused)
         {
             refusedAtSend = refused;
-            while (capacity < count)
-            {
-                Grow();
-            }
-
-            Buffer.MemoryCopy(source, records, (long)capacity * 8, (long)count * 8);
-            Count = count;
+            Count = 0;
         }
 
         public void Dispose()

@@ -369,8 +369,21 @@ namespace Sv.Columns
         {
             Live();
             var source = writers[writer];
-            var records = source.Records;
-            var count = source.Count;
+            var lost = Fold(writer, source.Records, source.Count);
+            if (resimulating)
+            {
+                var records = LoggedRecords(writer, out var count);
+                lost += Fold(writer, records, count);
+            }
+
+            var refused = source.TakeRefused();
+            dropped[writer * 8] += lost + refused;
+            LogRecords(writer, source.Records, source.Count, refused);
+            source.Clear();
+        }
+
+        long Fold(int writer, ulong* records, int count)
+        {
             var writerBlocks = blocks + (long)writer * chunkCount;
             var writerStamps = stamps + (long)writer * chunkCount;
             var lost = 0L;
@@ -389,6 +402,12 @@ namespace Sv.Columns
                 }
 
                 var chunk = target >> 6;
+                if (!Replays(chunk))
+                {
+                    i = CountLostInChunk(records, i, count, chunk, alive[chunk], allAdmit, ref lost);
+                    continue;
+                }
+
                 var block = BlockFor(writerBlocks, writerStamps, chunk);
                 long missed;
                 i = Vectorized
@@ -397,10 +416,7 @@ namespace Sv.Columns
                 lost += missed;
             }
 
-            var refused = source.TakeRefused();
-            dropped[writer * 8] += lost + refused;
-            LogRecords(writer, records, count, refused);
-            source.Clear();
+            return lost;
         }
 
 #if NET
@@ -438,6 +454,27 @@ namespace Sv.Columns
             return at;
         }
 
+        static int CountLostInChunk(ulong* records, int at, int count, int chunk, ulong aliveWord, ulong allAdmit, ref long lost)
+        {
+            for (; at < count; at++)
+            {
+                var record = records[at];
+                var target = (int)(record >> Record.TargetShift);
+                if ((target >> 6) != chunk)
+                {
+                    break;
+                }
+
+                var shift = (((int)(record >> Record.ChannelShift) & 15) << 2) | ((int)(record >> Record.KindShift) & 3);
+                if (((aliveWord >> (target & (Rows - 1))) & (allAdmit >> shift) & 1ul) == 0)
+                {
+                    lost++;
+                }
+            }
+
+            return at;
+        }
+
         [MethodImpl(MethodImplOptions.NoInlining)]
         long* BlockFor(long** writerBlocks, int* writerStamps, int chunk)
         {
@@ -465,7 +502,7 @@ namespace Sv.Columns
             for (var chunk = from; chunk < to; chunk++)
             {
                 var chunkAlive = alive[chunk];
-                if (chunkAlive == 0)
+                if (chunkAlive == 0 || !Replays(chunk))
                 {
                     continue;
                 }

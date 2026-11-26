@@ -185,24 +185,35 @@ namespace Sv.Columns.Bench
             var keptStep = StepMedian(world, runner, workers, state, records, threads, frames, ref allocated);
             var exact = true;
             var line = new System.Text.StringBuilder();
-            foreach (var depth in new[] { 1, history / 2, history })
+            var one = new[] { traffic.Slots[0] };
+            var everyChunk = OnePerChunk(traffic.Slots);
+            foreach (var edited in new[] { one, everyChunk })
             {
-                var times = new double[5];
-                for (var i = 0; i < times.Length; i++)
+                line.Append(edited == one ? " one entity edited:" : " every chunk edited:");
+                foreach (var depth in new[] { 1, history / 2, history })
                 {
-                    Send(workers, state, records, threads);
-                    runner.Step();
-                    var before = world.Digest();
-                    world.Inputs(world.Frame - depth).AddAction(ColumnAction.Send(traffic.Slots[0], 0, 0));
-                    var bytes = GC.GetAllocatedBytesForCurrentThread();
-                    var start = Stopwatch.GetTimestamp();
-                    runner.Resimulate();
-                    times[i] = (Stopwatch.GetTimestamp() - start) * 1000.0 / Stopwatch.Frequency;
-                    allocated += GC.GetAllocatedBytesForCurrentThread() - bytes;
-                    exact &= world.Digest() == before;
-                }
+                    var times = new double[5];
+                    for (var i = 0; i < times.Length; i++)
+                    {
+                        Send(workers, state, records, threads);
+                        runner.Step();
+                        var before = world.Digest();
+                        var inputs = world.Inputs(world.Frame - depth);
+                        for (var e = 0; e < edited.Length; e++)
+                        {
+                            inputs.AddAction(ColumnAction.Send(edited[e], 0, 0));
+                        }
 
-                line.Append(string.Format(CultureInfo.InvariantCulture, " {0} frames {1:0.000} ms;", depth, Median(times)));
+                        var bytes = GC.GetAllocatedBytesForCurrentThread();
+                        var start = Stopwatch.GetTimestamp();
+                        runner.Resimulate();
+                        times[i] = (Stopwatch.GetTimestamp() - start) * 1000.0 / Stopwatch.Frequency;
+                        allocated += GC.GetAllocatedBytesForCurrentThread() - bytes;
+                        exact &= world.Digest() == before;
+                    }
+
+                    line.Append(string.Format(CultureInfo.InvariantCulture, " {0} frames {1:0.000} ms;", depth, Median(times)));
+                }
             }
 
             var rewinds = new double[5];
@@ -221,10 +232,26 @@ namespace Sv.Columns.Bench
             var checkpointBytes = (history + 1) * ((double)world.Chunks * (lanes * 64 * 4 + 64 * 16 + 12)) / capacity;
             var logBytes = (history + 1) * records * 8.0;
             Console.WriteLine(string.Format(CultureInfo.InvariantCulture,
-                "v4-history {0:N0} entities x ({1} ops + {2} records), {3} lanes, history {4}, {5} threads, {6}: step {7:0.000} ms without history, {8:0.000} ms with (+{9:0.000} ms); memory {10:0} B per entity for checkpoints + {11:0} B for the record log; rewind {12:0.000} ms; resimulate{13} alloc {14} B; resimulated digest {15}",
+                "v4-history {0:N0} entities x ({1} ops + {2} records), {3} lanes, history {4}, {5} threads, {6}: step {7:0.000} ms without history, {8:0.000} ms with (+{9:0.000} ms); memory {10:0} B per entity for checkpoints + {11:0} B for the record log; rewind {12:0.000} ms; resimulate:{13} alloc {14} B; resimulated digest {15}",
                 entities, ops, records, lanes, history, threads, world.KernelPath, plainStep, keptStep, keptStep - plainStep, checkpointBytes, logBytes,
                 Median(rewinds), line, allocated, exact ? "bit-identical" : "DIFFERENT"));
             return exact && allocated == 0 ? 0 : 1;
+        }
+
+        static int[] OnePerChunk(int[] slots)
+        {
+            var chunks = new System.Collections.Generic.SortedDictionary<int, int>();
+            foreach (var slot in slots)
+            {
+                if (!chunks.ContainsKey(slot >> 6))
+                {
+                    chunks.Add(slot >> 6, slot);
+                }
+            }
+
+            var picked = new int[chunks.Count];
+            chunks.Values.CopyTo(picked, 0);
+            return picked;
         }
 
         static int[] Spawn(ColumnWorld world, CompiledPack pack, int entities, int templates)

@@ -133,6 +133,10 @@ namespace Sv.Columns
         int resimulateTo;
         bool resimulating;
         bool applying;
+        ulong* editedChunks;
+        ulong* replayChunks;
+        ulong* replayMask;
+        bool structureEdited;
 
         public int History => historyFrames;
 
@@ -157,6 +161,8 @@ namespace Sv.Columns
             logs = Native.Zeroed<FrameLog>(ring);
             checkpoints = Native.Zeroed<Checkpoint>(ring);
             writerOffsets = Native.Zeroed<int>(writers.Length);
+            editedChunks = Native.Zeroed<ulong>(MaskWords);
+            replayChunks = Native.Zeroed<ulong>(MaskWords);
             for (var s = 0; s < ring; s++)
             {
                 var ck = checkpoints + s;
@@ -175,7 +181,69 @@ namespace Sv.Columns
             }
         }
 
+        int MaskWords => (chunkCount + 63) >> 6;
+
         FrameLog* LogOf(int at) => logs + at % ring;
+
+        bool Replays(int chunk) => replayMask == null || ((replayMask[chunk >> 6] >> (chunk & 63)) & 1ul) != 0;
+
+        static void MarkSlot(ulong* mask, int slot, int capacity)
+        {
+            if ((uint)slot < (uint)capacity)
+            {
+                var chunk = slot >> 6;
+                mask[chunk >> 6] |= 1ul << (chunk & 63);
+            }
+        }
+
+        void MarkEdited(ColumnAction action)
+        {
+            if (action.Kind == ColumnActionKind.Spawn || action.Kind == ColumnActionKind.Despawn)
+            {
+                structureEdited = true;
+            }
+
+            MarkSlot(editedChunks, action.Slot, Capacity);
+            if (action.Kind == ColumnActionKind.SendFrom)
+            {
+                MarkSlot(editedChunks, action.Source, Capacity);
+            }
+        }
+
+        void MarkEdited(ulong record) => MarkSlot(editedChunks, (int)(record >> Record.TargetShift), Capacity);
+
+        void ForgetEdits()
+        {
+            editedFrom = int.MaxValue;
+            structureEdited = false;
+            Native.Clear(editedChunks, (long)MaskWords * 8);
+        }
+
+        ulong* ReplayMaskFrom(int from)
+        {
+            if (structureEdited)
+            {
+                return null;
+            }
+
+            var words = MaskWords;
+            Buffer.MemoryCopy(editedChunks, replayChunks, (long)words * 8, (long)words * 8);
+            for (var at = from; at <= frame; at++)
+            {
+                var log = LogOf(at);
+                for (var i = 0; i < log->ActionCount; i++)
+                {
+                    var action = log->Actions[i];
+                    MarkSlot(replayChunks, action.Slot, Capacity);
+                    if (action.Kind == ColumnActionKind.SendFrom)
+                    {
+                        MarkSlot(replayChunks, action.Source, Capacity);
+                    }
+                }
+            }
+
+            return replayChunks;
+        }
 
         Checkpoint* CheckpointOf(int at) => checkpoints + at % ring;
 
@@ -241,12 +309,9 @@ namespace Sv.Columns
             }
 
             var log = LogOf(frame);
-            var count = log->RecordCount;
             for (var w = 0; w < writers.Length; w++)
             {
-                var from = (int)((long)count * w / writers.Length);
-                var to = (int)((long)count * (w + 1) / writers.Length);
-                writers[w].Load(log->Records + from, to - from, w == 0 ? log->Refused : 0);
+                writers[w].Replay(w == 0 ? log->Refused : 0);
             }
 
             ApplyLoggedActions(log);
@@ -332,6 +397,14 @@ namespace Sv.Columns
             }
         }
 
+        ulong* LoggedRecords(int writer, out int count)
+        {
+            var log = LogOf(frame - 1);
+            var from = (int)((long)log->RecordCount * writer / writers.Length);
+            count = (int)((long)log->RecordCount * (writer + 1) / writers.Length) - from;
+            return log->Records + from;
+        }
+
         void LogRecords(int writer, ulong* records, int count, long refused)
         {
             if (logs == null || resimulating)
@@ -386,6 +459,7 @@ namespace Sv.Columns
             if (frame == resimulateTo)
             {
                 resimulating = false;
+                replayMask = null;
                 ApplyLoggedActions(LogOf(frame));
             }
         }
@@ -426,7 +500,7 @@ namespace Sv.Columns
             {
                 var then = ck->Alive[c];
                 var now = alive[c];
-                if ((then | now) == 0)
+                if ((then | now) == 0 || !Replays(c))
                 {
                     continue;
                 }
@@ -505,7 +579,7 @@ namespace Sv.Columns
             LogOf(frame)->Refused = 0;
             if (editedFrom >= frame)
             {
-                editedFrom = int.MaxValue;
+                ForgetEdits();
             }
         }
 
@@ -539,7 +613,8 @@ namespace Sv.Columns
             }
 
             var from = editedFrom;
-            editedFrom = int.MaxValue;
+            replayMask = ReplayMaskFrom(from);
+            ForgetEdits();
             resimulateTo = frame;
             Restore(from);
             resimulating = true;
@@ -592,19 +667,23 @@ namespace Sv.Columns
 
             log->Actions[index] = action;
             log->ActionCount++;
+            MarkEdited(action);
         }
 
         internal void ReplaceAction(int at, int index, ColumnAction action)
         {
             var log = EditLog(at);
             CheckIndex(index, log->ActionCount);
+            MarkEdited(log->Actions[index]);
             log->Actions[index] = action;
+            MarkEdited(action);
         }
 
         internal void RemoveAction(int at, int index)
         {
             var log = EditLog(at);
             CheckIndex(index, log->ActionCount);
+            MarkEdited(log->Actions[index]);
             log->ActionCount--;
             for (var i = index; i < log->ActionCount; i++)
             {
@@ -629,19 +708,23 @@ namespace Sv.Columns
 
             EnsureRecords(log, log->RecordCount + 1);
             log->Records[log->RecordCount++] = record;
+            MarkEdited(record);
         }
 
         internal void ReplaceRecord(int at, int index, ulong record)
         {
             var log = EditLog(at);
             CheckIndex(index, log->RecordCount);
+            MarkEdited(log->Records[index]);
             log->Records[index] = record;
+            MarkEdited(record);
         }
 
         internal void RemoveRecord(int at, int index)
         {
             var log = EditLog(at);
             CheckIndex(index, log->RecordCount);
+            MarkEdited(log->Records[index]);
             log->RecordCount--;
             log->Records[index] = log->Records[log->RecordCount];
         }
@@ -677,6 +760,11 @@ namespace Sv.Columns
             Native.Free(logs);
             Native.Free(checkpoints);
             Native.Free(writerOffsets);
+            Native.Free(editedChunks);
+            Native.Free(replayChunks);
+            editedChunks = null;
+            replayChunks = null;
+            replayMask = null;
             logs = null;
             checkpoints = null;
             writerOffsets = null;
