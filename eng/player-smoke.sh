@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
 set -u
 root=$(cd "$(dirname "$0")/.." && pwd)
-U=${U:-$HOME/Unity/Hub/Editor/7000.0.0a16/Editor/Unity}
+win_path() {
+  case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*) cygpath -m "$1";;
+    *) printf '%s\n' "$1";;
+  esac
+}
+U=${U:-${UNITY:-$HOME/Unity/Hub/Editor/7000.0.0a16/Editor/Unity}}
 P=${P:-$HOME/sv-proto/player-smoke}
 SETTINGS=${SETTINGS:-$HOME/sv-proto/m8-harness/ProjectSettings}
 KEEP=${KEEP:-0}
@@ -31,8 +37,9 @@ if [ -n "${SV_GIT_REF:-}" ]; then
   engine_package="https://github.com/IAFahim/sv.git?path=/packages/com.sv.engine#$SV_GIT_REF"
   adapter_package="https://github.com/IAFahim/sv.git?path=/packages/com.sv.unity.v4#$SV_GIT_REF"
 else
-  engine_package="file:$root/packages/com.sv.engine"
-  adapter_package="file:$root/packages/com.sv.unity.v4"
+  root_uri=$(win_path "$root")
+  engine_package="file:$root_uri/packages/com.sv.engine"
+  adapter_package="file:$root_uri/packages/com.sv.unity.v4"
 fi
 cat > "$P/Packages/manifest.json" <<EOF
 {
@@ -58,14 +65,15 @@ asmdef "$P/Assets/Smoke/Packs/SvSmoke.Packs.asmdef" SvSmoke.Packs "$engine" "" f
 asmdef "$P/Assets/Smoke/Runtime/SvSmoke.Runtime.asmdef" SvSmoke.Runtime "\"SvSmoke.Packs\", $engine" "" true
 asmdef "$P/Assets/Editor/SvSmoke.Editor.asmdef" SvSmoke.Editor "" '"Editor"' true
 
-"$U" -batchmode -nographics -projectPath "$P" -executeMethod SmokeBuild.Build -logFile "$P/out/build.log"
+p_arg=$(win_path "$P")
+"$U" -batchmode -nographics -projectPath "$p_arg" -executeMethod SmokeBuild.Build -logFile "$p_arg/out/build.log"
 built=$?
 echo "packages: $engine_package target: $SMOKE_TARGET backend: $SMOKE_BACKEND"
 echo "build exit=$built errorCS=$(grep -c 'error CS' "$P/out/build.log") warningCS=$(grep -c 'warning CS' "$P/out/build.log") errorBC=$(grep -c 'error BC' "$P/out/build.log")"
 grep -E "SVSMOKE build" "$P/out/build.log"
 status=1
 if [ $built -eq 0 ] && [ -f "$P/Build/$exe" ]; then
-  timeout 900 "$P/Build/$exe" -batchmode -nographics -logFile "$P/out/player.log"
+  timeout 900 "$P/Build/$exe" -batchmode -nographics -logFile "$p_arg/out/player.log"
   status=$?
   burst=$(find "$P/Build/smoke_Data/Plugins" -name 'lib_burst_generated.*' 2>/dev/null | head -1)
   il2cpp=$(find "$P/Build" -maxdepth 1 \( -name 'GameAssembly.*' -o -name 'GameAssembly' \) 2>/dev/null | head -1)

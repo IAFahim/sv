@@ -1,0 +1,33 @@
+name: sv Windows player
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/windows-player.yml'
+      - 'eng/player-smoke.sh'
+      - 'eng/player-smoke/**'
+concurrency:
+  group: sv-windows-player-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  windows-player:
+    name: Windows player smoke (CoreCLR and IL2CPP)
+    runs-on: [self-hosted, Windows, X64, unity-win]
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Git Bash
+        run: |
+          command -v bash
+          bash --version
+      - name: CoreCLR Windows player smoke
+        run: bash eng/player-smoke.sh
+      - name: IL2CPP Windows player smoke
+        if: ${{ !cancelled() }}
+        env:
+          SMOKE_BACKEND: il2cpp
+        run: bash eng/player-smoke.sh
