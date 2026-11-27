@@ -27,6 +27,7 @@ jobs:
       - name: CoreCLR Windows player smoke
         run: bash eng/player-smoke.sh
       - name: IL2CPP Windows player smoke
+        if: ${{ !cancelled() }}
         env:
           SMOKE_BACKEND: il2cpp
         run: bash eng/player-smoke.sh
