@@ -1,6 +1,6 @@
 # sv v4 columns: the guide
 
-sv v4 (`src/Sv.Columns`, Unity package `com.sv.columns`) does one thing: it folds many integer contributions per entity into named lanes, once per frame, in a fixed order, with the same result on every machine, thread count and instruction set. It is a preview in the v3.0.0 tag: its API may change before 4.0.0, and v3 games do not need it.
+sv v4 (`src/Sv.Columns`, Unity package `com.sv.columns`) does one thing: it folds many integer contributions per entity into named lanes, once per frame, in a fixed order, with the same result on every machine, thread count and instruction set. It is a preview in the v3.0.0 and v3.1.0 tags: its API may change before 4.0.0, and v3 games do not need it.
 
 This file is the course: what v4 is for, a program you can run, the host API, Unity, tl, and how a v3 pack maps onto it. The law itself is `docs/v4-spec.md`; the reasons and the numbers are `docs/v4-design.md`.
 
@@ -81,7 +81,7 @@ var hp = world.Get(knight, pack.Lane("Health"));
 ## 5. Unity
 
 ```json
-"com.sv.columns": "https://github.com/IAFahim/sv.git?path=/packages/com.sv.columns#v3.0.0"
+"com.sv.columns": "https://github.com/IAFahim/sv.git?path=/packages/com.sv.columns#v3.1.0"
 ```
 
 Unity 7 (CoreCLR), no package dependencies. `ColumnHost` (a MonoBehaviour) opens a world from a JSON `TextAsset`, steps it in `LateUpdate`, `FixedUpdate` or on demand, raises `Stepped` and disposes everything with its object. `ColumnStepper(world).Schedule(dependsOn)` runs a frame on the job system. The package is `src/Sv.Columns` copied verbatim (`eng/columns-sync.sh`), and its EditMode tests assert the same pinned digest as .NET on every kernel, on jobs and through `ColumnHost`.

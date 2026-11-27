@@ -10,7 +10,7 @@ namespace Sv.Pack
 {
     internal static class Program
     {
-        const string ToolVersion = "3.0.0";
+        const string ToolVersion = "3.1.0";
 
         static readonly string Build = ToolVersion + "+" + typeof(Program).Assembly.ManifestModule.ModuleVersionId.ToString("N") + "+" + typeof(Sv.Rules.Emit.PackEmitter).Assembly.ManifestModule.ModuleVersionId.ToString("N");
         const string KeyFile = ".svpack.key";
