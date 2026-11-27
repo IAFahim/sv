@@ -13,6 +13,9 @@ The adapter's EditMode suite runs 140 tests. On Unity 7000.0.0a22, 29 fail: `Twi
 - The .NET side agrees with the journals on every leg (default, AVX2 off, scalar, checked) and on the six determinism hosts.
 - Ruled out on .NET: reads of uninitialized native memory (every `Memory.Alloc` filled with 0xA5: Laws, Scenario, Lego, Host and Twin.Fixtures all green) and stack locals without zeroing (`SkipLocalsInit` on Sv.Core, Sv.Host and the lego kernels: Lego, Twin.Fixtures and Host green).
 
+## The supported editor is not the CI editor
+README chapter 6, `docs/UNITY.md` and tl.unity name exactly 7000.0.0a16 as the supported editor, but `eng/unity-ci.sh` runs the newest editor installed on the runner (a21, then a22). So CI has not tested the editor users are told to install since the runner upgraded. The owner should pick one: point the job at a16 (`UNITY=<path to 7000.0.0a16>` in `.github/workflows/unity.yml`, if a16 is still installed on sv-unity-llm), or move the documented editor to a22 once this divergence is fixed.
+
 ## Next step (needs Unity 7000.0.0a22)
 1. Run one failing journal with Burst compilation off for the job types (Jobs > Burst > Enable Compilation off, or `BurstCompiler.Options.EnableBurstCompilation = false` in a test setup). Green means a Burst code generation change; red means the managed CoreCLR path or the engine mirror.
 2. If Burst: compare the phase digests frame by frame (the twin journal's per-frame digest and `FrameLoop.Marks` probes) to find the first phase that differs, then the job.
