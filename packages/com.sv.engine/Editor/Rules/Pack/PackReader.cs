@@ -854,6 +854,23 @@ namespace Sv.Rules
                 }
             }
 
+            for (var i = 0; i < array.Length; i++)
+            {
+                for (var j = 0; j < i; j++)
+                {
+                    if (string.CompareOrdinal(array[i].Name, array[j].Name) == 0)
+                    {
+                        Diagnostics.Error(DiagnosticCode.DuplicateName, file, array[i].Offset, -1, -1, "two cards are named " + array[i].Name + "; a rule, template or held naming it could mean either");
+                    }
+                }
+
+                var named = FindName(intrinsics, array[i].Name);
+                if (named != null && array[i].Intrinsic >= 0 && named.Id != array[i].Intrinsic)
+                {
+                    Diagnostics.Error(DiagnosticCode.DuplicateName, file, array[i].Offset, -1, -1, "card " + array[i].Name + " counts in a different intrinsic than the one named " + array[i].Name + "; a rule, template or held naming " + array[i].Name + " could mean either");
+                }
+            }
+
             cards = array;
         }
 
@@ -1002,7 +1019,16 @@ namespace Sv.Rules
                     }
                 }
 
-                read.Add(new TemplateDef(id, name, SortSettings(settings.ToArray()), forwards.ToArray(), row.Offset));
+                var sorted = SortSettings(settings.ToArray());
+                for (var i = 1; i < sorted.Length; i++)
+                {
+                    if (sorted[i - 1].Class == sorted[i].Class && sorted[i - 1].Id == sorted[i].Id)
+                    {
+                        Error(DiagnosticCode.DuplicateName, row, "template " + name + " sets " + SettingName(sorted[i]) + " twice; two of its values or cards land on the same value");
+                    }
+                }
+
+                read.Add(new TemplateDef(id, name, sorted, forwards.ToArray(), row.Offset));
             }
 
             var array = read.ToArray();
@@ -1022,6 +1048,20 @@ namespace Sv.Rules
             }
 
             return array;
+        }
+
+        string SettingName(ValueSetting setting)
+        {
+            var rows = setting.Class == ValueClass.Stat ? stats : setting.Class == ValueClass.Intrinsic ? intrinsics : events;
+            for (var i = 0; i < rows.Length; i++)
+            {
+                if (rows[i].Id == setting.Id)
+                {
+                    return rows[i].Name;
+                }
+            }
+
+            return Text(setting.Id);
         }
 
         static ValueSetting[] SortSettings(ValueSetting[] settings)

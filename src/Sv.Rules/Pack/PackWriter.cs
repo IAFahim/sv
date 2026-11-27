@@ -634,17 +634,17 @@ namespace Sv.Rules
                     var field = e.Args[0].Op == Op.RecordField ? e.Args[0].Field : RecordField.Amount;
                     for (var i = 0; i < e.Set.Length; i++)
                     {
-                        if (field == RecordField.Kind)
+                        var member = e.Set[i];
+                        var named = (field == RecordField.Kind || field == RecordField.Channel) && member >= 0 && member <= int.MaxValue
+                            ? schema.Find(field == RecordField.Kind ? ValueClass.Kind : ValueClass.Channel, (int)member)
+                            : null;
+                        if (named != null)
                         {
-                            writer.String(schema.NameOf(ValueClass.Kind, (int)e.Set[i]));
-                        }
-                        else if (field == RecordField.Channel)
-                        {
-                            writer.String(schema.NameOf(ValueClass.Channel, (int)e.Set[i]));
+                            writer.String(named.Name);
                         }
                         else
                         {
-                            writer.Int(e.Set[i]);
+                            writer.Int(member);
                         }
                     }
 

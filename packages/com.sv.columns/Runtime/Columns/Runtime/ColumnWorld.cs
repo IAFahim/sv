@@ -379,12 +379,22 @@ namespace Sv.Columns
 
             OpenRecordLog((int)total);
             frame++;
+            oldestKept = OldestFrame;
             stepping = true;
+            for (var w = 0; w < writers.Length; w++)
+            {
+                writers[w].Lock();
+            }
         }
 
         public void Reduce(int writer)
         {
             Running();
+            if ((uint)writer >= (uint)writers.Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(writer), "writer is 0 to " + (writers.Length - 1));
+            }
+
             var source = writers[writer];
             var lost = Fold(writer, source.Records, source.Count);
             if (resimulating)
@@ -513,6 +523,11 @@ namespace Sv.Columns
         public void Resolve(int part)
         {
             Running();
+            if ((uint)part >= (uint)parts)
+            {
+                throw new ArgumentOutOfRangeException(nameof(part), "part is 0 to " + (parts - 1));
+            }
+
             var from = (int)((long)chunkCount * part / parts);
             var to = (int)((long)chunkCount * (part + 1) / parts);
             var area = new Scratch(scratch + (long)part * scratchBytes, tables);
@@ -573,6 +588,11 @@ namespace Sv.Columns
         {
             Running();
             stepping = false;
+            for (var w = 0; w < writers.Length; w++)
+            {
+                writers[w].Unlock();
+            }
+
             KeepFrame();
         }
 

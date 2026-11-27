@@ -80,6 +80,28 @@ namespace Sv.Rules.Emit
             return Keywords.Contains(identifier) ? "@" + identifier : identifier;
         }
 
+        public static string Literal(string text)
+        {
+            var quoted = new StringBuilder(text.Length + 2).Append('"');
+            foreach (var c in text)
+            {
+                if (c == '"' || c == '\\')
+                {
+                    quoted.Append('\\').Append(c);
+                }
+                else if (c >= ' ' && c <= '~')
+                {
+                    quoted.Append(c);
+                }
+                else
+                {
+                    quoted.Append("\\u").Append(((int)c).ToString("X4", CultureInfo.InvariantCulture));
+                }
+            }
+
+            return quoted.Append('"').ToString();
+        }
+
         public static string Int(int value) => value == int.MinValue ? "int.MinValue" : value.ToString(CultureInfo.InvariantCulture);
 
         public static string Long(long value) => value == long.MinValue ? "long.MinValue" : value.ToString(CultureInfo.InvariantCulture) + "L";
