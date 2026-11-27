@@ -7,6 +7,9 @@
 
 - v4 columns: rollback on the Burst path. The fused frame keeps history like `Step()` (it used to throw on a world with `history > 0`): `OpenFrame` logs the writers' records, `KeepFrameRecords` logs records packed elsewhere, `CloseFrame(refused, lost)` logs the refused count, each resolved chunk is checkpointed, and `ResimulateFused` replays edited frames, partially when the edits spawn nothing. `ColumnsBurstHost` gains `Inputs`, `Rewind` and `Resimulate` as Burst jobs, and `ColumnsWorldAuthoring` a `History` field. Digests equal the classic world's, 0 B warm (spec section 10).
 
+### Changed
+- v4 columns rollback: an edit to a frame that leaves the history window before `Resimulate` runs is still refused, never dropped silently, but it no longer blocks the world for good. `DiscardLostEdits()` gives up the lost edit and keeps the edits still in the window (the next `Resimulate` starts from `OldestFrame`), and `EditedFrame` says which frame the next `Resimulate` starts from. The refusal message names the call (issue 0413, `docs/v4-spec.md` section 9).
+
 ### Faster
 - v4 columns fused frame: a record set already in chunk order with nothing outside the world is bucketed in place instead of copied, which removes one pass over the records in record-heavy Burst frames (issue 0526).
 
