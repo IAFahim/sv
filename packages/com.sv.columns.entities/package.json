@@ -1,11 +1,11 @@
 {
     "name": "com.sv.columns.entities",
-    "version": "4.0.0-preview.1",
+    "version": "4.0.0-preview.2",
     "displayName": "sv columns for Entities",
     "description": "sv v4 columns in Unity Entities with Burst: the frame runs as Burst jobs (records bucketed by chunk, then one resolve job per part), ECS systems send records from Burst jobs and read lanes without copies, packs bake into blob assets, and authoring components put entities on slots. Same digests as the .NET engine.",
     "unity": "7000.0",
     "dependencies": {
-        "com.sv.columns": "4.0.0-preview.1",
+        "com.sv.columns": "4.0.0-preview.2",
         "com.unity.entities": "7.0.0",
         "com.unity.burst": "2.0.0",
         "com.unity.collections": "7.0.0"

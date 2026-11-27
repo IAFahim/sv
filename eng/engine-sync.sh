@@ -74,7 +74,7 @@ if [ "$mode" = "sync" ]; then
   cat > "$dest/package.json" <<'JSON'
 {
     "name": "com.sv.engine",
-    "version": "3.0.0",
+    "version": "3.1.0",
     "displayName": "sv engine",
     "description": "sv v3 engine for Unity 7: Sv.Core and Sv.Host (runtime) and Sv.Rules (editor), synced verbatim by eng/engine-sync.sh",
     "unity": "7000.0"

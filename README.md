@@ -8,7 +8,7 @@ This file is the whole course. Read it top to bottom and you will know how sv wo
 
 **Who it is for:** programmers. A designer edits the four pack files (or the Pack Authoring window in Unity) and never writes C#.
 
-**Status:** release `v3.0.0` (what changed: `CHANGELOG.md`). Engine `com.sv.engine` 3.0.0, Unity adapter `com.sv.unity.v4` 4.0.0, contract v3.0.0 to v3.2.0 (`contract/`). The tag also carries a preview of sv v4 (`src/Sv.Columns`, Unity package `com.sv.columns` 4.0.0-preview.1, `docs/v4-guide.md`), which v3 games do not need.
+**Status:** release `v3.1.0` (what changed: `CHANGELOG.md`). Engine `com.sv.engine` 3.1.0, Unity adapter `com.sv.unity.v4` 4.1.0, contract v3.0.0 to v3.2.0 (`contract/`). The tag also carries a preview of sv v4 (`src/Sv.Columns`, Unity package `com.sv.columns` 4.0.0-preview.2, `docs/v4-guide.md`), which v3 games do not need.
 
 ## Contents
 
@@ -290,8 +290,8 @@ All of these are rows in `packs/reference` or `packs/lego`, each with scenario t
 **Use exactly Unity 7000.0.0a16** with Entities 7.0.0, Collections 7.0.0 and Burst 2.0.0 (the same editor as tl.unity). Add to `Packages/manifest.json`, pinned to a release tag:
 
 ```json
-"com.sv.engine": "https://github.com/IAFahim/sv.git?path=/packages/com.sv.engine#v3.0.0",
-"com.sv.unity.v4": "https://github.com/IAFahim/sv.git?path=/packages/com.sv.unity.v4#v3.0.0"
+"com.sv.engine": "https://github.com/IAFahim/sv.git?path=/packages/com.sv.engine#v3.1.0",
+"com.sv.unity.v4": "https://github.com/IAFahim/sv.git?path=/packages/com.sv.unity.v4#v3.1.0"
 ```
 
 The repository is public, so Unity clones it without credentials. With a local checkout use `"file:<sv checkout>/packages/com.sv.engine"` (and the same for the adapter) instead. `SV_GIT_REF=<tag> bash eng/player-smoke.sh` builds a player from exactly these git packages.
