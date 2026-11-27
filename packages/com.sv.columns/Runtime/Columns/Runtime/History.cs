@@ -610,7 +610,7 @@ namespace Sv.Columns
 
             if (editedFrom < OldestFrame)
             {
-                throw new InvalidOperationException("frame " + editedFrom + " was edited but has left the history window (oldest is " + OldestFrame + ")");
+                throw new InvalidOperationException("frame " + editedFrom + " was edited but has left the history window (oldest is " + OldestFrame + "): call DiscardLostEdits() to give up that edit and keep the edits still in the window");
             }
 
             var from = editedFrom;
@@ -619,6 +619,28 @@ namespace Sv.Columns
             resimulateTo = frame;
             Restore(from);
             resimulating = true;
+        }
+
+        public int EditedFrame => editedFrom == int.MaxValue ? -1 : editedFrom;
+
+        public int DiscardLostEdits()
+        {
+            Editable();
+            CheckHistory();
+            if (editedFrom == int.MaxValue || editedFrom >= OldestFrame)
+            {
+                return -1;
+            }
+
+            var lost = editedFrom;
+            if (OldestFrame >= frame)
+            {
+                ForgetEdits();
+                return lost;
+            }
+
+            editedFrom = OldestFrame;
+            return lost;
         }
 
         public void Resimulate()

@@ -423,10 +423,26 @@ public static class ApiTarget
 
         void Resimulate(bool useFused)
         {
+            if (world.EditedFrame != (pending == int.MaxValue ? -1 : pending))
+            {
+                throw new Finding("history", "EditedFrame is " + world.EditedFrame + " but the earliest edit not yet resimulated is " + pending);
+            }
+
             if (pending != int.MaxValue && pending < world.OldestFrame)
             {
                 Refused("Resimulate with frame " + pending + " edited and gone from the window", () => world.Resimulate(), state);
-                return;
+                if (dice.Chance(50))
+                {
+                    return;
+                }
+
+                var lost = world.DiscardLostEdits();
+                if (lost != pending || (world.EditedFrame != -1 && world.EditedFrame != world.OldestFrame))
+                {
+                    throw new Finding("history", "DiscardLostEdits returned " + lost + " for a lost edit at " + pending + " and left EditedFrame " + world.EditedFrame + " with the oldest frame " + world.OldestFrame);
+                }
+
+                pending = world.EditedFrame == -1 ? int.MaxValue : world.EditedFrame;
             }
 
             if (useFused)
